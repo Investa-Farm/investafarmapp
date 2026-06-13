@@ -11,3 +11,4 @@ export * from "./wallets";
 export * from "./otp_codes";
 export * from "./notifications";
 export * from "./push_subscriptions";
+export * from "./price_alerts";

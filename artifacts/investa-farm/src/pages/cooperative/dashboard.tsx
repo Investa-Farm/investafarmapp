@@ -51,13 +51,7 @@ export default function CooperativeDashboard() {
   return (
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-10">
       {/* Header */}
-      <div className="rounded-b-3xl px-5 pt-12 pb-5 text-white overflow-hidden relative"
-        style={{ background: "linear-gradient(135deg,#0f2027,#1a3a4f,#0f4c35)" }}>
-
-        {/* Background pattern */}
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.4' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E\")"
-        }} />
+      <div className="hero-header rounded-b-3xl px-5 pt-12 pb-5 text-white overflow-hidden relative">
 
         <div className="flex items-center justify-between mb-4 relative z-10">
           <div className="flex items-center gap-3">

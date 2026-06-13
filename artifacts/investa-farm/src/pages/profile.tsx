@@ -3,13 +3,14 @@ import { useGetMe, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, formatKES, getToken, storeUser, getStoredUser } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save } from "lucide-react";
+import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, Plus, ArrowUpRight, RefreshCw, ArrowLeft } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { InvestorKycModal } from "@/components/investor-kyc-modal";
 import { NotificationStatusRow } from "@/components/notification-prompt";
 import { AiAssistant } from "@/components/ai-assistant";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCurrency, CURRENCIES } from "@/lib/currency";
 
 const BROKER_THRESHOLD = 500_000;
 
@@ -88,6 +89,28 @@ export default function Profile() {
     setSettingsSaving(false);
   };
 
+  const { currency, setCurrency, formatAmount } = useCurrency();
+
+  const { data: walletData, refetch: refetchWallet, isLoading: walletLoading } = useQuery<{ wallet: { balance: string } }>({
+    queryKey: ["wallet-balance-profile"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { wallet: { balance: "0" } };
+      return r.json();
+    },
+  });
+  const walletBalanceNum = parseFloat(walletData?.wallet?.balance ?? "0");
+
+  const { data: walletTxs = [] } = useQuery<any[]>({
+    queryKey: ["wallet-txs-profile"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet/transactions?limit=3", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      const d = await r.json();
+      return d.transactions ?? d ?? [];
+    },
+  });
+
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
 
   const toggleTheme = () => {
@@ -106,7 +129,6 @@ export default function Profile() {
       badge: kycStatus?.isVerified ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700",
       badgeLabel: kycStatus?.isVerified ? "Verified" : "Pending",
     },
-    { icon: Wallet, label: "My Wallet", sublabel: "Balance & transactions", action: () => setLocation("/wallet"), badge: null, badgeLabel: null },
     { icon: Settings, label: "Account Settings", sublabel: "Name, password", action: () => { setSettingsName(user?.name ?? stored?.name ?? ""); setSettingsOpen(true); }, badge: null, badgeLabel: null },
     { icon: HelpCircle, label: "Help & FAQs", sublabel: "Answers & support", action: () => setLocation("/faq"), badge: null, badgeLabel: null },
   ];
@@ -150,6 +172,54 @@ export default function Profile() {
       </div>
 
       <div className="px-4 pt-4 space-y-3">
+        {/* Wallet card */}
+        <div className="rounded-2xl overflow-hidden border border-border">
+          <div className="px-4 py-4" style={{ background: "linear-gradient(135deg, #0c1445 0%, #1a2f6e 40%, #1e3a8a 70%, #1d4ed8 100%)" }}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Wallet size={13} className="text-white/70" />
+                <p className="text-white/70 text-[10px] uppercase tracking-wider font-bold">Investa Wallet</p>
+              </div>
+              <button onClick={() => refetchWallet()} className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center active:scale-95 transition-transform">
+                <RefreshCw size={12} className="text-white" />
+              </button>
+            </div>
+            {walletLoading
+              ? <div className="h-8 w-32 bg-white/20 rounded-lg animate-pulse mb-3" />
+              : <p className="text-white font-bold text-2xl mb-3">{formatAmount(walletBalanceNum)}</p>}
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setLocation("/wallet")}
+                className="bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+                <Plus size={12} /> Add Funds
+              </button>
+              <button onClick={() => setLocation("/wallet")}
+                className="bg-white/15 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform border border-white/20">
+                <ArrowUpRight size={12} /> Withdraw
+              </button>
+            </div>
+          </div>
+          {walletTxs.length > 0 && (
+            <div className="bg-card px-4 pb-3 pt-2.5">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">Recent Transactions</p>
+              {walletTxs.slice(0, 3).map((tx: any) => (
+                <div key={tx.id} className="flex items-center gap-2.5 py-2 border-b border-border last:border-0">
+                  <span className="text-base">{tx.type === "deposit" ? "💰" : tx.type === "investment" ? "🌱" : tx.type === "return" ? "📈" : "💸"}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate capitalize">{tx.description ?? tx.type}</p>
+                    <p className="text-[10px] text-muted-foreground">{new Date(tx.createdAt).toLocaleDateString("en-KE", { month: "short", day: "numeric" })}</p>
+                  </div>
+                  <p className={`text-xs font-bold flex-shrink-0 ${["deposit","return","transfer_in"].includes(tx.type) ? "text-green-600" : "text-red-500"}`}>
+                    {["deposit","return","transfer_in"].includes(tx.type) ? "+" : "-"}{formatAmount(parseFloat(tx.amount))}
+                  </p>
+                </div>
+              ))}
+              <button onClick={() => setLocation("/wallet")} className="w-full text-center text-primary text-xs font-semibold py-2 mt-1 active:scale-95 transition-transform">
+                View all transactions →
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* KYC status banner */}
         <button onClick={() => setKycOpen(true)}
           className={`w-full rounded-2xl p-3.5 border flex items-center gap-3 text-left active:scale-98 transition-transform ${kycStatus?.isVerified ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200"}`}>
@@ -189,7 +259,7 @@ export default function Profile() {
             <div className="flex-1">
               <p className="font-semibold text-sm text-foreground">Unlock Broker Status</p>
               <p className="text-muted-foreground text-xs mt-0.5">
-                Invest {formatKES(BROKER_THRESHOLD - portfolioValue)} more to reach KES 500K
+                Invest {formatAmount(BROKER_THRESHOLD - portfolioValue)} more to reach KES 500K
               </p>
               <div className="mt-1.5 w-full bg-muted rounded-full h-1.5">
                 <div className="bg-primary rounded-full h-1.5 transition-all"
@@ -205,7 +275,7 @@ export default function Profile() {
         {/* Stats */}
         <div className="grid grid-cols-2 gap-2.5">
           <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
-            <p className="text-primary font-bold text-lg">{summary ? formatKES(summary.totalValue) : "—"}</p>
+            <p className="text-primary font-bold text-lg">{summary ? formatAmount(summary.totalValue) : "—"}</p>
             <p className="text-muted-foreground text-xs mt-0.5">Portfolio Value</p>
           </div>
           <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
@@ -215,12 +285,12 @@ export default function Profile() {
         </div>
         <div className="grid grid-cols-2 gap-2.5">
           <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
-            <p className="text-primary font-bold text-lg">{summary ? formatKES(summary.totalInvested) : "—"}</p>
+            <p className="text-primary font-bold text-lg">{summary ? formatAmount(summary.totalInvested) : "—"}</p>
             <p className="text-muted-foreground text-xs mt-0.5">Total Invested</p>
           </div>
           <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
             <p className={`font-bold text-lg ${summary && summary.todayReturn >= 0 ? "text-green-600" : "text-red-500"}`}>
-              {summary ? formatKES(summary.todayReturn) : "—"}
+              {summary ? formatAmount(summary.todayReturn) : "—"}
             </p>
             <p className="text-muted-foreground text-xs mt-0.5">Today's P&L</p>
           </div>
@@ -242,6 +312,25 @@ export default function Profile() {
             <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-200 ${isDark ? "left-[calc(100%-22px)]" : "left-0.5"}`} />
           </div>
         </button>
+
+        {/* Currency display switcher */}
+        <div className="bg-card border border-border rounded-2xl p-3.5">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-2.5">Display Currency</p>
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {CURRENCIES.map(c => (
+              <button key={c.code} onClick={() => setCurrency(c.code)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all active:scale-95 ${
+                  currency.code === c.code ? "bg-primary border-primary text-white" : "border-border text-muted-foreground bg-card"
+                }`}>
+                <span>{c.flag}</span>
+                <span>{c.code}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-muted-foreground text-[10px] mt-2">
+            Showing prices in {currency.name} ({currency.symbol}) · Rates updated weekly
+          </p>
+        </div>
 
         {/* Menu items */}
         <div className="bg-card rounded-2xl border border-border overflow-hidden">

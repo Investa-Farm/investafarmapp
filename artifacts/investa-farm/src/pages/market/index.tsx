@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing } from "lucide-react";
 import {
   useGetTopMovers,
   useListPrimaryMarket,
@@ -8,7 +8,7 @@ import {
 } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
-import { formatKES, formatChange, getToken } from "@/lib/auth";
+import { formatChange, getToken } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
@@ -18,6 +18,9 @@ import { NotificationPrompt } from "@/components/notification-prompt";
 import { AiAssistant } from "@/components/ai-assistant";
 import { AppTour } from "@/components/app-tour";
 import { NotificationsPanel } from "@/components/notifications-panel";
+import { useCurrency } from "@/lib/currency";
+import { InvestmentCalculator } from "@/components/investment-calculator";
+import { PriceAlertModal } from "@/components/price-alert-modal";
 
 const CROPS = [
   { name: "Maize",    change: 2.1  },
@@ -30,44 +33,22 @@ const CROPS = [
   { name: "Potatoes", change: -0.9 },
 ];
 
-const NEWS_ITEMS = [
-  {
-    id: 1,
-    title: "Kenya Avocado Exports Hit Record High in Q2 2026",
-    source: "Business Daily Africa",
-    time: "2h ago",
-    image: CROP_IMAGES.avocado,
-    tag: "Exports",
-    tagColor: "bg-green-100 text-green-700",
-  },
-  {
-    id: 2,
-    title: "Maize Prices Rise 8% as Demand Surges Across East Africa",
-    source: "The Standard",
-    time: "5h ago",
-    image: CROP_IMAGES.maize,
-    tag: "Market",
-    tagColor: "bg-orange-100 text-orange-700",
-  },
-  {
-    id: 3,
-    title: "Investa Farm Partners with Equity Bank to Expand Farmer Funding",
-    source: "Daily Nation",
-    time: "1d ago",
-    image: CROP_IMAGES.wheat,
-    tag: "Investa",
-    tagColor: "bg-blue-100 text-blue-700",
-  },
-  {
-    id: 4,
-    title: "Coffee Farmers in Mt. Kenya Region See 22% Revenue Boost This Season",
-    source: "Reuters Africa",
-    time: "1d ago",
-    image: CROP_IMAGES.coffee,
-    tag: "Returns",
-    tagColor: "bg-purple-100 text-purple-700",
-  },
-];
+function getNewsImage(item: { imageKey?: string; tag?: string; title?: string }): string {
+  if (item.imageKey && (CROP_IMAGES as Record<string, string>)[item.imageKey]) {
+    return (CROP_IMAGES as Record<string, string>)[item.imageKey];
+  }
+  const t = (item.title ?? "").toLowerCase();
+  if (t.includes("avocado")) return CROP_IMAGES.avocado;
+  if (t.includes("maize") || t.includes("corn")) return CROP_IMAGES.maize;
+  if (t.includes("coffee")) return CROP_IMAGES.coffee;
+  if (t.includes("tea")) return CROP_IMAGES.tea;
+  if (t.includes("wheat")) return CROP_IMAGES.wheat;
+  if (t.includes("bean")) return CROP_IMAGES.beans;
+  if (t.includes("tomato")) return CROP_IMAGES.tomatoes;
+  if (t.includes("sunflower")) return CROP_IMAGES.sunflower;
+  if (item.tag === "Returns") return CROP_IMAGES.coffee;
+  return CROP_IMAGES.maize;
+}
 
 const WATCHLIST_CROPS = [
   {
@@ -175,7 +156,22 @@ export default function MarketHome() {
   const [activeSection, setActiveSection] = useState<"market" | "news" | "watchlist">("market");
   const [notifOpen, setNotifOpen] = useState(false);
   const [aiQuestion, setAiQuestion] = useState<string | undefined>(undefined);
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [calcListing, setCalcListing] = useState<any>(null);
+  const [alertListing, setAlertListing] = useState<any>(null);
   const token = getToken();
+  const { formatAmount } = useCurrency();
+
+  const { data: newsItems, isLoading: newsLoading } = useQuery<any[]>({
+    queryKey: ["news"],
+    queryFn: async () => {
+      const r = await fetch("/api/news");
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 60 * 60 * 1000,
+  });
 
   const { data: walletData } = useQuery<{ wallet: { balance: string } }>({
     queryKey: ["wallet-balance"],
@@ -205,45 +201,43 @@ export default function MarketHome() {
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="market-home">
-      <div className="hero-header relative overflow-hidden pt-12 pb-5 px-5" data-tour="market-header">
-        {/* Subtle dot matrix */}
-        <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
-        <div className="relative flex items-center justify-between mb-3">
+      <div className="bg-background border-b border-border relative overflow-hidden pt-12 pb-4 px-5" data-tour="market-header">
+        <div className="flex items-center justify-between mb-3">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <p className="text-white/70 text-[10px] font-semibold tracking-widest uppercase">Farm Exchange</p>
-              <span className="inline-flex items-center gap-1 bg-green-400/20 border border-green-300/30 px-1.5 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-green-300 text-[9px] font-bold uppercase tracking-wider">Live</span>
+              <p className="text-muted-foreground text-[10px] font-semibold tracking-widest uppercase">Farm Exchange</p>
+              <span className="inline-flex items-center gap-1 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-green-600 text-[9px] font-bold uppercase tracking-wider">Live</span>
               </span>
             </div>
-            <h1 className="text-white text-xl font-bold flex items-center gap-1.5">
-              Live Market <TrendingUp size={16} className="text-green-300" />
+            <h1 className="text-foreground text-xl font-bold flex items-center gap-1.5">
+              Live Market <TrendingUp size={16} className="text-primary" />
             </h1>
           </div>
           <div className="flex items-center gap-2">
             {walletBalance !== undefined && (
               <button
                 data-tour="wallet-btn"
-                onClick={() => setLocation("/wallet")}
-                className="flex items-center gap-1.5 bg-white/15 border border-white/25 rounded-full px-3 py-1.5 backdrop-blur-sm"
+                onClick={() => setLocation("/profile")}
+                className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-3 py-1.5"
               >
-                <Wallet size={12} className="text-green-300" />
-                <span className="text-white text-xs font-bold">{formatKES(parseFloat(walletBalance ?? "0"))}</span>
+                <Wallet size={12} className="text-primary" />
+                <span className="text-primary text-xs font-bold">{formatAmount(parseFloat(walletBalance ?? "0"))}</span>
               </button>
             )}
             <button
               onClick={() => setLocation("/market/map")}
-              className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center backdrop-blur-sm border border-white/15"
+              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center border border-border"
               title="Farm Map"
             >
-              <Map size={17} className="text-white" />
+              <Map size={17} className="text-foreground" />
             </button>
             <button
               onClick={() => setNotifOpen(true)}
-              className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center relative backdrop-blur-sm border border-white/15"
+              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center relative border border-border"
             >
-              <Bell size={17} className="text-white" />
+              <Bell size={17} className="text-foreground" />
               {unreadCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[7px] text-white font-bold flex items-center justify-center">
                   {Math.min(unreadCount, 9)}
@@ -256,28 +250,28 @@ export default function MarketHome() {
         {summary && (
           <div className="relative grid grid-cols-3 gap-2 mb-3">
             {[
-              { label: "Turnover",   val: `KES ${(summary.totalVolumeKes/1000).toFixed(0)}K`, icon: "💰" },
-              { label: "Avg Return", val: `+${summary.averageReturn}%`, icon: "📈" },
-              { label: "Listings",   val: String(summary.totalListings), icon: "🌾" },
+              { label: "Turnover",   val: formatAmount((summary.totalVolumeKes ?? 0)), icon: "💰" },
+              { label: "Avg Return", val: `+${summary.averageReturn}%`,                icon: "📈" },
+              { label: "Listings",   val: String(summary.totalListings),               icon: "🌾" },
             ].map(({ label, val, icon }) => (
-              <div key={label} className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 text-center border border-white/15">
+              <div key={label} className="bg-primary/5 rounded-2xl p-2.5 text-center border border-primary/15">
                 <p className="text-[11px] mb-0.5">{icon}</p>
-                <p className="text-white font-bold text-sm">{val}</p>
-                <p className="text-white/60 text-[9px] mt-0.5 font-medium">{label}</p>
+                <p className="text-foreground font-bold text-sm">{val}</p>
+                <p className="text-muted-foreground text-[9px] mt-0.5 font-medium">{label}</p>
               </div>
             ))}
           </div>
         )}
 
-        <div className="relative overflow-hidden rounded-xl bg-black/20 border border-white/15">
+        <div className="relative overflow-hidden rounded-xl bg-muted border border-border">
           <div className="flex ticker-track whitespace-nowrap py-2">
             {tickerItems.map((c, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 px-4 text-xs font-medium">
-                <span className="text-white/90">{c.name}</span>
-                <span className={c.change >= 0 ? "text-green-300 font-bold" : "text-red-300 font-bold"}>
+                <span className="text-foreground/80">{c.name}</span>
+                <span className={c.change >= 0 ? "text-green-600 font-bold" : "text-red-500 font-bold"}>
                   {formatChange(c.change)}
                 </span>
-                <span className="text-white/20 ml-1">|</span>
+                <span className="text-border ml-1">|</span>
               </span>
             ))}
           </div>
@@ -324,7 +318,7 @@ export default function MarketHome() {
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-2.5 flex flex-col justify-end">
                               <p className="text-white text-xs font-semibold leading-tight">{m.farmName}</p>
-                              <p className="text-white/70 text-[10px]">{formatKES(m.currentPrice)}</p>
+                              <p className="text-white/70 text-[10px]">{formatAmount(m.currentPrice)}</p>
                               <div className="flex items-center gap-1 mt-0.5">
                                 <span className={`text-[10px] font-bold ${m.changePercent >= 0 ? "text-green-400" : "text-red-400"}`}>
                                   {formatChange(m.changePercent)}
@@ -424,13 +418,29 @@ export default function MarketHome() {
                                   <div className="w-16">
                                     <Sparkline data={sparkData} color={isUp ? "#16a34a" : "#dc2626"} height={28} />
                                   </div>
-                                  <p className="text-foreground text-sm font-bold">{formatKES(listing.pricePerShare)}</p>
-                                  <button
-                                    className="bg-primary text-white text-[10px] font-bold px-3.5 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm shadow-primary/30"
-                                    onClick={(e) => handleBuyClick(e, listing as Listing)}
-                                  >
-                                    BUY
-                                  </button>
+                                  <p className="text-foreground text-sm font-bold">{formatAmount(listing.pricePerShare)}</p>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      title="Investment Calculator"
+                                      className="w-6 h-6 rounded-lg bg-muted border border-border flex items-center justify-center active:scale-95 transition-transform"
+                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCalcListing(listing); setCalcOpen(true); }}
+                                    >
+                                      <Calculator size={11} className="text-muted-foreground" />
+                                    </button>
+                                    <button
+                                      title="Price Alert"
+                                      className="w-6 h-6 rounded-lg bg-muted border border-border flex items-center justify-center active:scale-95 transition-transform"
+                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAlertListing(listing); setAlertOpen(true); }}
+                                    >
+                                      <BellRing size={11} className="text-muted-foreground" />
+                                    </button>
+                                    <button
+                                      className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm shadow-primary/30"
+                                      onClick={(e) => handleBuyClick(e, listing as Listing)}
+                                    >
+                                      BUY
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                               {listing.sharesAvailable < 50 && (
@@ -449,32 +459,44 @@ export default function MarketHome() {
 
         {activeSection === "news" && (
           <section className="space-y-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Newspaper size={15} className="text-primary" />
-              <h2 className="font-semibold text-sm text-foreground">Agriculture & Market News</h2>
-            </div>
-            {NEWS_ITEMS.map(item => (
-              <div key={item.id} className="bg-card rounded-2xl border border-border overflow-hidden cursor-pointer active:scale-98 transition-transform">
-                <img src={item.image} alt={item.title} className="w-full h-36 object-cover" />
-                <div className="p-3.5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${item.tagColor}`}>{item.tag}</span>
-                    <span className="text-muted-foreground text-[10px] flex items-center gap-1">
-                      <Clock size={9} /> {item.time}
-                    </span>
-                    <span className="text-muted-foreground text-[10px]">{item.source}</span>
-                  </div>
-                  <p className="text-foreground font-semibold text-sm leading-snug">{item.title}</p>
-                </div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Newspaper size={15} className="text-primary" />
+                <h2 className="font-semibold text-sm text-foreground">Agriculture & Market News</h2>
               </div>
-            ))}
+              <span className="text-muted-foreground text-[10px] flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                AI-curated · hourly
+              </span>
+            </div>
+            {newsLoading
+              ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)
+              : (newsItems ?? []).map((item: any) => (
+                <a key={item.id}
+                  href={item.url && item.url !== "#" ? item.url : undefined}
+                  target={item.url && item.url !== "#" ? "_blank" : undefined}
+                  rel="noopener noreferrer"
+                  className="block bg-card rounded-2xl border border-border overflow-hidden active:scale-[0.98] transition-transform">
+                  <img src={getNewsImage(item)} alt={item.title} className="w-full h-36 object-cover" />
+                  <div className="p-3.5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
+                      <span className="text-muted-foreground text-[10px] flex items-center gap-1">
+                        <Clock size={9} /> {item.time}
+                      </span>
+                      <span className="text-muted-foreground text-[10px] truncate">{item.source}</span>
+                    </div>
+                    <p className="text-foreground font-semibold text-sm leading-snug">{item.title}</p>
+                    {item.summary && (
+                      <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed line-clamp-2">{item.summary}</p>
+                    )}
+                  </div>
+                </a>
+              ))}
             <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 text-center">
               <Newspaper size={20} className="text-primary mx-auto mb-2" />
-              <p className="text-primary font-semibold text-sm">More news coming soon</p>
-              <p className="text-muted-foreground text-xs mt-0.5">Subscribe to daily agri-market briefings</p>
-              <button className="mt-3 bg-primary text-white text-xs font-semibold px-4 py-2 rounded-xl active:scale-95 transition-transform">
-                Subscribe Free
-              </button>
+              <p className="text-primary font-semibold text-sm">Powered by AI</p>
+              <p className="text-muted-foreground text-xs mt-0.5">Kenya agri-market news refreshed every hour via Groq AI</p>
             </div>
           </section>
         )}
@@ -549,6 +571,19 @@ export default function MarketHome() {
         open={investOpen}
         onClose={() => setInvestOpen(false)}
         listing={selectedListing}
+      />
+
+      <InvestmentCalculator
+        open={calcOpen}
+        onClose={() => setCalcOpen(false)}
+        listing={calcListing}
+        onBuy={() => { setCalcOpen(false); if (calcListing) { setSelectedListing(calcListing as Listing); setInvestOpen(true); } }}
+      />
+
+      <PriceAlertModal
+        open={alertOpen}
+        onClose={() => setAlertOpen(false)}
+        listing={alertListing}
       />
 
       <BottomNav role="investor" />

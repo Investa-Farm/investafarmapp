@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getToken, getStoredUser } from "@/lib/auth";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { CurrencyProvider } from "@/lib/currency";
 
 import Landing from "@/pages/landing";
 import FarmerAuth from "@/pages/farmer-auth";
@@ -231,12 +232,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={BASE}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      <CurrencyProvider>
+        <TooltipProvider>
+          <WouterRouter base={BASE}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </CurrencyProvider>
     </QueryClientProvider>
   );
 }

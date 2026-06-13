@@ -14,6 +14,8 @@ import cropPricesRouter from "./crop-prices";
 import walletRouter from "./wallet";
 import notificationsRouter from "./notifications";
 import aiChatRouter from "./ai-chat";
+import newsRouter from "./news";
+import priceAlertsRouter from "./price-alerts";
 
 const router: IRouter = Router();
 
@@ -32,5 +34,7 @@ router.use(cropPricesRouter);
 router.use(walletRouter);
 router.use(notificationsRouter);
 router.use(aiChatRouter);
+router.use(newsRouter);
+router.use(priceAlertsRouter);
 
 export default router;
