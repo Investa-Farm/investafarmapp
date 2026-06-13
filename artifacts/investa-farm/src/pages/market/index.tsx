@@ -205,7 +205,7 @@ export default function MarketHome() {
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="market-home">
-      <div className="hero-header relative overflow-hidden pt-12 pb-5 px-5" data-tour="market-header" style={{ background: "linear-gradient(160deg, #052c16 0%, #0d4a28 45%, #166534 80%, #15803d 100%)" }}>
+      <div className="hero-header relative overflow-hidden pt-12 pb-5 px-5" data-tour="market-header">
         {/* Subtle dot matrix */}
         <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
         <div className="relative flex items-center justify-between mb-3">

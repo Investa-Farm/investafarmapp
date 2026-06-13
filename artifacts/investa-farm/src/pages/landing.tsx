@@ -31,7 +31,7 @@ export default function Landing() {
       </div>
 
       <div className="px-4 pt-2 pb-4 text-center">
-        <p className="text-green-700 font-semibold text-sm">Africa's leading financially inclusive platform</p>
+        <p className="text-muted-foreground font-semibold text-sm">Africa's leading financially inclusive platform</p>
       </div>
 
       {/* Two role cards with photos */}

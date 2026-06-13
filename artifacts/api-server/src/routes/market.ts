@@ -7,6 +7,7 @@ import {
 } from "@workspace/api-zod";
 import { getCurrentUser } from "./auth";
 import { sendFundingVoucherEmail } from "../lib/email";
+import { notifyUser } from "../lib/push";
 
 const router: IRouter = Router();
 
@@ -175,13 +176,25 @@ router.post("/market/buy", async (req, res): Promise<void> => {
     status: "completed",
   }).returning();
 
-  // Investment purchase notification
-  db.insert(notificationsTable).values({
-    userId: user.id,
-    type: "investment_made",
-    title: `🌾 Investment Confirmed!`,
-    body: `You bought ${quantity} share${quantity > 1 ? "s" : ""} in ${farm?.name ?? "a farm"} for KES ${Number(totalAmount).toLocaleString("en-KE")}. Exit: ${exitType === "wide_season" ? "45 days" : "~6 months"}.`,
-  }).catch(() => {});
+  // Notify investor (in-app + push)
+  notifyUser(
+    user.id,
+    "investment_made",
+    "🌾 Investment Confirmed!",
+    `You bought ${quantity} share${quantity > 1 ? "s" : ""} in ${farm?.name ?? "a farm"} for KES ${Number(totalAmount).toLocaleString("en-KE")}. Exit: ${exitType === "wide_season" ? "45 days" : "~6 months"}.`,
+    "/portfolio"
+  ).catch(() => {});
+
+  // Notify farmer that they received investment
+  if (farm) {
+    notifyUser(
+      farm.farmerId,
+      "investment_received",
+      "💰 New Investment Received!",
+      `${user.name} invested KES ${Number(totalAmount).toLocaleString("en-KE")} in ${farm.name} (${quantity} share${quantity > 1 ? "s" : ""}).`,
+      "/farmer"
+    ).catch(() => {});
+  }
 
   // Deduct from investor wallet simultaneously
   try {
@@ -219,12 +232,27 @@ router.post("/market/buy", async (req, res): Promise<void> => {
           const vCode = `IF-${new Date().getFullYear()}-${loan.purpose.slice(0,3).toUpperCase()}${String(loan.id).padStart(4,"0")}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
           const lAmt = Number(loan.amount);
           sendFundingVoucherEmail(farmer.email, farmer.name, lAmt, farm?.name ?? "Your Farm", vCode, Math.round(lAmt * 0.3)).catch(console.error);
-          db.insert(notificationsTable).values({
-            userId: farmer.id,
-            type: "investment_made" as any,
-            title: "🎉 Farm Fully Funded!",
-            body: `"${farm?.name ?? "Your farm"}" has been fully funded by investors! Your voucher code has been sent to ${farmer.email}.`,
-          }).catch(() => {});
+          notifyUser(
+            farmer.id,
+            "farm_fully_funded",
+            "🎉 Farm Fully Funded!",
+            `"${farm?.name ?? "Your farm"}" has been fully funded by investors! Your voucher code has been sent to ${farmer.email}.`,
+            "/farmer"
+          ).catch(() => {});
+
+          // Notify all investors in this farm
+          const farmInvestors = await db.select({ investorId: investmentsTable.investorId })
+            .from(investmentsTable).where(eq(investmentsTable.farmId, listing.farmId));
+          const investorIds = [...new Set(farmInvestors.map(i => i.investorId))];
+          for (const investorId of investorIds) {
+            notifyUser(
+              investorId,
+              "farm_fully_funded",
+              "🎉 Farm Fully Funded!",
+              `${farm?.name ?? "A farm"} you invested in is now 100% funded! Harvest cycle begins.`,
+              "/portfolio"
+            ).catch(() => {});
+          }
         }
       }
     } catch (e) { console.error("[FARM_FUNDED]", e); }

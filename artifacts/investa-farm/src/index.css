@@ -77,9 +77,9 @@
   --app-font-serif: 'Space Grotesk', sans-serif;
   --radius: .75rem;
 
-  /* Page section gradients */
-  --hero-from: #dcfce7;
-  --hero-to: #bbf7d0;
+  /* Page section gradients (neutral) */
+  --hero-from: #f1f5f9;
+  --hero-to: #e2e8f0;
 }
 
 @layer base {
@@ -96,15 +96,15 @@
   overflow: hidden;
 }
 
-/* Deep forest green hero header */
+/* Hero header — dark charcoal/slate (no green tint) */
 .hero-header {
-  background: linear-gradient(160deg, #052c16 0%, #0d4a28 45%, #166534 80%, #15803d 100%);
+  background: linear-gradient(160deg, #0f172a 0%, #1e293b 55%, #1e293b 100%);
 }
 
-/* Subtle green-tinted card */
+/* Info card — neutral */
 .green-card {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border: 1px solid #bbf7d0;
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
 }
 
 /* Price up/down */
@@ -119,10 +119,10 @@
 .ticker-track { animation: ticker 25s linear infinite; }
 .ticker-track:hover { animation-play-state: paused; }
 
-/* Tour spotlight pulse */
+/* Tour spotlight pulse — glow ring only, no heavy overlay */
 @keyframes tourPulse {
-  0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.70), 0 0 0 2px rgba(74,222,128,0.85); }
-  50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.70), 0 0 0 4px rgba(74,222,128,1), 0 0 16px rgba(74,222,128,0.5); }
+  0%, 100% { box-shadow: 0 0 0 2px rgba(74,222,128,0.8), 0 0 12px rgba(74,222,128,0.25); }
+  50% { box-shadow: 0 0 0 4px rgba(74,222,128,1), 0 0 22px rgba(74,222,128,0.5); }
 }
 
 /* Page transition */
@@ -146,22 +146,22 @@
 
 /* ── Dark mode ─────────────────────────────────────────────────────────── */
 .dark {
-  --background: 138 25% 8%;
-  --foreground: 138 20% 92%;
-  --border: 140 15% 20%;
-  --input: 140 15% 20%;
+  --background: 222 14% 8%;
+  --foreground: 220 10% 92%;
+  --border: 220 13% 20%;
+  --input: 220 13% 20%;
   --ring: 142 65% 38%;
-  --card: 138 22% 11%;
-  --card-foreground: 138 20% 92%;
-  --popover: 138 25% 9%;
-  --popover-foreground: 138 20% 92%;
+  --card: 222 14% 11%;
+  --card-foreground: 220 10% 92%;
+  --popover: 222 14% 9%;
+  --popover-foreground: 220 10% 92%;
   --primary: 142 65% 42%;
   --primary-foreground: 0 0% 100%;
   --secondary: 45 80% 45%;
-  --secondary-foreground: 138 20% 92%;
-  --muted: 138 20% 15%;
-  --muted-foreground: 140 12% 58%;
-  --accent: 142 30% 18%;
+  --secondary-foreground: 220 10% 92%;
+  --muted: 222 13% 15%;
+  --muted-foreground: 220 9% 58%;
+  --accent: 222 13% 18%;
   --accent-foreground: 142 60% 72%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
@@ -173,7 +173,7 @@
 }
 
 .dark .hero-header {
-  background: linear-gradient(160deg, #052c16 0%, #0a3d20 55%, #0d5c30 100%);
+  background: linear-gradient(160deg, #020617 0%, #0f172a 55%, #0f172a 100%);
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 

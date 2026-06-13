@@ -11,6 +11,8 @@ packages = ["nano"]
 
 [userenv.shared]
 BASE_PATH = "/"
+VAPID_PUBLIC_KEY = "BL36T426aOm-MLB77gGSDBvvsvAg679MLHt-dpmJ-SSNls6hqQA9AguxAhIwWmqbrPHsKnqQz8D9kVQaD5qZwfc"
+VAPID_PRIVATE_KEY = "W4d_A-f1wGaBtbH8nzrPGfCxTCqYkHo5AJxsJG0ssLU"
 
 [workflows]
 runButton = "Project"

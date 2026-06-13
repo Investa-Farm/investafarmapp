@@ -3,6 +3,7 @@ import { db, farmsTable, investmentsTable, farmUpdatesTable, marketListingsTable
 import { eq, and } from "drizzle-orm";
 import { CreateFarmUpdateBody } from "@workspace/api-zod";
 import { getCurrentUser } from "./auth";
+import { notifyUser } from "../lib/push";
 
 const router: IRouter = Router();
 
@@ -129,6 +130,22 @@ router.post("/farmer/updates", async (req, res): Promise<void> => {
     description: parsed.data.description,
     imageUrl: parsed.data.imageUrl ?? null,
   }).returning();
+
+  // Notify all investors who hold shares in this farm
+  try {
+    const investors = await db.select({ investorId: investmentsTable.investorId })
+      .from(investmentsTable).where(eq(investmentsTable.farmId, parsed.data.farmId));
+    const uniqueIds = [...new Set(investors.map(i => i.investorId))];
+    for (const investorId of uniqueIds) {
+      notifyUser(
+        investorId,
+        "farm_update",
+        `🌱 ${farm.name}`,
+        parsed.data.title,
+        `/market/${farm.id}`
+      ).catch(() => {});
+    }
+  } catch {}
 
   res.status(201).json({
     id: update.id,

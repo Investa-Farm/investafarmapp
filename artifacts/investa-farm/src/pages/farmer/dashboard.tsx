@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken } from "@/lib/auth";
-import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, Users, ShieldCheck, LogOut, MapPin, TrendingUp, CalendarDays, AlertCircle, Moon } from "lucide-react";
+import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, Users, ShieldCheck, LogOut, MapPin, TrendingUp, CalendarDays, AlertCircle, Moon, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { FARMER_HERO_IMAGE } from "@/lib/crops";
@@ -40,7 +40,7 @@ export default function FarmerDashboard() {
     localStorage.setItem("investa_theme", next ? "dark" : "light");
   };
 
-  const { data: dashboard, isLoading } = useGetFarmerDashboard();
+  const { data: dashboard, isLoading } = useGetFarmerDashboard({ query: { refetchInterval: 30000 } });
   const { data: updates } = useListFarmUpdates();
   const { data: farms } = useGetMyFarms();
 
@@ -208,11 +208,21 @@ export default function FarmerDashboard() {
           </div>
           <div className="bg-card rounded-2xl border border-border p-3.5">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-[10px]">Investors Backing</p>
+              <p className="text-muted-foreground text-[10px]">Funds Raised</p>
               <Users size={13} className="text-blue-500" />
             </div>
-            <p className="text-foreground font-bold text-lg">{dashboard?.totalInvestors ?? "—"}</p>
-            <p className="text-muted-foreground text-[10px]">Active investors</p>
+            <p className="text-foreground font-bold text-lg">{dashboard ? formatKES(dashboard.fundsRaised ?? 0) : "—"}</p>
+            <div className="flex items-center justify-between mt-0.5">
+              <p className="text-muted-foreground text-[10px]">{dashboard?.totalInvestors ?? 0} investors</p>
+              {(dashboard?.fundingPercent ?? 0) > 0 && (
+                <span className="text-primary text-[9px] font-bold">{dashboard?.fundingPercent}% funded</span>
+              )}
+            </div>
+            {(dashboard?.fundingPercent ?? 0) > 0 && (
+              <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${Math.min(dashboard?.fundingPercent ?? 0, 100)}%` }} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -329,7 +339,7 @@ export default function FarmerDashboard() {
               : <p className="text-amber-600 text-[9px] font-bold mt-0.5">Required ⚠</p>}
           </button>
           <Link href="/farmer/updates">
-            <div className="bg-green-50 border border-green-100 rounded-2xl p-3 text-center cursor-pointer active:scale-95 transition-transform">
+            <div className="bg-card border border-border rounded-2xl p-3 text-center cursor-pointer active:scale-95 transition-transform">
               <Settings size={20} className="text-primary mx-auto mb-1" />
               <p className="text-foreground text-[10px] font-medium">Farm Updates</p>
             </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, BellOff, X } from "lucide-react";
-import { ChevronRight } from "lucide-react";
+import { Bell, BellOff, X, ChevronRight, Loader2 } from "lucide-react";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 const DEFAULT_STORAGE_KEY = "investa_notif_pref";
 
@@ -11,6 +11,8 @@ interface NotificationPromptProps {
 
 export function NotificationPrompt({ storageKey = DEFAULT_STORAGE_KEY }: NotificationPromptProps) {
   const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { status, subscribe } = usePushNotifications();
 
   useEffect(() => {
     const pref = localStorage.getItem(storageKey);
@@ -22,15 +24,11 @@ export function NotificationPrompt({ storageKey = DEFAULT_STORAGE_KEY }: Notific
   }, [storageKey]);
 
   const handleAllow = async () => {
+    setLoading(true);
     setShow(false);
-    const perm = await Notification.requestPermission();
-    localStorage.setItem(storageKey, perm);
-    if (perm === "granted") {
-      new Notification("Investa Farm", {
-        body: "You'll now receive updates on your investments 🌾",
-        icon: "/favicon.ico",
-      });
-    }
+    const ok = await subscribe();
+    localStorage.setItem(storageKey, ok ? "granted" : "denied");
+    setLoading(false);
   };
 
   const handleDeny = () => {
@@ -48,15 +46,15 @@ export function NotificationPrompt({ storageKey = DEFAULT_STORAGE_KEY }: Notific
           transition={{ type: "spring", damping: 22, stiffness: 260 }}
           className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[398px] z-[200]"
         >
-          <div className="bg-white rounded-2xl shadow-2xl border border-border p-4">
+          <div className="bg-card rounded-2xl shadow-2xl border border-border p-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                <Bell size={20} className="text-green-600" />
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Bell size={20} className="text-primary" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-foreground text-sm">Stay updated on your investments</p>
                 <p className="text-muted-foreground text-xs mt-0.5 leading-relaxed">
-                  Get alerts for new farm listings, harvest payouts, and market price changes.
+                  Get alerts for new farm listings, harvest payouts, price changes, and more.
                 </p>
               </div>
               <button onClick={handleDeny} className="text-muted-foreground flex-shrink-0 -mt-0.5">
@@ -72,9 +70,11 @@ export function NotificationPrompt({ storageKey = DEFAULT_STORAGE_KEY }: Notific
               </button>
               <button
                 onClick={handleAllow}
-                className="flex-1 py-2.5 rounded-xl bg-green-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+                disabled={loading}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-70"
               >
-                <Bell size={13} /> Allow notifications
+                {loading ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
+                {loading ? "Enabling…" : "Allow notifications"}
               </button>
             </div>
           </div>
@@ -89,35 +89,27 @@ interface NotificationStatusRowProps {
 }
 
 export function NotificationStatusRow({ className = "" }: NotificationStatusRowProps) {
-  const [perm, setPerm] = useState<NotificationPermission | "unsupported">("default");
   const [requesting, setRequesting] = useState(false);
-
-  useEffect(() => {
-    if (!("Notification" in window)) {
-      setPerm("unsupported" as any);
-    } else {
-      setPerm(Notification.permission);
-    }
-  }, []);
+  const { status, subscribe } = usePushNotifications();
 
   const handleRequest = async () => {
-    if (!("Notification" in window)) return;
+    if (status === "unsupported") return;
     setRequesting(true);
-    const p = await Notification.requestPermission();
-    localStorage.setItem(DEFAULT_STORAGE_KEY, p);
-    setPerm(p);
+    await subscribe();
+    localStorage.setItem(DEFAULT_STORAGE_KEY, "granted");
     setRequesting(false);
   };
 
   const label =
-    perm === "granted"     ? "Enabled — you'll receive alerts" :
-    perm === "denied"      ? "Blocked — change in browser settings" :
-    perm === "unsupported" ? "Not supported on this device" :
-                             "Tap Enable to get investment alerts";
+    status === "subscribed"   ? "Enabled — push alerts active" :
+    status === "granted"      ? "Enabled — you'll receive alerts" :
+    status === "denied"       ? "Blocked — change in browser settings" :
+    status === "unsupported"  ? "Not supported on this device" :
+                                "Tap Enable to get investment alerts";
 
   const color =
-    perm === "granted" ? "text-green-600" :
-    perm === "denied"  ? "text-red-500"   : "text-amber-500";
+    status === "subscribed" || status === "granted" ? "text-green-600" :
+    status === "denied"  ? "text-red-500"   : "text-amber-500";
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3.5 ${className}`}>
@@ -125,15 +117,16 @@ export function NotificationStatusRow({ className = "" }: NotificationStatusRowP
         <Bell size={16} className="text-primary" />
       </div>
       <div className="flex-1 min-w-0">
-        <span className="text-foreground text-sm font-medium">Notifications</span>
+        <span className="text-foreground text-sm font-medium">Push Notifications</span>
         <p className={`text-[10px] mt-0.5 leading-snug ${color}`}>{label}</p>
       </div>
-      {perm === "default" ? (
+      {(status === "default") ? (
         <button
           onClick={handleRequest}
           disabled={requesting}
-          className="text-[10px] bg-green-600 text-white font-semibold px-3 py-1.5 rounded-xl flex-shrink-0 active:scale-95 transition-transform"
+          className="text-[10px] bg-primary text-white font-semibold px-3 py-1.5 rounded-xl flex-shrink-0 active:scale-95 transition-transform disabled:opacity-60 flex items-center gap-1"
         >
+          {requesting ? <Loader2 size={10} className="animate-spin" /> : null}
           {requesting ? "…" : "Enable"}
         </button>
       ) : (
