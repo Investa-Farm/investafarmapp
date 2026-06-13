@@ -1,0 +1,29 @@
+import { pgTable, serial, text, timestamp, integer, numeric, pgEnum } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+import { usersTable } from "./users";
+
+export const farmStatusEnum = pgEnum("farm_status", ["pending", "active", "funded", "harvested"]);
+
+export const farmsTable = pgTable("farms", {
+  id: serial("id").primaryKey(),
+  farmerId: integer("farmer_id").references(() => usersTable.id).notNull(),
+  name: text("name").notNull(),
+  cropType: text("crop_type").notNull(),
+  location: text("location").notNull(),
+  loanAmount: numeric("loan_amount", { precision: 15, scale: 2 }).notNull(),
+  totalShares: integer("total_shares").notNull(),
+  sharePrice: numeric("share_price", { precision: 15, scale: 2 }).notNull(),
+  sharesAvailable: integer("shares_available").notNull(),
+  status: farmStatusEnum("status").default("active").notNull(),
+  imageUrl: text("image_url"),
+  description: text("description"),
+  changePercent: numeric("change_percent", { precision: 8, scale: 4 }).default("0").notNull(),
+  tradeCount: integer("trade_count").default(0).notNull(),
+  currentPrice: numeric("current_price", { precision: 15, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertFarmSchema = createInsertSchema(farmsTable).omit({ id: true, createdAt: true });
+export type InsertFarm = z.infer<typeof insertFarmSchema>;
+export type Farm = typeof farmsTable.$inferSelect;

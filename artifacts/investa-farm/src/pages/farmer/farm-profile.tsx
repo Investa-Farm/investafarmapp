@@ -1,0 +1,510 @@
+import { useState } from "react";
+import { useGetMyFarms, useGetFarmerDashboard } from "@workspace/api-client-react";
+import { BottomNav } from "@/components/bottom-nav";
+import { formatKES, getToken, getStoredUser } from "@/lib/auth";
+import {
+  Settings, Bell, Droplets, CloudRain, BarChart3, MapPin, Leaf, Sun, Wheat,
+  TrendingUp, CalendarDays, ChevronRight, Maximize2, CheckCircle2, Clock,
+  XCircle, Share2, Users, DollarSign, Activity, ShieldCheck
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
+import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
+import aerialFarmImg from "@assets/IMG_8016_1781250402404.jpeg";
+import { getCropImage } from "@/lib/crops";
+
+type GroupInfo = { id: number; name: string; registrationNumber: string; county: string; memberCount: number; status: string } | null;
+
+const CROP_STAGES = [
+  { key: "planting",   label: "Planting",   icon: Leaf,       date: "12 Mar" },
+  { key: "vegetative", label: "Vegetative",  icon: Droplets,   date: "28 Mar" },
+  { key: "flowering",  label: "Flowering",   icon: Sun,        date: "10 May" },
+  { key: "fruiting",   label: "Fruiting",    icon: Wheat,      date: "25 May" },
+  { key: "harvest",    label: "Harvest",     icon: TrendingUp, date: "20 Jul" },
+];
+
+function CircularProgress({ value, size = 60 }: { value: number; size?: number }) {
+  const radius = (size - 8) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="rotate-[-90deg]">
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e5e7eb" strokeWidth={5} />
+      <circle
+        cx={size / 2} cy={size / 2} r={radius}
+        fill="none" stroke="#16a34a" strokeWidth={5}
+        strokeDasharray={circumference} strokeDashoffset={offset}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dashoffset 0.7s ease" }}
+      />
+    </svg>
+  );
+}
+
+function FarmBoundaryMap({ cropType, imageUrl }: { cropType: string; imageUrl?: string }) {
+  const bg = imageUrl || aerialFarmImg;
+  return (
+    <div className="relative h-48 rounded-2xl overflow-hidden shadow-sm border border-border bg-gray-100">
+      <img src={bg} alt="Farm aerial" className="w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-black/20" />
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
+        <polygon
+          points="100,30 300,20 360,90 320,170 80,165 50,100"
+          fill="rgba(255,255,255,0.15)"
+          stroke="white"
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center border-2 border-primary">
+            <MapPin size={14} className="text-primary" />
+          </div>
+          <div className="w-0.5 h-3 bg-white/70 mt-0.5" />
+        </div>
+      </div>
+      <div className="absolute bottom-3 left-3">
+        <p className="text-white font-semibold text-sm drop-shadow-md">{cropType} • 2.5 Acres</p>
+        <p className="text-white/80 text-xs drop-shadow-md">GPS Verified Area</p>
+      </div>
+      <button className="absolute bottom-3 right-3 w-7 h-7 rounded-lg bg-black/40 flex items-center justify-center">
+        <Maximize2 size={12} className="text-white" />
+      </button>
+    </div>
+  );
+}
+
+type Tab = "overview" | "crop" | "activities";
+
+export default function FarmProfile() {
+  const token = getToken();
+  const user = getStoredUser();
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+
+  const { data: farms, isLoading } = useGetMyFarms();
+  const { data: dashboard } = useGetFarmerDashboard();
+
+  const { data: group } = useQuery<GroupInfo>({
+    queryKey: ["my-group"],
+    queryFn: async () => {
+      const r = await fetch("/api/groups/my", { headers: { Authorization: `Bearer ${token}` } });
+      return r.json();
+    },
+  });
+
+  const { data: kycDocs = [] } = useQuery<any[]>({
+    queryKey: ["kyc-docs"],
+    queryFn: async () => {
+      const r = await fetch("/api/kyc/documents", { headers: { Authorization: `Bearer ${token}` } });
+      return r.json();
+    },
+  });
+
+  const { data: loans = [] } = useQuery<any[]>({
+    queryKey: ["loan-apps"],
+    queryFn: async () => {
+      const r = await fetch("/api/loans/applications", { headers: { Authorization: `Bearer ${token}` } });
+      return r.json();
+    },
+  });
+
+  const currentFarm = farms?.[0];
+  const farmHealth = dashboard ? Math.round(75 + (dashboard.growthPercent ?? 0) * 0.2) : 91;
+  const currentStageIndex = 2;
+  const activeLoan = loans.find((l: any) => ["approved", "submitted", "under_review"].includes(l.status));
+  const kycApproved = kycDocs.filter((d: any) => d.status === "approved").length;
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: "overview",    label: "Overview" },
+    { key: "crop",        label: "Crop Status" },
+    { key: "activities",  label: "Activities" },
+  ];
+
+  if (kycApproved === 0) {
+    return (
+      <div className="app-shell pb-20 bg-white min-h-screen">
+        <div className="bg-white px-5 pt-12 pb-3 flex items-center justify-between border-b border-gray-100">
+          <img src={logoSrc} alt="Investa Farm" className="h-8 w-auto" />
+          <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
+            <span className="text-white text-sm font-bold">{user?.name?.charAt(0) ?? "F"}</span>
+          </div>
+        </div>
+        <div className="px-5 pt-8 flex flex-col items-center text-center gap-4">
+          <div className="w-24 h-24 rounded-3xl bg-amber-100 flex items-center justify-center">
+            <ShieldCheck size={40} className="text-amber-500" />
+          </div>
+          <div>
+            <h2 className="text-foreground font-bold text-xl">KYC Required</h2>
+            <p className="text-muted-foreground text-sm mt-2 leading-relaxed max-w-xs">
+              Your "My Farm" profile is locked until your identity has been verified. This protects investors and unlocks your farm listing.
+            </p>
+          </div>
+          <div className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2.5 text-left">
+            {[
+              { icon: "📋", title: "Upload National ID", body: "Front and back of your Kenyan National ID or Passport." },
+              { icon: "🏡", title: "Farm Ownership Proof", body: "Title deed, lease agreement, or county farm certificate." },
+              { icon: "📸", title: "Passport Photo", body: "A clear selfie or headshot matching your ID." },
+            ].map(item => (
+              <div key={item.title} className="flex items-start gap-3">
+                <span className="text-xl flex-shrink-0">{item.icon}</span>
+                <div>
+                  <p className="text-foreground font-semibold text-sm">{item.title}</p>
+                  <p className="text-muted-foreground text-xs">{item.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Link href="/farmer/kyc" className="w-full">
+            <button className="w-full bg-amber-500 text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+              <ShieldCheck size={16} /> Complete KYC Verification →
+            </button>
+          </Link>
+          <Link href="/farmer">
+            <button className="text-muted-foreground text-sm underline">Back to Dashboard</button>
+          </Link>
+        </div>
+        <BottomNav role="farmer" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-shell pb-20 bg-white min-h-screen">
+      {/* Top bar */}
+      <div className="bg-white px-5 pt-12 pb-3 flex items-center justify-between border-b border-gray-100">
+        <img src={logoSrc} alt="Investa Farm" className="h-8 w-auto" />
+        <div className="flex items-center gap-2">
+          <button className="relative w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
+            <Bell size={16} className="text-gray-600" />
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[8px] text-white font-bold flex items-center justify-center">3</span>
+          </button>
+          <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
+            <span className="text-white text-sm font-bold">{user?.name?.charAt(0) ?? "F"}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">My Farm</h1>
+        </div>
+        <button className="flex items-center gap-1.5 border border-border rounded-xl px-3 py-1.5 text-xs font-medium text-foreground bg-white shadow-sm">
+          <Settings size={13} className="text-muted-foreground" />
+          Farm Settings
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="px-5 pt-1 pb-0">
+        <div className="flex gap-1 border-b border-gray-100">
+          {TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 pb-2.5 px-1 mr-3 text-sm font-medium border-b-2 transition-all ${
+                activeTab === tab.key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground"
+              }`}
+            >
+              {tab.key === "overview" && <BarChart3 size={13} />}
+              {tab.key === "crop"     && <Leaf size={13} />}
+              {tab.key === "activities" && <CalendarDays size={13} />}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-5 pt-4 space-y-4">
+
+        {/* ─── OVERVIEW TAB ─── */}
+        {activeTab === "overview" && (
+          <>
+            {/* Farm boundary map */}
+            {isLoading
+              ? <div className="h-48 rounded-2xl bg-gray-100 animate-pulse" />
+              : <FarmBoundaryMap
+                  cropType={currentFarm?.cropType ?? "Tomatoes"}
+                  imageUrl={currentFarm?.imageUrl ?? undefined}
+                />
+            }
+
+            {/* Stats strip: Current Stage | Health Score | Next Activity */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <div className="grid grid-cols-3 divide-x divide-gray-100">
+                <div className="pr-3">
+                  <p className="text-muted-foreground text-[10px] font-medium mb-1">Current Stage</p>
+                  <p className="text-primary font-bold text-sm">{CROP_STAGES[currentStageIndex]?.label ?? "Growing"}</p>
+                  <div className="mt-1 w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Sun size={12} className="text-primary" />
+                  </div>
+                </div>
+                <div className="px-3 flex flex-col items-center">
+                  <p className="text-muted-foreground text-[10px] font-medium mb-1">Farm Health Score</p>
+                  <div className="relative w-14 h-14 flex items-center justify-center">
+                    <CircularProgress value={farmHealth} size={56} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <p className="text-foreground font-bold text-xs leading-none">{farmHealth}</p>
+                      <p className="text-muted-foreground text-[8px]">/100</p>
+                    </div>
+                  </div>
+                  <span className="mt-0.5 inline-block bg-green-100 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-full">Good</span>
+                </div>
+                <div className="pl-3">
+                  <p className="text-muted-foreground text-[10px] font-medium mb-1">Next Activity</p>
+                  <div className="flex items-start gap-1">
+                    <CalendarDays size={12} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-foreground font-bold text-[11px] leading-tight">Irrigation</p>
+                      <p className="text-muted-foreground text-[9px] mt-0.5">Tomorrow, 7:00 AM</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics row */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center">
+                <Droplets size={18} className="text-blue-500 mx-auto mb-1" />
+                <p className="text-foreground font-bold text-sm">32%</p>
+                <p className="text-muted-foreground text-[9px]">Soil Moisture</p>
+                <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold mt-0.5 inline-block">Good</span>
+              </div>
+              <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-center">
+                <CloudRain size={18} className="text-sky-500 mx-auto mb-1" />
+                <p className="text-foreground font-bold text-sm">32mm</p>
+                <p className="text-muted-foreground text-[9px]">Rainfall (7d)</p>
+              </div>
+              <div className="bg-green-50 border border-green-100 rounded-2xl p-3 text-center">
+                <BarChart3 size={18} className="text-green-600 mx-auto mb-1" />
+                <p className="text-foreground font-bold text-sm">12.5T</p>
+                <p className="text-muted-foreground text-[9px]">Yield Projection</p>
+              </div>
+            </div>
+
+            {/* Crop Timeline */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <p className="font-semibold text-sm mb-4">Crop Timeline</p>
+              <div className="relative">
+                <div className="absolute top-4 left-4 right-4 h-0.5 bg-muted rounded-full" />
+                <div className="absolute top-4 left-4 h-0.5 bg-primary rounded-full transition-all duration-700"
+                  style={{ width: `${(currentStageIndex / (CROP_STAGES.length - 1)) * 100}%`, maxWidth: "calc(100% - 32px)" }} />
+                <div className="flex justify-between relative z-10">
+                  {CROP_STAGES.map((stage, i) => {
+                    const Icon = stage.icon;
+                    const done = i < currentStageIndex;
+                    const current = i === currentStageIndex;
+                    return (
+                      <div key={stage.key} className="flex flex-col items-center gap-1.5">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                          current ? "bg-primary border-primary shadow-md shadow-primary/30" :
+                          done    ? "bg-primary/20 border-primary" : "bg-white border-border"}`}>
+                          <Icon size={13} className={current ? "text-white" : done ? "text-primary" : "text-muted-foreground"} />
+                        </div>
+                        <p className={`text-[9px] font-medium text-center leading-tight ${current ? "text-primary font-bold" : done ? "text-primary/70" : "text-muted-foreground"}`}>
+                          {stage.label}
+                        </p>
+                        <p className={`text-[8px] ${current ? "text-primary/70" : "text-muted-foreground/60"}`}>{stage.date}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Upcoming Tasks */}
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="font-semibold text-sm">Upcoming Tasks</p>
+                <span className="text-primary text-xs font-medium flex items-center gap-0.5">View all <ChevronRight size={13} /></span>
+              </div>
+              <div className="space-y-2">
+                {[
+                  { icon: Droplets, label: "Irrigation",           time: "Tomorrow, 7:00 AM", badge: "Scheduled", badgeColor: "bg-blue-100 text-blue-700" },
+                  { icon: Leaf,     label: "Fertilizer Application", time: "18 May 2024",       badge: "Planned",   badgeColor: "bg-gray-100 text-gray-600" },
+                ].map(task => (
+                  <div key={task.label} className="flex items-center gap-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
+                    <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                      <task.icon size={16} className="text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-foreground text-sm font-medium">{task.label}</p>
+                      <p className="text-muted-foreground text-[10px] mt-0.5">{task.time}</p>
+                    </div>
+                    <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${task.badgeColor}`}>{task.badge}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ─── CROP STATUS TAB ─── */}
+        {activeTab === "crop" && (
+          <>
+            {/* All farms listed */}
+            {isLoading
+              ? Array(2).fill(0).map((_, i) => <div key={i} className="h-44 rounded-2xl bg-gray-100 animate-pulse" />)
+              : farms?.length === 0
+                ? (
+                  <div className="text-center py-16 bg-gray-50 border border-border rounded-2xl">
+                    <Leaf size={32} className="text-muted-foreground mx-auto mb-3" />
+                    <p className="text-foreground font-semibold">No farms registered yet</p>
+                    <p className="text-muted-foreground text-xs mt-1">Contact admin to list your farm on the exchange</p>
+                  </div>
+                )
+                : farms?.map((farm: any) => {
+                  const isUp = farm.changePercent >= 0;
+                  const img = getCropImage(farm.cropType, farm.imageUrl);
+                  return (
+                    <div key={farm.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                      <div className="relative h-32">
+                        <img src={img} alt={farm.name} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-black/70" />
+                        <div className="absolute inset-0 p-3 flex flex-col justify-between">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${farm.status === "active" ? "bg-green-500 text-white" : "bg-white/80 text-foreground"}`}>
+                              {farm.status}
+                            </span>
+                            <button className="w-7 h-7 rounded-full bg-black/30 flex items-center justify-center">
+                              <Share2 size={12} className="text-white" />
+                            </button>
+                          </div>
+                          <div>
+                            <p className="text-white font-semibold text-sm">{farm.name}</p>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <MapPin size={10} className="text-white/70" />
+                              <p className="text-white/70 text-xs">{farm.cropType} · {farm.location}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-3 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-foreground font-bold text-sm">{formatKES(farm.currentPrice)}<span className="text-muted-foreground font-normal text-[10px]"> /share</span></p>
+                          <span className={`text-xs font-semibold ${isUp ? "text-green-600" : "text-red-500"}`}>{isUp ? "+" : ""}{farm.changePercent}%</span>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-muted-foreground text-[10px]">Funding Progress</span>
+                            <span className="text-primary font-bold text-[10px]">{farm.fundingPercent}%</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div className="bg-primary rounded-full h-2 transition-all" style={{ width: `${farm.fundingPercent}%` }} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-gray-50 rounded-xl p-2">
+                            <p className="text-muted-foreground text-[9px]">Loan Target</p>
+                            <p className="text-foreground font-bold text-[10px]">{formatKES(farm.loanAmount)}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl p-2">
+                            <p className="text-muted-foreground text-[9px]">Total Shares</p>
+                            <p className="text-foreground font-bold text-[10px]">{farm.totalShares.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl p-2">
+                            <p className="text-muted-foreground text-[9px]">Funded</p>
+                            <p className="text-foreground font-bold text-[10px]">{farm.fundingPercent}%</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+            }
+          </>
+        )}
+
+        {/* ─── ACTIVITIES TAB ─── */}
+        {activeTab === "activities" && (
+          <>
+            {/* KYC verification */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <CheckCircle2 size={15} className="text-primary" /> KYC Verification
+              </p>
+              {kycDocs.length === 0 ? (
+                <p className="text-muted-foreground text-xs">No documents uploaded yet. Open KYC from your dashboard.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {kycDocs.map((doc: any) => (
+                    <div key={doc.id} className="flex items-center gap-2">
+                      {doc.status === "approved" ? <CheckCircle2 size={13} className="text-green-600" />
+                        : doc.status === "rejected" ? <XCircle size={13} className="text-red-500" />
+                        : <Clock size={13} className="text-amber-500" />}
+                      <span className="text-foreground text-xs truncate flex-1">{doc.title}</span>
+                      <span className="text-[9px] capitalize text-muted-foreground">{doc.status}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Group info */}
+            {group && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Users size={18} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-foreground font-semibold text-sm">{group.name}</p>
+                    <p className="text-muted-foreground text-xs">{group.county} · {group.memberCount} members</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {group.status === "approved" ? <CheckCircle2 size={13} className="text-green-600" />
+                      : <Clock size={13} className="text-amber-500" />}
+                    <span className="text-[10px] capitalize text-muted-foreground">{group.status}</span>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-2.5 flex justify-between text-xs">
+                  <div><p className="text-muted-foreground">Reg. Number</p><p className="font-mono font-bold text-foreground">{group.registrationNumber || "—"}</p></div>
+                  <div className="text-right"><p className="text-muted-foreground">Status</p><p className="font-semibold capitalize text-foreground">{group.status}</p></div>
+                </div>
+              </div>
+            )}
+
+            {/* Active loan */}
+            {activeLoan && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <p className="text-amber-700 font-semibold text-sm mb-2 flex items-center gap-2">
+                  <DollarSign size={14} /> Active Loan Application
+                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-foreground font-bold">{formatKES(activeLoan.amount)}</p>
+                  <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full capitalize">{activeLoan.status}</span>
+                </div>
+                <p className="text-muted-foreground text-xs mt-1">{activeLoan.purposeDetails?.slice(0, 80)}…</p>
+              </div>
+            )}
+
+            {/* Recent activity log */}
+            <div>
+              <p className="font-semibold text-sm mb-3">Recent Activity</p>
+              <div className="space-y-2">
+                {[
+                  { icon: "👤", text: "New investor joined your farm", time: "2h ago",  color: "text-blue-600 bg-blue-50" },
+                  { icon: "✅", text: "Crop health improved",          time: "4h ago",  color: "text-green-600 bg-green-50" },
+                  { icon: "📋", text: "New offtaker offer received",   time: "6h ago",  color: "text-amber-600 bg-amber-50" },
+                  { icon: "💧", text: "Irrigation task completed",     time: "1d ago",  color: "text-sky-600 bg-sky-50" },
+                  { icon: "📊", text: "Monthly report generated",      time: "2d ago",  color: "text-purple-600 bg-purple-50" },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base ${item.color}`}>{item.icon}</div>
+                    <p className="text-foreground text-xs font-medium flex-1">{item.text}</p>
+                    <p className="text-muted-foreground text-[10px] flex-shrink-0">{item.time}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <BottomNav role="farmer" />
+    </div>
+  );
+}
