@@ -13,6 +13,7 @@ import adminRouter from "./admin";
 import cropPricesRouter from "./crop-prices";
 import walletRouter from "./wallet";
 import notificationsRouter from "./notifications";
+import aiChatRouter from "./ai-chat";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(adminRouter);
 router.use(cropPricesRouter);
 router.use(walletRouter);
 router.use(notificationsRouter);
+router.use(aiChatRouter);
 
 export default router;

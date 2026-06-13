@@ -174,6 +174,7 @@ export default function MarketHome() {
   const [watchlisted, setWatchlisted] = useState<Set<number>>(new Set());
   const [activeSection, setActiveSection] = useState<"market" | "news" | "watchlist">("market");
   const [notifOpen, setNotifOpen] = useState(false);
+  const [aiQuestion, setAiQuestion] = useState<string | undefined>(undefined);
   const token = getToken();
 
   const { data: walletData } = useQuery<{ wallet: { balance: string } }>({
@@ -248,7 +249,7 @@ export default function MarketHome() {
         {summary && (
           <div className="relative grid grid-cols-3 gap-2 mb-3">
             {[
-              { label: "Volume",     val: `KES ${(summary.totalVolumeKes/1000).toFixed(0)}K`, icon: "💰" },
+              { label: "Turnover",   val: `KES ${(summary.totalVolumeKes/1000).toFixed(0)}K`, icon: "💰" },
               { label: "Avg Return", val: `+${summary.averageReturn}%`, icon: "📈" },
               { label: "Listings",   val: String(summary.totalListings), icon: "🌾" },
             ].map(({ label, val, icon }) => (
@@ -544,7 +545,7 @@ export default function MarketHome() {
       />
 
       <BottomNav role="investor" />
-      <AppTour role="investor" />
+      <AppTour role="investor" onAskAI={q => { setAiQuestion(q); }} />
 
       <CoachMark storageKey="investor_onboarding_v1" steps={[
         { target: "[data-testid='market-home']", title: "Welcome, Investor!", body: "Browse live farm listings here. Each one shows a risk badge — Low, Moderate, or High.", position: "bottom" },
@@ -553,7 +554,7 @@ export default function MarketHome() {
         { target: "[data-testid='nav-profile']", title: "Profile & KYC", body: "Complete identity verification (KYC) to unlock trading and payouts.", position: "top" },
       ]} />
       <NotificationPrompt storageKey="investor_notif_v1" />
-      <AiAssistant />
+      <AiAssistant initialQuestion={aiQuestion} />
 
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
     </div>

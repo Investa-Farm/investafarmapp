@@ -142,9 +142,17 @@ router.post("/market/buy", async (req, res): Promise<void> => {
     .set({ sharesAvailable: listing.sharesAvailable - quantity, isActive: listing.sharesAvailable - quantity > 0 ? 1 : 0 })
     .where(eq(marketListingsTable.id, listingId));
 
+  const [farm] = await db.select().from(farmsTable).where(eq(farmsTable.id, listing.farmId));
+
   await db.update(farmsTable)
-    .set({ tradeCount: (await db.select().from(farmsTable).where(eq(farmsTable.id, listing.farmId)))[0]!.tradeCount + 1 })
+    .set({ tradeCount: (farm?.tradeCount ?? 0) + 1 })
     .where(eq(farmsTable.id, listing.farmId));
+
+  if (listing.listingType === "primary" && farm) {
+    await db.update(farmsTable)
+      .set({ sharesAvailable: Math.max(0, farm.sharesAvailable - quantity) })
+      .where(eq(farmsTable.id, listing.farmId));
+  }
 
   await db.insert(investmentsTable).values({
     investorId: user.id,
@@ -155,8 +163,6 @@ router.post("/market/buy", async (req, res): Promise<void> => {
     exitDate,
     status: "active",
   });
-
-  const [farm] = await db.select().from(farmsTable).where(eq(farmsTable.id, listing.farmId));
 
   const [tx] = await db.insert(transactionsTable).values({
     userId: user.id,

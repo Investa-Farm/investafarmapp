@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, FileText, CheckCircle2, Clock, XCircle, Trash2, Loader2, Camera, MapPin, Info, ShieldCheck, AlertCircle, Video, VideoOff } from "lucide-react";
 import { getToken } from "@/lib/auth";
@@ -51,11 +51,17 @@ function UploadPopup({
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
       setStream(s);
-      if (videoRef.current) videoRef.current.srcObject = s;
     } catch {
       setCameraMode(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [stream]);
 
   const stopCamera = useCallback(() => {
     stream?.getTracks().forEach(t => t.stop());

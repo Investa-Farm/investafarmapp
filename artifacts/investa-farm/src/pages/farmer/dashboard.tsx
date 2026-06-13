@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken } from "@/lib/auth";
-import { Bell, Settings, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, Users, ShieldCheck, LogOut, MapPin, TrendingUp, CalendarDays, AlertCircle } from "lucide-react";
+import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, Users, ShieldCheck, LogOut, MapPin, TrendingUp, CalendarDays, AlertCircle, Moon } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { FARMER_HERO_IMAGE } from "@/lib/crops";
@@ -31,6 +31,14 @@ export default function FarmerDashboard() {
   const [kycOpen, setKycOpen] = useState(false);
   const [loanOpen, setLoanOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
+
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("investa_theme", next ? "dark" : "light");
+  };
 
   const { data: dashboard, isLoading } = useGetFarmerDashboard();
   const { data: updates } = useListFarmUpdates();
@@ -104,6 +112,11 @@ export default function FarmerDashboard() {
                     {Math.min(unreadCount, 9)}
                   </span>
                 )}
+              </button>
+              <button onClick={toggleDark}
+                className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center"
+                title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+                {isDark ? <Sun size={16} className="text-white" /> : <Moon size={16} className="text-white" />}
               </button>
               <div className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
                 <span className="text-white text-sm font-bold">{user?.name?.charAt(0) ?? "F"}</span>

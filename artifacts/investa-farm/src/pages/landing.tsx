@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { useState, useCallback } from "react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import farmerImg from "@assets/pexels-safari-consoler-3290243-10963690_1778315943106.jpg";
-import investorImg from "@assets/pexels-aedrian-10653885_1778315943103.jpg";
+import investorImg from "@assets/IMG_8016_1781250402404.jpeg";
 import coopImg from "@assets/pexels-livier-garcia-645743-1459331_1778315943105.jpg";
 
 export default function Landing() {
@@ -24,7 +24,7 @@ export default function Landing() {
   }, [setLocation]);
 
   return (
-    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gradient-to-b from-[#f0fdf4] via-white to-[#f0fdf4] flex flex-col" data-testid="landing-page">
+    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-white flex flex-col" data-testid="landing-page">
       {/* Logo header */}
       <div className="pt-12 px-6 pb-2 flex items-center justify-center">
         <img src={logoSrc} alt="Investa Farm" className="h-20 w-auto select-none cursor-pointer" onClick={handleLogoTap} />

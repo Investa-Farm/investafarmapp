@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable } from "@workspace/db";
+import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail } from "../lib/email";
 
@@ -221,6 +221,37 @@ router.patch("/admin/kyc/:id/approve", async (req, res): Promise<void> => {
   }
 
   res.json({ ok: true });
+});
+
+router.delete("/admin/farms/:id", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const id = parseInt(req.params["id"] ?? "0", 10);
+  if (!id) { res.status(400).json({ error: "Invalid farm id" }); return; }
+  await db.delete(marketListingsTable).where(eq(marketListingsTable.farmId, id));
+  await db.delete(transactionsTable).where(eq(transactionsTable.farmId, id));
+  await db.delete(investmentsTable).where(eq(investmentsTable.farmId, id));
+  await db.delete(farmUpdatesTable).where(eq(farmUpdatesTable.farmId, id));
+  await db.delete(farmsTable).where(eq(farmsTable.id, id));
+  res.json({ ok: true, deleted: id });
+});
+
+router.get("/admin/farms", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const farms = await db
+    .select({ farm: farmsTable, farmer: usersTable })
+    .from(farmsTable)
+    .leftJoin(usersTable, eq(farmsTable.farmerId, usersTable.id));
+  res.json(farms.map(r => ({
+    id: r.farm.id,
+    name: r.farm.name,
+    cropType: r.farm.cropType,
+    status: r.farm.status,
+    farmerName: r.farmer?.name ?? "Unknown",
+    farmerEmail: r.farmer?.email ?? "",
+    createdAt: r.farm.createdAt.toISOString(),
+  })));
 });
 
 export default router;
