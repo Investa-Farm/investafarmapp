@@ -1,17 +1,34 @@
 {
-  "buildCommand": "pnpm --filter @workspace/investa-farm run build",
-  "outputDirectory": "artifacts/investa-farm/dist/public",
-  "installCommand": "pnpm install",
-  "framework": null,
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "headers": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/assets/(.*)",
+      "src": "artifacts/api-server/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "artifacts/investa-farm/package.json",
+      "use": "@vercel/static-build",
+      "config": { 
+        "distDir": "dist/public",
+        "buildCommand": "pnpm --filter @workspace/investa-farm run build"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "artifacts/api-server/index.js"
+    },
+    {
+      "src": "/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
+      ],
+      "dest": "artifacts/investa-farm/assets/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "artifacts/investa-farm/index.html"
     }
   ]
 }
