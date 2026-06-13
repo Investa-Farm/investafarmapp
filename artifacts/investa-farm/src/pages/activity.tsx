@@ -5,6 +5,7 @@ import { formatKES } from "@/lib/auth";
 import { TrendingUp, TrendingDown, ArrowUpRight, Clock, Receipt, X, ChevronRight, Calendar, Layers, DollarSign, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 
 const typeConfig = {
   buy:  { label: "Bought",    color: "text-green-600",  bg: "bg-green-500/10",  icon: TrendingUp },
@@ -126,9 +127,30 @@ function ReceiptRow({ icon, label, value }: { icon: React.ReactNode; label: stri
   );
 }
 
+type Placement = {
+  id: number; farmId: number; farmName: string; cropType: string;
+  pricePerShare: number; sharesAvailable: number; changePercent: number;
+  createdAt?: string; isActive?: boolean;
+};
+
 export default function Activity() {
   const { data: transactions, isLoading } = useListTransactions();
   const [selectedTx, setSelectedTx] = useState<TxItem | null>(null);
+  const [tab, setTab] = useState<"transactions" | "placements">("transactions");
+  const token = typeof window !== "undefined" ? localStorage.getItem("investa_token") : null;
+
+  const { data: placements = [], isLoading: placementsLoading } = useQuery<Placement[]>({
+    queryKey: ["my-listings-activity"],
+    queryFn: async () => {
+      const r = await fetch("/api/market/my-listings", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: tab === "placements",
+  });
+
+  const activePlacements = placements.filter(p => p.isActive !== false);
+  const soldPlacements = placements.filter(p => p.isActive === false);
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="activity-page">
@@ -138,67 +160,181 @@ export default function Activity() {
         <p className="text-white/60 text-xs mt-1">Tap any transaction to view receipt</p>
       </div>
 
-      <div className="px-4 pt-4 space-y-2.5">
-        {isLoading
-          ? Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
-          : transactions?.length === 0
-            ? (
-              <div className="text-center py-16">
-                <Receipt size={36} className="text-muted-foreground mx-auto mb-3" />
-                <p className="text-foreground font-semibold text-sm">No activity yet</p>
-                <p className="text-muted-foreground text-xs mt-1">Your transactions will appear here once you invest.</p>
-              </div>
-            )
-            : transactions?.map((tx) => {
-                const cfg = typeConfig[tx.type as keyof typeof typeConfig] ?? typeConfig.buy;
-                const Icon = cfg.icon;
-                const date = new Date(tx.createdAt);
-                const dateStr = date.toLocaleDateString("en-KE", { month: "short", day: "numeric" });
-                const timeStr = date.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" });
-
-                return (
-                  <button
-                    key={tx.id}
-                    data-testid={`transaction-${tx.id}`}
-                    className="w-full bg-card rounded-2xl border border-border p-4 flex items-center gap-3 active:scale-[0.98] transition-transform text-left"
-                    onClick={() => setSelectedTx(tx as TxItem)}
-                  >
-                    <div className={`w-10 h-10 rounded-xl ${cfg.bg} flex items-center justify-center flex-shrink-0`}>
-                      <Icon size={18} className={cfg.color} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-foreground text-sm font-semibold">{cfg.label} · {tx.farmName}</p>
-                        <p className={`text-sm font-bold ${tx.type === "buy" ? "text-foreground" : "text-green-600"}`}>
-                          {tx.type === "buy" ? "-" : "+"}{formatKES(tx.totalAmount)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-muted-foreground text-[11px]">{tx.cropType}</span>
-                        <span className="text-muted-foreground text-[11px]">·</span>
-                        <span className="text-muted-foreground text-[11px]">{tx.quantity} shares @ {formatKES(tx.pricePerShare)}</span>
-                      </div>
-                      {tx.exitType && (
-                        <span className="text-muted-foreground text-[10px]">
-                          {tx.exitType === "wide_season" ? "⚡ Mid-Season exit" : "🌾 Full Season exit"}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <div className="text-right">
-                        <p className="text-muted-foreground text-[10px]">{dateStr}</p>
-                        <p className="text-muted-foreground text-[10px]">{timeStr}</p>
-                        <span className={`text-[10px] font-medium capitalize ${tx.status === "completed" ? "text-green-600" : "text-orange-600"}`}>
-                          {tx.status}
-                        </span>
-                      </div>
-                      <ChevronRight size={14} className="text-muted-foreground" />
-                    </div>
-                  </button>
-                );
-              })
-        }
+      {/* Tab switcher */}
+      <div className="px-4 pt-3 pb-1">
+        <div className="flex bg-muted rounded-2xl p-1">
+          <button
+            onClick={() => setTab("transactions")}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+              tab === "transactions" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            <Receipt size={13} />
+            Transactions
+          </button>
+          <button
+            onClick={() => setTab("placements")}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+              tab === "placements" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            <Layers size={13} />
+            My Placements
+            {activePlacements.length > 0 && (
+              <span className="bg-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                {activePlacements.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
+
+      {tab === "transactions" && (
+        <div className="px-4 pt-3 space-y-2.5">
+          {isLoading
+            ? Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
+            : transactions?.length === 0
+              ? (
+                <div className="text-center py-16">
+                  <Receipt size={36} className="text-muted-foreground mx-auto mb-3" />
+                  <p className="text-foreground font-semibold text-sm">No activity yet</p>
+                  <p className="text-muted-foreground text-xs mt-1">Your transactions will appear here once you invest.</p>
+                </div>
+              )
+              : transactions?.map((tx) => {
+                  const cfg = typeConfig[tx.type as keyof typeof typeConfig] ?? typeConfig.buy;
+                  const Icon = cfg.icon;
+                  const date = new Date(tx.createdAt);
+                  const dateStr = date.toLocaleDateString("en-KE", { month: "short", day: "numeric" });
+                  const timeStr = date.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" });
+
+                  return (
+                    <button
+                      key={tx.id}
+                      data-testid={`transaction-${tx.id}`}
+                      className="w-full bg-card rounded-2xl border border-border p-4 flex items-center gap-3 active:scale-[0.98] transition-transform text-left"
+                      onClick={() => setSelectedTx(tx as TxItem)}
+                    >
+                      <div className={`w-10 h-10 rounded-xl ${cfg.bg} flex items-center justify-center flex-shrink-0`}>
+                        <Icon size={18} className={cfg.color} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-foreground text-sm font-semibold">{cfg.label} · {tx.farmName}</p>
+                          <p className={`text-sm font-bold ${tx.type === "buy" ? "text-foreground" : "text-green-600"}`}>
+                            {tx.type === "buy" ? "-" : "+"}{formatKES(tx.totalAmount)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-muted-foreground text-[11px]">{tx.cropType}</span>
+                          <span className="text-muted-foreground text-[11px]">·</span>
+                          <span className="text-muted-foreground text-[11px]">{tx.quantity} shares @ {formatKES(tx.pricePerShare)}</span>
+                        </div>
+                        {tx.exitType && (
+                          <span className="text-muted-foreground text-[10px]">
+                            {tx.exitType === "wide_season" ? "⚡ Mid-Season exit" : "🌾 Full Season exit"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <div className="text-right">
+                          <p className="text-muted-foreground text-[10px]">{dateStr}</p>
+                          <p className="text-muted-foreground text-[10px]">{timeStr}</p>
+                          <span className={`text-[10px] font-medium capitalize ${tx.status === "completed" ? "text-green-600" : "text-orange-600"}`}>
+                            {tx.status}
+                          </span>
+                        </div>
+                        <ChevronRight size={14} className="text-muted-foreground" />
+                      </div>
+                    </button>
+                  );
+                })
+          }
+        </div>
+      )}
+
+      {tab === "placements" && (
+        <div className="px-4 pt-3 space-y-3">
+          {/* Broker fee info */}
+          <div className="bg-violet-50 border border-violet-200 rounded-2xl p-3 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+              <DollarSign size={14} className="text-violet-600" />
+            </div>
+            <div>
+              <p className="text-violet-800 font-semibold text-xs">🤝 Broker Fee: 1% per placement</p>
+              <p className="text-violet-600 text-[10px] mt-0.5 leading-relaxed">
+                When your listed shares are sold, you earn a 1% placement fee on the total trade value.
+              </p>
+            </div>
+          </div>
+
+          {placementsLoading ? (
+            Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
+          ) : placements.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="w-16 h-16 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-3">
+                <Layers size={28} className="text-violet-400" />
+              </div>
+              <p className="text-foreground font-semibold text-sm">No placements yet</p>
+              <p className="text-muted-foreground text-xs mt-1 max-w-[220px] mx-auto leading-relaxed">
+                Go to your Portfolio and tap "Sell on Market" to list shares on the Secondary Market.
+              </p>
+            </div>
+          ) : (
+            <>
+              {activePlacements.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Active ({activePlacements.length})
+                  </p>
+                  {activePlacements.map(p => {
+                    const placementFee = p.pricePerShare * p.sharesAvailable * 0.01;
+                    return (
+                      <div key={p.id} className="bg-card rounded-2xl border border-border p-3 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+                          <Layers size={18} className="text-violet-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground text-sm font-semibold truncate">{p.farmName}</p>
+                          <p className="text-muted-foreground text-[10px]">
+                            {p.cropType} · {p.sharesAvailable} shares @ {formatKES(p.pricePerShare)}
+                          </p>
+                          <p className="text-violet-600 text-[10px] font-medium">
+                            🤝 Broker fee if sold: {formatKES(placementFee)}
+                          </p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-foreground font-bold text-sm">{formatKES(p.pricePerShare * p.sharesAvailable)}</p>
+                          <span className="text-[9px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded-full">Live</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {soldPlacements.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> Completed / Cancelled ({soldPlacements.length})
+                  </p>
+                  {soldPlacements.map(p => (
+                    <div key={p.id} className="bg-card rounded-2xl border border-border p-3 flex items-center gap-3 opacity-60">
+                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                        <Layers size={18} className="text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground text-sm font-medium truncate">{p.farmName}</p>
+                        <p className="text-muted-foreground text-[10px]">{p.cropType} · {p.sharesAvailable} shares</p>
+                      </div>
+                      <span className="text-[9px] bg-gray-100 text-gray-500 font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0">Done</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       <AnimatePresence>
         {selectedTx && <ReceiptSheet tx={selectedTx} onClose={() => setSelectedTx(null)} />}

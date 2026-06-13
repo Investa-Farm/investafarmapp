@@ -97,6 +97,7 @@ export default function SecondaryMarket() {
   const [investOpen, setInvestOpen] = useState(false);
   const [cancelListing, setCancelListing] = useState<Listing | null>(null);
   const [tab, setTab] = useState<"market" | "mine">("market");
+  const [cropFilter, setCropFilter] = useState<string>("all");
   const token = getToken();
   const qc = useQueryClient();
 
@@ -192,9 +193,33 @@ export default function SecondaryMarket() {
 
       <AnimatePresence mode="wait">
         {tab === "market" ? (
-          <motion.div key="market" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="px-4 pt-3 space-y-3">
-            <p className="text-muted-foreground text-xs">Investors reselling shares — prices may differ from primary market</p>
+          <motion.div key="market" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-3 space-y-3">
+            {/* Crop filter chips */}
+            {!isLoading && (listings?.length ?? 0) > 0 && (
+              <div className="px-4">
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {["all", ...Array.from(new Set(listings?.map(l => l.cropType) ?? []))].map(crop => (
+                    <button
+                      key={crop}
+                      onClick={() => setCropFilter(crop)}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 ${
+                        cropFilter === crop
+                          ? "bg-primary text-white shadow-sm shadow-primary/30"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {crop === "all" ? "🌍 All Crops" : `🌾 ${crop}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
+            <div className="px-4">
+              <p className="text-muted-foreground text-xs">Investors reselling shares — prices may differ from primary market</p>
+            </div>
+
+            <div className="px-4 space-y-3">
             {isLoading ? (
               Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-52 rounded-2xl" />)
             ) : listings?.length === 0 ? (
@@ -211,7 +236,7 @@ export default function SecondaryMarket() {
                   Browse Primary Market
                 </button>
               </div>
-            ) : listings?.map((listing) => {
+            ) : (listings ?? []).filter(l => cropFilter === "all" || l.cropType === cropFilter).map((listing) => {
               const isUp = listing.changePercent >= 0;
               const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
               const imgSrc = getCropImage(listing.cropType, listing.imageUrl ?? undefined);
@@ -227,13 +252,16 @@ export default function SecondaryMarket() {
 
                     {/* Top badges */}
                     <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${isUp ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
                           {isUp ? "▲" : "▼"} {formatChange(listing.changePercent)}
                         </span>
                         <RiskBadge level={getRiskLevel(listing.cropType, listing.changePercent)} />
                         <span className="text-[9px] font-bold bg-green-600/80 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
                           RESALE
+                        </span>
+                        <span className="text-[9px] font-bold bg-violet-600/80 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
+                          🤝 1% fee
                         </span>
                       </div>
                       <span className="bg-black/40 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-1">
@@ -275,6 +303,7 @@ export default function SecondaryMarket() {
                 </div>
               );
             })}
+            </div>
           </motion.div>
         ) : (
           <motion.div key="mine" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="px-4 pt-3 space-y-3">

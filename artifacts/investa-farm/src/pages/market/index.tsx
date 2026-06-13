@@ -179,7 +179,8 @@ export default function MarketHome() {
       if (!r.ok) return [];
       return r.json();
     },
-    staleTime: 30 * 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
 
   const { data: walletData } = useQuery<{ wallet: { balance: string } }>({

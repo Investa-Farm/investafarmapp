@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { useGetPortfolio, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange } from "@/lib/auth";
-import { TrendingUp, TrendingDown, Share2, Tag } from "lucide-react";
+import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink } from "lucide-react";
+import { Link } from "wouter";
 import { ShareModal } from "@/components/share-modal";
 import {
   LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -300,26 +301,32 @@ export default function Portfolio() {
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5 flex-wrap">
                         <button
                           onClick={() => setShareHolding(h)}
-                          className="py-2.5 px-3 rounded-xl border border-border text-muted-foreground text-xs font-medium active:scale-95 transition-all flex items-center gap-1.5"
+                          className="py-2 px-2.5 rounded-xl border border-border text-muted-foreground text-xs font-medium active:scale-95 transition-all flex items-center gap-1"
                         >
-                          <Share2 size={13} /> Share
+                          <Share2 size={12} /> Share
                         </button>
+                        <Link
+                          to={`/market/farm/${h.farmId}`}
+                          className="py-2 px-2.5 rounded-xl border border-border text-muted-foreground text-xs font-medium active:scale-95 transition-all flex items-center gap-1"
+                        >
+                          <ExternalLink size={12} /> View Farm
+                        </Link>
                         {h.status === "active" && (
                           <>
                             <button
                               onClick={() => handleSellClick(h)}
-                              className="flex-1 py-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                              className="flex-1 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1"
                             >
-                              <Tag size={12} /> Sell on Market
+                              <Tag size={12} /> Sell
                             </button>
                             <button
                               onClick={() => handleExitClick(h)}
-                              className="flex-1 py-2.5 rounded-xl bg-primary text-white text-xs font-bold active:scale-95 transition-all"
+                              className="flex-1 py-2 rounded-xl bg-primary text-white text-xs font-bold active:scale-95 transition-all"
                             >
-                              Exit Payout
+                              Exit
                             </button>
                           </>
                         )}

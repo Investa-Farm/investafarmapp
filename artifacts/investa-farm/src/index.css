@@ -97,9 +97,9 @@
   overflow: hidden;
 }
 
-/* Hero header — dark charcoal/slate (no green tint) */
+/* Hero header — grass green brand gradient */
 .hero-header {
-  background: linear-gradient(160deg, #0f172a 0%, #1e293b 55%, #1e293b 100%);
+  background: linear-gradient(160deg, #052e16 0%, #14532d 45%, #16a34a 100%);
 }
 
 /* Info card — neutral */
@@ -174,7 +174,7 @@
 }
 
 .dark .hero-header {
-  background: linear-gradient(160deg, #020617 0%, #0f172a 55%, #0f172a 100%);
+  background: linear-gradient(160deg, #052e16 0%, #14532d 45%, #166534 100%);
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 

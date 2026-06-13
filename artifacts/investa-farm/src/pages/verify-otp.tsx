@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, PartyPopper, Mail, MessageCircle } from "lucide-react";
+import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, PartyPopper, Mail, MessageCircle, Pencil, X } from "lucide-react";
 import { getToken, getStoredUser, storeUser, clearToken } from "@/lib/auth";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
+
+const WHATSAPP_COMMUNITY = "https://chat.whatsapp.com/BWfnSpL4GTl0EsFpuPMKOK";
+const SUPPORT_EMAIL = "investafarm@proton.me";
 
 export default function VerifyOtp() {
   const [, setLocation] = useLocation();
@@ -20,6 +23,10 @@ export default function VerifyOtp() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [countdown, setCountdown] = useState(60);
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState(emailParam || user?.email || "");
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [displayEmail, setDisplayEmail] = useState(emailParam || user?.email || "");
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
   const canResend = countdown === 0;
@@ -97,11 +104,35 @@ export default function VerifyOtp() {
     }
   };
 
+  const handleChangeEmail = async () => {
+    const trimmed = newEmail.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes("@")) { setError("Please enter a valid email address."); return; }
+    if (trimmed === displayEmail.toLowerCase()) { setEditingEmail(false); return; }
+    setChangingEmail(true); setError("");
+    try {
+      const r = await fetch("/api/auth/email", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed to update email");
+      setDisplayEmail(trimmed);
+      setEditingEmail(false);
+      setCode(["", "", "", "", "", ""]);
+      setCountdown(60);
+      setError("Email updated! A new code has been sent to " + trimmed);
+      setTimeout(() => inputs.current[0]?.focus(), 100);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setChangingEmail(false);
+    }
+  };
+
   return (
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-background flex flex-col items-center justify-center px-6 pb-10">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full space-y-6">
-
-        {/* Logo */}
         <div className="text-center">
           <img src={logoSrc} alt="Investa Farm" className="h-14 w-auto mx-auto" />
         </div>
@@ -129,24 +160,18 @@ export default function VerifyOtp() {
                     className="absolute text-sm"
                     style={{ top: "50%", left: "50%" }}
                     initial={{ x: 0, y: 0, opacity: 1 }}
-                    animate={{
-                      x: [0, (i % 2 === 0 ? 1 : -1) * (20 + i * 8)],
-                      y: [0, -(15 + i * 10)],
-                      opacity: [1, 0],
-                    }}
+                    animate={{ x: [0, (i % 2 === 0 ? 1 : -1) * (20 + i * 8)], y: [0, -(15 + i * 10)], opacity: [1, 0] }}
                     transition={{ duration: 0.8, delay: i * 0.07 }}
                   >
                     {dot}
                   </motion.span>
                 ))}
               </div>
-
               <div>
                 <p className="text-foreground font-extrabold text-2xl">Registration Successful! 🎉</p>
                 <p className="text-primary font-semibold text-sm mt-1">Your email has been verified</p>
                 <p className="text-muted-foreground text-xs mt-2">Redirecting you to sign in…</p>
               </div>
-
               <motion.div
                 className="w-full bg-primary/8 border border-primary/20 rounded-2xl p-4 text-center"
                 initial={{ opacity: 0, y: 10 }}
@@ -156,36 +181,78 @@ export default function VerifyOtp() {
                 <p className="text-primary text-sm font-medium">Welcome to Investa Farm! 🌾</p>
                 <p className="text-muted-foreground text-xs mt-1">
                   You can now sign in and start{" "}
-                  {user?.role === "farmer"
-                    ? "raising capital for your farm"
-                    : user?.role === "investor"
-                    ? "investing in real farms"
+                  {user?.role === "farmer" ? "raising capital for your farm"
+                    : user?.role === "investor" ? "investing in real farms"
                     : "managing your network"}.
                 </p>
               </motion.div>
             </motion.div>
           ) : (
             <motion.div key="form" initial={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-              {/* Header */}
               <div className="text-center space-y-3">
                 <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto border border-primary/20">
                   <ShieldCheck size={28} className="text-primary" />
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">Verify Your Email</h1>
-                  <p className="text-muted-foreground text-sm mt-1">
-                    We sent a 6-digit code to<br />
-                    <span className="text-primary font-medium">{emailParam || user?.email || "your email"}</span>
-                  </p>
+                  <p className="text-muted-foreground text-sm mt-1">We sent a 6-digit code to</p>
+
+                  <div className="mt-1 flex items-center justify-center gap-2">
+                    <span className="text-primary font-medium text-sm break-all">{displayEmail || "your email"}</span>
+                    <button
+                      onClick={() => { setEditingEmail(v => !v); setNewEmail(displayEmail); }}
+                      className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+                    >
+                      {editingEmail ? <X size={13} /> : <Pencil size={13} />}
+                    </button>
+                  </div>
+
+                  <AnimatePresence>
+                    {editingEmail && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden mt-3"
+                      >
+                        <div className="bg-card border border-border rounded-2xl p-4 space-y-3 text-left">
+                          <p className="text-foreground text-xs font-semibold">Change email address</p>
+                          <input
+                            type="email"
+                            value={newEmail}
+                            onChange={e => setNewEmail(e.target.value)}
+                            placeholder="new@example.com"
+                            className="w-full border border-border rounded-xl px-3 py-2.5 text-sm text-foreground bg-muted focus:outline-none focus:border-primary"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setEditingEmail(false)}
+                              className="flex-1 py-2 rounded-xl border border-border text-muted-foreground text-xs font-semibold"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleChangeEmail}
+                              disabled={changingEmail}
+                              className="flex-1 py-2 rounded-xl bg-primary text-white text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all disabled:opacity-60"
+                            >
+                              {changingEmail ? <Loader2 size={12} className="animate-spin" /> : null}
+                              {changingEmail ? "Updating…" : "Update & Resend"}
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <p className="text-muted-foreground/60 text-xs mt-1">Check your inbox and spam folder.</p>
                 </div>
               </div>
 
-              {/* OTP card */}
               <div className="bg-card rounded-3xl border border-border p-6 space-y-5 shadow-sm">
                 {error && (
                   <div className={`rounded-xl px-4 py-3 text-sm text-center ${
-                    error.includes("sent") || error.includes("Check")
+                    error.includes("sent") || error.includes("updated") || error.includes("Check")
                       ? "bg-primary/8 border border-primary/20 text-primary"
                       : "bg-destructive/8 border border-destructive/20 text-destructive"
                   }`}>
@@ -193,7 +260,6 @@ export default function VerifyOtp() {
                   </div>
                 )}
 
-                {/* Digit inputs */}
                 <div className="flex gap-2 justify-center">
                   {code.map((digit, i) => (
                     <input
@@ -229,37 +295,25 @@ export default function VerifyOtp() {
                     }`}
                   >
                     <RefreshCw size={12} className={resending ? "animate-spin" : ""} />
-                    {canResend
-                      ? resending ? "Sending…" : "Resend code"
-                      : `Resend in ${countdown}s`
-                    }
+                    {canResend ? (resending ? "Sending…" : "Resend code") : `Resend in ${countdown}s`}
                   </button>
                 </div>
               </div>
 
-              {/* Support */}
               <div className="text-center space-y-2">
                 <p className="text-muted-foreground text-xs">Having trouble receiving the code?</p>
                 <div className="flex items-center justify-center gap-4">
-                  <a
-                    href="mailto:support@investafarm.co.ke"
-                    className="flex items-center gap-1.5 text-primary/70 text-xs font-medium hover:text-primary transition-colors"
-                  >
-                    <Mail size={12} />
-                    Email Support
+                  <a href={`mailto:${SUPPORT_EMAIL}`}
+                    className="flex items-center gap-1.5 text-primary/70 text-xs font-medium hover:text-primary transition-colors">
+                    <Mail size={12} /> Email Support
                   </a>
                   <span className="text-border text-xs">·</span>
-                  <a
-                    href="https://wa.me/254700000000"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 text-primary/70 text-xs font-medium hover:text-primary transition-colors"
-                  >
-                    <MessageCircle size={12} />
-                    WhatsApp
+                  <a href={WHATSAPP_COMMUNITY} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1.5 text-primary/70 text-xs font-medium hover:text-primary transition-colors">
+                    <MessageCircle size={12} /> WhatsApp Community
                   </a>
                 </div>
-                <p className="text-muted-foreground/50 text-[10px]">support@investafarm.co.ke</p>
+                <p className="text-muted-foreground/50 text-[10px]">{SUPPORT_EMAIL}</p>
               </div>
             </motion.div>
           )}

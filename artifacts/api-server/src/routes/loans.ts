@@ -3,6 +3,7 @@ import { db, loanApplicationsTable, farmsTable, marketListingsTable, kycDocument
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { z } from "zod";
+import { sendFundingApplicationEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -219,8 +220,17 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
   const resolvedFarmName = farmName ?? `${user.name.split(" ")[0]}'s ${resolvedCrop} Farm`;
   const newFarmId = await autoCreateFarmAndListing(user.id, app.id, amount, resolvedCrop, resolvedFarmName, resolvedLocation);
 
-  // Voucher email is sent automatically when the farm reaches full funding
-  // (handled in the market buy route when sharesAvailable reaches 0)
+  // Send contract email to farmer
+  sendFundingApplicationEmail(user.email, user.name, {
+    amount,
+    purpose,
+    cropType: resolvedCrop,
+    location: resolvedLocation,
+    farmName: resolvedFarmName,
+    repaymentMonths: repaymentPeriodMonths,
+    aiScore: aiResult.score,
+    aiSummary: aiResult.summary,
+  }).catch(() => {/* non-critical */});
 
   res.status(201).json({ ...formatLoan(app, resolvedCrop), newFarmId, aiScore: aiResult.score });
 });

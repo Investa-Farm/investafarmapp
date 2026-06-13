@@ -3,9 +3,10 @@ import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, getStoredUser, storeUser, getToken, formatKES } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, ArrowDownLeft, RefreshCw } from "lucide-react";
+import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
+import { WalletModal } from "@/components/wallet-modal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 
@@ -16,6 +17,7 @@ export default function FarmerProfile() {
   const [profilePhoto, setProfilePhoto] = useState<string | null>(() => localStorage.getItem("investa_farmer_profile_photo"));
   const [notifOpen, setNotifOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
 
   const [settingsName, setSettingsName] = useState("");
   const [currentPw, setCurrentPw] = useState("");
@@ -166,10 +168,10 @@ export default function FarmerProfile() {
           </div>
         </div>
 
-        {/* Withdraw button — farmer only action */}
-        <button onClick={() => setLocation("/farmer/wallet")}
+        {/* Wallet button — opens popup */}
+        <button onClick={() => setWalletOpen(true)}
           className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/15 text-white text-sm font-bold border border-white/20 active:scale-95 transition-transform">
-          <ArrowDownLeft size={14} /> Withdraw to M-Pesa
+          <Wallet size={14} /> Open Wallet
         </button>
       </div>
 
@@ -209,6 +211,7 @@ export default function FarmerProfile() {
         </p>
       </div>
 
+      <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
       <BottomNav role="farmer" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
 

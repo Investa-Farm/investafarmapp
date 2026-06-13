@@ -68,7 +68,11 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
   const passwordHash = await bcrypt.hash(password, 10);
-  const [user] = await db.insert(usersTable).values({ email, passwordHash, name, role }).returning();
+  const isDemo = DEMO_EMAILS.has(email.toLowerCase());
+  const [user] = await db.insert(usersTable).values({
+    email, passwordHash, name, role,
+    ...(isDemo ? { emailVerified: true } : {}),
+  }).returning();
   const token = signToken(user.id);
 
   // Create wallet for every new user
@@ -76,6 +80,15 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const [existingWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, user.id));
   if (!existingWallet) {
     await db.insert(walletsTable).values({ userId: user.id, balance: "0", currency: "KES" });
+  }
+
+  if (isDemo) {
+    res.status(201).json({
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, emailVerified: true, createdAt: user.createdAt.toISOString() },
+      token,
+      requiresOtp: false,
+    });
+    return;
   }
 
   const code = generateOtp();
@@ -98,6 +111,24 @@ router.post("/auth/send-otp", async (req, res): Promise<void> => {
   await db.insert(otpCodesTable).values({ userId: user.id, code, purpose: "email_verify", expiresAt });
   sendOtpEmail(user.email, user.name, code).catch(() => {});
   res.json({ message: "OTP sent", email: user.email });
+});
+
+router.patch("/auth/email", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { email } = req.body;
+  if (!email || typeof email !== "string") { res.status(400).json({ error: "Email required" }); return; }
+  const emailLower = email.toLowerCase().trim();
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, emailLower));
+  if (existing && existing.id !== user.id) {
+    res.status(400).json({ error: "Email already in use by another account" }); return;
+  }
+  await db.update(usersTable).set({ email: emailLower, emailVerified: false }).where(eq(usersTable.id, user.id));
+  const code = generateOtp();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  await db.insert(otpCodesTable).values({ userId: user.id, code, purpose: "email_verify", expiresAt });
+  sendOtpEmail(emailLower, user.name, code).catch(() => {});
+  res.json({ message: "Email updated. New code sent.", email: emailLower });
 });
 
 router.post("/auth/verify-otp", async (req, res): Promise<void> => {

@@ -5,10 +5,11 @@ import { formatKES, getToken, getStoredUser } from "@/lib/auth";
 import {
   Settings, Bell, Droplets, CloudRain, BarChart3, MapPin, Leaf, Sun, Wheat,
   TrendingUp, CalendarDays, ChevronRight, Maximize2, CheckCircle2, Clock,
-  XCircle, Share2, Users, DollarSign, Activity, ShieldCheck
+  XCircle, Share2, Users, DollarSign, Activity, ShieldCheck, X
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import aerialFarmImg from "@assets/IMG_8016_1781250402404.jpeg";
 import { getCropImage } from "@/lib/crops";
@@ -81,6 +82,7 @@ export default function FarmProfile() {
   const token = getToken();
   const user = getStoredUser();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [farmSettingsOpen, setFarmSettingsOpen] = useState(false);
 
   const { data: farms, isLoading } = useGetMyFarms();
   const { data: dashboard } = useGetFarmerDashboard();
@@ -189,7 +191,7 @@ export default function FarmProfile() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">My Farm</h1>
         </div>
-        <button className="flex items-center gap-1.5 border border-border rounded-xl px-3 py-1.5 text-xs font-medium text-foreground bg-white shadow-sm">
+        <button onClick={() => setFarmSettingsOpen(true)} className="flex items-center gap-1.5 border border-border rounded-xl px-3 py-1.5 text-xs font-medium text-foreground bg-white shadow-sm active:scale-95 transition-transform">
           <Settings size={13} className="text-muted-foreground" />
           Farm Settings
         </button>
@@ -226,7 +228,7 @@ export default function FarmProfile() {
             {isLoading
               ? <div className="h-48 rounded-2xl bg-gray-100 animate-pulse" />
               : <FarmBoundaryMap
-                  cropType={currentFarm?.cropType ?? "Tomatoes"}
+                  cropType={currentFarm?.cropType ?? ""}
                   imageUrl={currentFarm?.imageUrl ?? undefined}
                 />
             }
@@ -255,10 +257,10 @@ export default function FarmProfile() {
                 <div className="pl-3">
                   <p className="text-muted-foreground text-[10px] font-medium mb-1">Next Activity</p>
                   <div className="flex items-start gap-1">
-                    <CalendarDays size={12} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                    <CalendarDays size={12} className="text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-foreground font-bold text-[11px] leading-tight">Irrigation</p>
-                      <p className="text-muted-foreground text-[9px] mt-0.5">Tomorrow, 7:00 AM</p>
+                      <p className="text-foreground font-medium text-[11px] leading-tight">No tasks set</p>
+                      <p className="text-muted-foreground text-[9px] mt-0.5">Use Farm Settings</p>
                     </div>
                   </div>
                 </div>
@@ -269,18 +271,18 @@ export default function FarmProfile() {
             <div className="grid grid-cols-3 gap-2.5">
               <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center">
                 <Droplets size={18} className="text-blue-500 mx-auto mb-1" />
-                <p className="text-foreground font-bold text-sm">32%</p>
+                <p className="text-foreground font-bold text-sm">—</p>
                 <p className="text-muted-foreground text-[9px]">Soil Moisture</p>
-                <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold mt-0.5 inline-block">Good</span>
+                <span className="text-[9px] bg-blue-50 text-blue-400 px-1.5 py-0.5 rounded-full font-bold mt-0.5 inline-block">No data</span>
               </div>
               <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3 text-center">
                 <CloudRain size={18} className="text-sky-500 mx-auto mb-1" />
-                <p className="text-foreground font-bold text-sm">32mm</p>
+                <p className="text-foreground font-bold text-sm">—</p>
                 <p className="text-muted-foreground text-[9px]">Rainfall (7d)</p>
               </div>
               <div className="bg-green-50 border border-green-100 rounded-2xl p-3 text-center">
                 <BarChart3 size={18} className="text-green-600 mx-auto mb-1" />
-                <p className="text-foreground font-bold text-sm">12.5T</p>
+                <p className="text-foreground font-bold text-sm">—</p>
                 <p className="text-muted-foreground text-[9px]">Yield Projection</p>
               </div>
             </div>
@@ -321,22 +323,10 @@ export default function FarmProfile() {
                 <p className="font-semibold text-sm">Upcoming Tasks</p>
                 <span className="text-primary text-xs font-medium flex items-center gap-0.5">View all <ChevronRight size={13} /></span>
               </div>
-              <div className="space-y-2">
-                {[
-                  { icon: Droplets, label: "Irrigation",           time: "Tomorrow, 7:00 AM", badge: "Scheduled", badgeColor: "bg-blue-100 text-blue-700" },
-                  { icon: Leaf,     label: "Fertilizer Application", time: "18 May 2024",       badge: "Planned",   badgeColor: "bg-gray-100 text-gray-600" },
-                ].map(task => (
-                  <div key={task.label} className="flex items-center gap-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
-                    <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
-                      <task.icon size={16} className="text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-foreground text-sm font-medium">{task.label}</p>
-                      <p className="text-muted-foreground text-[10px] mt-0.5">{task.time}</p>
-                    </div>
-                    <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${task.badgeColor}`}>{task.badge}</span>
-                  </div>
-                ))}
+              <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 text-center">
+                <CalendarDays size={20} className="text-muted-foreground mx-auto mb-2" />
+                <p className="text-foreground text-xs font-medium">No tasks scheduled</p>
+                <p className="text-muted-foreground text-[10px] mt-0.5">Farm activity tasks will appear here</p>
               </div>
             </div>
           </>
@@ -484,20 +474,10 @@ export default function FarmProfile() {
             {/* Recent activity log */}
             <div>
               <p className="font-semibold text-sm mb-3">Recent Activity</p>
-              <div className="space-y-2">
-                {[
-                  { icon: "👤", text: "New investor joined your farm", time: "2h ago",  color: "text-blue-600 bg-blue-50" },
-                  { icon: "✅", text: "Crop health improved",          time: "4h ago",  color: "text-green-600 bg-green-50" },
-                  { icon: "📋", text: "New offtaker offer received",   time: "6h ago",  color: "text-amber-600 bg-amber-50" },
-                  { icon: "💧", text: "Irrigation task completed",     time: "1d ago",  color: "text-sky-600 bg-sky-50" },
-                  { icon: "📊", text: "Monthly report generated",      time: "2d ago",  color: "text-purple-600 bg-purple-50" },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 shadow-sm p-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base ${item.color}`}>{item.icon}</div>
-                    <p className="text-foreground text-xs font-medium flex-1">{item.text}</p>
-                    <p className="text-muted-foreground text-[10px] flex-shrink-0">{item.time}</p>
-                  </div>
-                ))}
+              <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 text-center">
+                <Activity size={20} className="text-muted-foreground mx-auto mb-2" />
+                <p className="text-foreground text-xs font-medium">No activity yet</p>
+                <p className="text-muted-foreground text-[10px] mt-0.5">Farm events and milestones will appear here</p>
               </div>
             </div>
           </>
@@ -505,6 +485,62 @@ export default function FarmProfile() {
       </div>
 
       <BottomNav role="farmer" />
+
+      {/* Farm Settings bottom sheet */}
+      <AnimatePresence>
+        {farmSettingsOpen && (
+          <motion.div className="fixed inset-0 z-50 flex items-end justify-center"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/50" onClick={() => setFarmSettingsOpen(false)} />
+            <motion.div className="relative w-full max-w-[430px] bg-white rounded-t-3xl pb-10"
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}>
+              <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-1" />
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <div>
+                  <p className="font-bold text-base">Farm Settings</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">View & manage your farm profile</p>
+                </div>
+                <button onClick={() => setFarmSettingsOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <X size={16} className="text-muted-foreground" />
+                </button>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
+                  <p className="text-primary font-semibold text-sm">Current Farm</p>
+                  <p className="text-foreground font-bold mt-0.5">{currentFarm?.name ?? "No farm listed yet"}</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">
+                    {currentFarm ? `${currentFarm.cropType ?? "—"} · ${currentFarm.location ?? "—"}` : "Contact admin to list your farm"}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { icon: "📍", label: "Location", value: currentFarm?.location ?? "Not set" },
+                    { icon: "🌾", label: "Crop Type", value: currentFarm?.cropType ?? "Not set" },
+                    { icon: "💰", label: "Share Price", value: currentFarm ? formatKES(currentFarm.currentPrice ?? 0) : "Not set" },
+                    { icon: "📊", label: "Total Shares", value: currentFarm ? (currentFarm.totalShares ?? 0).toLocaleString() : "Not set" },
+                    { icon: "🎯", label: "Funding Target", value: currentFarm ? formatKES(currentFarm.loanAmount ?? 0) : "Not set" },
+                  ].map(({ icon, label, value }) => (
+                    <div key={label} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                      <span className="text-base">{icon}</span>
+                      <div className="flex-1">
+                        <p className="text-muted-foreground text-[10px] font-medium">{label}</p>
+                        <p className="text-foreground font-semibold text-sm">{value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                  <p className="text-amber-700 text-xs leading-relaxed">
+                    To update farm details or request changes, contact us at{" "}
+                    <a href="mailto:investafarm@proton.me" className="font-semibold underline">investafarm@proton.me</a>
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

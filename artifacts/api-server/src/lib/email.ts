@@ -68,17 +68,28 @@ function emailWrapper(content: string, preheader = "") {
 
         <!-- Footer -->
         <tr>
-          <td style="background:#f0fdf4;padding:24px 40px;border-top:1px solid #bbf7d0;">
+          <td style="background:#f0fdf4;padding:20px 40px 24px;border-top:1px solid #bbf7d0;">
             <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="text-align:center;padding-bottom:10px;">
+                  <a href="https://chat.whatsapp.com/BWfnSpL4GTl0EsFpuPMKOK"
+                    style="display:inline-block;background:#25D366;color:#ffffff;font-size:11px;font-weight:700;text-decoration:none;padding:7px 18px;border-radius:20px;margin-bottom:4px;">
+                    💬 Join our WhatsApp Community
+                  </a>
+                </td>
+              </tr>
               <tr>
                 <td>
                   <p style="color:#6b7280;font-size:11px;margin:0 0 4px 0;text-align:center;">
                     <strong style="color:#374151;">Investa Farm Ltd</strong> · Nairobi, Kenya
                   </p>
-                  <p style="color:#9ca3af;font-size:10px;margin:0;text-align:center;">
+                  <p style="color:#9ca3af;font-size:10px;margin:0 0 3px 0;text-align:center;">
                     Regulated by the Capital Markets Authority of Kenya &nbsp;·&nbsp;
-                    <a href="#" style="color:${GRASS_GREEN};text-decoration:none;">Unsubscribe</a> &nbsp;·&nbsp;
-                    <a href="#" style="color:${GRASS_GREEN};text-decoration:none;">Privacy Policy</a>
+                    <a href="mailto:investafarm@proton.me" style="color:${GRASS_GREEN};text-decoration:none;">investafarm@proton.me</a>
+                  </p>
+                  <p style="color:#d1d5db;font-size:10px;margin:0;text-align:center;">
+                    This is an automated message. Please do not reply directly to this email. &nbsp;·&nbsp;
+                    <a href="#" style="color:#9ca3af;text-decoration:none;">Unsubscribe</a>
                   </p>
                 </td>
               </tr>
@@ -336,17 +347,61 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
 
         ${ctaButton(isFarmer ? "Open Farmer Dashboard →" : "Browse Live Farms →", "https://investafarm.co.ke")}
 
+        ${!isFarmer ? `
+        <!-- Crop image grid for investors -->
+        <div style="margin:0 0 24px 0;">
+          <p style="color:#374151;font-size:13px;font-weight:700;margin:0 0 12px 0;">🌾 Farms accepting investment right now:</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding:0 4px 8px 0;width:33.3%;">
+                <div style="border-radius:10px;overflow:hidden;position:relative;">
+                  <img src="https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=180&h=110&fit=crop&auto=format" alt="Maize" style="width:100%;height:80px;object-fit:cover;display:block;" />
+                  <div style="background:rgba(0,0,0,0.5);padding:4px 6px;text-align:center;">
+                    <p style="color:#fff;font-size:10px;font-weight:700;margin:0;">🌽 Maize</p>
+                    <p style="color:#4ade80;font-size:9px;margin:0;">+18% p.a.</p>
+                  </div>
+                </div>
+              </td>
+              <td style="padding:0 4px 8px;width:33.3%;">
+                <div style="border-radius:10px;overflow:hidden;">
+                  <img src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=180&h=110&fit=crop&auto=format" alt="Coffee" style="width:100%;height:80px;object-fit:cover;display:block;" />
+                  <div style="background:rgba(0,0,0,0.5);padding:4px 6px;text-align:center;">
+                    <p style="color:#fff;font-size:10px;font-weight:700;margin:0;">☕ Coffee</p>
+                    <p style="color:#4ade80;font-size:9px;margin:0;">+22% p.a.</p>
+                  </div>
+                </div>
+              </td>
+              <td style="padding:0 0 8px 4px;width:33.3%;">
+                <div style="border-radius:10px;overflow:hidden;">
+                  <img src="https://images.unsplash.com/photo-1519162808019-7de1683fa2ad?w=180&h=110&fit=crop&auto=format" alt="Avocado" style="width:100%;height:80px;object-fit:cover;display:block;" />
+                  <div style="background:rgba(0,0,0,0.5);padding:4px 6px;text-align:center;">
+                    <p style="color:#fff;font-size:10px;font-weight:700;margin:0;">🥑 Avocado</p>
+                    <p style="color:#4ade80;font-size:9px;margin:0;">+20% p.a.</p>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>` : ""}
+
         <p style="color:#9ca3af;font-size:12px;margin:20px 0 0 0;text-align:center;">
-          Questions? Reply to this email or chat with our <strong style="color:${GRASS_GREEN};">AI Assistant</strong> in the app.
+          Need help? Email us at <a href="mailto:investafarm@proton.me" style="color:${GRASS_GREEN};text-decoration:none;">investafarm@proton.me</a> or join our
+          <a href="https://chat.whatsapp.com/BWfnSpL4GTl0EsFpuPMKOK" style="color:${GRASS_GREEN};text-decoration:none;"> WhatsApp community</a>.
         </p>
       </td>
     </tr>`;
 
   await transport.sendMail({
     from: from("Investa Farm"),
+    replyTo: `"Investa Farm Support" <investafarm@proton.me>`,
     to,
     subject: `🌾 Welcome to Investa Farm, ${name}! Your ${roleLabel} account is ready`,
     html: emailWrapper(content, `Your ${roleLabel} account is now active. Here's how to get started in 4 easy steps.`),
+    headers: {
+      "X-Priority": "3",
+      "List-Unsubscribe": "<mailto:investafarm@proton.me?subject=unsubscribe>",
+      "X-Entity-Ref-ID": `investa-welcome-${Date.now()}`,
+    },
   });
 }
 
@@ -827,5 +882,105 @@ export async function sendOpportunityDigest(
     to,
     subject: `🌾 ${name}'s Weekly Farm Picks — Top opportunities this week`,
     html: emailWrapper(content, `${farms.length} farms open for investment. Earn up to +22% returns this season.`),
+  });
+}
+
+// ─── FUNDING APPLICATION CONTRACT EMAIL ───────────────────────────────────────
+export async function sendFundingApplicationEmail(
+  to: string,
+  name: string,
+  opts: {
+    amount: number;
+    purpose: string;
+    cropType: string;
+    location: string;
+    farmName: string;
+    repaymentMonths: number;
+    aiScore: number;
+    aiSummary: string;
+  }
+): Promise<void> {
+  const transport = createTransport();
+  if (!transport) {
+    console.log(`[EMAIL] Funding application contract for ${to} (SMTP not configured)`);
+    return;
+  }
+
+  const { amount, purpose, cropType, location, farmName, repaymentMonths, aiScore, aiSummary } = opts;
+  const scoreColor = aiScore >= 70 ? GRASS_GREEN : aiScore >= 50 ? "#d97706" : "#dc2626";
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(135deg,${GRASS_DARK} 0%,${GRASS_MID} 50%,${GRASS_GREEN} 100%);padding:40px;text-align:center;">
+          <p style="font-size:48px;margin:0 0 12px 0;">📋</p>
+          <h1 style="color:#ffffff;font-size:26px;font-weight:800;margin:0 0 8px 0;">Application Received!</h1>
+          <p style="color:rgba(255,255,255,0.8);font-size:14px;margin:0;">Your farm funding application is under review</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:36px 40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Hi <strong>${name}</strong>, we've received your application for <strong>${farmName}</strong>.
+          Your farm will be listed on the Investa Farm investor exchange upon approval.
+        </p>
+
+        <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:16px;padding:24px;margin-bottom:24px;">
+          <h3 style="color:#111827;font-size:15px;font-weight:700;margin:0 0 16px 0;">Application Summary</h3>
+          ${[
+            ["Farm Name", farmName],
+            ["Crop Type", cropType],
+            ["Location", location],
+            ["Funding Amount", `KES ${amount.toLocaleString()}`],
+            ["Purpose", purpose.charAt(0).toUpperCase() + purpose.slice(1).replace("_", " ")],
+            ["Repayment Period", `${repaymentMonths} months`],
+          ].map(([label, value]) => `
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;">
+            <span style="color:#6b7280;font-size:13px;">${label}</span>
+            <span style="color:#111827;font-size:13px;font-weight:600;">${value}</span>
+          </div>`).join("")}
+        </div>
+
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:48px;height:48px;border-radius:50%;background:${scoreColor};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="color:#fff;font-weight:800;font-size:16px;">${aiScore}</span>
+            </div>
+            <div>
+              <p style="color:#111827;font-size:13px;font-weight:700;margin:0 0 2px 0;">AI Risk Score: ${aiScore}/100</p>
+              <p style="color:#6b7280;font-size:12px;margin:0;">${aiSummary}</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#fefce8;border:1px solid #fef08a;border-radius:12px;padding:16px;margin-bottom:28px;">
+          <p style="color:#854d0e;font-size:13px;font-weight:700;margin:0 0 8px 0;">📄 Production Funding Agreement — Key Terms</p>
+          <ul style="color:#78350f;font-size:12px;line-height:1.8;margin:0;padding-left:16px;">
+            <li>You keep <strong>55%</strong> of gross harvest revenue</li>
+            <li>Investors receive <strong>45%</strong> of gross harvest revenue</li>
+            <li>Post at least <strong>1 field update per month</strong> with a photo</li>
+            <li>Report any crop failure within <strong>24 hours</strong></li>
+            <li>Simple interest: <strong>8% per annum</strong> — repaid from harvest proceeds</li>
+            <li>No early repayment penalty</li>
+          </ul>
+        </div>
+
+        ${ctaButton("View My Application →", "https://investafarm.co.ke/farmer/loan-apply")}
+
+        <p style="color:#9ca3af;font-size:12px;margin:24px 0 0 0;line-height:1.6;">
+          Questions? Reply to this email or contact us at <a href="mailto:investafarm@proton.me" style="color:${GRASS_GREEN};">investafarm@proton.me</a><br>
+          WhatsApp community: <a href="https://chat.whatsapp.com/LnhwCYLjhng4F1y9RWQIEE" style="color:${GRASS_GREEN};">Join our farmers group</a>
+        </p>
+      </td>
+    </tr>`;
+
+  await transport.sendMail({
+    from: from("Investa Farm"),
+    to,
+    subject: `📋 Application Received — ${farmName} | Investa Farm`,
+    replyTo: "investafarm@proton.me",
+    headers: { "X-Mailer": "Investa Farm Platform", "List-Unsubscribe": `<mailto:investafarm@proton.me?subject=Unsubscribe>` },
+    html: emailWrapper(content, `Your funding application for ${farmName} has been received. AI Score: ${aiScore}/100.`),
   });
 }
