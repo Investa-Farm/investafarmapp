@@ -83,18 +83,19 @@ A farm investment PWA where farmers raise capital by listing farm shares (like a
 
 **Frontend on Vercel:**
 1. Go to [vercel.com](https://vercel.com) → New Project → Import GitHub repo
-2. Vercel auto-detects `vercel.json`. Set these build environment variables:
+2. Vercel auto-detects root `vercel.json` which builds ONLY the frontend (no backend).
+3. In the Vercel dashboard → Settings → Environment Variables, add:
    ```
-   PORT=3000
-   BASE_PATH=/
+   VITE_API_URL=https://YOUR-RAILWAY-URL.railway.app
    NODE_ENV=production
    ```
-3. In `vercel.json`, update the rewrites to proxy `/api/*` to your Railway backend:
-   ```json
-   { "source": "/api/(.*)", "destination": "https://YOUR-RAILWAY-URL.railway.app/api/$1" }
-   ```
-   Then add: `{ "source": "/(.*)", "destination": "/index.html" }`
+   (`PORT` and `BASE_PATH` default to `3000` and `/` automatically — no need to set them)
 4. Deploy → frontend live at `https://your-app.vercel.app`
+
+**Vercel project settings (if overriding manually):**
+- Root Directory: _(leave blank — vercel.json handles it)_
+- Build Command: `pnpm install && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/investa-farm run build`
+- Output Directory: `artifacts/investa-farm/dist`
 
 ### Notes
 - See `.env.example` for all required environment variables
