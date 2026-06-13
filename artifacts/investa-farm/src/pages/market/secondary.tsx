@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useListSecondaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, RefreshCcw, Layers } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, RefreshCcw, ChevronRight } from "lucide-react";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -90,6 +90,16 @@ function CancelListingModal({ listing, onClose, onCancelled }: { listing: Listin
   );
 }
 
+// Group listings by crop type
+function groupByCrop(listings: Listing[]): Record<string, Listing[]> {
+  return listings.reduce((acc, l) => {
+    const key = l.cropType ?? "Other";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(l);
+    return acc;
+  }, {} as Record<string, Listing[]>);
+}
+
 export default function SecondaryMarket() {
   const [, setLocation] = useLocation();
   const { data: listings, isLoading } = useListSecondaryMarket();
@@ -98,6 +108,7 @@ export default function SecondaryMarket() {
   const [cancelListing, setCancelListing] = useState<Listing | null>(null);
   const [tab, setTab] = useState<"market" | "mine">("market");
   const [cropFilter, setCropFilter] = useState<string>("all");
+  const [expandedCrop, setExpandedCrop] = useState<string | null>(null);
   const token = getToken();
   const qc = useQueryClient();
 
@@ -116,14 +127,16 @@ export default function SecondaryMarket() {
 
   const activeMyListings = myListings.filter(l => l.isActive !== false);
   const inactiveMyListings = myListings.filter(l => l.isActive === false);
-  const totalVolume = (listings ?? []).reduce((s, l) => s + l.pricePerShare * l.sharesAvailable, 0);
+  const totalVolume = (listings as Listing[] ?? []).reduce((s: number, l: Listing) => s + l.pricePerShare * l.sharesAvailable, 0);
+  const filtered = (listings as Listing[] ?? []).filter((l: Listing) => cropFilter === "all" || l.cropType === cropFilter);
+  const grouped = groupByCrop(filtered);
+  const cropKeys = Object.keys(grouped);
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="secondary-market">
       {/* Premium header */}
       <div className="relative pt-12 pb-5 px-5 overflow-hidden"
         style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 40%, #16a34a 80%, #22c55e 100%)" }}>
-        {/* Dot matrix texture */}
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
 
@@ -144,7 +157,6 @@ export default function SecondaryMarket() {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="relative grid grid-cols-3 gap-2">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
             <p className="text-white font-extrabold text-lg leading-none">{listings?.length ?? "—"}</p>
@@ -160,7 +172,6 @@ export default function SecondaryMarket() {
           </div>
         </div>
 
-        {/* Volume ticker */}
         {totalVolume > 0 && (
           <div className="relative mt-3 bg-white/8 rounded-xl px-3 py-2 flex items-center gap-2">
             <RefreshCcw size={10} className="text-green-300 animate-spin" style={{ animationDuration: "3s" }} />
@@ -193,18 +204,18 @@ export default function SecondaryMarket() {
 
       <AnimatePresence mode="wait">
         {tab === "market" ? (
-          <motion.div key="market" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-3 space-y-3">
-            {/* Crop filter dropdown */}
+          <motion.div key="market" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-3 pb-4 space-y-1">
+            {/* Crop filter + info */}
             {!isLoading && (listings?.length ?? 0) > 0 && (
-              <div className="px-4">
+              <div className="px-4 mb-3">
                 <div className="relative">
                   <select
                     value={cropFilter}
-                    onChange={e => setCropFilter(e.target.value)}
+                    onChange={e => { setCropFilter(e.target.value); setExpandedCrop(null); }}
                     className="w-full border border-border rounded-2xl px-4 py-2.5 text-sm font-semibold text-foreground bg-white focus:outline-none focus:border-primary appearance-none pr-9"
                   >
                     <option value="all">🌍 All Crops</option>
-                    {Array.from(new Set(listings?.map(l => l.cropType) ?? [])).map(crop => (
+                    {Array.from(new Set((listings as Listing[] ?? []).map((l: Listing) => l.cropType))).map((crop: string) => (
                       <option key={crop} value={crop}>🌾 {crop}</option>
                     ))}
                   </select>
@@ -212,17 +223,14 @@ export default function SecondaryMarket() {
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                 </div>
+                <p className="text-muted-foreground text-xs mt-2 px-1">Investors reselling shares · prices reflect market conditions</p>
               </div>
             )}
 
-            <div className="px-4">
-              <p className="text-muted-foreground text-xs">Investors reselling shares — prices may differ from primary market</p>
-            </div>
-
-            <div className="px-4 space-y-3">
+            <div className="px-4 space-y-4">
             {isLoading ? (
-              Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-52 rounded-2xl" />)
-            ) : listings?.length === 0 ? (
+              Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
+            ) : filtered.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-3">
                   <Users2 size={28} className="text-primary" />
@@ -236,70 +244,101 @@ export default function SecondaryMarket() {
                   Browse Primary Market
                 </button>
               </div>
-            ) : (listings ?? []).filter(l => cropFilter === "all" || l.cropType === cropFilter).map((listing) => {
-              const isUp = listing.changePercent >= 0;
-              const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
-              const imgSrc = getCropImage(listing.cropType, listing.imageUrl ?? undefined);
+            ) : cropKeys.map(crop => {
+              const cropListings = grouped[crop];
+              const isExpanded = expandedCrop === crop || cropFilter !== "all";
+              const bestPrice = Math.min(...cropListings.map(l => l.pricePerShare));
+              const avgChange = cropListings.reduce((s, l) => s + l.changePercent, 0) / cropListings.length;
+              const isUp = avgChange >= 0;
+              const regions = [...new Set(cropListings.map(l => l.location?.split(",")[0]?.trim() ?? "Kenya"))].slice(0, 3);
               return (
-                <div key={listing.id} data-testid={`secondary-listing-${listing.id}`}
-                  className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-
-                  {/* Hero image */}
-                  <div className="relative h-44 cursor-pointer" onClick={(e) => handleBuyClick(e, listing as Listing)}>
-                    <img src={imgSrc} alt={listing.farmName} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0"
-                      style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.12) 40%, rgba(0,0,0,0.72) 100%)" }} />
-
-                    {/* Top badges */}
-                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${isUp ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
-                          {isUp ? "▲" : "▼"} {formatChange(listing.changePercent)}
-                        </span>
-                        <RiskBadge level={getRiskLevel(listing.cropType, listing.changePercent)} />
-                        <span className="text-[9px] font-bold bg-green-600/80 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
-                          RESALE
-                        </span>
-                        <span className="text-[9px] font-bold bg-violet-600/80 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
-                          🤝 1% fee
-                        </span>
+                <div key={crop} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+                  {/* Crop group header */}
+                  <button
+                    className="w-full flex items-center gap-3 p-3 active:bg-muted/30 transition-colors"
+                    onClick={() => setExpandedCrop(isExpanded ? null : crop)}
+                  >
+                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
+                      <img src={getCropImage(crop, undefined)} alt={crop} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-foreground font-bold text-sm">{crop}</p>
+                        <span className="text-[9px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded-full">{cropListings.length} seller{cropListings.length !== 1 ? "s" : ""}</span>
                       </div>
-                      <span className="bg-black/40 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-1">
-                        <Layers size={9} /> {listing.sharesAvailable}
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <MapPin size={9} className="text-muted-foreground" />
+                        <span className="text-muted-foreground text-[10px] truncate">{regions.join(" · ")}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                      <p className="text-foreground font-bold text-sm">{formatKES(bestPrice)}</p>
+                      <span className={`text-[10px] font-bold flex items-center gap-0.5 ${isUp ? "text-green-600" : "text-red-500"}`}>
+                        {isUp ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+                        {formatChange(avgChange)}
                       </span>
+                      <ChevronRight size={13} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                     </div>
+                  </button>
 
-                    {/* Bottom overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="text-white font-bold text-base leading-tight">{listing.farmName}</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <MapPin size={10} className="text-white/70" />
-                        <p className="text-white/70 text-xs">{listing.cropType} · {listing.location}</p>
-                      </div>
-                      {listing.sellerName && (
-                        <p className="text-violet-300 text-[10px] mt-0.5 font-medium">
-                          📤 Resold by {listing.sellerName}
-                        </p>
-                      )}
-                      <div className="flex items-end justify-between mt-2">
-                        <div>
-                          <p className="text-white text-xl font-bold">{formatKES(listing.pricePerShare)}</p>
-                          <p className="text-white/60 text-[10px]">per share</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 opacity-80">
-                            <Sparkline data={sparkData} color={isUp ? "#4ade80" : "#f87171"} height={28} />
-                          </div>
-                          <button data-testid={`button-buy-${listing.id}`}
-                            onClick={(e) => handleBuyClick(e, listing as Listing)}
-                            className="text-white font-bold px-4 py-2 rounded-xl text-sm active:scale-95 transition-transform shadow-lg"
-                            style={{ background: "linear-gradient(135deg, #14532d, #16a34a)" }}>
-                            BUY
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  {/* Expanded: individual sellers */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        key="expanded"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden border-t border-border"
+                      >
+                        {cropListings.map((listing, i) => {
+                          const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
+                          const up = listing.changePercent >= 0;
+                          const risk = getRiskLevel(listing.cropType, listing.changePercent);
+                          const region = listing.location?.split(",")[0]?.trim() ?? "Kenya";
+                          return (
+                            <div key={listing.id}
+                              data-testid={`secondary-listing-${listing.id}`}
+                              className={`flex items-center gap-3 px-3 py-2.5 ${i < cropListings.length - 1 ? "border-b border-border" : ""}`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <p className="text-foreground text-xs font-semibold truncate">{listing.farmName}</p>
+                                  <span className="text-[8px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">RESALE</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <MapPin size={9} className="text-muted-foreground flex-shrink-0" />
+                                  <span className="text-muted-foreground text-[10px] truncate">{region}</span>
+                                  <span className="text-muted-foreground/40 text-[10px]">·</span>
+                                  <RiskBadge level={risk} />
+                                </div>
+                                {listing.sellerName && (
+                                  <p className="text-muted-foreground text-[9px] mt-0.5">📤 {listing.sellerName}</p>
+                                )}
+                              </div>
+                              <div className="w-14 flex-shrink-0">
+                                <Sparkline data={sparkData} color={up ? "#16a34a" : "#dc2626"} height={24} />
+                              </div>
+                              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                <p className="text-foreground font-bold text-sm">{formatKES(listing.pricePerShare)}</p>
+                                <span className={`text-[9px] font-bold ${up ? "text-green-600" : "text-red-500"}`}>
+                                  {formatChange(listing.changePercent)}
+                                </span>
+                                <button
+                                  data-testid={`button-buy-${listing.id}`}
+                                  onClick={(e) => handleBuyClick(e, listing)}
+                                  className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm"
+                                >
+                                  BUY
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
@@ -335,36 +374,29 @@ export default function SecondaryMarket() {
                       const isUp = listing.changePercent >= 0;
                       return (
                         <div key={listing.id} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-                          <div className="relative h-28 overflow-hidden">
-                            <img src={imgSrc} alt={listing.farmName} className="w-full h-full object-cover" />
-                            <div className="absolute inset-0"
-                              style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.65) 100%)" }} />
-                            <div className="absolute bottom-0 left-0 right-0 px-3 py-2 flex items-end justify-between">
-                              <div>
-                                <div className="flex items-center gap-1.5 mb-0.5">
-                                  <p className="text-white text-sm font-bold">{listing.farmName}</p>
-                                  <span className="text-[9px] bg-green-400/80 text-white font-bold px-1.5 py-0.5 rounded-full">Live</span>
-                                </div>
-                                <p className="text-white/70 text-[10px]">{listing.cropType} · {listing.sharesAvailable} shares</p>
+                          <div className="flex items-center gap-3 p-3">
+                            <img src={imgSrc} alt={listing.farmName} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <p className="text-foreground font-bold text-sm truncate">{listing.farmName}</p>
+                                <span className="text-[9px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">Live</span>
                               </div>
-                              <div className="text-right">
-                                <p className="text-white font-bold text-sm">{formatKES(listing.pricePerShare)}</p>
-                                <p className="text-white/60 text-[9px]">per share</p>
+                              <p className="text-muted-foreground text-[10px]">{listing.cropType} · {listing.sharesAvailable} shares</p>
+                              <p className="text-foreground font-semibold text-xs mt-0.5">{formatKES(listing.pricePerShare)}/share</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5">
+                              <span className={`text-[10px] font-bold ${isUp ? "text-green-600" : "text-red-500"}`}>
+                                {formatChange(listing.changePercent)}
+                              </span>
+                              <div className="flex items-center gap-1 text-muted-foreground text-[10px]">
+                                <Clock size={9} />
+                                <span>{listing.createdAt ? new Date(listing.createdAt).toLocaleDateString("en-KE", { month: "short", day: "numeric" }) : "Recent"}</span>
                               </div>
+                              <button onClick={() => setCancelListing(listing)}
+                                className="px-2.5 py-1 rounded-lg border border-red-200 text-red-600 text-[10px] font-semibold active:scale-95 flex items-center gap-1">
+                                <X size={10} /> Cancel
+                              </button>
                             </div>
-                          </div>
-                          <div className="px-3 py-2.5 flex items-center justify-between border-t border-border">
-                            <div className="flex items-center gap-2">
-                              <Clock size={10} className="text-muted-foreground" />
-                              <p className="text-muted-foreground text-[10px]">
-                                {listing.createdAt ? new Date(listing.createdAt).toLocaleDateString("en-KE", { month: "short", day: "numeric" }) : "Recently listed"}
-                                {" · "}Total: <span className="text-foreground font-semibold">{formatKES(listing.pricePerShare * listing.sharesAvailable)}</span>
-                              </p>
-                            </div>
-                            <button onClick={() => setCancelListing(listing)}
-                              className="px-3 py-1.5 rounded-xl border border-red-200 text-red-600 text-[11px] font-semibold active:scale-95 transition-all flex items-center gap-1">
-                              <X size={11} /> Cancel
-                            </button>
                           </div>
                         </div>
                       );

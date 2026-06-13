@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap } from "lucide-react";
 import {
   useGetTopMovers,
   useListPrimaryMarket,
   useGetMarketSummary,
 } from "@workspace/api-client-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { formatChange, getToken, formatKES, isDemoAccount } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
 import { getCropImage, CROP_IMAGES } from "@/lib/crops";
@@ -148,6 +148,16 @@ function RiskBadge({ level }: { level: RiskLevel }) {
 
 export default function MarketHome() {
   const [, setLocation] = useLocation();
+  const qc = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = () => {
+    setRefreshing(true);
+    qc.invalidateQueries({ queryKey: ["primary-market"] });
+    qc.invalidateQueries({ queryKey: ["market-movers"] });
+    qc.invalidateQueries({ queryKey: ["market-decliners"] });
+    qc.invalidateQueries({ queryKey: ["market-summary"] });
+    setTimeout(() => setRefreshing(false), 1500);
+  };
   const { data: movers, isLoading: moversLoading } = useGetTopMovers();
   const { data: listings, isLoading: listingsLoading } = useListPrimaryMarket();
   const { data: decliners, isLoading: declinersLoading } = useQuery<any[]>({
@@ -247,6 +257,13 @@ export default function MarketHome() {
               </button>
             )}
             <button
+              onClick={handleRefresh}
+              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center border border-border"
+              title="Refresh market"
+            >
+              <RefreshCw size={15} className={`text-foreground ${refreshing ? "animate-spin" : ""}`} />
+            </button>
+            <button
               onClick={() => setLocation("/market/map")}
               className="w-9 h-9 rounded-full bg-muted flex items-center justify-center border border-border"
               title="Farm Map"
@@ -338,12 +355,12 @@ export default function MarketHome() {
                               alt={m.farmName}
                               className="w-full h-28 object-cover"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-2.5 flex flex-col justify-end">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent p-2.5 flex flex-col justify-end">
                               <p className="text-white text-xs font-semibold leading-tight">{m.farmName}</p>
-                              <p className="text-white/70 text-[10px]">{formatAmount(m.currentPrice)}</p>
+                              <p className="text-white/80 text-[10px]">{formatAmount(m.currentPrice)}</p>
                               <div className="flex items-center gap-1 mt-0.5">
-                                <TrendingUp size={9} className="text-green-400" />
-                                <span className="text-[10px] font-bold text-green-400">
+                                <TrendingUp size={9} className="text-green-300" />
+                                <span className="text-[10px] font-bold text-green-300">
                                   {formatChange(m.changePercent)}
                                 </span>
                               </div>
@@ -384,12 +401,12 @@ export default function MarketHome() {
                                 alt={d.farmName}
                                 className="w-full h-28 object-cover"
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-red-900/70 via-black/20 to-transparent p-2.5 flex flex-col justify-end">
+                              <div className="absolute inset-0 bg-gradient-to-t from-red-800/60 via-transparent to-transparent p-2.5 flex flex-col justify-end">
                                 <p className="text-white text-xs font-semibold leading-tight">{d.farmName}</p>
-                                <p className="text-white/70 text-[10px]">{formatAmount(d.currentPrice)}</p>
+                                <p className="text-white/80 text-[10px]">{formatAmount(d.currentPrice)}</p>
                                 <div className="flex items-center gap-1 mt-0.5">
-                                  <TrendingDown size={9} className="text-red-400" />
-                                  <span className="text-[10px] font-bold text-red-400">
+                                  <TrendingDown size={9} className="text-red-300" />
+                                  <span className="text-[10px] font-bold text-red-300">
                                     {formatChange(d.changePercent)}
                                   </span>
                                 </div>
@@ -433,9 +450,13 @@ export default function MarketHome() {
             {/* Market Listings */}
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-foreground text-sm">All Listings</h2>
+                <h2 className="font-semibold text-foreground text-sm">Featured Listings</h2>
                 {listings && listings.length > 0 && (
-                  <span className="text-muted-foreground text-[10px]">{listings.length} farms</span>
+                  <Link href="/market/primary">
+                    <span className="text-primary text-xs font-medium flex items-center gap-0.5">
+                      View All ({listings.length}) <ChevronRight size={13} />
+                    </span>
+                  </Link>
                 )}
               </div>
               <div className="space-y-3">
@@ -449,7 +470,7 @@ export default function MarketHome() {
                         <p className="text-muted-foreground text-xs mt-1">Farms will appear here as farmers list them</p>
                       </div>
                     )
-                    : listings?.map((listing: any, idx: number) => {
+                    : listings?.slice(0, 3).map((listing: any, idx: number) => {
                         const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
                         const isUp = listing.changePercent >= 0;
                         const imgSrc = getCropImage(listing.cropType, listing.imageUrl ?? undefined);
@@ -521,6 +542,75 @@ export default function MarketHome() {
                           </Link>
                         );
                       })}
+              </div>
+            </section>
+
+            {/* Investment Ad Cards */}
+            <section className="space-y-3">
+              {/* Gold card — premium ROI */}
+              <div className="rounded-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg, #78350f 0%, #b45309 40%, #d97706 70%, #fbbf24 100%)" }}>
+                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "16px 16px" }} />
+                <div className="relative p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-yellow-100 text-[9px] font-bold uppercase tracking-widest bg-yellow-600/40 px-2 py-0.5 rounded-full">Premium Opportunity</span>
+                      </div>
+                      <h3 className="text-white font-extrabold text-lg leading-tight">Avocado Export Season</h3>
+                      <p className="text-yellow-100/80 text-xs mt-0.5">Kiambu · EU export demand</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-yellow-300 font-extrabold text-2xl">+22%</p>
+                      <p className="text-yellow-100/70 text-[10px]">projected ROI</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[{ label: "Min. Investment", val: "KES 500" }, { label: "Exit Period", val: "6 months" }, { label: "Risk Level", val: "Moderate" }].map(({ label, val }) => (
+                      <div key={label} className="bg-white/15 rounded-xl p-2 text-center">
+                        <p className="text-yellow-100/60 text-[8px] uppercase tracking-wide">{label}</p>
+                        <p className="text-white font-bold text-[10px] mt-0.5">{val}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <Link href="/market/primary">
+                    <button className="w-full bg-white text-amber-700 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                      <Zap size={14} /> Invest in Avocado Now
+                    </button>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Green card — maize/staple */}
+              <div className="rounded-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
+                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
+                <div className="relative p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-green-200 text-[9px] font-bold uppercase tracking-widest bg-green-600/30 px-2 py-0.5 rounded-full">Staple Crop · Low Risk</span>
+                      </div>
+                      <h3 className="text-white font-extrabold text-lg leading-tight">Maize Long Rains</h3>
+                      <p className="text-green-200/70 text-xs mt-0.5">Nakuru · Rift Valley</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-green-300 font-extrabold text-2xl">+14%</p>
+                      <p className="text-green-200/60 text-[10px]">target return</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[{ label: "Min. Investment", val: "KES 250" }, { label: "Exit Period", val: "45 days" }, { label: "Farmers", val: "12 active" }].map(({ label, val }) => (
+                      <div key={label} className="bg-white/10 rounded-xl p-2 text-center">
+                        <p className="text-green-200/60 text-[8px] uppercase tracking-wide">{label}</p>
+                        <p className="text-white font-bold text-[10px] mt-0.5">{val}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <Link href="/market/primary">
+                    <button className="w-full bg-white text-primary font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                      🌽 Invest in Maize Now
+                    </button>
+                  </Link>
+                </div>
               </div>
             </section>
           </>

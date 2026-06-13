@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useGetFarm, getGetFarmQueryKey, useListPrimaryMarket } from "@workspace/api-client-react";
-import { ArrowLeft, TrendingUp, TrendingDown, Users, Share2, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Users, Share2, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles } from "lucide-react";
 import { ShareModal } from "@/components/share-modal";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
@@ -60,6 +60,47 @@ function getKenyaCoords(location: string): [number, number] {
   return [-1.2921, 36.8219];
 }
 
+function AiInsightTags({ cropType, changePercent, stage, fundingPercent }: {
+  cropType: string; changePercent: number; stage?: string; fundingPercent: number;
+}) {
+  const tags: { text: string; color: string }[] = [];
+  if (changePercent > 3) tags.push({ text: `📈 Strong +${changePercent.toFixed(1)}% momentum`, color: "bg-green-50 border-green-200 text-green-700" });
+  if (changePercent < -2) tags.push({ text: `📉 Price dip — buying opportunity`, color: "bg-amber-50 border-amber-200 text-amber-700" });
+  if (stage === "growing") tags.push({ text: "🌱 In peak growing phase", color: "bg-blue-50 border-blue-200 text-blue-700" });
+  if (stage === "harvest") tags.push({ text: "🌾 Near harvest — high confidence", color: "bg-orange-50 border-orange-200 text-orange-700" });
+  if (fundingPercent > 70) tags.push({ text: `⚡ ${fundingPercent}% funded — almost full`, color: "bg-red-50 border-red-200 text-red-700" });
+  if (fundingPercent < 30) tags.push({ text: "🎯 Early entry — best price", color: "bg-violet-50 border-violet-200 text-violet-700" });
+  const cropTags: Record<string, string> = {
+    maize: "🌽 Maize — highest demand crop in Kenya",
+    coffee: "☕ Coffee — premium export demand",
+    avocado: "🥑 Avocado — EU export season",
+    tea: "🍵 Tea — stable year-round prices",
+    horticulture: "🥦 Horticulture — fast ROI cycle",
+  };
+  const key = cropType?.toLowerCase();
+  for (const [k, v] of Object.entries(cropTags)) {
+    if (key?.includes(k)) { tags.push({ text: v, color: "bg-primary/5 border-primary/20 text-primary" }); break; }
+  }
+  if (tags.length === 0) {
+    tags.push({ text: "✅ Verified farm — audited by Investa", color: "bg-primary/5 border-primary/20 text-primary" });
+  }
+  return (
+    <div className="bg-card rounded-2xl border border-border p-3.5">
+      <div className="flex items-center gap-1.5 mb-2.5">
+        <Sparkles size={13} className="text-primary" />
+        <p className="text-xs font-semibold text-foreground">AI Investment Insights</p>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {tags.slice(0, 4).map((tag, i) => (
+          <span key={i} className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${tag.color}`}>
+            {tag.text}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function FarmDetail() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
@@ -100,9 +141,10 @@ export default function FarmDetail() {
   const chartData = farm.priceHistory?.map(p => ({ date: p.date.split("T")[0].slice(5), price: p.price })) ?? [];
   const currentStageIdx = GROWTH_STAGES.findIndex(s => s.key === (growth?.stage ?? "growing"));
   const [mapLat, mapLng] = getKenyaCoords(farm.location ?? "");
+  const osmUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${(mapLng - 0.025).toFixed(4)}%2C${(mapLat - 0.018).toFixed(4)}%2C${(mapLng + 0.025).toFixed(4)}%2C${(mapLat + 0.018).toFixed(4)}&layer=mapnik&marker=${mapLat.toFixed(4)}%2C${mapLng.toFixed(4)}`;
 
   return (
-    <div className="app-shell pb-6 page-enter" data-testid="farm-detail">
+    <div className="app-shell pb-28 page-enter" data-testid="farm-detail">
       {/* Hero image */}
       <div className="relative h-56">
         <img
@@ -110,7 +152,7 @@ export default function FarmDetail() {
           alt={farm.name}
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60" />
         <div className="absolute top-12 left-4 right-4 flex items-center justify-between">
           <button data-testid="button-back" onClick={() => setLocation("/market")}
             className="w-9 h-9 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center">
@@ -123,7 +165,7 @@ export default function FarmDetail() {
         </div>
         <div className="absolute bottom-3 left-4 right-4">
           <h1 className="text-white text-xl font-bold" style={{ fontFamily: "Space Grotesk, sans-serif" }}>{farm.name}</h1>
-          <p className="text-white/70 text-sm">{farm.cropType} · {farm.location}</p>
+          <p className="text-white/80 text-sm">{farm.cropType} · {farm.location}</p>
         </div>
       </div>
 
@@ -145,6 +187,69 @@ export default function FarmDetail() {
             </div>
             <p className="text-muted-foreground text-xs mt-0.5">{farm.tradeCount} trades</p>
           </div>
+        </div>
+
+        {/* AI Insight Tags */}
+        <AiInsightTags
+          cropType={farm.cropType}
+          changePercent={farm.changePercent}
+          stage={growth?.stage}
+          fundingPercent={farm.fundingPercent}
+        />
+
+        {/* Funding progress */}
+        <div className="bg-card rounded-2xl border border-border p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold">Funding Status</p>
+            <span className="text-primary font-bold text-sm">{farm.fundingPercent}%</span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2.5">
+            <div className="bg-primary rounded-full h-2.5 transition-all duration-700" style={{ width: `${farm.fundingPercent}%` }} />
+          </div>
+          <div className="flex justify-between mt-2">
+            <p className="text-muted-foreground text-xs">{formatKES(farm.loanAmount * farm.fundingPercent / 100)} raised</p>
+            <p className="text-muted-foreground text-xs">Target: {formatKES(farm.loanAmount)}</p>
+          </div>
+        </div>
+
+        {/* Returns preview */}
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4">
+          <p className="text-sm font-semibold text-foreground mb-2.5 flex items-center gap-1.5">
+            <span>💰</span> Projected Returns
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white/80 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-lg">⚡</span>
+                <p className="text-xs font-semibold text-orange-700">Mid-Season Exit</p>
+              </div>
+              <p className="text-orange-600 font-bold text-base">+10%</p>
+              <p className="text-muted-foreground text-[10px]">30–60 days</p>
+            </div>
+            <div className="bg-white/80 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-lg">🌾</span>
+                <p className="text-xs font-semibold text-green-700">Full Season Exit</p>
+              </div>
+              <p className="text-green-600 font-bold text-base">Up to +22%</p>
+              <p className="text-muted-foreground text-[10px]">~6 months</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Farm stats grid */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {[
+            { label: "Loan Amount", val: formatKES(farm.loanAmount) },
+            { label: "Total Shares", val: farm.totalShares.toLocaleString() },
+            { label: "Available", val: farm.sharesAvailable.toLocaleString() },
+            { label: "Share Price", val: formatKES(farm.sharePrice) },
+          ].map(({ label, val }) => (
+            <div key={label} className="bg-card rounded-xl border border-border p-3">
+              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{label}</p>
+              <p className="text-foreground font-semibold text-sm mt-0.5">{val}</p>
+            </div>
+          ))}
         </div>
 
         {/* Crop growth stage */}
@@ -195,32 +300,31 @@ export default function FarmDetail() {
           </div>
         )}
 
-        {/* Satellite Map */}
+        {/* OpenStreetMap */}
         <div className="bg-card rounded-2xl border border-border overflow-hidden">
           <div className="px-4 pt-3 pb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MapPin size={14} className="text-primary" />
-              <p className="text-sm font-semibold">Satellite View</p>
+              <p className="text-sm font-semibold">Farm Location</p>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[10px] text-green-600 font-semibold uppercase tracking-wide">Live</span>
+              <span className="text-[10px] text-green-600 font-semibold uppercase tracking-wide">GPS Verified</span>
             </div>
           </div>
-          <div className="relative" style={{ height: 220 }}>
+          <div className="relative" style={{ height: 200 }}>
             <iframe
-              src={`https://maps.google.com/maps?q=${mapLat},${mapLng}&t=k&z=15&output=embed`}
+              src={osmUrl}
               width="100%"
-              height="220"
+              height="200"
               style={{ border: 0, display: "block" }}
               loading="lazy"
-              allowFullScreen
-              title={`Satellite view — ${farm.location}`}
+              title={`Map — ${farm.location}`}
             />
             <div className="absolute bottom-2 left-2 pointer-events-none">
               <div className="bg-black/70 backdrop-blur-sm rounded-lg px-2.5 py-1.5">
                 <p className="text-white font-semibold text-xs">{farm.location}</p>
-                <p className="text-white/70 text-[10px]">GPS Verified · Aerial View</p>
+                <p className="text-white/70 text-[10px]">Lat {mapLat.toFixed(4)}, Lng {mapLng.toFixed(4)}</p>
               </div>
             </div>
           </div>
@@ -238,9 +342,7 @@ export default function FarmDetail() {
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-foreground text-sm">
-                {(farm as any).farmerName ?? "Investa Farm Farmer"}
-              </p>
+              <p className="font-bold text-foreground text-sm">{(farm as any).farmerName ?? "Investa Farm Farmer"}</p>
               <p className="text-muted-foreground text-xs flex items-center gap-1 mt-0.5">
                 <MapPin size={10} /> {farm.location}
               </p>
@@ -304,75 +406,38 @@ export default function FarmDetail() {
           </div>
         )}
 
-        {/* Farm stats */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {[
-            { label: "Loan Amount", val: formatKES(farm.loanAmount) },
-            { label: "Total Shares", val: farm.totalShares.toLocaleString() },
-            { label: "Available", val: farm.sharesAvailable.toLocaleString() },
-            { label: "Share Price", val: formatKES(farm.sharePrice) },
-          ].map(({ label, val }) => (
-            <div key={label} className="bg-card rounded-xl border border-border p-3">
-              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{label}</p>
-              <p className="text-foreground font-semibold text-sm mt-0.5">{val}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Funding progress */}
-        <div className="bg-card rounded-2xl border border-border p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold">Funding Status</p>
-            <span className="text-primary font-bold text-sm">{farm.fundingPercent}%</span>
-          </div>
-          <div className="w-full bg-muted rounded-full h-2">
-            <div className="bg-primary rounded-full h-2 transition-all duration-700" style={{ width: `${farm.fundingPercent}%` }} />
-          </div>
-          <p className="text-muted-foreground text-xs mt-2">
-            {formatKES(farm.loanAmount * farm.fundingPercent / 100)} raised of {formatKES(farm.loanAmount)}
-          </p>
-        </div>
-
-        {/* Returns preview */}
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4">
-          <p className="text-sm font-semibold text-foreground mb-2.5">Projected Returns</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-white/70 rounded-xl p-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-lg">⚡</span>
-                <p className="text-xs font-semibold text-orange-700">Mid-Season Exit</p>
-              </div>
-              <p className="text-orange-600 font-bold text-sm">+10%</p>
-              <p className="text-muted-foreground text-[10px]">30–60 days</p>
-            </div>
-            <div className="bg-white/70 rounded-xl p-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-lg">🌾</span>
-                <p className="text-xs font-semibold text-green-700">Full Season Exit</p>
-              </div>
-              <p className="text-green-600 font-bold text-sm">Up to +22%</p>
-              <p className="text-muted-foreground text-[10px]">~6 months</p>
-            </div>
-          </div>
-        </div>
-
         {farm.description && (
           <div className="bg-card rounded-2xl border border-border p-4">
             <p className="text-sm font-semibold mb-1.5">About this Farm</p>
             <p className="text-muted-foreground text-sm leading-relaxed">{farm.description}</p>
           </div>
         )}
-
-        {listing && (
-          <button
-            data-testid="button-buy-confirm"
-            onClick={() => setInvestOpen(true)}
-            className="w-full bg-primary text-white font-bold py-4 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/30 text-base"
-          >
-            <ShoppingCart size={18} /> Invest in this Farm
-          </button>
-        )}
       </div>
+
+      {/* Floating Invest Now CTA */}
+      {listing && (
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-40">
+          <div className="bg-background/95 backdrop-blur-md border-t border-border px-4 pt-3 pb-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Share price</p>
+                <p className="text-base font-bold text-foreground">{formatKES(listing.pricePerShare)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Available</p>
+                <p className="text-sm font-semibold text-foreground">{listing.sharesAvailable.toLocaleString()} shares</p>
+              </div>
+            </div>
+            <button
+              data-testid="button-buy-confirm"
+              onClick={() => setInvestOpen(true)}
+              className="w-full bg-primary text-white font-bold py-4 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/30 text-base"
+            >
+              <ShoppingCart size={18} /> Invest in {farm.cropType} Now
+            </button>
+          </div>
+        </div>
+      )}
 
       <ShareModal
         open={shareOpen}

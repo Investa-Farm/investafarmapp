@@ -11,7 +11,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
-import aerialFarmImg from "@assets/IMG_8016_1781250402404.jpeg";
 import { getCropImage } from "@/lib/crops";
 
 type GroupInfo = { id: number; name: string; registrationNumber: string; county: string; memberCount: number; status: string } | null;
@@ -42,36 +41,45 @@ function CircularProgress({ value, size = 60 }: { value: number; size?: number }
   );
 }
 
-function FarmBoundaryMap({ cropType, imageUrl }: { cropType: string; imageUrl?: string }) {
-  const bg = imageUrl || aerialFarmImg;
+const FARM_PROFILE_COORDS: Record<string, [number, number]> = {
+  nairobi: [-1.2921, 36.8219], kiambu: [-1.1728, 36.8342], nakuru: [-0.3031, 36.0800],
+  meru: [0.0500, 37.6500], kirinyaga: [-0.4700, 37.3100], laikipia: [0.0300, 36.8000],
+  nyeri: [-0.4167, 36.9500], kisumu: [-0.0917, 34.7679], eldoret: [0.5200, 35.2699],
+  machakos: [-1.5177, 37.2634], narok: [-1.0833, 35.8667], thika: [-1.0332, 37.0693],
+  nanyuki: [0.0100, 37.0714], embu: [-0.5273, 37.4571], kericho: [-0.3667, 35.2833],
+  bungoma: [0.5630, 34.5522], kakamega: [0.2827, 34.7519], muranga: [-0.7167, 37.1500],
+};
+function getFarmCoords(location: string): [number, number] {
+  const lower = (location ?? "").toLowerCase();
+  for (const [key, coords] of Object.entries(FARM_PROFILE_COORDS)) {
+    if (lower.includes(key)) return coords;
+  }
+  return [-0.3031, 36.0800];
+}
+
+function FarmBoundaryMap({ cropType, location }: { cropType: string; location?: string }) {
+  const [lat, lng] = getFarmCoords(location ?? "");
+  const osmUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${(lng - 0.02).toFixed(4)}%2C${(lat - 0.015).toFixed(4)}%2C${(lng + 0.02).toFixed(4)}%2C${(lat + 0.015).toFixed(4)}&layer=mapnik&marker=${lat.toFixed(4)}%2C${lng.toFixed(4)}`;
   return (
-    <div className="relative h-48 rounded-2xl overflow-hidden shadow-sm border border-border bg-gray-100">
-      <img src={bg} alt="Farm aerial" className="w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-black/20" />
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
-        <polygon
-          points="100,30 300,20 360,90 320,170 80,165 50,100"
-          fill="rgba(255,255,255,0.15)"
-          stroke="white"
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center border-2 border-primary">
-            <MapPin size={14} className="text-primary" />
-          </div>
-          <div className="w-0.5 h-3 bg-white/70 mt-0.5" />
+    <div className="relative rounded-2xl overflow-hidden border border-border shadow-sm">
+      <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-border">
+        <div className="flex items-center gap-1.5">
+          <MapPin size={12} className="text-primary" />
+          <p className="text-xs font-semibold text-foreground">{cropType} Farm · GPS Verified</p>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-[9px] text-green-600 font-bold uppercase">Live Map</span>
         </div>
       </div>
-      <div className="absolute bottom-3 left-3">
-        <p className="text-white font-semibold text-sm drop-shadow-md">{cropType} • 2.5 Acres</p>
-        <p className="text-white/80 text-xs drop-shadow-md">GPS Verified Area</p>
-      </div>
-      <button className="absolute bottom-3 right-3 w-7 h-7 rounded-lg bg-black/40 flex items-center justify-center">
-        <Maximize2 size={12} className="text-white" />
-      </button>
+      <iframe
+        src={osmUrl}
+        width="100%"
+        height="180"
+        style={{ border: 0, display: "block" }}
+        loading="lazy"
+        title={`Farm location — ${location}`}
+      />
     </div>
   );
 }
@@ -229,7 +237,7 @@ export default function FarmProfile() {
               ? <div className="h-48 rounded-2xl bg-gray-100 animate-pulse" />
               : <FarmBoundaryMap
                   cropType={currentFarm?.cropType ?? ""}
-                  imageUrl={currentFarm?.imageUrl ?? undefined}
+                  location={currentFarm?.location ?? undefined}
                 />
             }
 

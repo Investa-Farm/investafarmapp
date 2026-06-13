@@ -241,7 +241,7 @@ router.post("/market/buy", async (req, res): Promise<void> => {
     }
   } catch (e) { console.error("[FIRST_INVEST_EMAIL]", e); }
 
-  // Notify farmer that they received investment
+  // Notify farmer + credit their wallet immediately
   if (farm) {
     notifyUser(
       farm.farmerId,
@@ -250,29 +250,29 @@ router.post("/market/buy", async (req, res): Promise<void> => {
       `${user.name} invested KES ${Number(totalAmount).toLocaleString("en-KE")} in ${farm.name} (${quantity} share${quantity > 1 ? "s" : ""}).`,
       "/farmer"
     ).catch(() => {});
-  }
 
-  // Deduct from investor wallet simultaneously
-  try {
-    const [investorWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, user.id));
-    if (investorWallet) {
-      const currentBal = parseFloat(investorWallet.balance);
-      const newBal = Math.max(0, currentBal - totalAmount);
-      await db.update(walletsTable)
-        .set({ balance: String(newBal), updatedAt: new Date() })
-        .where(eq(walletsTable.id, investorWallet.id));
-      await db.insert(walletTransactionsTable).values({
-        walletId: investorWallet.id,
-        userId: user.id,
-        type: "investment" as const,
-        amount: String(totalAmount),
-        balanceAfter: String(newBal),
-        description: `${quantity} share${quantity > 1 ? "s" : ""} in ${farm?.name ?? "farm"}`,
-        reference: `INV-${tx.id}`,
-        status: "completed",
-      });
-    }
-  } catch (e) { console.error("[WALLET_DEDUCT]", e); }
+    // Credit farmer wallet immediately when investment is received
+    try {
+      const [farmerWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, farm.farmerId));
+      if (farmerWallet) {
+        const farmerCurrentBal = parseFloat(farmerWallet.balance);
+        const farmerNewBal = farmerCurrentBal + totalAmount;
+        await db.update(walletsTable)
+          .set({ balance: String(farmerNewBal), updatedAt: new Date() })
+          .where(eq(walletsTable.id, farmerWallet.id));
+        await db.insert(walletTransactionsTable).values({
+          walletId: farmerWallet.id,
+          userId: farm.farmerId,
+          type: "deposit" as const,
+          amount: String(totalAmount),
+          balanceAfter: String(farmerNewBal),
+          description: `Investment received: ${quantity} share${quantity > 1 ? "s" : ""} in ${farm.name} from ${user.name}`,
+          reference: `RCV-${tx.id}`,
+          status: "completed",
+        });
+      }
+    } catch (e) { console.error("[FARMER_WALLET_CREDIT]", e); }
+  }
 
   // If farm is now fully funded → disburse loan + send voucher email to farmer
   if (listing.sharesAvailable - quantity <= 0) {
