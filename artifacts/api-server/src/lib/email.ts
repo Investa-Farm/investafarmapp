@@ -3,6 +3,8 @@ import nodemailer from "nodemailer";
 const SMTP_USER = process.env.GOOGLE_SMTP_USER;
 const SMTP_PASS = process.env.GOOGLE_SMTP_PASS;
 const APP_NAME = "Investa Farm";
+const BRAND_GREEN = "#15803d";
+const BRAND_DARK = "#052c16";
 
 function from(label: string) {
   return `"${label}" <${SMTP_USER}>`;
@@ -18,33 +20,119 @@ function createTransport() {
   });
 }
 
+function emailWrapper(content: string, preheader = "") {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${APP_NAME}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${preheader}</div>` : ""}
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f1;padding:24px 0;">
+    <tr><td align="center">
+      <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,${BRAND_DARK} 0%,${BRAND_GREEN} 100%);padding:36px 40px 28px;text-align:center;">
+            <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:16px;padding:12px 20px;margin-bottom:16px;">
+              <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;">🌾 Investa Farm</span>
+            </div>
+            <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:0;letter-spacing:0.5px;">AFRICA'S FARM INVESTMENT EXCHANGE</p>
+          </td>
+        </tr>
+
+        <!-- Content -->
+        ${content}
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8faf8;padding:24px 40px;border-top:1px solid #e5ede5;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td>
+                  <p style="color:#6b7280;font-size:11px;margin:0 0 4px 0;text-align:center;">
+                    <strong style="color:#374151;">Investa Farm Ltd</strong> · Nairobi, Kenya
+                  </p>
+                  <p style="color:#9ca3af;font-size:10px;margin:0;text-align:center;">
+                    Regulated by the Capital Markets Authority of Kenya &nbsp;·&nbsp; 
+                    <a href="#" style="color:#15803d;text-decoration:none;">Unsubscribe</a> &nbsp;·&nbsp;
+                    <a href="#" style="color:#15803d;text-decoration:none;">Privacy Policy</a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+function statCard(icon: string, label: string, value: string, color = BRAND_GREEN) {
+  return `
+    <td align="center" style="padding:0 6px;">
+      <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:12px;padding:16px 12px;text-align:center;min-width:100px;">
+        <p style="font-size:24px;margin:0 0 4px 0;">${icon}</p>
+        <p style="font-size:18px;font-weight:800;color:${color};margin:0 0 2px 0;">${value}</p>
+        <p style="font-size:10px;color:#9ca3af;margin:0;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${label}</p>
+      </div>
+    </td>`;
+}
+
+function ctaButton(text: string, url: string, gradient = `linear-gradient(135deg,${BRAND_DARK},${BRAND_GREEN})`) {
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding:8px 0;">
+          <a href="${url}" style="display:inline-block;background:${gradient};color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;padding:14px 36px;border-radius:12px;letter-spacing:0.3px;">
+            ${text}
+          </a>
+        </td>
+      </tr>
+    </table>`;
+}
+
 export async function sendOtpEmail(to: string, name: string, code: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
     console.log(`[EMAIL] OTP for ${to}: ${code} (SMTP not configured)`);
     return;
   }
+
+  const content = `
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <h1 style="color:#111827;font-size:24px;font-weight:800;margin:0 0 8px 0;">Verify your email ✉️</h1>
+        <p style="color:#6b7280;font-size:15px;line-height:1.6;margin:0 0 28px 0;">Hi <strong style="color:#111827;">${name}</strong>, welcome to Investa Farm! Enter the code below to confirm your email address and activate your account.</p>
+
+        <!-- OTP Box -->
+        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:16px;padding:32px;text-align:center;margin:0 0 24px 0;">
+          <p style="color:#166534;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 12px 0;">Your Verification Code</p>
+          <div style="background:#ffffff;border-radius:12px;padding:20px;display:inline-block;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <span style="font-size:44px;font-weight:900;letter-spacing:16px;color:${BRAND_DARK};font-family:Courier,monospace;">${code}</span>
+          </div>
+          <p style="color:#166534;font-size:12px;margin:12px 0 0 0;">⏱ Expires in <strong>10 minutes</strong></p>
+        </div>
+
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px;margin:0 0 24px 0;">
+          <p style="color:#92400e;font-size:13px;margin:0;">🔒 <strong>Security tip:</strong> Never share this code with anyone. Investa Farm staff will never ask for your OTP.</p>
+        </div>
+
+        <p style="color:#9ca3af;font-size:13px;margin:0;">Didn't request this? You can safely ignore this email — your account is protected.</p>
+      </td>
+    </tr>`;
+
   await transport.sendMail({
     from: from("Investa Farm Verification"),
     to,
-    subject: `Your ${APP_NAME} Verification Code: ${code}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#f9fafb;border-radius:16px;">
-        <div style="text-align:center;margin-bottom:24px;">
-          <h1 style="color:#15803d;font-size:28px;margin:0;">Investa Farm</h1>
-          <p style="color:#6b7280;font-size:14px;margin-top:4px;">Africa's Leading Farm Investment Platform</p>
-        </div>
-        <div style="background:white;border-radius:12px;padding:24px;text-align:center;">
-          <p style="color:#374151;font-size:16px;">Hi <strong>${name}</strong>, welcome to Investa Farm! 🌾</p>
-          <p style="color:#6b7280;font-size:14px;">Use this one-time code to verify your email address:</p>
-          <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:12px;padding:20px;margin:20px 0;">
-            <span style="font-size:40px;font-weight:900;letter-spacing:12px;color:#15803d;">${code}</span>
-          </div>
-          <p style="color:#9ca3af;font-size:12px;">This code expires in 10 minutes. Do not share it with anyone.</p>
-        </div>
-        <p style="color:#9ca3af;font-size:11px;text-align:center;margin-top:16px;">Investa Farm Ltd · Nairobi, Kenya</p>
-      </div>
-    `,
+    subject: `${code} is your Investa Farm verification code`,
+    html: emailWrapper(content, `Your ${code} verification code expires in 10 minutes.`),
   });
 }
 
@@ -54,36 +142,95 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
     console.log(`[EMAIL] Welcome email for ${to} (SMTP not configured)`);
     return;
   }
-  const roleLabel = role === "farmer" ? "Farmer" : role === "investor" ? "Investor" : "Partner";
-  const nextStep = role === "farmer"
-    ? "Upload your KYC documents to get listed and start raising capital."
-    : "Complete your KYC verification to start buying farm shares.";
+
+  const isFarmer = role === "farmer";
+  const roleLabel = isFarmer ? "Farmer" : role === "investor" ? "Investor" : "Partner";
+  const heroEmoji = isFarmer ? "🌾" : "📈";
+
+  const steps = isFarmer
+    ? [
+        { icon: "🪪", text: "Upload your <strong>National ID + farm documents</strong> for KYC verification" },
+        { icon: "📋", text: "Apply for <strong>farm investment capital</strong> from your dashboard" },
+        { icon: "🚀", text: "Get listed on the investor market and <strong>attract real investors</strong>" },
+        { icon: "💰", text: "Receive funding and <strong>retain 55% of all harvest revenue</strong>" },
+      ]
+    : [
+        { icon: "🪪", text: "Complete <strong>KYC verification</strong> with your National ID + selfie" },
+        { icon: "💳", text: "<strong>Top up your Investa Wallet</strong> via M-Pesa or card" },
+        { icon: "🌾", text: "Browse the <strong>Live Market</strong> and invest in verified Kenyan farms" },
+        { icon: "📈", text: "<strong>Earn harvest returns</strong> of up to +28% paid to your M-Pesa" },
+      ];
+
+  const stepsHtml = steps.map((s, i) => `
+    <tr>
+      <td style="padding:10px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td width="44" style="vertical-align:top;">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,${BRAND_DARK},${BRAND_GREEN});display:flex;align-items:center;justify-content:center;text-align:center;line-height:36px;font-size:16px;">
+                ${s.icon}
+              </div>
+            </td>
+            <td style="vertical-align:middle;padding-left:12px;">
+              <p style="color:#374151;font-size:14px;margin:0;line-height:1.5;">${s.text}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  `).join("");
+
+  const statsHtml = isFarmer
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+        <tr>
+          ${statCard("🌾", "Revenue Share", "55%")}
+          ${statCard("📅", "Fund Timeline", "2–5 Days")}
+          ${statCard("👥", "Investors", "Active")}
+        </tr>
+      </table>`
+    : `<table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+        <tr>
+          ${statCard("📈", "Max Returns", "+28%")}
+          ${statCard("💰", "Min. Invest", "KES 5K")}
+          ${statCard("🛡️", "Protection", "Insured")}
+        </tr>
+      </table>`;
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <!-- Hero banner -->
+        <div style="background:linear-gradient(160deg,#064e3b 0%,#166534 100%);padding:32px 40px;text-align:center;border-bottom:4px solid #16a34a;">
+          <p style="font-size:56px;margin:0 0 8px 0;">${heroEmoji}</p>
+          <h1 style="color:#ffffff;font-size:28px;font-weight:800;margin:0 0 6px 0;">Welcome, ${name}!</h1>
+          <p style="color:rgba(255,255,255,0.75);font-size:15px;margin:0;">Your ${roleLabel} account is ready. Let's get started.</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:36px 40px;">
+        ${statsHtml}
+
+        <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:16px;padding:24px;margin:0 0 28px 0;">
+          <p style="color:#111827;font-weight:700;font-size:16px;margin:0 0 16px 0;">🗺️ Your next steps:</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tbody>${stepsHtml}</tbody>
+          </table>
+        </div>
+
+        ${ctaButton(isFarmer ? "Open Farmer Dashboard →" : "Browse Live Farms →", "https://investafarm.co.ke")}
+
+        <p style="color:#9ca3af;font-size:12px;margin:20px 0 0 0;text-align:center;">
+          Questions? Reply to this email or chat with our <strong style="color:${BRAND_GREEN};">AI Assistant</strong> in the app.
+        </p>
+      </td>
+    </tr>`;
 
   await transport.sendMail({
     from: from("Investa Farm"),
     to,
-    subject: `Welcome to ${APP_NAME}, ${name}! 🌾`,
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#f9fafb;border-radius:16px;">
-        <div style="text-align:center;margin-bottom:24px;">
-          <h1 style="color:#15803d;font-size:28px;margin:0;">Investa Farm</h1>
-          <p style="color:#6b7280;font-size:14px;margin-top:4px;">Africa's Leading Farm Investment Platform</p>
-        </div>
-        <div style="background:white;border-radius:12px;padding:24px;">
-          <h2 style="color:#15803d;">Welcome, ${name}! 👋</h2>
-          <p style="color:#374151;">Your ${roleLabel} account has been verified and is ready to go.</p>
-          <p style="color:#374151;">${nextStep}</p>
-          <div style="background:#f0fdf4;border-radius:8px;padding:16px;margin:16px 0;">
-            <p style="color:#15803d;font-weight:bold;margin:0;">🌾 What's next?</p>
-            <ul style="color:#374151;font-size:14px;margin:8px 0 0 0;padding-left:20px;">
-              ${role === "farmer" ? '<li>Upload KYC documents (National ID + Farm Report)</li><li>Apply for farm investment capital</li><li>Get listed on the investor market</li>' : '<li>Complete KYC (National ID + Selfie)</li><li>Top up your Investa Wallet</li><li>Browse farms and buy shares</li>'}
-            </ul>
-          </div>
-          <p style="color:#9ca3af;font-size:12px;">If you have questions, reply to this email or visit our Help Centre.</p>
-        </div>
-        <p style="color:#9ca3af;font-size:11px;text-align:center;margin-top:16px;">Investa Farm Ltd · Nairobi, Kenya</p>
-      </div>
-    `,
+    subject: `🌾 Welcome to Investa Farm, ${name}! Your ${roleLabel} account is ready`,
+    html: emailWrapper(content, `Your ${roleLabel} account is now active. Here's how to get started in 4 easy steps.`),
   });
 }
 
@@ -93,30 +240,53 @@ export async function sendKycApprovedEmail(to: string, name: string): Promise<vo
     console.log(`[EMAIL] KYC approved email for ${to} (SMTP not configured)`);
     return;
   }
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(135deg,#064e3b 0%,#16a34a 100%);padding:40px;text-align:center;">
+          <div style="background:rgba(255,255,255,0.15);border-radius:50%;width:72px;height:72px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;line-height:72px;text-align:center;">
+            <span style="font-size:36px;">✅</span>
+          </div>
+          <h1 style="color:#ffffff;font-size:28px;font-weight:800;margin:0 0 8px 0;">KYC Approved!</h1>
+          <p style="color:rgba(255,255,255,0.8);font-size:15px;margin:0;">Your identity has been verified, ${name}</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Great news! Our compliance team has reviewed and approved your KYC documents. You now have <strong>full access</strong> to the Investa Farm platform with no restrictions.
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
+          <tr>
+            ${statCard("🔓", "Status", "Verified", "#16a34a")}
+            ${statCard("🌾", "Market Access", "Full", "#16a34a")}
+            ${statCard("⚡", "Limits", "None", "#16a34a")}
+          </tr>
+        </table>
+
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:24px;margin:0 0 28px 0;">
+          <p style="color:#166534;font-weight:700;font-size:15px;margin:0 0 12px 0;">🎉 What's now unlocked for you:</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${["Invest in any farm on the Primary Market", "Trade shares on the Secondary Market", "Request exits and receive M-Pesa payouts", "Access unlimited investment amounts"].map(t => `
+            <tr><td style="padding:6px 0;">
+              <span style="color:#16a34a;font-weight:700;">✓</span>
+              <span style="color:#374151;font-size:14px;margin-left:8px;">${t}</span>
+            </td></tr>`).join("")}
+          </table>
+        </div>
+
+        ${ctaButton("🚀 Start Investing Now →", "https://investafarm.co.ke/market")}
+      </td>
+    </tr>`;
+
   await transport.sendMail({
     from: from("Investa Farm Compliance"),
     to,
-    subject: `🎉 KYC Approved — Welcome to ${APP_NAME}!`,
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#f9fafb;border-radius:16px;">
-        <div style="text-align:center;margin-bottom:24px;">
-          <h1 style="color:#15803d;font-size:28px;margin:0;">Investa Farm</h1>
-          <p style="color:#6b7280;font-size:14px;margin-top:4px;">Africa's Leading Farm Investment Platform</p>
-        </div>
-        <div style="background:white;border-radius:12px;padding:24px;text-align:center;">
-          <p style="font-size:56px;margin:0 0 12px 0;">🎉</p>
-          <h2 style="color:#15803d;margin:0 0 8px 0;">KYC Approved, ${name}!</h2>
-          <p style="color:#374151;margin:0 0 20px 0;">Your identity has been verified by our compliance team.</p>
-          <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:12px;padding:20px;margin:20px 0;">
-            <p style="color:#15803d;font-weight:bold;font-size:18px;margin:0 0 8px 0;">✓ Account Fully Verified</p>
-            <p style="color:#374151;font-size:14px;margin:0;">You now have full access to the Investa Farm platform.</p>
-          </div>
-          <p style="color:#374151;font-size:14px;">You can now invest in farm shares, request exits, and enjoy all platform benefits.</p>
-          <p style="color:#9ca3af;font-size:12px;margin-top:16px;">Thank you for joining Investa Farm. If you have questions, reply to this email.</p>
-        </div>
-        <p style="color:#9ca3af;font-size:11px;text-align:center;margin-top:16px;">Investa Farm Ltd · Nairobi, Kenya</p>
-      </div>
-    `,
+    subject: `✅ KYC Approved — You're fully verified on Investa Farm!`,
+    html: emailWrapper(content, "Your identity is verified. You now have full access to invest in Kenyan farms."),
   });
 }
 
@@ -126,33 +296,48 @@ export async function sendKycRejectedEmail(to: string, name: string): Promise<vo
     console.log(`[EMAIL] KYC rejected email for ${to} (SMTP not configured)`);
     return;
   }
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%);padding:40px;text-align:center;">
+          <p style="font-size:48px;margin:0 0 12px 0;">🔄</p>
+          <h1 style="color:#ffffff;font-size:26px;font-weight:800;margin:0 0 8px 0;">KYC Update Required</h1>
+          <p style="color:rgba(255,255,255,0.8);font-size:14px;margin:0;">We need clearer documents from you, ${name}</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Our compliance team reviewed your documents but was unable to complete verification at this time. Don't worry — this is common on first submission. Please re-upload with the fixes below.
+        </p>
+
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:16px;padding:24px;margin:0 0 24px 0;">
+          <p style="color:#991b1b;font-weight:700;font-size:15px;margin:0 0 12px 0;">⚠️ Common reasons for rejection:</p>
+          ${["Document image was blurry or poorly lit — retake in good lighting", "ID was expired — use a current, valid National ID", "Selfie did not clearly match the ID photo — ensure clear face visibility", "Document was cut off — capture the full document edges", "Wrong document type submitted"].map(r => `
+          <p style="color:#374151;font-size:14px;margin:0 0 8px 0;padding-left:20px;position:relative;">
+            <span style="color:#dc2626;position:absolute;left:0;">•</span> ${r}
+          </p>`).join("")}
+        </div>
+
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin:0 0 28px 0;">
+          <p style="color:#166534;font-size:14px;margin:0;">💡 <strong>Tip:</strong> Take photos in bright natural light, hold the document flat, and ensure all four corners are visible.</p>
+        </div>
+
+        ${ctaButton("📄 Re-submit KYC Documents →", "https://investafarm.co.ke/kyc", "linear-gradient(135deg,#7f1d1d,#dc2626)")}
+
+        <p style="color:#9ca3af;font-size:13px;margin:20px 0 0 0;text-align:center;">
+          If you believe this is a mistake, reply to this email and we'll investigate within 24 hours.
+        </p>
+      </td>
+    </tr>`;
+
   await transport.sendMail({
     from: from("Investa Farm Compliance"),
     to,
-    subject: `KYC Update Required — ${APP_NAME}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#f9fafb;border-radius:16px;">
-        <div style="text-align:center;margin-bottom:24px;">
-          <h1 style="color:#15803d;font-size:28px;margin:0;">Investa Farm</h1>
-        </div>
-        <div style="background:white;border-radius:12px;padding:24px;">
-          <h2 style="color:#dc2626;">Hi ${name}, your KYC needs an update</h2>
-          <p style="color:#374151;">Our compliance team reviewed your documents but was unable to verify them at this time.</p>
-          <div style="background:#fef2f2;border:2px solid #fecaca;border-radius:12px;padding:20px;margin:20px 0;">
-            <p style="color:#dc2626;font-weight:bold;margin:0 0 8px 0;">Common reasons for rejection:</p>
-            <ul style="color:#374151;font-size:14px;margin:0;padding-left:20px;">
-              <li>Document image was blurry or unclear</li>
-              <li>ID document was expired</li>
-              <li>Selfie did not match the ID photo</li>
-              <li>Documents were incomplete</li>
-            </ul>
-          </div>
-          <p style="color:#374151;font-size:14px;">Please re-upload clear, valid documents in the app to try again.</p>
-          <p style="color:#9ca3af;font-size:12px;margin-top:16px;">If you believe this is a mistake, reply to this email.</p>
-        </div>
-        <p style="color:#9ca3af;font-size:11px;text-align:center;margin-top:16px;">Investa Farm Ltd · Nairobi, Kenya</p>
-      </div>
-    `,
+    subject: `⚠️ KYC Action Required — Please re-submit your documents`,
+    html: emailWrapper(content, "Your KYC documents need to be resubmitted with clearer photos. Here's what to fix."),
   });
 }
 
@@ -172,48 +357,81 @@ export async function sendFundingVoucherEmail(
     console.log(`[EMAIL] Funding voucher for ${to}: ${voucherCode} (SMTP not configured)`);
     return;
   }
-  const fmt = (n: number) => new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
+  const fmt = (n: number) => `KES ${new Intl.NumberFormat("en-KE").format(Math.round(n))}`;
   const lockedAmount = amount - inputAmount;
+
   const supplierBlock = supplierName ? `
-    <div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:12px;padding:20px;margin:16px 0;">
-      <p style="color:#c2410c;font-weight:bold;margin:0 0 8px 0;">📍 Your Assigned Input Supplier</p>
-      <p style="color:#374151;margin:4px 0;font-size:14px;"><strong>${supplierName}</strong></p>
-      ${supplierLocation ? `<p style="color:#6b7280;margin:4px 0;font-size:13px;">📍 ${supplierLocation}</p>` : ""}
-      ${supplierPhone ? `<p style="color:#6b7280;margin:4px 0;font-size:13px;">📞 ${supplierPhone}</p>` : ""}
-      <p style="color:#9a3412;font-size:12px;margin-top:8px;">Present your voucher code at this supplier to redeem ${fmt(inputAmount)} worth of inputs.</p>
-    </div>
-  ` : "";
+    <div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:16px;padding:24px;margin:0 0 24px 0;">
+      <p style="color:#92400e;font-weight:700;font-size:15px;margin:0 0 12px 0;">📍 Your Assigned Input Supplier</p>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:4px 0;">
+          <span style="color:#374151;font-size:15px;font-weight:700;">${supplierName}</span>
+        </td></tr>
+        ${supplierLocation ? `<tr><td style="padding:4px 0;"><span style="color:#6b7280;font-size:14px;">📍 ${supplierLocation}</span></td></tr>` : ""}
+        ${supplierPhone ? `<tr><td style="padding:4px 0;"><span style="color:#6b7280;font-size:14px;">📞 ${supplierPhone}</span></td></tr>` : ""}
+        <tr><td style="padding:12px 0 0 0;">
+          <p style="color:#9a3412;font-size:13px;margin:0;background:#fffbeb;border-radius:8px;padding:10px;">
+            Present your voucher code at this location to redeem <strong>${fmt(inputAmount)}</strong> worth of farm inputs.
+          </p>
+        </td></tr>
+      </table>
+    </div>` : "";
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(135deg,#064e3b 0%,#16a34a 100%);padding:40px;text-align:center;">
+          <p style="font-size:48px;margin:0 0 12px 0;">🎉</p>
+          <h1 style="color:#ffffff;font-size:26px;font-weight:800;margin:0 0 8px 0;">Funding Approved!</h1>
+          <p style="color:rgba(255,255,255,0.8);font-size:15px;margin:0;">${fmt(amount)} approved for ${farmName}</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Congratulations, <strong>${name}</strong>! Your funding application for <strong>${farmName}</strong> has been approved by investors. Here is your input voucher:
+        </p>
+
+        <!-- Voucher -->
+        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px dashed #86efac;border-radius:20px;padding:32px;text-align:center;margin:0 0 28px 0;">
+          <p style="color:#166534;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin:0 0 8px 0;">Input Voucher Code</p>
+          <div style="background:#ffffff;border-radius:12px;padding:16px 24px;display:inline-block;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin:0 0 12px 0;">
+            <span style="font-size:32px;font-weight:900;letter-spacing:10px;color:${BRAND_DARK};font-family:Courier,monospace;">${voucherCode}</span>
+          </div>
+          <p style="color:#16a34a;font-size:18px;font-weight:800;margin:0;">Redeemable for ${fmt(inputAmount)}</p>
+        </div>
+
+        ${supplierBlock}
+
+        <!-- Breakdown -->
+        <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:16px;padding:24px;margin:0 0 28px 0;">
+          <p style="color:#111827;font-weight:700;font-size:15px;margin:0 0 16px 0;">💰 Capital Breakdown</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr style="border-bottom:1px solid #e5ede5;">
+              <td style="padding:10px 0;color:#374151;font-size:14px;">Total Approved</td>
+              <td style="padding:10px 0;color:#111827;font-weight:700;font-size:14px;text-align:right;">${fmt(amount)}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e5ede5;">
+              <td style="padding:10px 0;color:#374151;font-size:14px;">Input Voucher (use now)</td>
+              <td style="padding:10px 0;color:#16a34a;font-weight:700;font-size:14px;text-align:right;">${fmt(inputAmount)}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 0;color:#374151;font-size:14px;">Locked until milestone</td>
+              <td style="padding:10px 0;color:#6b7280;font-weight:700;font-size:14px;text-align:right;">${fmt(lockedAmount)}</td>
+            </tr>
+          </table>
+        </div>
+
+        ${ctaButton("View Farm Dashboard →", "https://investafarm.co.ke/farmer/dashboard")}
+      </td>
+    </tr>`;
 
   await transport.sendMail({
     from: from("Investa Farm Funding"),
     to,
-    subject: `🌾 Your Funding Voucher — ${fmt(amount)} Approved for ${farmName}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px;background:#f9fafb;border-radius:16px;">
-        <div style="text-align:center;margin-bottom:24px;">
-          <h1 style="color:#15803d;font-size:28px;margin:0;">Investa Farm</h1>
-          <p style="color:#6b7280;font-size:14px;margin-top:4px;">Farm Investment Platform</p>
-        </div>
-        <div style="background:white;border-radius:12px;padding:28px;">
-          <h2 style="color:#15803d;">Congratulations, ${name}! 🎉</h2>
-          <p style="color:#374151;">Your funding for <strong>${farmName}</strong> has been approved.</p>
-          <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:12px;padding:24px;margin:20px 0;text-align:center;">
-            <p style="color:#6b7280;font-size:13px;margin-bottom:8px;">INPUT VOUCHER CODE</p>
-            <span style="font-size:28px;font-weight:900;letter-spacing:6px;color:#15803d;font-family:monospace;">${voucherCode}</span>
-            <p style="color:#15803d;font-weight:bold;font-size:18px;margin-top:12px;">${fmt(inputAmount)} for Inputs</p>
-          </div>
-          ${supplierBlock}
-          <div style="background:#eff6ff;border-radius:8px;padding:16px;margin:16px 0;">
-            <p style="color:#1d4ed8;font-weight:bold;margin:0 0 8px 0;">💰 Capital Breakdown</p>
-            <ul style="color:#374151;font-size:13px;margin:0;padding-left:20px;">
-              <li>Input Voucher (redeemable now): <strong>${fmt(inputAmount)}</strong></li>
-              <li>Capital locked until milestone: <strong>${fmt(lockedAmount)}</strong></li>
-            </ul>
-          </div>
-        </div>
-        <p style="color:#9ca3af;font-size:11px;text-align:center;margin-top:16px;">Investa Farm Ltd · Nairobi, Kenya</p>
-      </div>
-    `,
+    subject: `🌾 ${fmt(amount)} Funding Approved — Your voucher for ${farmName} is ready`,
+    html: emailWrapper(content, `Your farm funding of ${fmt(amount)} is approved. Redeem your ${fmt(inputAmount)} input voucher now.`),
   });
 }
 
@@ -223,28 +441,50 @@ export async function sendKycUnderReviewEmail(to: string, name: string): Promise
     console.log(`[EMAIL] KYC under-review email for ${to} (SMTP not configured)`);
     return;
   }
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(135deg,#1e40af 0%,#3b82f6 100%);padding:40px;text-align:center;">
+          <p style="font-size:48px;margin:0 0 12px 0;">🔍</p>
+          <h1 style="color:#ffffff;font-size:26px;font-weight:800;margin:0 0 8px 0;">Documents Under Review</h1>
+          <p style="color:rgba(255,255,255,0.8);font-size:14px;margin:0;">We've received everything, ${name}</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Our compliance team has received all your verification documents and is now carefully reviewing them to ensure your account security.
+        </p>
+
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:16px;padding:28px;margin:0 0 24px 0;text-align:center;">
+          <p style="color:#1d4ed8;font-size:32px;margin:0 0 8px 0;">⏳</p>
+          <p style="color:#1e40af;font-weight:700;font-size:17px;margin:0 0 4px 0;">Review in Progress</p>
+          <p style="color:#3b82f6;font-size:13px;margin:0;">Typical review time: <strong>24–48 hours</strong></p>
+        </div>
+
+        <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:16px;padding:20px;margin:0 0 28px 0;">
+          <p style="color:#374151;font-weight:600;font-size:14px;margin:0 0 10px 0;">While you wait, you can:</p>
+          ${["Explore the live market to see available farms", "Set up your wallet for instant investing once approved", "Browse our investment guide in the app"].map(t => `
+          <p style="color:#6b7280;font-size:14px;margin:0 0 8px 0;padding-left:16px;">
+            <span style="color:#3b82f6;">→</span> ${t}
+          </p>`).join("")}
+        </div>
+
+        ${ctaButton("Explore the Market →", "https://investafarm.co.ke/market", "linear-gradient(135deg,#1e40af,#3b82f6)")}
+
+        <p style="color:#9ca3af;font-size:13px;margin:20px 0 0 0;text-align:center;">
+          You'll receive an email as soon as your review is complete. We'll also send a push notification in the app.
+        </p>
+      </td>
+    </tr>`;
+
   await transport.sendMail({
     from: from("Investa Farm Compliance"),
     to,
-    subject: `Your KYC is Under Review — ${APP_NAME}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#f9fafb;border-radius:16px;">
-        <div style="text-align:center;margin-bottom:24px;">
-          <h1 style="color:#15803d;font-size:28px;margin:0;">Investa Farm</h1>
-        </div>
-        <div style="background:white;border-radius:12px;padding:24px;">
-          <h2 style="color:#1d4ed8;">Hi ${name}, your KYC is under review 🔍</h2>
-          <p style="color:#374151;">We've received all your verification documents and our compliance team is now reviewing them.</p>
-          <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
-            <p style="color:#1d4ed8;font-size:24px;margin:0;">⏳</p>
-            <p style="color:#1e40af;font-weight:bold;font-size:16px;margin:8px 0 4px 0;">Review in Progress</p>
-            <p style="color:#3b82f6;font-size:13px;margin:0;">Typical review time: 24–48 hours</p>
-          </div>
-          <p style="color:#374151;font-size:14px;">You'll receive another email once your account has been approved.</p>
-        </div>
-        <p style="color:#9ca3af;font-size:11px;text-align:center;margin-top:16px;">Investa Farm Ltd · Nairobi, Kenya</p>
-      </div>
-    `,
+    subject: `🔍 Your KYC documents are under review — expect approval in 24–48 hrs`,
+    html: emailWrapper(content, "We've received your documents. Our team will review within 24–48 hours."),
   });
 }
 
@@ -254,81 +494,189 @@ export async function sendKycSubmittedNotification(adminEmail: string, userName:
     console.log(`[EMAIL] KYC notification for admin (SMTP not configured)`);
     return;
   }
+
+  const content = `
+    <tr>
+      <td style="padding:32px 40px;">
+        <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:12px;padding:16px;margin:0 0 20px 0;">
+          <p style="color:#92400e;font-weight:700;font-size:14px;margin:0;">🔔 New KYC Document Awaiting Review</p>
+        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5ede5;border-radius:12px;overflow:hidden;">
+          ${[["User", userName], ["Email", userEmail], ["Document Type", docType], ["Submitted", new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })]].map(([k, v]) => `
+          <tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:12px 16px;background:#f9fafb;color:#6b7280;font-size:13px;font-weight:600;width:140px;">${k}</td>
+            <td style="padding:12px 16px;color:#111827;font-size:14px;font-weight:500;">${v}</td>
+          </tr>`).join("")}
+        </table>
+        <p style="color:#9ca3af;font-size:13px;margin:16px 0 0 0;">Log in to the admin panel to review and approve or reject this submission.</p>
+      </td>
+    </tr>`;
+
   await transport.sendMail({
     from: from("Investa Farm Admin Alerts"),
     to: adminEmail,
-    subject: `[Admin] New KYC Document Uploaded — ${userName}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;">
-        <h2 style="color:#15803d;">New KYC Document Uploaded</h2>
-        <table style="border-collapse:collapse;width:100%;">
-          <tr><td style="padding:8px;color:#6b7280;">User</td><td style="padding:8px;font-weight:bold;">${userName}</td></tr>
-          <tr><td style="padding:8px;color:#6b7280;">Email</td><td style="padding:8px;">${userEmail}</td></tr>
-          <tr><td style="padding:8px;color:#6b7280;">Document</td><td style="padding:8px;">${docType}</td></tr>
-          <tr><td style="padding:8px;color:#6b7280;">Time</td><td style="padding:8px;">${new Date().toISOString()}</td></tr>
-        </table>
-        <p style="color:#9ca3af;font-size:12px;">Log in to the admin panel to review and approve.</p>
-      </div>
-    `,
+    subject: `[Admin] New KYC Upload — ${userName} (${docType})`,
+    html: emailWrapper(content, `${userName} has uploaded a new KYC document: ${docType}`),
+  });
+}
+
+export async function sendPriceAlertEmail(to: string, name: string, farmName: string, cropType: string, oldPrice: number, newPrice: number, changePercent: number): Promise<void> {
+  const transport = createTransport();
+  if (!transport) {
+    console.log(`[EMAIL] Price alert for ${to}: ${farmName} ${changePercent > 0 ? "+" : ""}${changePercent.toFixed(1)}% (SMTP not configured)`);
+    return;
+  }
+
+  const isUp = changePercent > 0;
+  const fmt = (n: number) => `KES ${new Intl.NumberFormat("en-KE").format(Math.round(n))}`;
+  const absChange = Math.abs(changePercent);
+  const headerBg = isUp
+    ? "linear-gradient(135deg,#064e3b 0%,#16a34a 100%)"
+    : "linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%)";
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:${headerBg};padding:40px;text-align:center;">
+          <p style="font-size:48px;margin:0 0 12px 0;">${isUp ? "📈" : "📉"}</p>
+          <h1 style="color:#ffffff;font-size:26px;font-weight:800;margin:0 0 8px 0;">
+            ${isUp ? "Price Surge Alert!" : "Price Drop Alert!"}
+          </h1>
+          <p style="color:rgba(255,255,255,0.85);font-size:15px;margin:0;">${farmName} · ${cropType}</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Hi <strong>${name}</strong>, a farm in your portfolio has moved by more than <strong>5%</strong>. Here are the details:
+        </p>
+
+        <!-- Price comparison -->
+        <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:20px;padding:28px;margin:0 0 24px 0;text-align:center;">
+          <p style="color:#6b7280;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 16px 0;">${farmName}</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="text-align:center;padding:0 12px;">
+                <p style="color:#9ca3af;font-size:11px;margin:0 0 4px 0;">Previous Price</p>
+                <p style="color:#374151;font-size:22px;font-weight:800;margin:0;">${fmt(oldPrice)}</p>
+              </td>
+              <td style="text-align:center;padding:0 12px;font-size:24px;color:#d1d5db;">→</td>
+              <td style="text-align:center;padding:0 12px;">
+                <p style="color:#9ca3af;font-size:11px;margin:0 0 4px 0;">Current Price</p>
+                <p style="color:${isUp ? "#16a34a" : "#dc2626"};font-size:22px;font-weight:800;margin:0;">${fmt(newPrice)}</p>
+              </td>
+            </tr>
+          </table>
+          <div style="background:${isUp ? "#f0fdf4" : "#fef2f2"};border-radius:12px;padding:12px;margin-top:16px;display:inline-block;">
+            <span style="color:${isUp ? "#16a34a" : "#dc2626"};font-size:20px;font-weight:900;">${isUp ? "▲" : "▼"} ${absChange.toFixed(1)}%</span>
+          </div>
+        </div>
+
+        <div style="background:${isUp ? "#f0fdf4" : "#fef2f2"};border:1px solid ${isUp ? "#bbf7d0" : "#fecaca"};border-radius:16px;padding:20px;margin:0 0 28px 0;">
+          <p style="color:${isUp ? "#166534" : "#991b1b"};font-size:14px;font-weight:600;margin:0;">
+            ${isUp
+              ? "📊 This price increase may affect your exit value. Consider whether to hold for higher returns or request an exit now."
+              : "💡 Price drops can be opportunities to buy more shares at a lower price. Check the current market."}
+          </p>
+        </div>
+
+        ${ctaButton("View Portfolio →", "https://investafarm.co.ke/portfolio", headerBg)}
+
+        <p style="color:#9ca3af;font-size:11px;margin:20px 0 0 0;text-align:center;">
+          You receive price alerts because you hold shares in this farm. <a href="#" style="color:${BRAND_GREEN};text-decoration:none;">Manage alerts</a>
+        </p>
+      </td>
+    </tr>`;
+
+  await transport.sendMail({
+    from: from("Investa Farm Price Alerts"),
+    to,
+    subject: `${isUp ? "📈" : "📉"} Price Alert: ${farmName} moved ${isUp ? "+" : ""}${changePercent.toFixed(1)}%`,
+    html: emailWrapper(content, `${farmName} share price changed by ${isUp ? "+" : ""}${changePercent.toFixed(1)}% to ${fmt(newPrice)}.`),
   });
 }
 
 export async function sendOpportunityDigest(
   to: string,
   name: string,
-  farms: Array<{ name: string; cropType: string; location: string; sharePrice?: number | string; sharesAvailable?: number }>
+  farms: Array<{ name: string; cropType: string; location: string; sharePrice?: number | string; sharesAvailable?: number; changePercent?: number }>
 ): Promise<void> {
   const transport = createTransport();
   if (!transport) {
     console.log(`[EMAIL] Opportunity digest for ${to} (SMTP not configured)`);
     return;
   }
-  const farmRows = farms.slice(0, 5).map(f => `
-    <tr style="border-bottom:1px solid #f3f4f6;">
-      <td style="padding:10px 8px;font-weight:600;color:#111827;font-size:13px;">${f.name}</td>
-      <td style="padding:10px 8px;color:#6b7280;font-size:13px;">${f.cropType} · ${f.location}</td>
-      <td style="padding:10px 8px;font-weight:700;color:#15803d;font-size:13px;">KES ${Number(f.sharePrice ?? 0).toLocaleString()}/share</td>
-      <td style="padding:10px 8px;color:#374151;font-size:13px;">${f.sharesAvailable ?? 0} left</td>
+
+  const farmRowsHtml = farms.slice(0, 5).map(f => {
+    const price = Number(f.sharePrice ?? 0);
+    const change = Number(f.changePercent ?? 0);
+    const isUp = change >= 0;
+    return `
+      <tr style="border-bottom:1px solid #f3f4f6;">
+        <td style="padding:14px 12px;">
+          <p style="font-weight:700;color:#111827;font-size:14px;margin:0 0 2px 0;">${f.name}</p>
+          <p style="color:#6b7280;font-size:12px;margin:0;">${f.cropType} · ${f.location}</p>
+        </td>
+        <td style="padding:14px 8px;text-align:center;">
+          <span style="display:inline-block;background:${isUp ? "#f0fdf4" : "#fef2f2"};color:${isUp ? "#16a34a" : "#dc2626"};font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;">${isUp ? "+" : ""}${change.toFixed(1)}%</span>
+        </td>
+        <td style="padding:14px 8px;text-align:right;">
+          <p style="font-weight:700;color:${BRAND_GREEN};font-size:14px;margin:0;">KES ${price.toLocaleString()}</p>
+          <p style="color:#9ca3af;font-size:11px;margin:2px 0 0 0;">${f.sharesAvailable ?? 0} shares left</p>
+        </td>
+      </tr>`;
+  }).join("");
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(135deg,#064e3b 0%,#16a34a 50%,#15803d 100%);padding:40px;text-align:center;">
+          <p style="font-size:48px;margin:0 0 12px 0;">🌾</p>
+          <h1 style="color:#ffffff;font-size:26px;font-weight:800;margin:0 0 8px 0;">Your Weekly Farm Picks</h1>
+          <p style="color:rgba(255,255,255,0.75);font-size:14px;margin:0;">Hi ${name}, the best opportunities this week</p>
+        </div>
+      </td>
     </tr>
-  `).join("");
+    <tr>
+      <td style="padding:36px 40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 8px 0;">
+          These verified Kenyan farms are open for investment this week. Earn up to <strong style="color:${BRAND_GREEN};">+28%</strong> returns by backing real farmers.
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5ede5;border-radius:16px;overflow:hidden;margin:20px 0 28px 0;">
+          <thead>
+            <tr style="background:#f8faf8;">
+              <th style="padding:12px;text-align:left;color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Farm</th>
+              <th style="padding:12px;text-align:center;color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Change</th>
+              <th style="padding:12px;text-align:right;color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Price / Shares</th>
+            </tr>
+          </thead>
+          <tbody>${farmRowsHtml}</tbody>
+        </table>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
+          <tr>
+            ${statCard("⚡", "Mid-Season", "+10%")}
+            ${statCard("🌾", "Full Season", "+28%")}
+            ${statCard("🛡️", "Protected", "Fund")}
+          </tr>
+        </table>
+
+        ${ctaButton("Browse All Farm Opportunities →", "https://investafarm.co.ke/market/primary")}
+
+        <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:12px;padding:16px;margin:20px 0 0 0;">
+          <p style="color:#6b7280;font-size:12px;margin:0;line-height:1.6;">
+            📊 <strong>Smart tip:</strong> Diversify across 3–5 farms for the best risk-adjusted returns. Mix stable crops (maize, wheat) with growth crops (avocado, coffee).
+          </p>
+        </div>
+      </td>
+    </tr>`;
 
   await transport.sendMail({
     from: from("Investa Farm Opportunities"),
     to,
-    subject: `🌾 This Week's Top Farm Investment Opportunities`,
-    html: `
-      <div style="font-family:system-ui,sans-serif;max-width:580px;margin:auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
-        <div style="background:linear-gradient(135deg,#052c16 0%,#15803d 100%);padding:32px 24px;text-align:center;">
-          <h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:800;letter-spacing:-0.5px;">🌾 Weekly Farm Picks</h1>
-          <p style="color:rgba(255,255,255,0.75);margin:10px 0 0;font-size:14px;">Hi ${name}, here are this week's top investment opportunities</p>
-        </div>
-        <div style="padding:24px;">
-          <p style="color:#374151;font-size:14px;line-height:1.6;">Great farms are open for investment right now. Earn up to <strong style="color:#15803d;">+28%</strong> returns this season by backing verified Kenyan farmers.</p>
-          <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:13px;">
-            <thead>
-              <tr style="background:#f9fafb;">
-                <th style="padding:10px 8px;text-align:left;color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Farm</th>
-                <th style="padding:10px 8px;text-align:left;color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Crop</th>
-                <th style="padding:10px 8px;text-align:left;color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Price</th>
-                <th style="padding:10px 8px;text-align:left;color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Shares</th>
-              </tr>
-            </thead>
-            <tbody>${farmRows}</tbody>
-          </table>
-          <div style="text-align:center;margin:28px 0 20px;">
-            <a href="https://investafarm.co.ke/market/primary" style="background:#15803d;color:#ffffff;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px;display:inline-block;">Browse All Opportunities →</a>
-          </div>
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;">
-            <p style="margin:0;color:#15803d;font-size:13px;font-weight:700;">💡 Investment Returns</p>
-            <p style="margin:6px 0 0;color:#166534;font-size:12px;line-height:1.5;">
-              ⚡ Mid-Season Exit: <strong>+10%</strong> in 30–60 days &nbsp;|&nbsp; 🌾 Full Season: up to <strong>+28%</strong> in ~6 months
-            </p>
-          </div>
-        </div>
-        <div style="padding:16px 24px;background:#f9fafb;text-align:center;border-top:1px solid #e5e7eb;">
-          <p style="color:#9ca3af;font-size:11px;margin:0;">You're receiving this because you have an Investa Farm account. Sent every Monday & Friday.</p>
-        </div>
-      </div>
-    `,
+    subject: `🌾 ${name}'s Weekly Farm Picks — Top opportunities this week`,
+    html: emailWrapper(content, `${farms.length} farms open for investment. Earn up to +28% returns this season.`),
   });
 }

@@ -75,7 +75,7 @@ export function CoachMark({ steps, storageKey, onDone }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[9999] pointer-events-none"
-          style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
+          style={{ backgroundColor: "rgba(0,0,0,0.28)" }}
         >
           {/* Spotlight cutout */}
           <svg className="absolute inset-0 w-full h-full">
@@ -88,7 +88,7 @@ export function CoachMark({ steps, storageKey, onDone }: Props) {
                 />
               </mask>
             </defs>
-            <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#cm-mask)" />
+            <rect width="100%" height="100%" fill="rgba(0,0,0,0.28)" mask="url(#cm-mask)" />
           </svg>
 
           {/* Highlight border */}

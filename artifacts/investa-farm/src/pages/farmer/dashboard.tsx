@@ -13,6 +13,7 @@ import { CoachMark, type CoachStep } from "@/components/coach-mark";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { AppTour } from "@/components/app-tour";
+import { AiAssistant } from "@/components/ai-assistant";
 
 type GroupInfo = { id: number; name: string; registrationNumber: string; county: string; memberCount: number; status: string } | null;
 
@@ -354,6 +355,7 @@ export default function FarmerDashboard() {
       <NotificationPrompt storageKey="farmer_notif_v1" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <AppTour role="farmer" />
+      <AiAssistant role="farmer" />
     </div>
   );
 }

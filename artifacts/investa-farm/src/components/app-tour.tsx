@@ -268,10 +268,10 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {/* Very subtle transparent tint — lets user see the real app */}
+            {/* Fully transparent — tour card floats over the real app */}
             <div
               className="absolute inset-0 pointer-events-auto"
-              style={{ background: "rgba(0,0,0,0.18)", backdropFilter: "blur(0.5px)" }}
+              style={{ background: "rgba(0,0,0,0.04)" }}
               onClick={dismiss}
             />
 
