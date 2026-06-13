@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown } from "lucide-react";
 import {
   useGetTopMovers,
   useListPrimaryMarket,
@@ -163,6 +163,8 @@ export default function MarketHome() {
   const token = getToken();
   const { formatAmount } = useCurrency();
 
+  const [expandedNews, setExpandedNews] = useState<number | null>(null);
+
   const { data: newsItems, isLoading: newsLoading } = useQuery<any[]>({
     queryKey: ["news"],
     queryFn: async () => {
@@ -170,7 +172,7 @@ export default function MarketHome() {
       if (!r.ok) return [];
       return r.json();
     },
-    staleTime: 60 * 60 * 1000,
+    staleTime: 30 * 60 * 1000,
   });
 
   const { data: walletData } = useQuery<{ wallet: { balance: string } }>({
@@ -466,37 +468,68 @@ export default function MarketHome() {
               </div>
               <span className="text-muted-foreground text-[10px] flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                AI-curated · hourly
+                Live feed
               </span>
             </div>
             {newsLoading
-              ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)
-              : (newsItems ?? []).map((item: any) => (
-                <a key={item.id}
-                  href={item.url && item.url !== "#" ? item.url : undefined}
-                  target={item.url && item.url !== "#" ? "_blank" : undefined}
-                  rel="noopener noreferrer"
-                  className="block bg-card rounded-2xl border border-border overflow-hidden active:scale-[0.98] transition-transform">
-                  <img src={getNewsImage(item)} alt={item.title} className="w-full h-36 object-cover" />
-                  <div className="p-3.5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
-                      <span className="text-muted-foreground text-[10px] flex items-center gap-1">
-                        <Clock size={9} /> {item.time}
-                      </span>
-                      <span className="text-muted-foreground text-[10px] truncate">{item.source}</span>
+              ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)
+              : (newsItems ?? []).map((item: any) => {
+                  const isExpanded = expandedNews === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-card rounded-2xl border border-border overflow-hidden"
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative">
+                        <img src={getNewsImage(item)} alt={item.title} className="w-full h-32 object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                        <span className={`absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>
+                          {item.tag}
+                        </span>
+                      </div>
+
+                      {/* Tap to expand */}
+                      <button
+                        className="w-full text-left p-3.5 active:bg-muted/30 transition-colors"
+                        onClick={() => setExpandedNews(isExpanded ? null : item.id)}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-muted-foreground text-[10px] flex items-center gap-1">
+                            <Clock size={9} /> {item.time}
+                          </span>
+                          <span className="text-primary/60 text-[10px] font-medium truncate">{item.source}</span>
+                          <ChevronDown
+                            size={13}
+                            className={`ml-auto text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
+                          />
+                        </div>
+                        <p className="text-foreground font-semibold text-sm leading-snug">{item.title}</p>
+                      </button>
+
+                      {/* Expanded body */}
+                      {isExpanded && (
+                        <div className="px-3.5 pb-3.5 pt-0 border-t border-border">
+                          <p className="text-muted-foreground text-sm leading-relaxed mt-3">{item.summary}</p>
+                          {item.url && item.url !== "#" && (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 mt-3 text-primary text-xs font-semibold hover:text-primary/80 transition-colors"
+                            >
+                              Read full article <ExternalLink size={11} />
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-foreground font-semibold text-sm leading-snug">{item.title}</p>
-                    {item.summary && (
-                      <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed line-clamp-2">{item.summary}</p>
-                    )}
-                  </div>
-                </a>
-              ))}
+                  );
+                })}
             <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 text-center">
               <Newspaper size={20} className="text-primary mx-auto mb-2" />
-              <p className="text-primary font-semibold text-sm">Powered by AI</p>
-              <p className="text-muted-foreground text-xs mt-0.5">Kenya agri-market news refreshed every hour via Groq AI</p>
+              <p className="text-primary font-semibold text-sm">Live Agriculture News</p>
+              <p className="text-muted-foreground text-xs mt-0.5">Kenya agri-market news from online sources · refreshed every 30 min</p>
             </div>
           </section>
         )}

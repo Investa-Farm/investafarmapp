@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useRegister } from "@workspace/api-client-react";
 import { setToken, storeUser } from "@/lib/auth";
-import { TrendingUp, Loader2, Tractor, BarChart2, Handshake, Package } from "lucide-react";
+import { Loader2, Tractor, BarChart2, Handshake, Package } from "lucide-react";
 
 type RoleKey = "investor" | "farmer" | "agribusiness";
 type AgribizType = "farmer_connector" | "input_supplier";
@@ -50,28 +50,35 @@ export default function Register() {
   ];
 
   return (
-    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gradient-to-b from-[#0a2e10] via-[#0f3d1a] to-[#143d1a] flex flex-col pb-10" data-testid="register-page">
-      <div className="pt-14 pb-6 px-8 text-center space-y-3">
-        <div className="w-14 h-14 rounded-2xl bg-green-500/20 flex items-center justify-center mx-auto border border-green-500/30">
-          <TrendingUp size={28} className="text-green-400" />
+    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-white flex flex-col pb-10" data-testid="register-page">
+      {/* Green top accent bar */}
+      <div className="h-1.5 bg-gradient-to-r from-primary to-green-400 w-full" />
+
+      <div className="pt-12 pb-5 px-8 text-center space-y-3">
+        <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto shadow-lg shadow-primary/25">
+          <svg viewBox="0 0 40 40" fill="none" className="w-9 h-9">
+            <path d="M20 6C12.268 6 6 12.268 6 20s6.268 14 14 14 14-6.268 14-14S27.732 6 20 6z" fill="white" fillOpacity="0.2"/>
+            <path d="M12 24c2-4 5-7 8-8 3-1 6 1 8 4" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M20 14v10M16 18l4-4 4 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white font-[Space_Grotesk]">Join Investa Farm</h1>
-          <p className="text-white/60 text-sm mt-1">Create your free account</p>
+          <h1 className="text-2xl font-bold text-foreground">Join Investa Farm</h1>
+          <p className="text-muted-foreground text-sm mt-1">Create your free account</p>
         </div>
       </div>
 
       <div className="flex-1 px-6">
-        <div className="bg-white/5 backdrop-blur-sm rounded-3xl border border-white/10 p-6 space-y-4">
+        <div className="bg-white rounded-3xl border border-border p-6 space-y-4">
           {error && (
-            <div data-testid="error-message" className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-300 text-sm">
+            <div data-testid="error-message" className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">
               {error}
             </div>
           )}
 
           {/* Role selection */}
           <div className="space-y-2">
-            <label className="text-white/70 text-xs font-medium uppercase tracking-wider">I am a</label>
+            <label className="text-foreground text-xs font-semibold uppercase tracking-wider">I am a</label>
             <div className="grid grid-cols-3 gap-2">
               {roles.map(({ key, Icon, label, desc }) => (
                 <button
@@ -79,13 +86,13 @@ export default function Register() {
                   type="button"
                   data-testid={`role-${key}`}
                   onClick={() => setRole(key)}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all ${
-                    role === key ? "border-green-400 bg-green-500/15" : "border-white/15 bg-white/5"
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
+                    role === key ? "border-primary bg-primary/8" : "border-border bg-muted/40"
                   }`}
                 >
-                  <Icon size={20} className={role === key ? "text-green-400" : "text-white/50"} />
-                  <span className={`text-xs font-medium ${role === key ? "text-white" : "text-white/50"}`}>{label}</span>
-                  <span className={`text-[9px] text-center leading-tight ${role === key ? "text-white/70" : "text-white/30"}`}>{desc}</span>
+                  <Icon size={20} className={role === key ? "text-primary" : "text-muted-foreground"} />
+                  <span className={`text-xs font-semibold ${role === key ? "text-primary" : "text-muted-foreground"}`}>{label}</span>
+                  <span className={`text-[9px] text-center leading-tight ${role === key ? "text-primary/70" : "text-muted-foreground/70"}`}>{desc}</span>
                 </button>
               ))}
             </div>
@@ -94,31 +101,31 @@ export default function Register() {
           {/* Agribusiness sub-type */}
           {role === "agribusiness" && (
             <div className="space-y-2">
-              <label className="text-white/70 text-xs font-medium uppercase tracking-wider">Agribusiness Type</label>
+              <label className="text-foreground text-xs font-semibold uppercase tracking-wider">Agribusiness Type</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setAgribizType("farmer_connector")}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${
-                    agribizType === "farmer_connector" ? "border-green-400 bg-green-500/15" : "border-white/15 bg-white/5"
+                  className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${
+                    agribizType === "farmer_connector" ? "border-primary bg-primary/8" : "border-border bg-muted/40"
                   }`}
                 >
-                  <Handshake size={20} className={agribizType === "farmer_connector" ? "text-green-400" : "text-white/50"} />
-                  <span className={`text-xs font-medium ${agribizType === "farmer_connector" ? "text-white" : "text-white/50"}`}>Farmer Connector</span>
-                  <span className={`text-[9px] text-center leading-tight ${agribizType === "farmer_connector" ? "text-white/70" : "text-white/30"}`}>
+                  <Handshake size={20} className={agribizType === "farmer_connector" ? "text-primary" : "text-muted-foreground"} />
+                  <span className={`text-xs font-semibold ${agribizType === "farmer_connector" ? "text-primary" : "text-muted-foreground"}`}>Farmer Connector</span>
+                  <span className={`text-[9px] text-center leading-tight ${agribizType === "farmer_connector" ? "text-primary/70" : "text-muted-foreground/70"}`}>
                     Onboard & support farmers
                   </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setAgribizType("input_supplier")}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${
-                    agribizType === "input_supplier" ? "border-green-400 bg-green-500/15" : "border-white/15 bg-white/5"
+                  className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${
+                    agribizType === "input_supplier" ? "border-primary bg-primary/8" : "border-border bg-muted/40"
                   }`}
                 >
-                  <Package size={20} className={agribizType === "input_supplier" ? "text-green-400" : "text-white/50"} />
-                  <span className={`text-xs font-medium ${agribizType === "input_supplier" ? "text-white" : "text-white/50"}`}>Input Supplier</span>
-                  <span className={`text-[9px] text-center leading-tight ${agribizType === "input_supplier" ? "text-white/70" : "text-white/30"}`}>
+                  <Package size={20} className={agribizType === "input_supplier" ? "text-primary" : "text-muted-foreground"} />
+                  <span className={`text-xs font-semibold ${agribizType === "input_supplier" ? "text-primary" : "text-muted-foreground"}`}>Input Supplier</span>
+                  <span className={`text-[9px] text-center leading-tight ${agribizType === "input_supplier" ? "text-primary/70" : "text-muted-foreground/70"}`}>
                     Supply seeds & inputs
                   </span>
                 </button>
@@ -133,7 +140,7 @@ export default function Register() {
               { label: "Password", id: "password", value: password, set: setPassword, type: "password", placeholder: "Min 8 characters" },
             ].map(({ label, id, value, set, type, placeholder }) => (
               <div key={id} className="space-y-1.5">
-                <label className="text-white/70 text-xs font-medium uppercase tracking-wider">{label}</label>
+                <label className="text-foreground text-xs font-semibold uppercase tracking-wider">{label}</label>
                 <input
                   data-testid={`input-${id}`}
                   type={type}
@@ -142,7 +149,7 @@ export default function Register() {
                   placeholder={placeholder}
                   required
                   minLength={id === "password" ? 6 : undefined}
-                  className="w-full bg-white/8 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/30 text-sm focus:outline-none focus:border-green-400/50 transition-colors"
+                  className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
                 />
               </div>
             ))}
@@ -151,18 +158,18 @@ export default function Register() {
               data-testid="button-register"
               type="submit"
               disabled={register.isPending}
-              className="w-full bg-green-500 hover:bg-green-400 active:scale-95 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 mt-2"
+              className="w-full bg-primary hover:bg-primary/90 active:scale-95 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 mt-2 shadow-md shadow-primary/20"
             >
               {register.isPending ? <Loader2 size={18} className="animate-spin" /> : null}
               {register.isPending ? "Creating account..." : "Create Account"}
             </button>
           </form>
 
-          <div className="border-t border-white/10 pt-4">
-            <p className="text-center text-white/50 text-sm">
+          <div className="border-t border-border pt-4">
+            <p className="text-center text-muted-foreground text-sm">
               Already have an account?{" "}
               <Link href="/login">
-                <span data-testid="link-login" className="text-green-400 font-medium hover:text-green-300">Sign in</span>
+                <span data-testid="link-login" className="text-primary font-semibold hover:text-primary/80">Sign in</span>
               </Link>
             </p>
           </div>
