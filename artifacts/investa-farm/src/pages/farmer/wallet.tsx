@@ -1,10 +1,11 @@
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
-import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, Plus, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
+import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
 type WalletData = {
   wallet: { id: number; balance: string; currency: string; updatedAt: string };
@@ -29,7 +30,7 @@ export default function FarmerWallet() {
   const token = getToken();
   const user = getStoredUser();
   const qc = useQueryClient();
-  const [modal, setModal] = useState<"deposit" | "withdraw" | "paystack" | null>(null);
+  const [modal, setModal] = useState<"withdraw" | "paystack" | null>(null);
   const [amount, setAmount] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
   const [paystackRef, setPaystackRef] = useState<string | null>(null);
@@ -41,24 +42,6 @@ export default function FarmerWallet() {
       const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) throw new Error("Failed to load wallet");
       return r.json();
-    },
-  });
-
-  const mutation = useMutation({
-    mutationFn: async ({ type, amt }: { type: "deposit" | "withdraw"; amt: number }) => {
-      const r = await fetch(`/api/wallet/${type}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: amt }),
-      });
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
-      return r.json();
-    },
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["wallet"] });
-      setModal(null); setAmount("");
-      setSuccess(vars.type === "deposit" ? "Funds added to your wallet!" : "Withdrawal initiated.");
-      setTimeout(() => setSuccess(null), 4000);
     },
   });
 
@@ -100,6 +83,24 @@ export default function FarmerWallet() {
     }
   };
 
+  const withdrawMutation = useMutation({
+    mutationFn: async (amt: number) => {
+      const r = await fetch("/api/wallet/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount: amt }),
+      });
+      if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wallet"] });
+      setModal(null); setAmount("");
+      setSuccess("Withdrawal initiated. Funds sent to your M-Pesa.");
+      setTimeout(() => setSuccess(null), 4000);
+    },
+  });
+
   const balance = parseFloat(data?.wallet.balance ?? "0");
   const txs = data?.transactions ?? [];
   const totalEarned = txs.filter(t => ["deposit", "return", "transfer"].includes(t.type)).reduce((s, t) => s + parseFloat(t.amount), 0);
@@ -114,61 +115,90 @@ export default function FarmerWallet() {
         <button onClick={() => setLocation("/farmer")} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
           <ArrowLeft size={16} className="text-foreground" />
         </button>
-        <h1 className="text-foreground font-bold text-lg">My Wallet</h1>
+        <h1 className="text-foreground font-bold text-lg">Farm Earnings Wallet</h1>
         <button onClick={() => refetch()} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
           <RefreshCw size={14} className="text-foreground" />
         </button>
       </div>
 
       <div className="px-4 pt-2 pb-4">
-        {/* Visa-style card */}
-        <div className="relative rounded-[20px] overflow-hidden h-52 select-none"
-          style={{ background: "linear-gradient(135deg, #064e3b 0%, #065f46 40%, #047857 70%, #059669 100%)" }}>
-          <div className="absolute inset-0 opacity-10"
-            style={{ backgroundImage: "radial-gradient(circle at 80% 20%, white 1px, transparent 1px), radial-gradient(circle at 20% 80%, white 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
-          <div className="absolute top-5 right-5 w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full border border-white/50" style={{ background: "rgba(255,255,255,0.1)" }} />
+        {/* ── Grass-green farm bank card ── */}
+        <div className="relative rounded-[22px] overflow-hidden select-none"
+          style={{
+            background: "linear-gradient(135deg, #052e16 0%, #14532d 30%, #166534 60%, #16a34a 100%)",
+            minHeight: 210,
+          }}>
+          {/* Subtle dot pattern */}
+          <div className="absolute inset-0 opacity-[0.07]"
+            style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px), radial-gradient(circle at 70% 70%, white 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+          {/* Decorative circles */}
+          <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full opacity-10"
+            style={{ background: "radial-gradient(circle, #4ade80, transparent)" }} />
+          {/* Farm decoration */}
+          <div className="absolute right-4 bottom-4 opacity-15">
+            <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+              <path d="M28 48V16M28 16c-4-4-8-8-14-10M28 16c4-4 8-8 14-10" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M28 24c-3-3-6-5-9-6M28 24c3-3 6-5 9-6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M28 32c-3-2-6-4-9-6M28 32c3-2 6-4 9-6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M14 48h28" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+            </svg>
           </div>
+
           <div className="absolute inset-0 p-5 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white/60 text-[9px] font-bold uppercase tracking-widest">Investa Farm</p>
-                <p className="text-white font-bold text-sm">Farm Earnings Wallet</p>
+            {/* Top: logo + chip */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <img src={logoSrc} alt="Investa Farm" className="h-6 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
+                <div>
+                  <p className="text-white/50 text-[8px] font-bold uppercase tracking-widest leading-none">Investa Farm</p>
+                  <p className="text-white font-bold text-[11px] leading-none mt-0.5">Farm Earnings Wallet</p>
+                </div>
               </div>
               <div className="w-10 h-7 rounded-sm bg-amber-300/80 border border-amber-200/50 flex flex-col justify-center items-center gap-0.5 p-1">
                 <div className="w-full h-0.5 bg-amber-600/40 rounded" />
                 <div className="w-full h-0.5 bg-amber-600/40 rounded" />
               </div>
             </div>
+
+            {/* Balance centre */}
             <div className="text-center">
               <p className="text-white/60 text-[10px] uppercase tracking-wider mb-0.5">Available Balance</p>
               {isLoading
                 ? <div className="h-8 w-36 bg-white/20 rounded-lg animate-pulse mx-auto" />
                 : <p className="text-white font-bold text-3xl">{formatKES(balance)}</p>}
             </div>
+
+            {/* Bottom: name + expiry */}
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-white/50 text-[9px] uppercase tracking-wider">Card Number</p>
+                <p className="text-white/50 text-[8px] uppercase tracking-wider">{user?.name ?? "Farmer"}</p>
                 <p className="text-white font-mono text-xs tracking-widest">{cardNumber}</p>
               </div>
               <div className="text-right">
-                <p className="text-white/50 text-[9px] uppercase tracking-wider">Valid Thru</p>
+                <p className="text-white/50 text-[8px] uppercase tracking-wider">Valid Thru</p>
                 <p className="text-white font-mono text-xs">{expiryStr}</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          <button onClick={() => { setModal("paystack"); setAmount(""); }}
-            className="bg-primary text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
-            <Plus size={16} /> Add Funds
-          </button>
-          <button onClick={() => { setModal("withdraw"); setAmount(""); }}
-            className="bg-muted border border-border text-foreground font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
-            <ArrowDownLeft size={16} /> Withdraw
-          </button>
+        {/* Stats strip */}
+        <div className="bg-white border border-border rounded-2xl mt-3 grid grid-cols-2 gap-0 overflow-hidden">
+          <div className="p-3 text-center border-r border-border">
+            <p className="text-green-600 font-bold text-sm">{formatKES(totalEarned)}</p>
+            <p className="text-muted-foreground text-[10px] mt-0.5">Total Received</p>
+          </div>
+          <div className="p-3 text-center">
+            <p className="text-foreground font-bold text-sm">{txs.length}</p>
+            <p className="text-muted-foreground text-[10px] mt-0.5">Transactions</p>
+          </div>
         </div>
+
+        {/* Withdraw only (farmer) */}
+        <button onClick={() => { setModal("withdraw"); setAmount(""); }}
+          className="w-full mt-3 bg-primary text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md shadow-primary/20">
+          <ArrowDownLeft size={16} /> Withdraw to M-Pesa
+        </button>
       </div>
 
       <div className="px-4 space-y-4">
@@ -181,25 +211,6 @@ export default function FarmerWallet() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-card border border-border rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-[10px]">Total Received</p>
-              <TrendingUp size={13} className="text-primary" />
-            </div>
-            <p className="text-foreground font-bold text-lg">{formatKES(totalEarned)}</p>
-            <p className="text-primary text-[10px] font-medium">From investors</p>
-          </div>
-          <div className="bg-card border border-border rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-[10px]">Transactions</p>
-              <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">All</span>
-            </div>
-            <p className="text-foreground font-bold text-lg">{txs.length}</p>
-            <p className="text-muted-foreground text-[10px]">Lifetime</p>
-          </div>
-        </div>
 
         <div>
           <p className="text-sm font-semibold mb-3">Transaction History</p>
@@ -243,18 +254,18 @@ export default function FarmerWallet() {
             onClick={(e) => { if (e.target === e.currentTarget) { setModal(null); setPaystackRef(null); } }}>
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="w-full max-w-[430px] bg-white rounded-t-3xl p-6 space-y-4">
+              className="w-full max-w-[430px] bg-white rounded-t-3xl p-6 space-y-4 border-t-4 border-primary">
               <div className="flex items-center justify-between">
                 <h3 className="text-foreground font-bold text-lg">
-                  {modal === "paystack" ? "💳 Top Up via Paystack" : "🏦 Withdraw"}
+                  {modal === "paystack" ? "💳 Top Up via Paystack" : "🏦 Withdraw to M-Pesa"}
                 </h3>
-                <button onClick={() => { setModal(null); setPaystackRef(null); }} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm">✕</button>
+                <button onClick={() => { setModal(null); setPaystackRef(null); }} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">✕</button>
               </div>
 
               {modal === "paystack" && !paystackRef && (
                 <>
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-                    <p className="text-green-700 text-xs">Pay securely via <strong>Paystack</strong> using M-Pesa, Visa, or bank card. Funds credited instantly.</p>
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-3">
+                    <p className="text-primary text-xs">Pay securely via <strong>Paystack</strong> using M-Pesa, Visa, or bank card.</p>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Amount (KES)</label>
@@ -274,7 +285,7 @@ export default function FarmerWallet() {
                   </div>
                   <button onClick={() => initPaystack.mutate(parseFloat(amount))}
                     disabled={initPaystack.isPending || !amount || parseFloat(amount) < 100}
-                    className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60">
+                    className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
                     {initPaystack.isPending ? <Loader2 size={16} className="animate-spin" /> : <ExternalLink size={16} />}
                     {initPaystack.isPending ? "Opening Paystack…" : "Pay with Paystack"}
                   </button>
@@ -284,25 +295,30 @@ export default function FarmerWallet() {
 
               {modal === "paystack" && paystackRef && (
                 <div className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-                    <p className="text-blue-700 font-semibold text-sm">Payment Window Opened</p>
-                    <p className="text-blue-600 text-xs mt-1">Complete your payment in the Paystack window, then click below to confirm.</p>
-                    <p className="text-blue-500 text-[10px] mt-1 font-mono">Ref: {paystackRef}</p>
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
+                    <p className="text-primary font-semibold text-sm">Payment Window Opened</p>
+                    <p className="text-primary/70 text-xs mt-1">Complete your payment, then confirm below.</p>
+                    <p className="text-muted-foreground text-[10px] mt-1 font-mono">Ref: {paystackRef}</p>
                   </div>
                   <button onClick={verifyPaystack} disabled={paystackVerifying}
-                    className="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60">
+                    className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
                     {paystackVerifying ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                     {paystackVerifying ? "Verifying…" : "I've Completed Payment"}
                   </button>
-                  <button onClick={() => { window.open(`https://checkout.paystack.com/${paystackRef}`, "_blank"); }}
-                    className="w-full border border-border text-foreground font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm active:scale-95 transition-transform">
+                  <button onClick={() => window.open(`https://checkout.paystack.com/${paystackRef}`, "_blank")}
+                    className="w-full border border-border text-foreground font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm active:scale-95">
                     <ExternalLink size={14} /> Reopen Payment Window
                   </button>
                 </div>
               )}
 
               {modal === "withdraw" && (
-                <form onSubmit={(e) => { e.preventDefault(); const amt = parseFloat(amount); if (!amt || amt < 100) return; mutation.mutate({ type: "withdraw", amt }); }} className="space-y-4">
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const amt = parseFloat(amount);
+                  if (!amt || amt < 100) return;
+                  withdrawMutation.mutate(amt);
+                }} className="space-y-4">
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                     <p className="text-amber-700 text-xs">Available: <strong>{formatKES(balance)}</strong>. Withdrawal sent to your registered M-Pesa within 1–2 business days.</p>
                   </div>
@@ -313,13 +329,21 @@ export default function FarmerWallet() {
                       <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={100} max={balance} placeholder="e.g. 10000" required
                         className="w-full border border-border rounded-xl pl-12 pr-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
                     </div>
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {QUICK_AMOUNTS.filter(a => a <= balance).map(a => (
+                        <button key={a} type="button" onClick={() => setAmount(String(a))}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${amount === String(a) ? "bg-primary text-white border-primary" : "border-border text-muted-foreground"}`}>
+                          {formatKES(a)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <button type="submit" disabled={mutation.isPending || !amount}
-                    className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60">
-                    {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownLeft size={16} />}
-                    {mutation.isPending ? "Processing…" : "Confirm Withdrawal"}
+                  <button type="submit" disabled={withdrawMutation.isPending || !amount}
+                    className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
+                    {withdrawMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownLeft size={16} />}
+                    {withdrawMutation.isPending ? "Processing…" : "Confirm Withdrawal"}
                   </button>
-                  {mutation.isError && <p className="text-red-500 text-xs text-center">{(mutation.error as Error).message}</p>}
+                  {withdrawMutation.isError && <p className="text-red-500 text-xs text-center">{(withdrawMutation.error as Error).message}</p>}
                 </form>
               )}
             </motion.div>

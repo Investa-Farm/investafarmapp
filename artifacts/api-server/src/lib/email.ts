@@ -3,8 +3,9 @@ import nodemailer from "nodemailer";
 const SMTP_USER = process.env.GOOGLE_SMTP_USER;
 const SMTP_PASS = process.env.GOOGLE_SMTP_PASS;
 const APP_NAME = "Investa Farm";
-const BRAND_GREEN = "#15803d";
-const BRAND_DARK = "#052c16";
+const GRASS_GREEN = "#16a34a";
+const GRASS_DARK = "#14532d";
+const GRASS_MID = "#166534";
 
 function from(label: string) {
   return `"${label}" <${SMTP_USER}>`;
@@ -20,6 +21,27 @@ function createTransport() {
   });
 }
 
+// Inline SVG logo for email header (compatible with most clients)
+const LOGO_SVG = `
+<table cellpadding="0" cellspacing="0" style="margin:0 auto 16px auto;">
+  <tr>
+    <td align="center">
+      <div style="display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,0.15);border-radius:14px;padding:10px 18px;">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+          <rect width="32" height="32" rx="8" fill="rgba(255,255,255,0.2)"/>
+          <path d="M8 22c1.5-4 4-7 8-8s7 1.5 8 5" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M16 10v10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 14l4-4 4 4" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div style="text-align:left;">
+          <p style="color:#ffffff;font-size:18px;font-weight:800;letter-spacing:-0.3px;margin:0;line-height:1.1;">Investa Farm</p>
+          <p style="color:rgba(255,255,255,0.65);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;margin:0;font-weight:600;">AFRICA'S FARM EXCHANGE</p>
+        </div>
+      </div>
+    </td>
+  </tr>
+</table>`;
+
 function emailWrapper(content: string, preheader = "") {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -28,19 +50,16 @@ function emailWrapper(content: string, preheader = "") {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${APP_NAME}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f1f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<body style="margin:0;padding:0;background-color:#f0fdf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${preheader}</div>` : ""}
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f1;padding:24px 0;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0fdf4;padding:24px 0;">
     <tr><td align="center">
-      <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+      <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(22,163,74,0.10);">
 
-        <!-- Header -->
+        <!-- Header — grass green -->
         <tr>
-          <td style="background:linear-gradient(135deg,${BRAND_DARK} 0%,${BRAND_GREEN} 100%);padding:36px 40px 28px;text-align:center;">
-            <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:16px;padding:12px 20px;margin-bottom:16px;">
-              <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;">🌾 Investa Farm</span>
-            </div>
-            <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:0;letter-spacing:0.5px;">AFRICA'S FARM INVESTMENT EXCHANGE</p>
+          <td style="background:linear-gradient(135deg,${GRASS_DARK} 0%,${GRASS_GREEN} 100%);padding:32px 40px 24px;text-align:center;">
+            ${LOGO_SVG}
           </td>
         </tr>
 
@@ -49,7 +68,7 @@ function emailWrapper(content: string, preheader = "") {
 
         <!-- Footer -->
         <tr>
-          <td style="background:#f8faf8;padding:24px 40px;border-top:1px solid #e5ede5;">
+          <td style="background:#f0fdf4;padding:24px 40px;border-top:1px solid #bbf7d0;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td>
@@ -57,9 +76,9 @@ function emailWrapper(content: string, preheader = "") {
                     <strong style="color:#374151;">Investa Farm Ltd</strong> · Nairobi, Kenya
                   </p>
                   <p style="color:#9ca3af;font-size:10px;margin:0;text-align:center;">
-                    Regulated by the Capital Markets Authority of Kenya &nbsp;·&nbsp; 
-                    <a href="#" style="color:#15803d;text-decoration:none;">Unsubscribe</a> &nbsp;·&nbsp;
-                    <a href="#" style="color:#15803d;text-decoration:none;">Privacy Policy</a>
+                    Regulated by the Capital Markets Authority of Kenya &nbsp;·&nbsp;
+                    <a href="#" style="color:${GRASS_GREEN};text-decoration:none;">Unsubscribe</a> &nbsp;·&nbsp;
+                    <a href="#" style="color:${GRASS_GREEN};text-decoration:none;">Privacy Policy</a>
                   </p>
                 </td>
               </tr>
@@ -74,10 +93,10 @@ function emailWrapper(content: string, preheader = "") {
 </html>`;
 }
 
-function statCard(icon: string, label: string, value: string, color = BRAND_GREEN) {
+function statCard(icon: string, label: string, value: string, color = GRASS_GREEN) {
   return `
     <td align="center" style="padding:0 6px;">
-      <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:12px;padding:16px 12px;text-align:center;min-width:100px;">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px 12px;text-align:center;min-width:100px;">
         <p style="font-size:24px;margin:0 0 4px 0;">${icon}</p>
         <p style="font-size:18px;font-weight:800;color:${color};margin:0 0 2px 0;">${value}</p>
         <p style="font-size:10px;color:#9ca3af;margin:0;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${label}</p>
@@ -85,7 +104,7 @@ function statCard(icon: string, label: string, value: string, color = BRAND_GREE
     </td>`;
 }
 
-function ctaButton(text: string, url: string, gradient = `linear-gradient(135deg,${BRAND_DARK},${BRAND_GREEN})`) {
+function ctaButton(text: string, url: string, gradient = `linear-gradient(135deg,${GRASS_DARK},${GRASS_GREEN})`) {
   return `
     <table width="100%" cellpadding="0" cellspacing="0">
       <tr>
@@ -98,6 +117,87 @@ function ctaButton(text: string, url: string, gradient = `linear-gradient(135deg
     </table>`;
 }
 
+// ─── FIRST INVESTMENT CONGRATULATION EMAIL ───────────────────────────────────
+export async function sendFirstInvestmentEmail(
+  to: string, name: string, farmName: string, amount: number
+): Promise<void> {
+  const transport = createTransport();
+  if (!transport) {
+    console.log(`[EMAIL] First investment congrats for ${to} (SMTP not configured)`);
+    return;
+  }
+  const fmt = (n: number) => `KES ${new Intl.NumberFormat("en-KE").format(Math.round(n))}`;
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <!-- Fiesta hero -->
+        <div style="background:linear-gradient(160deg,${GRASS_DARK} 0%,${GRASS_GREEN} 100%);padding:36px 40px;text-align:center;border-bottom:4px solid #4ade80;">
+          <p style="font-size:52px;margin:0 0 8px 0;">🎊🌾🎉</p>
+          <h1 style="color:#ffffff;font-size:26px;font-weight:900;margin:0 0 10px 0;">¡Felicidades, ${name}!</h1>
+          <div style="background:rgba(255,255,255,0.12);border-radius:12px;padding:12px 20px;display:inline-block;margin:0 0 10px 0;">
+            <p style="color:rgba(255,255,255,0.65);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 4px 0;">en Español significa</p>
+            <p style="color:#ffffff;font-size:14px;font-style:italic;margin:0;">"Congratulations on your first investment!" 🥳</p>
+            <p style="color:rgba(255,255,255,0.6);font-size:11px;margin:4px 0 0 0;">...because your money is rich enough to speak two languages now! 😄</p>
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:36px 40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          You just made history — well, <em>your</em> financial history! Your first farm investment is confirmed and your money is already hard at work in the Kenyan soil. 🌱
+        </p>
+
+        <!-- Investment summary card -->
+        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:20px;padding:28px;text-align:center;margin:0 0 28px 0;">
+          <p style="color:${GRASS_MID};font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 10px 0;">Your First Investment</p>
+          <p style="color:${GRASS_DARK};font-size:28px;font-weight:900;margin:0 0 4px 0;">${fmt(amount)}</p>
+          <p style="color:#4b5563;font-size:14px;margin:0;">in <strong>${farmName}</strong></p>
+          <div style="margin-top:16px;background:#ffffff;border-radius:12px;padding:10px 16px;display:inline-block;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            <p style="color:${GRASS_MID};font-size:13px;font-weight:700;margin:0;">🏅 First Investor Badge Earned!</p>
+          </div>
+        </div>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
+          <tr>
+            ${statCard("⚡", "Mid-Season", "+10%")}
+            ${statCard("🌾", "Full Season", "+22%")}
+            ${statCard("📅", "Harvest", "~6 Months")}
+          </tr>
+        </table>
+
+        <!-- What's next -->
+        <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:16px;padding:24px;margin:0 0 28px 0;">
+          <p style="color:#111827;font-weight:700;font-size:15px;margin:0 0 14px 0;">🗺️ What happens next?</p>
+          ${[
+            "Your farm manager begins the growing cycle immediately",
+            "Track real-time progress from your portfolio dashboard",
+            "Receive mid-season updates with field photos",
+            "Harvest payout lands in your Investa Wallet — M-Pesa ready!",
+          ].map(t => `
+          <p style="color:#374151;font-size:14px;margin:0 0 8px 0;padding-left:20px;position:relative;">
+            <span style="color:${GRASS_GREEN};position:absolute;left:0;font-weight:700;">✓</span> ${t}
+          </p>`).join("")}
+        </div>
+
+        ${ctaButton("🌾 Track My Investment →", "https://investafarm.co.ke/portfolio")}
+
+        <p style="color:#9ca3af;font-size:12px;margin:20px 0 0 0;text-align:center;font-style:italic;">
+          Pro tip: Diversify across 3–5 farms for the best risk-adjusted returns. ¡Buena suerte! 🍀
+        </p>
+      </td>
+    </tr>`;
+
+  await transport.sendMail({
+    from: from("Investa Farm"),
+    to,
+    subject: `🎊 ¡Felicidades! Your first farm investment is confirmed, ${name}!`,
+    html: emailWrapper(content, `Your first investment of ${fmt(amount)} in ${farmName} is confirmed. ¡Felicidades!`),
+  });
+}
+
+// ─── OTP EMAIL ───────────────────────────────────────────────────────────────
 export async function sendOtpEmail(to: string, name: string, code: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
@@ -113,11 +213,11 @@ export async function sendOtpEmail(to: string, name: string, code: string): Prom
 
         <!-- OTP Box -->
         <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:16px;padding:32px;text-align:center;margin:0 0 24px 0;">
-          <p style="color:#166534;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 12px 0;">Your Verification Code</p>
+          <p style="color:${GRASS_MID};font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 12px 0;">Your Verification Code</p>
           <div style="background:#ffffff;border-radius:12px;padding:20px;display:inline-block;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <span style="font-size:44px;font-weight:900;letter-spacing:16px;color:${BRAND_DARK};font-family:Courier,monospace;">${code}</span>
+            <span style="font-size:44px;font-weight:900;letter-spacing:16px;color:${GRASS_DARK};font-family:Courier,monospace;">${code}</span>
           </div>
-          <p style="color:#166534;font-size:12px;margin:12px 0 0 0;">⏱ Expires in <strong>10 minutes</strong></p>
+          <p style="color:${GRASS_MID};font-size:12px;margin:12px 0 0 0;">⏱ Expires in <strong>10 minutes</strong></p>
         </div>
 
         <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px;margin:0 0 24px 0;">
@@ -136,6 +236,7 @@ export async function sendOtpEmail(to: string, name: string, code: string): Prom
   });
 }
 
+// ─── WELCOME EMAIL ────────────────────────────────────────────────────────────
 export async function sendWelcomeEmail(to: string, name: string, role: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
@@ -158,16 +259,16 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
         { icon: "🪪", text: "Complete <strong>KYC verification</strong> with your National ID + selfie" },
         { icon: "💳", text: "<strong>Top up your Investa Wallet</strong> via M-Pesa or card" },
         { icon: "🌾", text: "Browse the <strong>Live Market</strong> and invest in verified Kenyan farms" },
-        { icon: "📈", text: "<strong>Earn harvest returns</strong> of up to +28% paid to your M-Pesa" },
+        { icon: "📈", text: "<strong>Earn harvest returns</strong> of up to +22% paid to your M-Pesa" },
       ];
 
-  const stepsHtml = steps.map((s, i) => `
+  const stepsHtml = steps.map((s) => `
     <tr>
       <td style="padding:10px 0;">
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td width="44" style="vertical-align:top;">
-              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,${BRAND_DARK},${BRAND_GREEN});display:flex;align-items:center;justify-content:center;text-align:center;line-height:36px;font-size:16px;">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,${GRASS_DARK},${GRASS_GREEN});text-align:center;line-height:36px;font-size:16px;">
                 ${s.icon}
               </div>
             </td>
@@ -180,28 +281,43 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
     </tr>
   `).join("");
 
-  const statsHtml = isFarmer
-    ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+  // For farmers: show opportunity image/banner
+  const farmerOpportunityBanner = isFarmer ? `
+    <div style="background:linear-gradient(135deg,#14532d 0%,#16a34a 100%);border-radius:16px;padding:24px;margin:0 0 24px 0;text-align:center;">
+      <p style="color:rgba(255,255,255,0.8);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 8px 0;">YOUR EARNING POTENTIAL</p>
+      <p style="color:#ffffff;font-size:22px;font-weight:900;margin:0 0 4px 0;">55% Revenue Share</p>
+      <p style="color:rgba(255,255,255,0.75);font-size:13px;margin:0 0 16px 0;">Keep the majority of every harvest — always.</p>
+      <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
-          ${statCard("🌾", "Revenue Share", "55%")}
-          ${statCard("📅", "Fund Timeline", "2–5 Days")}
-          ${statCard("👥", "Investors", "Active")}
+          <td style="text-align:center;padding:0 8px;">
+            <p style="color:#4ade80;font-size:16px;font-weight:800;margin:0;">2–5 Days</p>
+            <p style="color:rgba(255,255,255,0.6);font-size:10px;margin:2px 0 0 0;text-transform:uppercase;letter-spacing:0.5px;">Fund Timeline</p>
+          </td>
+          <td style="text-align:center;padding:0 8px;border-left:1px solid rgba(255,255,255,0.2);border-right:1px solid rgba(255,255,255,0.2);">
+            <p style="color:#4ade80;font-size:16px;font-weight:800;margin:0;">Active</p>
+            <p style="color:rgba(255,255,255,0.6);font-size:10px;margin:2px 0 0 0;text-transform:uppercase;letter-spacing:0.5px;">Investors Now</p>
+          </td>
+          <td style="text-align:center;padding:0 8px;">
+            <p style="color:#4ade80;font-size:16px;font-weight:800;margin:0;">No Loans</p>
+            <p style="color:rgba(255,255,255,0.6);font-size:10px;margin:2px 0 0 0;text-transform:uppercase;letter-spacing:0.5px;">No Bank Debt</p>
+          </td>
         </tr>
-      </table>`
-    : `<table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
-        <tr>
-          ${statCard("📈", "Max Returns", "+28%")}
-          ${statCard("💰", "Min. Invest", "KES 5K")}
-          ${statCard("🛡️", "Protection", "Insured")}
-        </tr>
-      </table>`;
+      </table>
+    </div>` : `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;">
+      <tr>
+        ${statCard("📈", "Max Returns", "+22%")}
+        ${statCard("💰", "Min. Invest", "KES 5K")}
+        ${statCard("🛡️", "Protection", "Insured")}
+      </tr>
+    </table>`;
 
   const content = `
     <tr>
       <td style="padding:0;">
         <!-- Hero banner -->
-        <div style="background:linear-gradient(160deg,#064e3b 0%,#166534 100%);padding:32px 40px;text-align:center;border-bottom:4px solid #16a34a;">
-          <p style="font-size:56px;margin:0 0 8px 0;">${heroEmoji}</p>
+        <div style="background:linear-gradient(160deg,${GRASS_DARK} 0%,${GRASS_MID} 100%);padding:32px 40px;text-align:center;border-bottom:4px solid ${GRASS_GREEN};">
+          <p style="font-size:52px;margin:0 0 8px 0;">${heroEmoji}</p>
           <h1 style="color:#ffffff;font-size:28px;font-weight:800;margin:0 0 6px 0;">Welcome, ${name}!</h1>
           <p style="color:rgba(255,255,255,0.75);font-size:15px;margin:0;">Your ${roleLabel} account is ready. Let's get started.</p>
         </div>
@@ -209,7 +325,7 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
     </tr>
     <tr>
       <td style="padding:36px 40px;">
-        ${statsHtml}
+        ${farmerOpportunityBanner}
 
         <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:16px;padding:24px;margin:0 0 28px 0;">
           <p style="color:#111827;font-weight:700;font-size:16px;margin:0 0 16px 0;">🗺️ Your next steps:</p>
@@ -221,7 +337,7 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
         ${ctaButton(isFarmer ? "Open Farmer Dashboard →" : "Browse Live Farms →", "https://investafarm.co.ke")}
 
         <p style="color:#9ca3af;font-size:12px;margin:20px 0 0 0;text-align:center;">
-          Questions? Reply to this email or chat with our <strong style="color:${BRAND_GREEN};">AI Assistant</strong> in the app.
+          Questions? Reply to this email or chat with our <strong style="color:${GRASS_GREEN};">AI Assistant</strong> in the app.
         </p>
       </td>
     </tr>`;
@@ -234,6 +350,7 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
   });
 }
 
+// ─── KYC APPROVED ────────────────────────────────────────────────────────────
 export async function sendKycApprovedEmail(to: string, name: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
@@ -244,8 +361,8 @@ export async function sendKycApprovedEmail(to: string, name: string): Promise<vo
   const content = `
     <tr>
       <td style="padding:0;">
-        <div style="background:linear-gradient(135deg,#064e3b 0%,#16a34a 100%);padding:40px;text-align:center;">
-          <div style="background:rgba(255,255,255,0.15);border-radius:50%;width:72px;height:72px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;line-height:72px;text-align:center;">
+        <div style="background:linear-gradient(135deg,${GRASS_DARK} 0%,${GRASS_GREEN} 100%);padding:40px;text-align:center;">
+          <div style="background:rgba(255,255,255,0.15);border-radius:50%;width:72px;height:72px;margin:0 auto 16px;line-height:72px;text-align:center;">
             <span style="font-size:36px;">✅</span>
           </div>
           <h1 style="color:#ffffff;font-size:28px;font-weight:800;margin:0 0 8px 0;">KYC Approved!</h1>
@@ -261,18 +378,18 @@ export async function sendKycApprovedEmail(to: string, name: string): Promise<vo
 
         <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
           <tr>
-            ${statCard("🔓", "Status", "Verified", "#16a34a")}
-            ${statCard("🌾", "Market Access", "Full", "#16a34a")}
-            ${statCard("⚡", "Limits", "None", "#16a34a")}
+            ${statCard("🔓", "Status", "Verified", GRASS_GREEN)}
+            ${statCard("🌾", "Market Access", "Full", GRASS_GREEN)}
+            ${statCard("⚡", "Limits", "None", GRASS_GREEN)}
           </tr>
         </table>
 
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:24px;margin:0 0 28px 0;">
-          <p style="color:#166534;font-weight:700;font-size:15px;margin:0 0 12px 0;">🎉 What's now unlocked for you:</p>
+          <p style="color:${GRASS_MID};font-weight:700;font-size:15px;margin:0 0 12px 0;">🎉 What's now unlocked for you:</p>
           <table width="100%" cellpadding="0" cellspacing="0">
             ${["Invest in any farm on the Primary Market", "Trade shares on the Secondary Market", "Request exits and receive M-Pesa payouts", "Access unlimited investment amounts"].map(t => `
             <tr><td style="padding:6px 0;">
-              <span style="color:#16a34a;font-weight:700;">✓</span>
+              <span style="color:${GRASS_GREEN};font-weight:700;">✓</span>
               <span style="color:#374151;font-size:14px;margin-left:8px;">${t}</span>
             </td></tr>`).join("")}
           </table>
@@ -290,6 +407,7 @@ export async function sendKycApprovedEmail(to: string, name: string): Promise<vo
   });
 }
 
+// ─── KYC REJECTED ────────────────────────────────────────────────────────────
 export async function sendKycRejectedEmail(to: string, name: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
@@ -322,7 +440,7 @@ export async function sendKycRejectedEmail(to: string, name: string): Promise<vo
         </div>
 
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin:0 0 28px 0;">
-          <p style="color:#166534;font-size:14px;margin:0;">💡 <strong>Tip:</strong> Take photos in bright natural light, hold the document flat, and ensure all four corners are visible.</p>
+          <p style="color:${GRASS_MID};font-size:14px;margin:0;">💡 <strong>Tip:</strong> Take photos in bright natural light, hold the document flat, and ensure all four corners are visible.</p>
         </div>
 
         ${ctaButton("📄 Re-submit KYC Documents →", "https://investafarm.co.ke/kyc", "linear-gradient(135deg,#7f1d1d,#dc2626)")}
@@ -341,16 +459,10 @@ export async function sendKycRejectedEmail(to: string, name: string): Promise<vo
   });
 }
 
+// ─── FUNDING VOUCHER ─────────────────────────────────────────────────────────
 export async function sendFundingVoucherEmail(
-  to: string,
-  name: string,
-  amount: number,
-  farmName: string,
-  voucherCode: string,
-  inputAmount: number,
-  supplierName?: string,
-  supplierLocation?: string,
-  supplierPhone?: string,
+  to: string, name: string, amount: number, farmName: string, voucherCode: string,
+  inputAmount: number, supplierName?: string, supplierLocation?: string, supplierPhone?: string,
 ): Promise<void> {
   const transport = createTransport();
   if (!transport) {
@@ -380,7 +492,7 @@ export async function sendFundingVoucherEmail(
   const content = `
     <tr>
       <td style="padding:0;">
-        <div style="background:linear-gradient(135deg,#064e3b 0%,#16a34a 100%);padding:40px;text-align:center;">
+        <div style="background:linear-gradient(135deg,${GRASS_DARK} 0%,${GRASS_GREEN} 100%);padding:40px;text-align:center;">
           <p style="font-size:48px;margin:0 0 12px 0;">🎉</p>
           <h1 style="color:#ffffff;font-size:26px;font-weight:800;margin:0 0 8px 0;">Funding Approved!</h1>
           <p style="color:rgba(255,255,255,0.8);font-size:15px;margin:0;">${fmt(amount)} approved for ${farmName}</p>
@@ -393,18 +505,16 @@ export async function sendFundingVoucherEmail(
           Congratulations, <strong>${name}</strong>! Your funding application for <strong>${farmName}</strong> has been approved by investors. Here is your input voucher:
         </p>
 
-        <!-- Voucher -->
         <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px dashed #86efac;border-radius:20px;padding:32px;text-align:center;margin:0 0 28px 0;">
-          <p style="color:#166534;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin:0 0 8px 0;">Input Voucher Code</p>
+          <p style="color:${GRASS_MID};font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin:0 0 8px 0;">Input Voucher Code</p>
           <div style="background:#ffffff;border-radius:12px;padding:16px 24px;display:inline-block;box-shadow:0 4px 16px rgba(0,0,0,0.08);margin:0 0 12px 0;">
-            <span style="font-size:32px;font-weight:900;letter-spacing:10px;color:${BRAND_DARK};font-family:Courier,monospace;">${voucherCode}</span>
+            <span style="font-size:32px;font-weight:900;letter-spacing:10px;color:${GRASS_DARK};font-family:Courier,monospace;">${voucherCode}</span>
           </div>
-          <p style="color:#16a34a;font-size:18px;font-weight:800;margin:0;">Redeemable for ${fmt(inputAmount)}</p>
+          <p style="color:${GRASS_GREEN};font-size:18px;font-weight:800;margin:0;">Redeemable for ${fmt(inputAmount)}</p>
         </div>
 
         ${supplierBlock}
 
-        <!-- Breakdown -->
         <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:16px;padding:24px;margin:0 0 28px 0;">
           <p style="color:#111827;font-weight:700;font-size:15px;margin:0 0 16px 0;">💰 Capital Breakdown</p>
           <table width="100%" cellpadding="0" cellspacing="0">
@@ -414,7 +524,7 @@ export async function sendFundingVoucherEmail(
             </tr>
             <tr style="border-bottom:1px solid #e5ede5;">
               <td style="padding:10px 0;color:#374151;font-size:14px;">Input Voucher (use now)</td>
-              <td style="padding:10px 0;color:#16a34a;font-weight:700;font-size:14px;text-align:right;">${fmt(inputAmount)}</td>
+              <td style="padding:10px 0;color:${GRASS_GREEN};font-weight:700;font-size:14px;text-align:right;">${fmt(inputAmount)}</td>
             </tr>
             <tr>
               <td style="padding:10px 0;color:#374151;font-size:14px;">Locked until milestone</td>
@@ -435,6 +545,7 @@ export async function sendFundingVoucherEmail(
   });
 }
 
+// ─── KYC UNDER REVIEW ────────────────────────────────────────────────────────
 export async function sendKycUnderReviewEmail(to: string, name: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
@@ -455,7 +566,7 @@ export async function sendKycUnderReviewEmail(to: string, name: string): Promise
     <tr>
       <td style="padding:40px;">
         <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
-          Our compliance team has received all your verification documents and is now carefully reviewing them to ensure your account security.
+          Our compliance team has received all your verification documents and is now carefully reviewing them.
         </p>
 
         <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:16px;padding:28px;margin:0 0 24px 0;text-align:center;">
@@ -468,14 +579,14 @@ export async function sendKycUnderReviewEmail(to: string, name: string): Promise
           <p style="color:#374151;font-weight:600;font-size:14px;margin:0 0 10px 0;">While you wait, you can:</p>
           ${["Explore the live market to see available farms", "Set up your wallet for instant investing once approved", "Browse our investment guide in the app"].map(t => `
           <p style="color:#6b7280;font-size:14px;margin:0 0 8px 0;padding-left:16px;">
-            <span style="color:#3b82f6;">→</span> ${t}
+            <span style="color:${GRASS_GREEN};">→</span> ${t}
           </p>`).join("")}
         </div>
 
-        ${ctaButton("Explore the Market →", "https://investafarm.co.ke/market", "linear-gradient(135deg,#1e40af,#3b82f6)")}
+        ${ctaButton("Explore the Market →", "https://investafarm.co.ke/market", `linear-gradient(135deg,#1e40af,#3b82f6)`)}
 
         <p style="color:#9ca3af;font-size:13px;margin:20px 0 0 0;text-align:center;">
-          You'll receive an email as soon as your review is complete. We'll also send a push notification in the app.
+          You'll receive an email as soon as your review is complete.
         </p>
       </td>
     </tr>`;
@@ -488,6 +599,7 @@ export async function sendKycUnderReviewEmail(to: string, name: string): Promise
   });
 }
 
+// ─── KYC SUBMITTED ADMIN NOTIFICATION ────────────────────────────────────────
 export async function sendKycSubmittedNotification(adminEmail: string, userName: string, userEmail: string, docType: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
@@ -520,6 +632,7 @@ export async function sendKycSubmittedNotification(adminEmail: string, userName:
   });
 }
 
+// ─── PRICE ALERT ─────────────────────────────────────────────────────────────
 export async function sendPriceAlertEmail(to: string, name: string, farmName: string, cropType: string, oldPrice: number, newPrice: number, changePercent: number): Promise<void> {
   const transport = createTransport();
   if (!transport) {
@@ -531,7 +644,7 @@ export async function sendPriceAlertEmail(to: string, name: string, farmName: st
   const fmt = (n: number) => `KES ${new Intl.NumberFormat("en-KE").format(Math.round(n))}`;
   const absChange = Math.abs(changePercent);
   const headerBg = isUp
-    ? "linear-gradient(135deg,#064e3b 0%,#16a34a 100%)"
+    ? `linear-gradient(135deg,${GRASS_DARK} 0%,${GRASS_GREEN} 100%)`
     : "linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%)";
 
   const content = `
@@ -552,40 +665,27 @@ export async function sendPriceAlertEmail(to: string, name: string, farmName: st
           Hi <strong>${name}</strong>, a farm in your portfolio has moved by more than <strong>5%</strong>. Here are the details:
         </p>
 
-        <!-- Price comparison -->
         <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:20px;padding:28px;margin:0 0 24px 0;text-align:center;">
           <p style="color:#6b7280;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 16px 0;">${farmName}</p>
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td style="text-align:center;padding:0 12px;">
-                <p style="color:#9ca3af;font-size:11px;margin:0 0 4px 0;">Previous Price</p>
+                <p style="color:#9ca3af;font-size:11px;margin:0 0 4px 0;">Previous</p>
                 <p style="color:#374151;font-size:22px;font-weight:800;margin:0;">${fmt(oldPrice)}</p>
               </td>
-              <td style="text-align:center;padding:0 12px;font-size:24px;color:#d1d5db;">→</td>
+              <td style="text-align:center;font-size:24px;color:#d1d5db;">→</td>
               <td style="text-align:center;padding:0 12px;">
-                <p style="color:#9ca3af;font-size:11px;margin:0 0 4px 0;">Current Price</p>
-                <p style="color:${isUp ? "#16a34a" : "#dc2626"};font-size:22px;font-weight:800;margin:0;">${fmt(newPrice)}</p>
+                <p style="color:#9ca3af;font-size:11px;margin:0 0 4px 0;">Current</p>
+                <p style="color:${isUp ? GRASS_GREEN : "#dc2626"};font-size:22px;font-weight:800;margin:0;">${fmt(newPrice)}</p>
               </td>
             </tr>
           </table>
           <div style="background:${isUp ? "#f0fdf4" : "#fef2f2"};border-radius:12px;padding:12px;margin-top:16px;display:inline-block;">
-            <span style="color:${isUp ? "#16a34a" : "#dc2626"};font-size:20px;font-weight:900;">${isUp ? "▲" : "▼"} ${absChange.toFixed(1)}%</span>
+            <span style="color:${isUp ? GRASS_GREEN : "#dc2626"};font-size:20px;font-weight:900;">${isUp ? "▲" : "▼"} ${absChange.toFixed(1)}%</span>
           </div>
         </div>
 
-        <div style="background:${isUp ? "#f0fdf4" : "#fef2f2"};border:1px solid ${isUp ? "#bbf7d0" : "#fecaca"};border-radius:16px;padding:20px;margin:0 0 28px 0;">
-          <p style="color:${isUp ? "#166534" : "#991b1b"};font-size:14px;font-weight:600;margin:0;">
-            ${isUp
-              ? "📊 This price increase may affect your exit value. Consider whether to hold for higher returns or request an exit now."
-              : "💡 Price drops can be opportunities to buy more shares at a lower price. Check the current market."}
-          </p>
-        </div>
-
         ${ctaButton("View Portfolio →", "https://investafarm.co.ke/portfolio", headerBg)}
-
-        <p style="color:#9ca3af;font-size:11px;margin:20px 0 0 0;text-align:center;">
-          You receive price alerts because you hold shares in this farm. <a href="#" style="color:${BRAND_GREEN};text-decoration:none;">Manage alerts</a>
-        </p>
       </td>
     </tr>`;
 
@@ -597,9 +697,9 @@ export async function sendPriceAlertEmail(to: string, name: string, farmName: st
   });
 }
 
+// ─── WEEKLY OPPORTUNITY DIGEST ────────────────────────────────────────────────
 export async function sendOpportunityDigest(
-  to: string,
-  name: string,
+  to: string, name: string,
   farms: Array<{ name: string; cropType: string; location: string; sharePrice?: number | string; sharesAvailable?: number; changePercent?: number }>
 ): Promise<void> {
   const transport = createTransport();
@@ -619,10 +719,10 @@ export async function sendOpportunityDigest(
           <p style="color:#6b7280;font-size:12px;margin:0;">${f.cropType} · ${f.location}</p>
         </td>
         <td style="padding:14px 8px;text-align:center;">
-          <span style="display:inline-block;background:${isUp ? "#f0fdf4" : "#fef2f2"};color:${isUp ? "#16a34a" : "#dc2626"};font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;">${isUp ? "+" : ""}${change.toFixed(1)}%</span>
+          <span style="display:inline-block;background:${isUp ? "#f0fdf4" : "#fef2f2"};color:${isUp ? GRASS_GREEN : "#dc2626"};font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;">${isUp ? "+" : ""}${change.toFixed(1)}%</span>
         </td>
         <td style="padding:14px 8px;text-align:right;">
-          <p style="font-weight:700;color:${BRAND_GREEN};font-size:14px;margin:0;">KES ${price.toLocaleString()}</p>
+          <p style="font-weight:700;color:${GRASS_GREEN};font-size:14px;margin:0;">KES ${price.toLocaleString()}</p>
           <p style="color:#9ca3af;font-size:11px;margin:2px 0 0 0;">${f.sharesAvailable ?? 0} shares left</p>
         </td>
       </tr>`;
@@ -631,7 +731,7 @@ export async function sendOpportunityDigest(
   const content = `
     <tr>
       <td style="padding:0;">
-        <div style="background:linear-gradient(135deg,#064e3b 0%,#16a34a 50%,#15803d 100%);padding:40px;text-align:center;">
+        <div style="background:linear-gradient(135deg,${GRASS_DARK} 0%,${GRASS_GREEN} 50%,${GRASS_MID} 100%);padding:40px;text-align:center;">
           <p style="font-size:48px;margin:0 0 12px 0;">🌾</p>
           <h1 style="color:#ffffff;font-size:26px;font-weight:800;margin:0 0 8px 0;">Your Weekly Farm Picks</h1>
           <p style="color:rgba(255,255,255,0.75);font-size:14px;margin:0;">Hi ${name}, the best opportunities this week</p>
@@ -641,7 +741,7 @@ export async function sendOpportunityDigest(
     <tr>
       <td style="padding:36px 40px;">
         <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 8px 0;">
-          These verified Kenyan farms are open for investment this week. Earn up to <strong style="color:${BRAND_GREEN};">+28%</strong> returns by backing real farmers.
+          These verified Kenyan farms are open for investment this week. Earn up to <strong style="color:${GRASS_GREEN};">+22%</strong> returns by backing real farmers.
         </p>
 
         <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5ede5;border-radius:16px;overflow:hidden;margin:20px 0 28px 0;">
@@ -658,7 +758,7 @@ export async function sendOpportunityDigest(
         <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
           <tr>
             ${statCard("⚡", "Mid-Season", "+10%")}
-            ${statCard("🌾", "Full Season", "+28%")}
+            ${statCard("🌾", "Full Season", "+22%")}
             ${statCard("🛡️", "Protected", "Fund")}
           </tr>
         </table>
@@ -677,6 +777,6 @@ export async function sendOpportunityDigest(
     from: from("Investa Farm Opportunities"),
     to,
     subject: `🌾 ${name}'s Weekly Farm Picks — Top opportunities this week`,
-    html: emailWrapper(content, `${farms.length} farms open for investment. Earn up to +28% returns this season.`),
+    html: emailWrapper(content, `${farms.length} farms open for investment. Earn up to +22% returns this season.`),
   });
 }

@@ -1,12 +1,12 @@
 import { Router, type IRouter } from "express";
 import { db, farmsTable, marketListingsTable, usersTable, investmentsTable, transactionsTable, notificationsTable, walletsTable, walletTransactionsTable, loanApplicationsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 import {
   BuySharesBody,
   ListSharesForSaleBody,
 } from "@workspace/api-zod";
 import { getCurrentUser } from "./auth";
-import { sendFundingVoucherEmail } from "../lib/email";
+import { sendFundingVoucherEmail, sendFirstInvestmentEmail } from "../lib/email";
 import { notifyUser } from "../lib/push";
 
 const router: IRouter = Router();
@@ -184,6 +184,14 @@ router.post("/market/buy", async (req, res): Promise<void> => {
     `You bought ${quantity} share${quantity > 1 ? "s" : ""} in ${farm?.name ?? "a farm"} for KES ${Number(totalAmount).toLocaleString("en-KE")}. Exit: ${exitType === "wide_season" ? "45 days" : "~6 months"}.`,
     "/portfolio"
   ).catch(() => {});
+
+  // Send first-investment congratulations email if this is the investor's first purchase
+  try {
+    const [{ value: investCount }] = await db.select({ value: count() }).from(investmentsTable).where(eq(investmentsTable.investorId, user.id));
+    if (investCount === 1) {
+      sendFirstInvestmentEmail(user.email, user.name, farm?.name ?? "a Kenyan farm", totalAmount).catch(console.error);
+    }
+  } catch (e) { console.error("[FIRST_INVEST_EMAIL]", e); }
 
   // Notify farmer that they received investment
   if (farm) {

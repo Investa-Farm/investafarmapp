@@ -4,12 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, ChevronLeft, TrendingUp, Wallet, BarChart3, Shield, Star, Bell, Package, FileCheck, Handshake, HelpCircle, ArrowRight, Sparkles, Bot, Navigation } from "lucide-react";
 import { useLocation } from "wouter";
 
-const TOUR_KEY = "investa_app_tour_v5";
+const TOUR_KEY = "investa_app_tour_v6";
 const TOUR_STATE_KEY = "investa_tour_state";
 
 type TourStep = {
   icon: React.ReactNode;
-  gradient: string;
   title: string;
   subtitle: string;
   body: string;
@@ -20,18 +19,18 @@ type TourStep = {
   aiContext?: string;
 };
 
+const GREEN_GRADIENT = "from-green-600 to-green-700";
+
 const INVESTOR_STEPS: TourStep[] = [
   {
     icon: <span className="text-3xl">🌾</span>,
-    gradient: "from-green-500 to-emerald-600",
     title: "Welcome to Investa Farm",
     subtitle: "Africa's Farm Investment Exchange",
     body: "Buy fractional shares in verified Kenyan farms and earn harvest returns — starting from just KES 5,000.",
-    keyPoints: ["Earn 8–28% annual returns", "Exit whenever you're ready", "Backed by real farms"],
+    keyPoints: ["Earn 8–22% annual returns", "Exit whenever you're ready", "Backed by real farms"],
   },
   {
     icon: <TrendingUp size={24} className="text-white" />,
-    gradient: "from-blue-500 to-indigo-600",
     title: "Live Market",
     subtitle: "Browse real farm listings",
     body: "The Market shows live farm listings with real-time price tickers, sparklines, and risk indicators. Every listing is a real Kenyan farm seeking investors.",
@@ -43,11 +42,10 @@ const INVESTOR_STEPS: TourStep[] = [
   },
   {
     icon: <BarChart3 size={24} className="text-white" />,
-    gradient: "from-purple-500 to-violet-600",
     title: "Your Portfolio",
     subtitle: "All investments in one place",
     body: "The Portfolio tab shows every farm share you own, unrealised gains, and lets you request an exit when you're ready to cash out.",
-    keyPoints: ["Track total value & returns", "Request Mid-Season or Full-Season exit", "View your diversification breakdown"],
+    keyPoints: ["Track total value & returns", "Request Mid-Season or Full-Season exit", "Performance chart with period toggle"],
     target: "[data-tour='nav-portfolio']",
     navigateTo: "/portfolio",
     navigateLabel: "Open My Portfolio",
@@ -55,7 +53,6 @@ const INVESTOR_STEPS: TourStep[] = [
   },
   {
     icon: <Wallet size={24} className="text-white" />,
-    gradient: "from-amber-500 to-orange-500",
     title: "Wallet & Payouts",
     subtitle: "Seamless M-Pesa integration",
     body: "Top up your Investa Wallet via M-Pesa or card, buy shares instantly, and receive harvest payouts directly to your M-Pesa number.",
@@ -66,7 +63,6 @@ const INVESTOR_STEPS: TourStep[] = [
   },
   {
     icon: <Shield size={24} className="text-white" />,
-    gradient: "from-rose-500 to-pink-600",
     title: "Verify Your Identity",
     subtitle: "KYC unlocks full trading",
     body: "Upload your National ID (front & back) and take a live selfie. Our admin team reviews within 24–48 hours and sends you a confirmation email.",
@@ -75,7 +71,6 @@ const INVESTOR_STEPS: TourStep[] = [
   },
   {
     icon: <Star size={24} className="text-white" />,
-    gradient: "from-yellow-500 to-amber-600",
     title: "Earn Broker Status",
     subtitle: "Invest KES 500K+ to unlock",
     body: "Hit KES 500,000 in portfolio value to automatically upgrade to Broker — unlocking bulk share orders, priority farm access, and higher return tiers.",
@@ -87,7 +82,6 @@ const INVESTOR_STEPS: TourStep[] = [
 const FARMER_STEPS: TourStep[] = [
   {
     icon: <span className="text-3xl">🌾</span>,
-    gradient: "from-green-500 to-emerald-700",
     title: "Welcome, Farmer!",
     subtitle: "Raise capital for your farm",
     body: "List your farm on Africa's leading investment exchange, attract investors, and access production funding without traditional bank loans.",
@@ -95,7 +89,6 @@ const FARMER_STEPS: TourStep[] = [
   },
   {
     icon: <FileCheck size={24} className="text-white" />,
-    gradient: "from-blue-500 to-cyan-600",
     title: "Complete KYC",
     subtitle: "Verification unlocks funding",
     body: "Upload your National ID and farm documents. Once verified by admin (24–48 hrs), you can list your farm and apply for production funding.",
@@ -107,7 +100,6 @@ const FARMER_STEPS: TourStep[] = [
   },
   {
     icon: <TrendingUp size={24} className="text-white" />,
-    gradient: "from-purple-500 to-indigo-600",
     title: "List Your Farm",
     subtitle: "Attract investors to your farm",
     body: "Create your farm listing with crop type, location, and funding target. Investors see your farm in the live market and can buy shares instantly.",
@@ -118,7 +110,6 @@ const FARMER_STEPS: TourStep[] = [
   },
   {
     icon: <Bell size={24} className="text-white" />,
-    gradient: "from-amber-500 to-orange-600",
     title: "Post Field Updates",
     subtitle: "Keep investors informed",
     body: "Post regular crop updates with photos and milestones. Investors love transparency — farms with frequent updates get funded 3× faster.",
@@ -131,7 +122,6 @@ const FARMER_STEPS: TourStep[] = [
 const AGRIBUSINESS_STEPS: TourStep[] = [
   {
     icon: <span className="text-3xl">🤝</span>,
-    gradient: "from-green-500 to-teal-600",
     title: "Welcome, Partner!",
     subtitle: "Connect to the farm network",
     body: "Access farmer networks, co-investment opportunities, and real-time agri-market data across Kenya.",
@@ -139,7 +129,6 @@ const AGRIBUSINESS_STEPS: TourStep[] = [
   },
   {
     icon: <Handshake size={24} className="text-white" />,
-    gradient: "from-blue-500 to-indigo-600",
     title: "Manage Networks",
     subtitle: "Farmers, inputs & logistics",
     body: "Onboard and manage farmer groups in your county. Track KYC status, loan disbursements, and crop progress in real time.",
@@ -147,7 +136,6 @@ const AGRIBUSINESS_STEPS: TourStep[] = [
   },
   {
     icon: <Package size={24} className="text-white" />,
-    gradient: "from-amber-500 to-orange-600",
     title: "Input Marketplace",
     subtitle: "Supply & fulfil orders",
     body: "Receive input orders (seeds, fertiliser, equipment) from funded farmers. Fulfil via voucher redemption and earn per order fulfilled.",
@@ -237,26 +225,15 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
 
   return createPortal(
     <>
-      {!open && role !== "investor" && (
+      {!open && (
         <motion.button
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 1.5, type: "spring" }}
+          transition={{ delay: role === "investor" ? 3 : 1.5, type: "spring" }}
           onClick={startTour}
-          className="fixed bottom-24 right-4 z-[9990] w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 border-2 border-white"
+          className="fixed bottom-24 right-4 z-[9990] w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 border-2 border-white"
         >
-          <HelpCircle size={22} />
-        </motion.button>
-      )}
-      {!open && role === "investor" && (
-        <motion.button
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 3, type: "spring" }}
-          onClick={startTour}
-          className="fixed bottom-24 right-4 z-[9990] w-10 h-10 rounded-full bg-primary/90 text-white flex items-center justify-center shadow-md border-2 border-white"
-        >
-          <HelpCircle size={18} />
+          <HelpCircle size={20} />
         </motion.button>
       )}
 
@@ -268,7 +245,6 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {/* Fully transparent — tour card floats over the real app */}
             <div
               className="absolute inset-0 pointer-events-auto"
               style={{ background: "rgba(0,0,0,0.04)" }}
@@ -305,14 +281,11 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
               className="pointer-events-auto"
               onClick={e => e.stopPropagation()}
             >
-              {/* Gradient border wrapper */}
-              <div
-                className="rounded-2xl p-[1.5px]"
-                style={{ background: `linear-gradient(135deg, var(--from-color, #16a34a), var(--to-color, #0f4c35))` }}
-              >
-                <div className="bg-white dark:bg-card rounded-[14px] overflow-hidden shadow-2xl">
-                  {/* Gradient icon strip */}
-                  <div className={`bg-gradient-to-r ${step.gradient} px-4 py-3 flex items-center justify-between`}>
+              {/* Grass green border wrapper */}
+              <div className="rounded-2xl p-[1.5px] bg-gradient-to-r from-green-600 to-green-700">
+                <div className="bg-white rounded-[14px] overflow-hidden">
+                  {/* Grass green header strip */}
+                  <div className={`bg-gradient-to-r ${GREEN_GRADIENT} px-4 py-3 flex items-center justify-between`}>
                     <div className="flex items-center gap-2.5">
                       <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
                         {step.icon}
@@ -344,11 +317,10 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
                       </ul>
                     )}
 
-                    {/* Navigate button */}
                     {step.navigateTo && (
                       <button
                         onClick={() => navigateToStep(step.navigateTo!)}
-                        className={`mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r ${step.gradient} text-white text-xs font-bold active:scale-95 transition-transform`}
+                        className={`mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r ${GREEN_GRADIENT} text-white text-xs font-bold active:scale-95 transition-transform`}
                       >
                         <Navigation size={12} />
                         {step.navigateLabel ?? "Take me there"}
@@ -356,7 +328,6 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
                       </button>
                     )}
 
-                    {/* Ask AI button */}
                     {step.aiContext && onAskAI && (
                       <button
                         onClick={() => { onAskAI(step.aiContext!); dismiss(); }}
@@ -376,7 +347,7 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
                         <button
                           key={i}
                           onClick={() => setIdx(i)}
-                          className={`h-1.5 rounded-full transition-all duration-300 ${i === idx ? "w-5 bg-primary" : "w-1.5 bg-gray-200 dark:bg-muted"}`}
+                          className={`h-1.5 rounded-full transition-all duration-300 ${i === idx ? "w-5 bg-primary" : "w-1.5 bg-gray-200"}`}
                         />
                       ))}
                     </div>
@@ -391,7 +362,7 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
                       </button>
                       <button
                         onClick={next}
-                        className={`bg-gradient-to-r ${step.gradient} text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1 active:scale-95 transition-transform`}
+                        className={`bg-gradient-to-r ${GREEN_GRADIENT} text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1 active:scale-95 transition-transform`}
                       >
                         {idx < steps.length - 1 ? <>Next <ChevronRight size={13} /></> : "Done ✓"}
                       </button>

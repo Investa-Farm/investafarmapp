@@ -3,7 +3,7 @@ import { useGetMe, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, formatKES, getToken, storeUser, getStoredUser } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, Plus, ArrowUpRight, RefreshCw, ArrowLeft } from "lucide-react";
+import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, RefreshCw, ArrowUpRight } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { InvestorKycModal } from "@/components/investor-kyc-modal";
@@ -58,10 +58,27 @@ export default function Profile() {
   const portfolioValue = summary?.totalValue ?? 0;
   const isBroker = portfolioValue >= BROKER_THRESHOLD;
 
-  const handleLogout = () => {
-    clearToken();
-    setLocation("/");
+  const { currency, setCurrency, formatAmount } = useCurrency();
+
+  const { data: walletData, refetch: refetchWallet, isLoading: walletLoading } = useQuery<{ wallet: { balance: string } }>({
+    queryKey: ["wallet-balance-profile"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { wallet: { balance: "0" } };
+      return r.json();
+    },
+  });
+  const walletBalanceNum = parseFloat(walletData?.wallet?.balance ?? "0");
+
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
+  const toggleTheme = () => {
+    const dark = !isDark;
+    setIsDark(dark);
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("investa_theme", dark ? "dark" : "light");
   };
+
+  const handleLogout = () => { clearToken(); setLocation("/"); };
 
   const handleSaveSettings = async () => {
     setSettingsError("");
@@ -89,41 +106,9 @@ export default function Profile() {
     setSettingsSaving(false);
   };
 
-  const { currency, setCurrency, formatAmount } = useCurrency();
-
-  const { data: walletData, refetch: refetchWallet, isLoading: walletLoading } = useQuery<{ wallet: { balance: string } }>({
-    queryKey: ["wallet-balance-profile"],
-    queryFn: async () => {
-      const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) return { wallet: { balance: "0" } };
-      return r.json();
-    },
-  });
-  const walletBalanceNum = parseFloat(walletData?.wallet?.balance ?? "0");
-
-  const { data: walletTxs = [] } = useQuery<any[]>({
-    queryKey: ["wallet-txs-profile"],
-    queryFn: async () => {
-      const r = await fetch("/api/wallet/transactions?limit=3", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) return [];
-      const d = await r.json();
-      return d.transactions ?? d ?? [];
-    },
-  });
-
-  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
-
-  const toggleTheme = () => {
-    const dark = !isDark;
-    setIsDark(dark);
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("investa_theme", dark ? "dark" : "light");
-  };
-
   const menuItems = [
     {
-      icon: Shield,
-      label: "KYC Verification",
+      icon: Shield, label: "KYC Verification",
       sublabel: kycStatus?.isVerified ? "Verified ✓" : `${kycStatus?.approved ?? 0} docs approved`,
       action: () => setKycOpen(true),
       badge: kycStatus?.isVerified ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700",
@@ -135,91 +120,108 @@ export default function Profile() {
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="profile-page">
-      <div className="hero-header pt-12 pb-6 px-5">
-        <div className="flex flex-col items-center gap-3">
-          <img src={logoSrc} alt="Investa Farm" className="h-14 w-auto opacity-90" style={{ filter: "brightness(0) invert(1)" }} />
-          <div className="relative">
+      {/* ── Grass-green hero header ── */}
+      <div className="pt-12 pb-5 px-4"
+        style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 35%, #16a34a 100%)" }}>
+
+        {/* Logo row */}
+        <div className="flex justify-center mb-4">
+          <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto opacity-90"
+            style={{ filter: "brightness(0) invert(1)" }} />
+        </div>
+
+        {/* Name / email / wallet — horizontal combined row */}
+        <div className="flex items-center gap-3">
+          {/* Avatar */}
+          <div className="relative flex-shrink-0">
             {profilePhoto ? (
-              <img src={profilePhoto} alt="Profile" className="w-16 h-16 rounded-2xl object-cover border-2 border-white/30" />
+              <img src={profilePhoto} alt="Profile" className="w-14 h-14 rounded-2xl object-cover border-2 border-white/30" />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center">
-                <span className="text-white text-2xl font-bold">{user?.name?.charAt(0) ?? "?"}</span>
+              <div className="w-14 h-14 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center">
+                <span className="text-white text-xl font-bold">{user?.name?.charAt(0) ?? "?"}</span>
               </div>
             )}
-            <label className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center cursor-pointer shadow-md">
-              <span className="text-primary text-[10px] font-bold">✏</span>
+            <label className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white flex items-center justify-center cursor-pointer shadow-md">
+              <span className="text-primary text-[8px] font-bold">✏</span>
               <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             </label>
           </div>
-          <div className="text-center">
-            <h1 className="text-white text-lg font-bold">{user?.name ?? "—"}</h1>
-            <p className="text-white/70 text-sm">{user?.email ?? "—"}</p>
-            <div className="flex items-center justify-center gap-2 mt-1.5 flex-wrap">
-              <span className="inline-flex items-center gap-1 bg-white/20 text-white text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full border border-white/30">
-                {user?.role ?? "investor"} account
+
+          {/* Name + email + role badges */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-white font-bold text-base leading-tight truncate">{user?.name ?? "—"}</h1>
+            <p className="text-white/60 text-xs truncate">{user?.email ?? "—"}</p>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span className="inline-flex items-center gap-0.5 bg-white/20 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20">
+                {user?.role ?? "investor"}
               </span>
-              <span className="inline-flex items-center gap-1 bg-white/20 text-white text-[10px] font-semibold px-2 py-1 rounded-full border border-white/30">
-                {investorType === "fund_manager" ? <><Briefcase size={9} /> Fund Manager</> : <><TrendingUp size={9} /> Individual</>}
+              <span className="inline-flex items-center gap-0.5 bg-white/15 text-white text-[9px] font-medium px-2 py-0.5 rounded-full border border-white/15">
+                {investorType === "fund_manager" ? <><Briefcase size={8} /> Fund Mgr</> : <><TrendingUp size={8} /> Individual</>}
               </span>
               {isBroker && (
-                <span className="inline-flex items-center gap-1 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-3 py-1 rounded-full border border-yellow-300 shadow-sm">
-                  <Star size={9} fill="currentColor" /> Broker
+                <span className="inline-flex items-center gap-0.5 bg-yellow-400 text-yellow-900 text-[9px] font-bold px-2 py-0.5 rounded-full">
+                  <Star size={8} fill="currentColor" /> Broker
                 </span>
               )}
             </div>
           </div>
+
+          {/* Wallet balance */}
+          <div className="flex-shrink-0 text-right">
+            <p className="text-white/60 text-[9px] uppercase tracking-wider">Wallet</p>
+            {walletLoading
+              ? <div className="h-5 w-20 bg-white/20 rounded animate-pulse" />
+              : <p className="text-white font-bold text-sm">{formatAmount(walletBalanceNum)}</p>}
+            <button onClick={() => refetchWallet()} className="mt-0.5 text-white/50 text-[9px] flex items-center gap-0.5 ml-auto">
+              <RefreshCw size={8} /> Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* Portfolio stats row */}
+        <div className="grid grid-cols-4 gap-1.5 mt-4 bg-white/10 rounded-2xl p-2.5">
+          {[
+            { label: "Portfolio", value: summary ? formatAmount(summary.totalValue) : "—", up: true },
+            { label: "Invested", value: summary ? formatAmount(summary.totalInvested) : "—", up: null },
+            { label: "P&L", value: summary ? formatAmount(summary.todayReturn) : "—", up: summary ? summary.todayReturn >= 0 : null },
+            { label: "Holdings", value: summary ? String(summary.holdings) : "—", up: null },
+          ].map(({ label, value, up }) => (
+            <div key={label} className="text-center">
+              <p className={`font-bold text-sm ${up === null ? "text-white" : up ? "text-green-300" : "text-red-300"}`}>{value}</p>
+              <p className="text-white/50 text-[9px] mt-0.5">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Currency switcher — compact pills */}
+        <div className="flex items-center gap-1.5 mt-3 overflow-x-auto pb-0.5">
+          <span className="text-white/50 text-[9px] font-bold uppercase tracking-wider flex-shrink-0">Currency:</span>
+          {CURRENCIES.map(c => (
+            <button key={c.code} onClick={() => setCurrency(c.code)}
+              className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all active:scale-95 border ${
+                currency.code === c.code
+                  ? "bg-white text-green-800 border-white"
+                  : "bg-white/10 text-white/70 border-white/20"
+              }`}>
+              {c.flag} {c.code}
+            </button>
+          ))}
+        </div>
+
+        {/* Quick action buttons */}
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <button onClick={() => setLocation("/wallet")}
+            className="bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform border border-white/20">
+            <Wallet size={12} /> View Wallet
+          </button>
+          <button onClick={() => setLocation("/wallet")}
+            className="bg-white/15 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform border border-white/20">
+            <ArrowUpRight size={12} /> Withdraw
+          </button>
         </div>
       </div>
 
       <div className="px-4 pt-4 space-y-3">
-        {/* Wallet card */}
-        <div className="rounded-2xl overflow-hidden border border-border">
-          <div className="px-4 py-4" style={{ background: "linear-gradient(135deg, #0c1445 0%, #1a2f6e 40%, #1e3a8a 70%, #1d4ed8 100%)" }}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                <Wallet size={13} className="text-white/70" />
-                <p className="text-white/70 text-[10px] uppercase tracking-wider font-bold">Investa Wallet</p>
-              </div>
-              <button onClick={() => refetchWallet()} className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center active:scale-95 transition-transform">
-                <RefreshCw size={12} className="text-white" />
-              </button>
-            </div>
-            {walletLoading
-              ? <div className="h-8 w-32 bg-white/20 rounded-lg animate-pulse mb-3" />
-              : <p className="text-white font-bold text-2xl mb-3">{formatAmount(walletBalanceNum)}</p>}
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => setLocation("/wallet")}
-                className="bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
-                <Plus size={12} /> Add Funds
-              </button>
-              <button onClick={() => setLocation("/wallet")}
-                className="bg-white/15 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform border border-white/20">
-                <ArrowUpRight size={12} /> Withdraw
-              </button>
-            </div>
-          </div>
-          {walletTxs.length > 0 && (
-            <div className="bg-card px-4 pb-3 pt-2.5">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">Recent Transactions</p>
-              {walletTxs.slice(0, 3).map((tx: any) => (
-                <div key={tx.id} className="flex items-center gap-2.5 py-2 border-b border-border last:border-0">
-                  <span className="text-base">{tx.type === "deposit" ? "💰" : tx.type === "investment" ? "🌱" : tx.type === "return" ? "📈" : "💸"}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-foreground truncate capitalize">{tx.description ?? tx.type}</p>
-                    <p className="text-[10px] text-muted-foreground">{new Date(tx.createdAt).toLocaleDateString("en-KE", { month: "short", day: "numeric" })}</p>
-                  </div>
-                  <p className={`text-xs font-bold flex-shrink-0 ${["deposit","return","transfer_in"].includes(tx.type) ? "text-green-600" : "text-red-500"}`}>
-                    {["deposit","return","transfer_in"].includes(tx.type) ? "+" : "-"}{formatAmount(parseFloat(tx.amount))}
-                  </p>
-                </div>
-              ))}
-              <button onClick={() => setLocation("/wallet")} className="w-full text-center text-primary text-xs font-semibold py-2 mt-1 active:scale-95 transition-transform">
-                View all transactions →
-              </button>
-            </div>
-          )}
-        </div>
-
         {/* KYC status banner */}
         <button onClick={() => setKycOpen(true)}
           className={`w-full rounded-2xl p-3.5 border flex items-center gap-3 text-left active:scale-98 transition-transform ${kycStatus?.isVerified ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200"}`}>
@@ -272,35 +274,9 @@ export default function Profile() {
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
-            <p className="text-primary font-bold text-lg">{summary ? formatAmount(summary.totalValue) : "—"}</p>
-            <p className="text-muted-foreground text-xs mt-0.5">Portfolio Value</p>
-          </div>
-          <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
-            <p className="text-primary font-bold text-xl">{summary ? summary.holdings : "—"}</p>
-            <p className="text-muted-foreground text-xs mt-0.5">Active Holdings</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
-            <p className="text-primary font-bold text-lg">{summary ? formatAmount(summary.totalInvested) : "—"}</p>
-            <p className="text-muted-foreground text-xs mt-0.5">Total Invested</p>
-          </div>
-          <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
-            <p className={`font-bold text-lg ${summary && summary.todayReturn >= 0 ? "text-green-600" : "text-red-500"}`}>
-              {summary ? formatAmount(summary.todayReturn) : "—"}
-            </p>
-            <p className="text-muted-foreground text-xs mt-0.5">Today's P&L</p>
-          </div>
-        </div>
-
         {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          className="w-full flex items-center gap-3 px-4 py-3.5 bg-card border border-border rounded-2xl active:scale-98 transition-transform"
-        >
+        <button onClick={toggleTheme}
+          className="w-full flex items-center gap-3 px-4 py-3.5 bg-card border border-border rounded-2xl active:scale-98 transition-transform">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
             <span className="text-base">{isDark ? "☀️" : "🌙"}</span>
           </div>
@@ -312,25 +288,6 @@ export default function Profile() {
             <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-200 ${isDark ? "left-[calc(100%-22px)]" : "left-0.5"}`} />
           </div>
         </button>
-
-        {/* Currency display switcher */}
-        <div className="bg-card border border-border rounded-2xl p-3.5">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-2.5">Display Currency</p>
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-            {CURRENCIES.map(c => (
-              <button key={c.code} onClick={() => setCurrency(c.code)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all active:scale-95 ${
-                  currency.code === c.code ? "bg-primary border-primary text-white" : "border-border text-muted-foreground bg-card"
-                }`}>
-                <span>{c.flag}</span>
-                <span>{c.code}</span>
-              </button>
-            ))}
-          </div>
-          <p className="text-muted-foreground text-[10px] mt-2">
-            Showing prices in {currency.name} ({currency.symbol}) · Rates updated weekly
-          </p>
-        </div>
 
         {/* Menu items */}
         <div className="bg-card rounded-2xl border border-border overflow-hidden">

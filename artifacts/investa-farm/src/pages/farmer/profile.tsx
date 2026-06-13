@@ -2,12 +2,12 @@ import { useState } from "react";
 import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
-import { clearToken, getStoredUser, storeUser, getToken } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save } from "lucide-react";
+import { clearToken, getStoredUser, storeUser, getToken, formatKES } from "@/lib/auth";
+import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, ArrowDownLeft, RefreshCw } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 export default function FarmerProfile() {
   const [, setLocation] = useLocation();
@@ -41,10 +41,17 @@ export default function FarmerProfile() {
   const { data: user } = useGetMe();
   const storedUser = getStoredUser();
 
-  const handleLogout = () => {
-    clearToken();
-    setLocation("/");
-  };
+  const { data: walletData, refetch: refetchWallet, isLoading: walletLoading } = useQuery<{ wallet: { balance: string } }>({
+    queryKey: ["wallet-balance-farmer-profile"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { wallet: { balance: "0" } };
+      return r.json();
+    },
+  });
+  const walletBalance = parseFloat(walletData?.wallet?.balance ?? "0");
+
+  const handleLogout = () => { clearToken(); setLocation("/"); };
 
   const openSettings = () => {
     setSettingsName(user?.name ?? storedUser?.name ?? "");
@@ -111,31 +118,59 @@ export default function FarmerProfile() {
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="farmer-profile">
-      <div className="hero-header pt-12 pb-6 px-5">
-        <div className="flex flex-col items-center gap-3">
-          <img src={logoSrc} alt="Investa Farm" className="h-10 w-auto opacity-90"
+      {/* ── Grass-green hero header ── */}
+      <div className="pt-12 pb-5 px-4"
+        style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 35%, #16a34a 100%)" }}>
+
+        {/* Logo */}
+        <div className="flex justify-center mb-4">
+          <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto opacity-90"
             style={{ filter: "brightness(0) invert(1)" }} />
-          <div className="relative">
+        </div>
+
+        {/* Combined row: photo + name/email + balance */}
+        <div className="flex items-center gap-3">
+          {/* Avatar */}
+          <div className="relative flex-shrink-0">
             {profilePhoto ? (
-              <img src={profilePhoto} alt="Profile" className="w-16 h-16 rounded-2xl object-cover border-2 border-white/30" />
+              <img src={profilePhoto} alt="Profile" className="w-14 h-14 rounded-2xl object-cover border-2 border-white/30" />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center">
-                <span className="text-white text-2xl font-bold">{initial}</span>
+              <div className="w-14 h-14 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center">
+                <span className="text-white text-xl font-bold">{initial}</span>
               </div>
             )}
-            <label className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center cursor-pointer shadow-md">
-              <span className="text-primary text-[10px] font-bold">✏</span>
+            <label className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white flex items-center justify-center cursor-pointer shadow-md">
+              <span className="text-primary text-[8px] font-bold">✏</span>
               <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             </label>
           </div>
-          <div className="text-center">
-            <h1 className="text-white text-lg font-bold">{displayName}</h1>
-            <p className="text-white/70 text-sm">{user?.email ?? storedUser?.email ?? "—"}</p>
-            <span className="mt-1.5 inline-block bg-white/20 text-white text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full border border-white/30">
+
+          {/* Name + email + role */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-white font-bold text-base leading-tight truncate">{displayName}</h1>
+            <p className="text-white/60 text-xs truncate">{user?.email ?? storedUser?.email ?? "—"}</p>
+            <span className="mt-1 inline-block bg-white/20 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20">
               Farmer Account
             </span>
           </div>
+
+          {/* Balance */}
+          <div className="flex-shrink-0 text-right">
+            <p className="text-white/60 text-[9px] uppercase tracking-wider">Earnings</p>
+            {walletLoading
+              ? <div className="h-5 w-20 bg-white/20 rounded animate-pulse" />
+              : <p className="text-white font-bold text-sm">{formatKES(walletBalance)}</p>}
+            <button onClick={() => refetchWallet()} className="mt-0.5 text-white/50 text-[9px] flex items-center gap-0.5 ml-auto">
+              <RefreshCw size={8} /> Refresh
+            </button>
+          </div>
         </div>
+
+        {/* Withdraw button — farmer only action */}
+        <button onClick={() => setLocation("/farmer/wallet")}
+          className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/15 text-white text-sm font-bold border border-white/20 active:scale-95 transition-transform">
+          <ArrowDownLeft size={14} /> Withdraw to M-Pesa
+        </button>
       </div>
 
       <div className="px-4 pt-4 space-y-4">
