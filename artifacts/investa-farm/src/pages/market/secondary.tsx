@@ -194,23 +194,23 @@ export default function SecondaryMarket() {
       <AnimatePresence mode="wait">
         {tab === "market" ? (
           <motion.div key="market" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-3 space-y-3">
-            {/* Crop filter chips */}
+            {/* Crop filter dropdown */}
             {!isLoading && (listings?.length ?? 0) > 0 && (
               <div className="px-4">
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                  {["all", ...Array.from(new Set(listings?.map(l => l.cropType) ?? []))].map(crop => (
-                    <button
-                      key={crop}
-                      onClick={() => setCropFilter(crop)}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 ${
-                        cropFilter === crop
-                          ? "bg-primary text-white shadow-sm shadow-primary/30"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {crop === "all" ? "🌍 All Crops" : `🌾 ${crop}`}
-                    </button>
-                  ))}
+                <div className="relative">
+                  <select
+                    value={cropFilter}
+                    onChange={e => setCropFilter(e.target.value)}
+                    className="w-full border border-border rounded-2xl px-4 py-2.5 text-sm font-semibold text-foreground bg-white focus:outline-none focus:border-primary appearance-none pr-9"
+                  >
+                    <option value="all">🌍 All Crops</option>
+                    {Array.from(new Set(listings?.map(l => l.cropType) ?? [])).map(crop => (
+                      <option key={crop} value={crop}>🌾 {crop}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
                 </div>
               </div>
             )}

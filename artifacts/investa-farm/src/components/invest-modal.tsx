@@ -63,6 +63,15 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
     },
   });
 
+  const { data: walletData } = useQuery<{ wallet: { balance: string } }>({
+    queryKey: ["wallet-balance"],
+    enabled: open,
+    queryFn: async () => {
+      const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
+      return r.json();
+    },
+  });
+
   if (!listing) return null;
 
   const isDemo = isDemoAccount();
@@ -71,6 +80,19 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const selectedExit = EXIT_OPTIONS.find(e => e.type === exitType)!;
   const estimatedReturnMin = total * (selectedExit.returnMin / 100);
   const estimatedReturnMax = total * (selectedExit.returnMax / 100);
+  const walletBalance = parseFloat(walletData?.wallet?.balance ?? "0");
+  const hasEnoughBalance = walletBalance >= total;
+
+  const handlePayFromWallet = () => {
+    buyShares.mutate({ data: { listingId: listing.id, quantity, exitType } }, {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListPrimaryMarketQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetFarmQueryKey(listing.farmId) });
+        qc.invalidateQueries({ queryKey: ["wallet-balance"] });
+        setStep("done");
+      },
+    });
+  };
 
   const handlePaySuccess = (method: string) => {
     setPaymentMethod(method);
@@ -78,6 +100,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListPrimaryMarketQueryKey() });
         qc.invalidateQueries({ queryKey: getGetFarmQueryKey(listing.farmId) });
+        qc.invalidateQueries({ queryKey: ["wallet-balance"] });
         setStep("done");
       },
     });
@@ -191,6 +214,23 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                         ))}
                       </div>
 
+                      {/* Wallet balance indicator */}
+                      <div className={`border rounded-2xl p-3 flex items-center gap-3 ${hasEnoughBalance ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${hasEnoughBalance ? "bg-green-100" : "bg-red-100"}`}>
+                          <span className="text-base">{hasEnoughBalance ? "💰" : "⚠️"}</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className={`font-semibold text-xs ${hasEnoughBalance ? "text-green-700" : "text-red-700"}`}>
+                            Wallet Balance: {formatKES(walletBalance)}
+                          </p>
+                          <p className={`text-[10px] mt-0.5 ${hasEnoughBalance ? "text-green-600" : "text-red-600"}`}>
+                            {hasEnoughBalance
+                              ? `Sufficient — ${formatKES(walletBalance - total)} remaining after this investment`
+                              : `Need ${formatKES(total - walletBalance)} more — top up your wallet first`}
+                          </p>
+                        </div>
+                      </div>
+
                       <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
                         <div className="flex justify-between text-sm mb-1">
                           <span className="text-muted-foreground">{quantity} shares × {formatKES(listing.pricePerShare)}</span>
@@ -237,11 +277,36 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                         </p>
                       </div>
 
-                      <button onClick={() => setPayOpen(true)}
-                        className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                        {buyShares.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
-                        Proceed to Payment →
-                      </button>
+                      {/* Error from backend */}
+                      {buyShares.error && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                          <p className="text-red-700 text-xs">{(buyShares.error as any)?.message ?? "Payment failed. Please try again."}</p>
+                        </div>
+                      )}
+
+                      {hasEnoughBalance ? (
+                        <button
+                          onClick={handlePayFromWallet}
+                          disabled={buyShares.isPending}
+                          className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60">
+                          {buyShares.isPending ? <Loader2 size={16} className="animate-spin" /> : <span>💰</span>}
+                          {buyShares.isPending ? "Processing…" : `Pay from Wallet · ${formatKES(total)}`}
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                            <p className="text-red-700 text-xs font-semibold mb-0.5">Insufficient wallet balance</p>
+                            <p className="text-red-600 text-[11px]">
+                              Top up {formatKES(total - walletBalance)} to proceed with this investment.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => { onClose(); }}
+                            className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all">
+                            Go to Wallet & Top Up →
+                          </button>
+                        </div>
+                      )}
                     </motion.div>
                   )}
 

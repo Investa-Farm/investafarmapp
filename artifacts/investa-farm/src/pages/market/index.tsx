@@ -8,7 +8,7 @@ import {
 } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
-import { formatChange, getToken, formatKES } from "@/lib/auth";
+import { formatChange, getToken, formatKES, isDemoAccount } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
@@ -150,6 +150,16 @@ export default function MarketHome() {
   const [, setLocation] = useLocation();
   const { data: movers, isLoading: moversLoading } = useGetTopMovers();
   const { data: listings, isLoading: listingsLoading } = useListPrimaryMarket();
+  const { data: decliners, isLoading: declinersLoading } = useQuery<any[]>({
+    queryKey: ["market-decliners"],
+    queryFn: async () => {
+      const r = await fetch("/api/market/decliners");
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
   const { data: summary } = useGetMarketSummary();
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [investOpen, setInvestOpen] = useState(false);
@@ -306,7 +316,9 @@ export default function MarketHome() {
             {/* Top Movers */}
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-foreground text-sm">Top Movers Today</h2>
+                <h2 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                  <TrendingUp size={13} className="text-green-600" /> Top Movers Today
+                </h2>
                 <Link href="/market/primary">
                   <span className="text-primary text-xs font-medium flex items-center gap-0.5">
                     View All <ChevronRight size={13} />
@@ -330,7 +342,8 @@ export default function MarketHome() {
                               <p className="text-white text-xs font-semibold leading-tight">{m.farmName}</p>
                               <p className="text-white/70 text-[10px]">{formatAmount(m.currentPrice)}</p>
                               <div className="flex items-center gap-1 mt-0.5">
-                                <span className={`text-[10px] font-bold ${m.changePercent >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                <TrendingUp size={9} className="text-green-400" />
+                                <span className="text-[10px] font-bold text-green-400">
                                   {formatChange(m.changePercent)}
                                 </span>
                               </div>
@@ -342,6 +355,52 @@ export default function MarketHome() {
                         </Link>
                       );
                     })}
+              </div>
+            </section>
+
+            {/* Top Decliners */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                  <TrendingDown size={13} className="text-red-500" /> Top Decliners Today
+                </h2>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
+                {declinersLoading
+                  ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="w-36 h-28 rounded-2xl flex-shrink-0" />)
+                  : (decliners ?? []).filter((d: any) => d.changePercent <= 0).length === 0
+                    ? (
+                      <div className="flex-shrink-0 bg-muted/40 border border-border rounded-2xl px-4 py-3 text-center">
+                        <p className="text-muted-foreground text-xs">All farms up today 🌟</p>
+                      </div>
+                    )
+                    : (decliners ?? []).filter((d: any) => d.changePercent <= 0).slice(0, 5).map((d: any) => {
+                        const risk = getRiskLevel(d.cropType ?? "", d.changePercent);
+                        return (
+                          <Link key={d.farmId} href={`/market/${d.farmId}`}>
+                            <div className="flex-shrink-0 w-36 rounded-2xl overflow-hidden relative cursor-pointer active:scale-95 transition-transform card-lift">
+                              <img
+                                src={getCropImage(d.cropType ?? "", d.imageUrl ?? undefined)}
+                                alt={d.farmName}
+                                className="w-full h-28 object-cover"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-red-900/70 via-black/20 to-transparent p-2.5 flex flex-col justify-end">
+                                <p className="text-white text-xs font-semibold leading-tight">{d.farmName}</p>
+                                <p className="text-white/70 text-[10px]">{formatAmount(d.currentPrice)}</p>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <TrendingDown size={9} className="text-red-400" />
+                                  <span className="text-[10px] font-bold text-red-400">
+                                    {formatChange(d.changePercent)}
+                                  </span>
+                                </div>
+                                <div className="mt-1">
+                                  <RiskBadge level={risk} />
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
               </div>
             </section>
 
@@ -558,7 +617,14 @@ export default function MarketHome() {
                 )}
               </div>
             </div>
-            {WATCHLIST_CROPS.map(crop => (
+            {!isDemoAccount() && (
+              <div className="bg-muted/40 border border-border rounded-2xl p-6 text-center">
+                <BookmarkPlus size={28} className="text-muted-foreground mx-auto mb-2" />
+                <p className="text-foreground font-semibold text-sm">Your watchlist is empty</p>
+                <p className="text-muted-foreground text-xs mt-1">Browse the market and bookmark farms to add them here</p>
+              </div>
+            )}
+            {(isDemoAccount() ? WATCHLIST_CROPS : []).map(crop => (
               <div key={crop.id} className="bg-card rounded-2xl border border-border overflow-hidden">
                 <div className="relative h-28">
                   <img src={crop.image} alt={crop.name} className="w-full h-full object-cover" />

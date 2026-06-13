@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, farmsTable, marketListingsTable, usersTable, investmentsTable, transactionsTable, notificationsTable, walletsTable, walletTransactionsTable, loanApplicationsTable } from "@workspace/db";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, asc, count } from "drizzle-orm";
 import {
   BuySharesBody,
   ListSharesForSaleBody,
@@ -10,6 +10,10 @@ import { sendFundingVoucherEmail, sendFirstInvestmentEmail } from "../lib/email"
 import { notifyUser } from "../lib/push";
 
 const router: IRouter = Router();
+
+function formatKESAPI(amount: number): string {
+  return `KES ${amount.toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+}
 
 const FARM_IMAGES = [
   "/investa-farm/crops/maize.jpg",
@@ -73,7 +77,20 @@ router.get("/market/secondary", async (_req, res): Promise<void> => {
 });
 
 router.get("/market/movers", async (_req, res): Promise<void> => {
-  const farms = await db.select().from(farmsTable).limit(5);
+  const farms = await db.select().from(farmsTable).orderBy(desc(farmsTable.changePercent)).limit(5);
+  res.json(farms.map(f => ({
+    farmId: f.id,
+    farmName: f.name,
+    cropType: f.cropType,
+    currentPrice: Number(f.currentPrice),
+    changePercent: Number(f.changePercent),
+    tradeCount: f.tradeCount,
+    imageUrl: f.imageUrl ?? FARM_IMAGES[f.id % FARM_IMAGES.length],
+  })));
+});
+
+router.get("/market/decliners", async (_req, res): Promise<void> => {
+  const farms = await db.select().from(farmsTable).orderBy(asc(farmsTable.changePercent)).limit(5);
   res.json(farms.map(f => ({
     farmId: f.id,
     farmName: f.name,
@@ -136,6 +153,37 @@ router.post("/market/buy", async (req, res): Promise<void> => {
   }
 
   const totalAmount = Number(listing.pricePerShare) * quantity;
+
+  // Check wallet balance
+  const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, user.id));
+  const walletBalance = Number(wallet?.balance ?? 0);
+  if (!wallet || walletBalance < totalAmount) {
+    res.status(400).json({
+      error: `Insufficient wallet balance. You need ${formatKESAPI(totalAmount)} but have ${formatKESAPI(walletBalance)}. Please top up your wallet first.`,
+      code: "INSUFFICIENT_FUNDS",
+      needed: totalAmount,
+      available: walletBalance,
+    });
+    return;
+  }
+
+  // Deduct from wallet
+  const newBalance = walletBalance - totalAmount;
+  await db.update(walletsTable)
+    .set({ balance: String(newBalance) })
+    .where(eq(walletsTable.id, wallet.id));
+
+  await db.insert(walletTransactionsTable).values({
+    walletId: wallet.id,
+    userId: user.id,
+    type: "investment",
+    amount: String(totalAmount),
+    balanceAfter: String(newBalance),
+    description: `Investment: ${quantity} share${quantity > 1 ? "s" : ""} purchased`,
+    reference: `inv_${Date.now()}`,
+    status: "completed",
+  });
+
   const exitDays = exitType === "wide_season" ? 45 : 180;
   const exitDate = new Date(Date.now() + exitDays * 24 * 60 * 60 * 1000);
 

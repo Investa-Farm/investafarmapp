@@ -183,14 +183,42 @@ export default function FarmerWallet() {
         </div>
 
         {/* Stats strip */}
-        <div className="bg-white border border-border rounded-2xl mt-3 grid grid-cols-2 gap-0 overflow-hidden">
+        <div className="bg-white border border-border rounded-2xl mt-3 grid grid-cols-3 gap-0 overflow-hidden">
           <div className="p-3 text-center border-r border-border">
             <p className="text-green-600 font-bold text-sm">{formatKES(totalEarned)}</p>
             <p className="text-muted-foreground text-[10px] mt-0.5">Total Received</p>
           </div>
+          <div className="p-3 text-center border-r border-border">
+            <p className="text-amber-600 font-bold text-sm">{formatKES(totalEarned * 0.03)}</p>
+            <p className="text-muted-foreground text-[10px] mt-0.5">Pension Saved</p>
+          </div>
           <div className="p-3 text-center">
             <p className="text-foreground font-bold text-sm">{txs.length}</p>
             <p className="text-muted-foreground text-[10px] mt-0.5">Transactions</p>
+          </div>
+        </div>
+
+        {/* Pension savings info */}
+        {totalEarned > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl mt-3 p-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <span className="text-lg">🏦</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-amber-800 font-semibold text-xs">Pension Savings (3% of Revenue)</p>
+              <p className="text-amber-700 text-[10px] mt-0.5">
+                KES {formatKES(totalEarned * 0.03)} automatically saved for your future from total earnings
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Currency indicator */}
+        <div className="flex items-center gap-2 mt-3 bg-white border border-border rounded-2xl px-3 py-2.5">
+          <span className="text-base">🇰🇪</span>
+          <div>
+            <p className="text-foreground font-semibold text-xs">Currency: KES — Kenyan Shilling</p>
+            <p className="text-muted-foreground text-[10px]">All transactions are processed in Kenyan Shillings</p>
           </div>
         </div>
 

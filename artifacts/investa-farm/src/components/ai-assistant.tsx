@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Mic, MicOff } from "lucide-react";
-import { getToken, formatKES } from "@/lib/auth";
+import { getToken } from "@/lib/auth";
 
 type VoiceOrbProps = {
   section?: string;
@@ -60,24 +60,8 @@ const SECTION_CTX: Record<string, SectionCtx> = {
   },
 };
 
-const FEMALE_VOICE_KEYWORDS = [
-  "Samantha", "Google UK English Female", "Microsoft Zira",
-  "Karen", "Moira", "Victoria", "Tessa", "Fiona", "Female",
-  "en-GB", "en-AU", "en-ZA",
-];
-
-function pickFemaleVoice(): SpeechSynthesisVoice | null {
-  const voices = window.speechSynthesis.getVoices();
-  for (const kw of FEMALE_VOICE_KEYWORDS) {
-    const v = voices.find(v => v.name.includes(kw) || v.voiceURI.includes(kw));
-    if (v) return v;
-  }
-  const enFemale = voices.find(v => v.lang.startsWith("en") && (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("woman")));
-  return enFemale ?? voices.find(v => v.lang.startsWith("en")) ?? null;
-}
-
 function speak(text: string, onEnd?: () => void) {
-  if (!window.speechSynthesis) return;
+  if (!window.speechSynthesis) { onEnd?.(); return; }
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(
     text.replace(/[🌾⚡📊💰🎤👋📈🛡️🌦️✅🤳📄⭐🚀🍵🥑🌱]/g, "")
@@ -86,13 +70,6 @@ function speak(text: string, onEnd?: () => void) {
   utt.rate = 0.9;
   utt.pitch = 1.2;
   utt.volume = 1;
-  const setVoice = () => {
-    const v = pickFemaleVoice();
-    if (v) utt.voice = v;
-  };
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length) setVoice();
-  else window.speechSynthesis.addEventListener("voiceschanged", setVoice, { once: true });
   if (onEnd) utt.onend = onEnd;
   window.speechSynthesis.speak(utt);
 }
@@ -124,9 +101,6 @@ function getStaticResponse(q: string, role: string): string | null {
       ? "Habari nzuri! You keep 55 percent of all harvest revenue. Investors take 45 percent. For a KES 200,000 harvest, you get KES 110,000! No loans, no repayment — just harvest and earn. Asante sana Investa Farm!"
       : "Farmers keep 55 percent of all harvest revenue. You as an investor earn from the 45 percent investor pool, proportional to your shares. It's a fair deal for everyone — wakulima na wawekezaji!";
   }
-  if (l.includes("explain") || l.includes("this section") || l.includes("what is this") || l.includes("where am i")) {
-    return null;
-  }
   if (l.includes("minimum") || l.includes("how much") || l.includes("start")) {
     return "Unaweza kuanza na KES 5,000 tu — that's about 50 shares at KES 100 each. Smart strategy: spread across 3 farms — maize for stability, avocado for growth, and coffee for premium returns. Karibu!";
   }
@@ -138,67 +112,31 @@ export function AiAssistant({ initialQuestion, role = "investor" }: { initialQue
 }
 
 export function VoiceOrb({ section = "default", itemName = "", role = "investor", farmData = null }: VoiceOrbProps) {
-  const [visible, setVisible] = useState(false);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [bubble, setBubble] = useState<string | null>(null);
-  const [pulse, setPulse] = useState(false);
-  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
-  const bubbleTimer = useRef<ReturnType<typeof setTimeout>>();
   const recognitionRef = useRef<any>(null);
   const token = getToken();
-
   const ctx = SECTION_CTX[section] ?? SECTION_CTX.default;
-
-  const resetHideTimer = useCallback(() => {
-    clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => setVisible(false), 60000);
-  }, []);
-
-  useEffect(() => {
-    setVisible(false);
-    setBubble(null);
-    const t = setTimeout(() => {
-      setVisible(true);
-      resetHideTimer();
-    }, 1800);
-    return () => { clearTimeout(t); clearTimeout(hideTimer.current); };
-  }, [section, resetHideTimer]);
-
-  const showBubble = useCallback((text: string, duration = 5000) => {
-    setBubble(text);
-    clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = setTimeout(() => setBubble(null), duration);
-  }, []);
 
   const doSpeak = useCallback((text: string) => {
     setSpeaking(true);
-    showBubble(text, Math.max(4000, text.length * 60));
     speak(text, () => setSpeaking(false));
-  }, [showBubble]);
+  }, []);
 
-  const handleOrbPress = useCallback(() => {
-    resetHideTimer();
-    setVisible(true);
-    if (speaking) { window.speechSynthesis?.cancel(); setSpeaking(false); return; }
-    let greeting = ctx.greeting;
-    if (farmData) {
-      greeting = `Jambo! This is ${farmData.name} — a ${farmData.cropType} shamba. ${ctx.intro}`;
-    } else {
-      greeting = `${ctx.greeting} ${ctx.intro}`;
-    }
-    if (ctx.tip) greeting += ` ${ctx.tip}`;
-    doSpeak(greeting);
-  }, [ctx, farmData, speaking, doSpeak, resetHideTimer]);
-
-  const handleMicPress = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const handleMicPress = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
-    resetHideTimer();
-    setVisible(true);
+
+    if (speaking) { window.speechSynthesis?.cancel(); setSpeaking(false); return; }
     if (listening) { recognitionRef.current?.stop(); setListening(false); return; }
 
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRec) { doSpeak("Samahani! Voice input is not supported on this browser. Please try Chrome."); return; }
+    if (!SpeechRec) {
+      const greeting = farmData
+        ? `Jambo! This is ${farmData.name} — a ${farmData.cropType} shamba. ${ctx.intro}`
+        : `${ctx.greeting} ${ctx.intro}`;
+      doSpeak(greeting);
+      return;
+    }
 
     const rec = new SpeechRec();
     rec.continuous = false;
@@ -208,14 +146,7 @@ export function VoiceOrb({ section = "default", itemName = "", role = "investor"
     rec.onresult = async (e: any) => {
       const transcript = (e.results[0]?.[0]?.transcript ?? "").trim();
       if (!transcript) return;
-      showBubble(`"${transcript}"`, 3000);
       setListening(false);
-
-      const lower = transcript.toLowerCase();
-      if (lower.includes("go back") || lower.includes("previous") || lower.includes("rudi") || lower.includes("repeat")) {
-        doSpeak(`Sawa! ${ctx.greeting} ${ctx.intro}`);
-        return;
-      }
 
       const staticReply = getStaticResponse(transcript, role);
       if (staticReply) { doSpeak(staticReply); return; }
@@ -239,121 +170,68 @@ export function VoiceOrb({ section = "default", itemName = "", role = "investor"
       }
     };
 
-    rec.onend = () => { setListening(false); };
+    rec.onend = () => setListening(false);
     rec.onerror = () => { setListening(false); doSpeak("Samahani, sikukusikia. Please press the mic and try again!"); };
 
     recognitionRef.current = rec;
     rec.start();
     setListening(true);
-    setPulse(true);
-    setTimeout(() => setPulse(false), 300);
-  }, [listening, doSpeak, showBubble, ctx, section, farmData, role, token, resetHideTimer]);
+  }, [listening, speaking, doSpeak, ctx, section, farmData, role, token]);
+
+  const isActive = listening || speaking;
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          className="fixed z-40 flex flex-col items-center gap-2 pointer-events-none"
-          style={{ bottom: "5.2rem", right: "1rem" }}
-          initial={{ opacity: 0, scale: 0.5, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.5, y: 20 }}
-          transition={{ type: "spring", damping: 18, stiffness: 260 }}
-        >
-          {/* Speech bubble */}
-          <AnimatePresence>
-            {bubble && (
-              <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.9 }}
-                className="pointer-events-none max-w-[200px] bg-white/95 backdrop-blur-md rounded-2xl rounded-br-sm px-3 py-2 shadow-xl border border-green-100"
-              >
-                <p className="text-gray-800 text-[11px] leading-relaxed font-medium">{bubble}</p>
-                <div className="absolute -bottom-1.5 right-4 w-3 h-3 bg-white rotate-45 border-r border-b border-green-100 shadow-sm" />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Orb container */}
+    <motion.div
+      className="fixed z-40 pointer-events-none"
+      style={{ bottom: "5.5rem", right: "1rem" }}
+      animate={{ y: isActive ? [0, -3, 0] : [0, -4, 0, -2, 0] }}
+      transition={{ duration: isActive ? 0.6 : 3, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <motion.button
+        onPointerDown={handleMicPress}
+        whileTap={{ scale: 0.8 }}
+        className="pointer-events-auto relative flex items-center justify-center rounded-full select-none outline-none"
+        style={{
+          width: 36,
+          height: 36,
+          background: listening
+            ? "linear-gradient(135deg, #dc2626, #ef4444)"
+            : speaking
+            ? "linear-gradient(135deg, #0369a1, #0ea5e9)"
+            : "linear-gradient(135deg, #052e16, #16a34a)",
+          boxShadow: listening
+            ? "0 0 0 3px rgba(239,68,68,0.3), 0 2px 10px rgba(239,68,68,0.4)"
+            : speaking
+            ? "0 0 0 3px rgba(14,165,233,0.3), 0 2px 10px rgba(14,165,233,0.4)"
+            : "0 2px 10px rgba(22,163,74,0.45)",
+        }}
+      >
+        {listening && (
+          <>
+            <motion.div
+              className="absolute inset-0 rounded-full border-2 border-red-400"
+              animate={{ scale: [1, 1.7], opacity: [0.6, 0] }}
+              transition={{ duration: 0.9, repeat: Infinity }}
+            />
+            <motion.div
+              className="absolute inset-0 rounded-full border-2 border-red-300"
+              animate={{ scale: [1, 2.0], opacity: [0.4, 0] }}
+              transition={{ duration: 0.9, repeat: Infinity, delay: 0.3 }}
+            />
+          </>
+        )}
+        {speaking && (
           <motion.div
-            animate={{
-              y: listening ? [0, -4, 0, -4, 0] : speaking ? [0, -6, 0, -3, 0] : [0, -5, 0, -3, 0],
-              rotate: listening ? [0, 0, 0] : [0, -2, 0, 2, 0],
-            }}
-            transition={{
-              duration: listening ? 0.5 : speaking ? 0.8 : 3,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="pointer-events-auto flex items-center gap-1.5"
-          >
-            {/* Main orb */}
-            <motion.button
-              onClick={handleOrbPress}
-              whileTap={{ scale: 0.88 }}
-              className="relative w-12 h-12 rounded-full flex items-center justify-center select-none outline-none"
-              style={{
-                background: listening
-                  ? "linear-gradient(135deg, #dc2626, #ef4444)"
-                  : speaking
-                  ? "linear-gradient(135deg, #0369a1, #0ea5e9)"
-                  : "linear-gradient(135deg, #052e16, #16a34a)",
-                boxShadow: listening
-                  ? "0 0 0 4px rgba(239,68,68,0.25), 0 4px 20px rgba(239,68,68,0.4)"
-                  : speaking
-                  ? "0 0 0 4px rgba(14,165,233,0.25), 0 4px 20px rgba(14,165,233,0.4)"
-                  : "0 0 0 3px rgba(34,197,94,0.2), 0 4px 18px rgba(22,163,74,0.45)",
-              }}
-            >
-              {/* Ripple when listening */}
-              {listening && (
-                <>
-                  <motion.div
-                    className="absolute inset-0 rounded-full border-2 border-red-400"
-                    animate={{ scale: [1, 1.6], opacity: [0.7, 0] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                  />
-                  <motion.div
-                    className="absolute inset-0 rounded-full border-2 border-red-300"
-                    animate={{ scale: [1, 1.9], opacity: [0.5, 0] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: 0.3 }}
-                  />
-                </>
-              )}
-              {/* Sound waves when speaking */}
-              {speaking && (
-                <motion.div
-                  className="absolute inset-0 rounded-full border-2 border-sky-300"
-                  animate={{ scale: [1, 1.5], opacity: [0.6, 0] }}
-                  transition={{ duration: 0.8, repeat: Infinity }}
-                />
-              )}
-              <span className="text-xl select-none">
-                {listening ? "🎤" : speaking ? "🔊" : "🤖"}
-              </span>
-            </motion.button>
-
-            {/* Mic button */}
-            <motion.button
-              onPointerDown={(e) => handleMicPress(e as any)}
-              whileTap={{ scale: 0.85 }}
-              className="w-8 h-8 rounded-full flex items-center justify-center shadow-md"
-              style={{
-                background: listening
-                  ? "linear-gradient(135deg, #dc2626, #b91c1c)"
-                  : "rgba(255,255,255,0.92)",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
-              }}
-            >
-              {listening
-                ? <MicOff size={13} className="text-white" />
-                : <Mic size={13} className="text-green-700" />
-              }
-            </motion.button>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            className="absolute inset-0 rounded-full border-2 border-sky-300"
+            animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
+            transition={{ duration: 0.7, repeat: Infinity }}
+          />
+        )}
+        {listening
+          ? <MicOff size={15} className="text-white" />
+          : <Mic size={15} className="text-white" />
+        }
+      </motion.button>
+    </motion.div>
   );
 }

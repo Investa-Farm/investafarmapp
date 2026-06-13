@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { useGetPortfolio, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES, formatChange } from "@/lib/auth";
-import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink } from "lucide-react";
+import { formatKES, formatChange, getStoredUser } from "@/lib/auth";
+import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight } from "lucide-react";
 import { Link } from "wouter";
 import { ShareModal } from "@/components/share-modal";
 import {
@@ -62,6 +62,22 @@ export default function Portfolio() {
   const [sellOpen, setSellOpen] = useState(false);
   const [shareHolding, setShareHolding] = useState<Holding | null>(null);
   const [period, setPeriod] = useState<Period>("1W");
+  const [activeTab, setActiveTab] = useState<"holdings" | "broker">("holdings");
+  const [brokerEnabled, setBrokerEnabled] = useState(() => localStorage.getItem("investa_broker_mode") === "true");
+  const [copied, setCopied] = useState(false);
+  const user = getStoredUser();
+
+  const brokerLink = `https://investafarm.co.ke/broker/${user?.id ?? ""}`;
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(brokerLink).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  const handleBrokerToggle = () => {
+    const next = !brokerEnabled;
+    setBrokerEnabled(next);
+    localStorage.setItem("investa_broker_mode", String(next));
+  };
 
   const handleExitClick = (h: Holding) => { setSelectedHolding(h); setExitOpen(true); };
   const handleSellClick = (h: Holding) => { setSelectedHolding(h); setSellOpen(true); };
@@ -233,6 +249,138 @@ export default function Portfolio() {
         </div>
       </div>
 
+      {/* Tab switcher */}
+      <div className="mx-4 mt-3">
+        <div className="flex bg-muted rounded-2xl p-1 gap-1">
+          <button onClick={() => setActiveTab("holdings")}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${activeTab === "holdings" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            📊 My Holdings
+          </button>
+          <button onClick={() => setActiveTab("broker")}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${activeTab === "broker" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            <Users size={12} /> Broker Profile
+          </button>
+        </div>
+      </div>
+
+      {/* Broker tab */}
+      {activeTab === "broker" && (
+        <div className="px-4 pt-4 space-y-4">
+          {/* Broker enable toggle */}
+          <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Globe size={18} className="text-primary" />
+                </div>
+                <div>
+                  <p className="text-foreground font-bold text-sm">Public Broker Profile</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">Let others follow your investment picks</p>
+                </div>
+              </div>
+              <button
+                onClick={handleBrokerToggle}
+                className={`relative w-12 h-6 rounded-full transition-colors ${brokerEnabled ? "bg-primary" : "bg-muted"}`}
+              >
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${brokerEnabled ? "left-6" : "left-0.5"}`} />
+              </button>
+            </div>
+            {brokerEnabled && (
+              <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <BadgeCheck size={14} className="text-green-600 flex-shrink-0" />
+                  <p className="text-green-700 font-semibold text-xs">Broker Profile Active</p>
+                </div>
+                <p className="text-green-600 text-[10px] leading-relaxed">Your portfolio picks are now visible to followers. Others can copy your investment strategy.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Shareable link */}
+          <div className="bg-white border border-border rounded-2xl p-4 space-y-3">
+            <p className="text-foreground font-semibold text-sm flex items-center gap-2">
+              <Share2 size={14} className="text-primary" /> Your Broker Link
+            </p>
+            {brokerEnabled ? (
+              <>
+                <div className="bg-muted/50 border border-border rounded-xl px-3 py-2.5 flex items-center gap-2">
+                  <Globe size={12} className="text-muted-foreground flex-shrink-0" />
+                  <p className="text-foreground text-xs font-mono flex-1 truncate">{brokerLink}</p>
+                </div>
+                <button
+                  onClick={handleCopyLink}
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1.5 ${copied ? "bg-green-600 text-white" : "bg-primary text-white"}`}
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  {copied ? "Copied!" : "Copy Broker Link"}
+                </button>
+              </>
+            ) : (
+              <div className="bg-muted/40 rounded-xl p-3 flex items-center gap-2">
+                <Lock size={14} className="text-muted-foreground" />
+                <p className="text-muted-foreground text-xs">Enable your broker profile to get a shareable link</p>
+              </div>
+            )}
+          </div>
+
+          {/* Portfolio snapshot */}
+          <div className="bg-white border border-border rounded-2xl p-4 space-y-3">
+            <p className="text-foreground font-semibold text-sm">Portfolio Snapshot</p>
+            {summary && (holdings?.length ?? 0) > 0 ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "Total Holdings", val: String(summary.holdings), icon: "🌾" },
+                    { label: "Total Value", val: formatKES(summary.totalValue), icon: "💰" },
+                    { label: "Overall Return", val: formatChange(summary.overallGainLossPercent), icon: "📈" },
+                    { label: "Avg per Farm", val: summary.holdings > 0 ? formatKES(summary.totalValue / summary.holdings) : "—", icon: "📊" },
+                  ].map(({ label, val, icon }) => (
+                    <div key={label} className="bg-muted/40 rounded-xl p-2.5 text-center">
+                      <p className="text-base mb-1">{icon}</p>
+                      <p className="text-foreground font-bold text-sm">{val}</p>
+                      <p className="text-muted-foreground text-[9px]">{label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-border pt-3 space-y-2">
+                  <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">Top Holdings</p>
+                  {(holdings as Holding[])?.slice(0, 3).map((h) => (
+                    <div key={h.id} className="flex items-center gap-2">
+                      <img src={getCropImage(h.cropType, h.imageUrl)} alt={h.farmName} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground font-medium text-xs truncate">{h.farmName}</p>
+                        <p className="text-muted-foreground text-[10px]">{h.cropType} · {h.quantity} shares</p>
+                      </div>
+                      <span className={`text-xs font-bold ${h.gainLoss >= 0 ? "text-green-600" : "text-red-500"}`}>{formatChange(h.gainLossPercent)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <TrendingUp size={24} className="text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-xs">Invest in farms to build your broker profile</p>
+              </div>
+            )}
+          </div>
+
+          {/* Followers placeholder */}
+          <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-foreground font-semibold text-sm">Followers</p>
+              <span className="text-muted-foreground text-xs">0 followers</span>
+            </div>
+            <div className="text-center py-4">
+              <Users size={24} className="text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground text-xs">Share your broker link to gain followers</p>
+              <p className="text-muted-foreground text-[10px] mt-0.5">Followers can see your picks and copy your strategy</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Holdings tab */}
+      {activeTab === "holdings" && (
       <div className="px-4 pt-4 space-y-3">
         <h2 className="font-semibold text-foreground text-sm">My Holdings</h2>
         {isLoading
@@ -308,8 +456,8 @@ export default function Portfolio() {
                         >
                           <Share2 size={12} /> Share
                         </button>
-                        <Link
-                          to={`/market/farm/${h.farmId}`}
+                                        <Link
+                          to={`/market/${h.farmId}`}
                           className="py-2 px-2.5 rounded-xl border border-border text-muted-foreground text-xs font-medium active:scale-95 transition-all flex items-center gap-1"
                         >
                           <ExternalLink size={12} /> View Farm
@@ -337,6 +485,7 @@ export default function Portfolio() {
               })
         }
       </div>
+      )}
 
       <ExitModal open={exitOpen} onClose={() => setExitOpen(false)} holding={selectedHolding} />
       <SellSharesModal open={sellOpen} onClose={() => setSellOpen(false)} holding={selectedHolding} />
