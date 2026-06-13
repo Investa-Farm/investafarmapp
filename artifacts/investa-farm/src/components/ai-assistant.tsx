@@ -315,30 +315,38 @@ export function AiAssistant({ initialQuestion, role = "investor" }: { initialQue
     <>
       <AnimatePresence>
         {!open && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: "spring", damping: 15, delay: 0.5 }}
-            onClick={() => setOpen(true)}
-            className="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full shadow-xl shadow-primary/40 flex items-center justify-center"
-            style={gradientStyle}
+          <motion.div
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 16, opacity: 0 }}
+            transition={{ type: "spring", damping: 22, delay: 0.9 }}
+            className="fixed bottom-[4.5rem] inset-x-0 z-40 px-4 pointer-events-none"
           >
-            {/* Pulsing ring */}
-            <motion.div
-              className="absolute inset-0 rounded-full"
-              style={{ background: "rgba(22,163,74,0.3)" }}
-              animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
-              transition={{ repeat: Infinity, duration: 2.8 }}
-            />
-            {role === "farmer"
-              ? <Leaf size={22} className="text-white relative z-10" />
-              : <Bot size={22} className="text-white relative z-10" />
-            }
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-sm">
-              <Sparkles size={9} className="text-white" />
-            </span>
-          </motion.button>
+            <div className="max-w-[430px] mx-auto pointer-events-auto">
+              <button
+                onClick={() => setOpen(true)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl shadow-lg active:scale-[0.98] transition-transform"
+                style={gradientStyle}
+              >
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  {role === "farmer" ? <Leaf size={15} className="text-white" /> : <Bot size={15} className="text-white" />}
+                </div>
+                <p className="flex-1 text-left text-white/75 text-sm font-medium">Ask me anything…</p>
+                <div className="flex items-center gap-1.5">
+                  {listening && <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); startListening(); setOpen(true); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); startListening(); setOpen(true); } }}
+                    className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+                  >
+                    <Mic size={14} className={listening ? "text-red-300" : "text-white"} />
+                  </div>
+                </div>
+              </button>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

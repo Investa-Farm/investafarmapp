@@ -697,6 +697,55 @@ export async function sendPriceAlertEmail(to: string, name: string, farmName: st
   });
 }
 
+// ─── FARM UPDATE EMAIL ────────────────────────────────────────────────────────
+export async function sendFarmUpdateEmail(
+  to: string,
+  investorName: string,
+  farmName: string,
+  updateTitle: string,
+  updateDescription: string,
+  farmId: number,
+): Promise<void> {
+  const transport = createTransport();
+  if (!transport) {
+    console.log(`[EMAIL] Farm update email for ${to} (SMTP not configured)`);
+    return;
+  }
+  const appUrl = process.env.APP_URL ?? "https://investa.farm";
+  const farmUrl = `${appUrl}/market/${farmId}`;
+  const content = `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#052e16,#16a34a);font-size:28px;">🌱</div>
+    </div>
+    <h2 style="font-size:20px;font-weight:800;color:#111827;text-align:center;margin:0 0 6px 0;">New Field Update</h2>
+    <p style="font-size:14px;color:#6b7280;text-align:center;margin:0 0 24px 0;">Your farm just posted fresh progress</p>
+
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #16a34a;border-radius:12px;padding:20px;margin-bottom:24px;">
+      <p style="font-weight:700;color:#14532d;font-size:15px;margin:0 0 8px 0;">📢 ${updateTitle}</p>
+      <p style="color:#166534;font-size:13px;line-height:1.6;margin:0;">${updateDescription}</p>
+    </div>
+
+    <p style="font-size:13px;color:#374151;line-height:1.6;margin:0 0 8px 0;">
+      Hi <strong>${investorName}</strong>, your investment in <strong style="color:#16a34a;">${farmName}</strong> has a new field update.
+    </p>
+    <p style="font-size:13px;color:#6b7280;line-height:1.6;margin:0 0 24px 0;">
+      Staying informed helps you track crop progress and make smarter exit timing decisions. Farms with active updates tend to return <strong>+12% higher yields</strong> for investors.
+    </p>
+
+    <div style="text-align:center;">
+      <a href="${farmUrl}" style="display:inline-block;background:linear-gradient(135deg,#052e16,#16a34a);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:12px;letter-spacing:0.3px;">
+        View Farm Update →
+      </a>
+    </div>
+  `;
+  await transport.sendMail({
+    from: `"Investa Farm" <${process.env.GOOGLE_SMTP_USER ?? "noreply@investafarm.com"}>`,
+    to,
+    subject: `🌱 Field Update: ${farmName} — ${updateTitle}`,
+    html: emailWrapper(content, `${farmName} posted a new field update: "${updateTitle}"`),
+  });
+}
+
 // ─── WEEKLY OPPORTUNITY DIGEST ────────────────────────────────────────────────
 export async function sendOpportunityDigest(
   to: string, name: string,

@@ -150,6 +150,7 @@ interface Props {
 
 export function AppTour({ role = "investor", onAskAI }: Props) {
   const [open, setOpen] = useState(false);
+  const [tourDone, setTourDone] = useState(() => localStorage.getItem(`${TOUR_KEY}_${role}`) === "done");
   const [idx, setIdx] = useState(0);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
   const [, setLocation] = useLocation();
@@ -192,6 +193,7 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
 
   const dismiss = () => {
     localStorage.setItem(TOUR_KEY + "_" + role, "done");
+    setTourDone(true);
     setOpen(false);
     setHighlightRect(null);
     setIdx(0);
@@ -225,7 +227,7 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
 
   return createPortal(
     <>
-      {!open && (
+      {!open && !tourDone && (
         <motion.button
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}

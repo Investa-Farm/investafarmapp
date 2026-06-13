@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
-import { db, farmsTable, investmentsTable, farmUpdatesTable, marketListingsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, farmsTable, investmentsTable, farmUpdatesTable, marketListingsTable, usersTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
 import { CreateFarmUpdateBody } from "@workspace/api-zod";
 import { getCurrentUser } from "./auth";
 import { notifyUser } from "../lib/push";
+import { sendFarmUpdateEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -144,6 +145,22 @@ router.post("/farmer/updates", async (req, res): Promise<void> => {
         parsed.data.title,
         `/market/${farm.id}`
       ).catch(() => {});
+    }
+    // Email notifications
+    if (uniqueIds.length > 0) {
+      const investorUsers = await db.select({ id: usersTable.id, email: usersTable.email, name: usersTable.name })
+        .from(usersTable)
+        .where(inArray(usersTable.id, uniqueIds));
+      for (const investor of investorUsers) {
+        sendFarmUpdateEmail(
+          investor.email,
+          investor.name,
+          farm.name,
+          parsed.data.title,
+          parsed.data.description,
+          farm.id
+        ).catch(() => {});
+      }
     }
   } catch {}
 

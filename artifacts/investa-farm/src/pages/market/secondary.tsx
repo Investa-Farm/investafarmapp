@@ -121,7 +121,7 @@ export default function SecondaryMarket() {
     <div className="app-shell pb-20 page-enter" data-testid="secondary-market">
       {/* Premium header */}
       <div className="relative pt-12 pb-5 px-5 overflow-hidden"
-        style={{ background: "linear-gradient(160deg, #1a0533 0%, #2d0f52 45%, #4c1d95 80%, #6d28d9 100%)" }}>
+        style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 40%, #16a34a 80%, #22c55e 100%)" }}>
         {/* Dot matrix texture */}
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
@@ -134,9 +134,9 @@ export default function SecondaryMarket() {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <p className="text-white/70 text-[10px] font-semibold uppercase tracking-widest">Investor to Investor</p>
-              <span className="flex items-center gap-1 bg-violet-400/20 border border-violet-400/40 rounded-full px-2 py-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-300 animate-pulse" />
-                <span className="text-violet-200 text-[9px] font-bold tracking-wider">LIVE</span>
+              <span className="flex items-center gap-1 bg-green-400/20 border border-green-400/40 rounded-full px-2 py-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse" />
+                <span className="text-green-100 text-[9px] font-bold tracking-wider">LIVE</span>
               </span>
             </div>
             <h1 className="text-white text-xl font-extrabold">Secondary Market</h1>
@@ -162,9 +162,9 @@ export default function SecondaryMarket() {
         {/* Volume ticker */}
         {totalVolume > 0 && (
           <div className="relative mt-3 bg-white/8 rounded-xl px-3 py-2 flex items-center gap-2">
-            <RefreshCcw size={10} className="text-violet-300 animate-spin" style={{ animationDuration: "3s" }} />
+            <RefreshCcw size={10} className="text-green-300 animate-spin" style={{ animationDuration: "3s" }} />
             <p className="text-white/70 text-[10px]">
-              Total market volume: <span className="text-violet-300 font-bold">{formatKES(totalVolume)}</span>
+              Total market volume: <span className="text-green-300 font-bold">{formatKES(totalVolume)}</span>
             </p>
           </div>
         )}
@@ -199,8 +199,8 @@ export default function SecondaryMarket() {
               Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-52 rounded-2xl" />)
             ) : listings?.length === 0 ? (
               <div className="text-center py-16">
-                <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center mx-auto mb-3">
-                  <Users2 size={28} className="text-violet-500" />
+                <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-3">
+                  <Users2 size={28} className="text-primary" />
                 </div>
                 <p className="text-foreground text-sm font-semibold">No secondary listings yet</p>
                 <p className="text-muted-foreground text-xs mt-1 max-w-[220px] mx-auto">
@@ -232,7 +232,7 @@ export default function SecondaryMarket() {
                           {isUp ? "▲" : "▼"} {formatChange(listing.changePercent)}
                         </span>
                         <RiskBadge level={getRiskLevel(listing.cropType, listing.changePercent)} />
-                        <span className="text-[9px] font-bold bg-violet-500/80 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
+                        <span className="text-[9px] font-bold bg-green-600/80 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
                           RESALE
                         </span>
                       </div>
@@ -260,12 +260,12 @@ export default function SecondaryMarket() {
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-16 opacity-80">
-                            <Sparkline data={sparkData} color={isUp ? "#a78bfa" : "#f87171"} height={28} />
+                            <Sparkline data={sparkData} color={isUp ? "#4ade80" : "#f87171"} height={28} />
                           </div>
                           <button data-testid={`button-buy-${listing.id}`}
                             onClick={(e) => handleBuyClick(e, listing as Listing)}
                             className="text-white font-bold px-4 py-2 rounded-xl text-sm active:scale-95 transition-transform shadow-lg"
-                            style={{ background: "linear-gradient(135deg, #6d28d9, #7c3aed)" }}>
+                            style={{ background: "linear-gradient(135deg, #14532d, #16a34a)" }}>
                             BUY
                           </button>
                         </div>
@@ -282,8 +282,8 @@ export default function SecondaryMarket() {
               Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
             ) : myListings.length === 0 ? (
               <div className="text-center py-16">
-                <div className="w-16 h-16 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-3">
-                  <Tag size={28} className="text-violet-500" />
+                <div className="w-16 h-16 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-3">
+                  <Tag size={28} className="text-primary" />
                 </div>
                 <p className="text-foreground text-sm font-semibold">No listings yet</p>
                 <p className="text-muted-foreground text-xs mt-1 max-w-[220px] mx-auto leading-relaxed">

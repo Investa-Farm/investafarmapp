@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign } from "lucide-react";
 import {
   useGetTopMovers,
   useListPrimaryMarket,
@@ -8,7 +8,7 @@ import {
 } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
-import { formatChange, getToken } from "@/lib/auth";
+import { formatChange, getToken, formatKES } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
@@ -21,6 +21,7 @@ import { NotificationsPanel } from "@/components/notifications-panel";
 import { useCurrency } from "@/lib/currency";
 import { InvestmentCalculator } from "@/components/investment-calculator";
 import { PriceAlertModal } from "@/components/price-alert-modal";
+import { motion, AnimatePresence } from "framer-motion";
 
 const CROPS = [
   { name: "Maize",    change: 2.1  },
@@ -154,6 +155,12 @@ export default function MarketHome() {
   const [investOpen, setInvestOpen] = useState(false);
   const [watchlisted, setWatchlisted] = useState<Set<number>>(new Set());
   const [activeSection, setActiveSection] = useState<"market" | "news" | "watchlist">("market");
+  const [committed, setCommitted] = useState<Record<number, number>>(() => {
+    try { return JSON.parse(localStorage.getItem("investa_watchlist_commits") ?? "{}") ?? {}; } catch { return {}; }
+  });
+  const [commitOpen, setCommitOpen] = useState(false);
+  const [commitCrop, setCommitCrop] = useState<typeof WATCHLIST_CROPS[0] | null>(null);
+  const [commitInput, setCommitInput] = useState("");
   const [notifOpen, setNotifOpen] = useState(false);
   const [aiQuestion, setAiQuestion] = useState<string | undefined>(undefined);
   const [calcOpen, setCalcOpen] = useState(false);
@@ -536,11 +543,22 @@ export default function MarketHome() {
 
         {activeSection === "watchlist" && (
           <section className="space-y-3">
-            <div className="flex items-center gap-2 mb-1">
-              <BookmarkPlus size={15} className="text-primary" />
-              <h2 className="font-semibold text-sm text-foreground">Upcoming Crop Season Watchlist</h2>
+            {/* Grass-green watchlist header */}
+            <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
+              <div className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-green-300 text-[10px] font-bold uppercase tracking-widest mb-0.5">🌱 Season Watchlist</p>
+                  <h2 className="text-white font-bold text-base leading-tight">Upcoming Crop Seasons</h2>
+                  <p className="text-white/60 text-xs mt-0.5">Commit funds before listings go live</p>
+                </div>
+                {Object.values(committed).reduce((a, b) => a + b, 0) > 0 && (
+                  <div className="text-right">
+                    <p className="text-white/60 text-[10px]">Committed</p>
+                    <p className="text-green-300 font-bold text-sm">{formatKES(Object.values(committed).reduce((a, b) => a + b, 0))}</p>
+                  </div>
+                )}
+              </div>
             </div>
-            <p className="text-muted-foreground text-xs -mt-2">Crops about to be planted with investment opportunities</p>
             {WATCHLIST_CROPS.map(crop => (
               <div key={crop.id} className="bg-card rounded-2xl border border-border overflow-hidden">
                 <div className="relative h-28">
@@ -581,11 +599,21 @@ export default function MarketHome() {
                       className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all active:scale-95 ${watchlisted.has(crop.id) ? "bg-primary border-primary" : "border-border"}`}>
                       <BookmarkPlus size={14} className={watchlisted.has(crop.id) ? "text-white" : "text-muted-foreground"} />
                     </button>
-                    <Link href="/market/primary">
-                      <button className="bg-primary text-white text-xs font-semibold px-3 py-2 rounded-xl active:scale-95 transition-transform">
-                        Invest
+                    {committed[crop.id] ? (
+                      <button
+                        onClick={() => { setCommitCrop(crop); setCommitInput(String(committed[crop.id])); setCommitOpen(true); }}
+                        className="flex items-center gap-1.5 bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-xl active:scale-95 transition-transform">
+                        <CheckCircle2 size={12} />
+                        {formatKES(committed[crop.id])}
                       </button>
-                    </Link>
+                    ) : (
+                      <button
+                        onClick={() => { setCommitCrop(crop); setCommitInput(""); setCommitOpen(true); }}
+                        className="bg-primary text-white text-xs font-semibold px-3 py-2 rounded-xl active:scale-95 transition-transform flex items-center gap-1">
+                        <DollarSign size={11} />
+                        Commit
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -599,6 +627,95 @@ export default function MarketHome() {
           </section>
         )}
       </div>
+
+      {/* Commit Funds Bottom Sheet */}
+      <AnimatePresence>
+        {commitOpen && commitCrop && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setCommitOpen(false)} />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed bottom-0 inset-x-0 z-50 max-w-[430px] mx-auto bg-card rounded-t-3xl shadow-xl px-5 pt-5 pb-10">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="font-bold text-foreground">Commit Funds</p>
+                  <p className="text-muted-foreground text-xs">{commitCrop.name} · {commitCrop.season}</p>
+                </div>
+                <button onClick={() => setCommitOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <X size={14} />
+                </button>
+              </div>
+              {/* Crop preview */}
+              <div className="relative h-24 rounded-2xl overflow-hidden mb-4">
+                <img src={commitCrop.image} alt={commitCrop.name} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30 flex items-center p-4">
+                  <div>
+                    <p className="text-white font-bold">{commitCrop.name}</p>
+                    <p className="text-green-400 text-sm font-bold">{commitCrop.expectedReturn} expected</p>
+                    <p className="text-white/60 text-xs">Harvest: {commitCrop.harvestEst}</p>
+                  </div>
+                </div>
+              </div>
+              {/* Preset amounts */}
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Quick amounts (KES):</p>
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {[5000, 10000, 25000, 50000].map(amt => (
+                  <button key={amt} onClick={() => setCommitInput(String(amt))}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 ${commitInput === String(amt) ? "bg-primary text-white border-primary" : "border-border text-foreground"}`}>
+                    {amt >= 1000 ? `${amt / 1000}K` : amt}
+                  </button>
+                ))}
+              </div>
+              {/* Custom input */}
+              <div className="flex items-center gap-2 bg-muted/60 rounded-xl px-3 py-3 mb-4">
+                <span className="text-muted-foreground text-sm font-medium">KES</span>
+                <input
+                  type="number"
+                  placeholder="Enter custom amount"
+                  value={commitInput}
+                  onChange={e => setCommitInput(e.target.value)}
+                  className="flex-1 bg-transparent text-foreground text-sm font-semibold outline-none placeholder:text-muted-foreground/50"
+                />
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4">
+                <p className="text-green-700 text-xs leading-relaxed">
+                  💡 Committing funds reserves your intent to invest when this crop listing opens. No charges now — you'll be notified first when shares go live.
+                </p>
+              </div>
+              <button
+                disabled={!commitInput || Number(commitInput) <= 0}
+                onClick={() => {
+                  const amt = Number(commitInput);
+                  if (amt > 0) {
+                    const updated = { ...committed, [commitCrop.id]: amt };
+                    setCommitted(updated);
+                    localStorage.setItem("investa_watchlist_commits", JSON.stringify(updated));
+                  }
+                  setCommitOpen(false);
+                }}
+                className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-[0.98] transition-all disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #052e16, #16a34a)" }}
+              >
+                {committed[commitCrop.id] ? "Update Commitment" : "Commit Funds"} {commitInput && Number(commitInput) > 0 ? `· ${formatKES(Number(commitInput))}` : ""}
+              </button>
+              {committed[commitCrop.id] && (
+                <button
+                  onClick={() => {
+                    const updated = { ...committed };
+                    delete updated[commitCrop.id];
+                    setCommitted(updated);
+                    localStorage.setItem("investa_watchlist_commits", JSON.stringify(updated));
+                    setCommitOpen(false);
+                  }}
+                  className="w-full mt-2 py-2.5 rounded-2xl text-muted-foreground text-xs font-medium active:scale-[0.98] transition-all">
+                  Remove commitment
+                </button>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <InvestModal
         open={investOpen}
