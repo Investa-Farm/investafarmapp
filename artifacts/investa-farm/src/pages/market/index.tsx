@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map } from "lucide-react";
 import {
   useGetTopMovers,
   useListPrimaryMarket,
@@ -232,6 +232,13 @@ export default function MarketHome() {
                 <span className="text-white text-xs font-bold">{formatKES(parseFloat(walletBalance ?? "0"))}</span>
               </button>
             )}
+            <button
+              onClick={() => setLocation("/market/map")}
+              className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center backdrop-blur-sm border border-white/15"
+              title="Farm Map"
+            >
+              <Map size={17} className="text-white" />
+            </button>
             <button
               onClick={() => setNotifOpen(true)}
               className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center relative backdrop-blur-sm border border-white/15"

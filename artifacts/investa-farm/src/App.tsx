@@ -16,6 +16,7 @@ import VerifyOtp from "@/pages/verify-otp";
 import MarketHome from "@/pages/market/index";
 import PrimaryMarket from "@/pages/market/primary";
 import SecondaryMarket from "@/pages/market/secondary";
+import FarmMap from "@/pages/market/farm-map";
 import FarmDetail from "@/pages/market/farm-detail";
 import Portfolio from "@/pages/portfolio";
 import Activity from "@/pages/activity";
@@ -129,6 +130,9 @@ function Router() {
       </Route>
       <Route path="/market/secondary">
         <AuthGuard role="investor"><SecondaryMarket /></AuthGuard>
+      </Route>
+      <Route path="/market/map">
+        <AuthGuard role="investor"><FarmMap /></AuthGuard>
       </Route>
       <Route path="/market/:id">
         <AuthGuard role="investor"><FarmDetail /></AuthGuard>
