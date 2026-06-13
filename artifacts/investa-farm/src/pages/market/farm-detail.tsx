@@ -5,6 +5,7 @@ import { ArrowLeft, TrendingUp, TrendingDown, Users, Share2, ShoppingCart, Leaf,
 import { ShareModal } from "@/components/share-modal";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
+import { getCropImage } from "@/lib/crops";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
 import { useQuery } from "@tanstack/react-query";
@@ -105,7 +106,7 @@ export default function FarmDetail() {
       {/* Hero image */}
       <div className="relative h-56">
         <img
-          src={farm.imageUrl ?? "https://images.unsplash.com/photo-1500651230702-0e2d8a49d4ad?w=600&q=80"}
+          src={getCropImage(farm.cropType, farm.imageUrl)}
           alt={farm.name}
           className="w-full h-full object-cover"
         />

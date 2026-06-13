@@ -519,14 +519,12 @@ export default function MarketHome() {
                         <div className="px-3.5 pb-3.5 pt-0 border-t border-border">
                           <p className="text-muted-foreground text-sm leading-relaxed mt-3">{item.summary}</p>
                           {item.url && item.url !== "#" && (
-                            <a
-                              href={item.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 mt-3 text-primary text-xs font-semibold hover:text-primary/80 transition-colors"
+                            <button
+                              onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
+                              className="inline-flex items-center gap-1.5 mt-3 text-primary text-xs font-semibold hover:text-primary/80 transition-colors active:scale-95"
                             >
                               Read full article <ExternalLink size={11} />
-                            </a>
+                            </button>
                           )}
                         </div>
                       )}

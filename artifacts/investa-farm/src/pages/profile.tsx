@@ -8,7 +8,8 @@ import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { InvestorKycModal } from "@/components/investor-kyc-modal";
 import { NotificationStatusRow } from "@/components/notification-prompt";
-import { AiAssistant } from "@/components/ai-assistant";
+import { VoiceOrb } from "@/components/ai-assistant";
+import { WalletModal } from "@/components/wallet-modal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
 
@@ -20,6 +21,8 @@ export default function Profile() {
   const { data: summary } = useGetPortfolioSummary();
   const [kycOpen, setKycOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [currencyOpen, setCurrencyOpen] = useState(false);
   const token = getToken();
   const stored = getStoredUser();
   const queryClient = useQueryClient();
@@ -193,30 +196,15 @@ export default function Profile() {
           ))}
         </div>
 
-        {/* Currency switcher — compact pills */}
-        <div className="flex items-center gap-1.5 mt-3 overflow-x-auto pb-0.5">
-          <span className="text-white/50 text-[9px] font-bold uppercase tracking-wider flex-shrink-0">Currency:</span>
-          {CURRENCIES.map(c => (
-            <button key={c.code} onClick={() => setCurrency(c.code)}
-              className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all active:scale-95 border ${
-                currency.code === c.code
-                  ? "bg-white text-green-800 border-white"
-                  : "bg-white/10 text-white/70 border-white/20"
-              }`}>
-              {c.flag} {c.code}
-            </button>
-          ))}
-        </div>
-
         {/* Quick action buttons */}
         <div className="grid grid-cols-2 gap-2 mt-3">
-          <button onClick={() => setLocation("/wallet")}
+          <button onClick={() => setWalletOpen(true)}
             className="bg-white/20 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform border border-white/20">
             <Wallet size={12} /> View Wallet
           </button>
-          <button onClick={() => setLocation("/wallet")}
+          <button onClick={() => setCurrencyOpen(true)}
             className="bg-white/15 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform border border-white/20">
-            <ArrowUpRight size={12} /> Withdraw
+            <span className="text-xs">{currency.flag}</span> {currency.code}
           </button>
         </div>
       </div>
@@ -327,7 +315,6 @@ export default function Profile() {
 
       <BottomNav role="investor" />
       <InvestorKycModal open={kycOpen} onClose={() => setKycOpen(false)} onVerified={() => setKycOpen(false)} />
-      <AiAssistant />
 
       {/* Account Settings Sheet */}
       <AnimatePresence>
@@ -387,6 +374,57 @@ export default function Profile() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Wallet popup modal */}
+      <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
+
+      {/* Currency picker popup */}
+      <AnimatePresence>
+        {currencyOpen && (
+          <motion.div
+            className="fixed inset-0 z-[60] flex items-end justify-center"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setCurrencyOpen(false)} />
+            <motion.div
+              className="relative w-full max-w-[430px] bg-background rounded-t-3xl shadow-2xl px-5 pt-4 pb-10"
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-bold text-base">Display Currency</h3>
+                  <p className="text-muted-foreground text-xs mt-0.5">Currently showing in {currency.name}</p>
+                </div>
+                <button onClick={() => setCurrencyOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <X size={15} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {CURRENCIES.map(c => (
+                  <button key={c.code} onClick={() => { setCurrency(c.code); setCurrencyOpen(false); }}
+                    className={`flex items-center gap-3 p-3.5 rounded-2xl border transition-all active:scale-95 ${
+                      currency.code === c.code
+                        ? "bg-primary border-primary text-white shadow-md shadow-primary/20"
+                        : "border-border bg-card text-foreground"
+                    }`}>
+                    <span className="text-2xl">{c.flag}</span>
+                    <div className="text-left">
+                      <p className={`font-bold text-sm ${currency.code === c.code ? "text-white" : "text-foreground"}`}>{c.code}</p>
+                      <p className={`text-[10px] ${currency.code === c.code ? "text-white/70" : "text-muted-foreground"}`}>{c.name}</p>
+                    </div>
+                    {currency.code === c.code && (
+                      <span className="ml-auto text-white text-xs font-bold">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <VoiceOrb section="profile" role={user?.role === "farmer" ? "farmer" : "investor"} />
     </div>
   );
 }

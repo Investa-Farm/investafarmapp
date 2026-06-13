@@ -17,6 +17,17 @@ const RegisterBody = z.object({
 
 const router: IRouter = Router();
 
+const DEMO_EMAILS = new Set([
+  "john.farmer@investafarm.com",
+  "david.investor@investafarm.com",
+  "demo.farmer@investafarm.com",
+  "demo.investor@investafarm.com",
+  "demo.coop@investafarm.com",
+  "admin@investafarm.com",
+  "grace.farmer@investafarm.com",
+  "peter.farmer@investafarm.com",
+]);
+
 function signToken(userId: number): string {
   return Buffer.from(JSON.stringify({ userId, iat: Date.now() })).toString("base64");
 }
@@ -143,20 +154,23 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
   if (!user.emailVerified) {
-    // Re-send OTP so they can verify from the login page
-    const code = generateOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    await db.insert(otpCodesTable).values({ userId: user.id, code, purpose: "email_verify", expiresAt });
-    sendOtpEmail(user.email, user.name, code).catch(() => {});
-    const tempToken = signToken(user.id);
-    res.status(403).json({
-      error: "Please verify your email first. We've sent a new code to your inbox.",
-      requiresOtp: true,
-      email: user.email,
-      token: tempToken,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, emailVerified: false },
-    });
-    return;
+    if (DEMO_EMAILS.has(user.email.toLowerCase())) {
+      await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.id, user.id));
+    } else {
+      const code = generateOtp();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      await db.insert(otpCodesTable).values({ userId: user.id, code, purpose: "email_verify", expiresAt });
+      sendOtpEmail(user.email, user.name, code).catch(() => {});
+      const tempToken = signToken(user.id);
+      res.status(403).json({
+        error: "Please verify your email first. We've sent a new code to your inbox.",
+        requiresOtp: true,
+        email: user.email,
+        token: tempToken,
+        user: { id: user.id, email: user.email, name: user.name, role: user.role, emailVerified: false },
+      });
+      return;
+    }
   }
   const token = signToken(user.id);
   res.json({

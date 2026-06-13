@@ -1,474 +1,359 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Bot, Sparkles, Mic, MicOff, Volume2, VolumeX, TrendingUp, ArrowRight, Loader2, Leaf } from "lucide-react";
-import { useLocation } from "wouter";
+import { Mic, MicOff } from "lucide-react";
 import { getToken, formatKES } from "@/lib/auth";
 
-type Message = {
-  role: "user" | "bot" | "action";
-  text: string;
-  time: string;
-  action?: { label: string; path: string; icon?: React.ReactNode };
+type VoiceOrbProps = {
+  section?: string;
+  itemName?: string;
+  role?: "investor" | "farmer";
+  farmData?: { name: string; cropType: string; pricePerShare: number; returnRate?: string } | null;
 };
 
-const INVESTOR_QUICK_QUESTIONS = [
-  "What farms can I invest in?",
-  "Open my portfolio",
-  "How do I earn returns?",
-  "What is Mid-Season exit?",
-  "How much to start investing?",
-  "Is my money safe?",
+type SectionCtx = { greeting: string; intro: string; tip?: string };
+
+const SECTION_CTX: Record<string, SectionCtx> = {
+  market: {
+    greeting: "Jambo! Karibu kwenye soko la mashamba.",
+    intro: "Welcome to the farm market! I can tell you about any listing here — returns, risk levels, or how to invest. Just ask me!",
+    tip: "Try asking: 'Which farm has the best returns?' or 'How do I invest?'",
+  },
+  "farm-detail": {
+    greeting: "Jambo! Habari about this shamba?",
+    intro: "I can explain this farm's performance, crop growth stage, projected returns, and help you decide whether to invest. Nikusaidie?",
+    tip: "Ask me about the Mid-Season or Full Season exit, or say 'invest' to get started.",
+  },
+  portfolio: {
+    greeting: "Habari! Your portfolio is looking good.",
+    intro: "I can explain your holdings, unrealised gains, and when to exit for the best returns. Asante for using Investa Farm!",
+    tip: "Ask me 'when should I exit?' or 'explain my P&L'.",
+  },
+  wallet: {
+    greeting: "Jambo! This is your Investa Wallet — mkoba wako.",
+    intro: "I can help you top up via M-Pesa, explain how withdrawals work, and track your balance. Pesa yako iko salama!",
+    tip: "Ask me 'how do I add money?' or 'when do my returns arrive?'",
+  },
+  profile: {
+    greeting: "Karibu! How can I help you today?",
+    intro: "I can guide you through KYC verification, explain broker status, and help with account settings.",
+    tip: "Ask me 'how do I get verified?' or 'what is broker status?'",
+  },
+  farmer: {
+    greeting: "Jambo, Mkulima! Habari za shamba lako?",
+    intro: "I'm your farming advisor. I can help with KYC documents, funding applications, and understanding your 55% revenue share. Karibu sana!",
+    tip: "Ask me 'how do I get funded?' or 'explain the 55/45 split'.",
+  },
+  "farmer-dashboard": {
+    greeting: "Habari, Mkulima! Welcome to your dashboard.",
+    intro: "Here you can see your farm's funding progress, investor activity, and field updates. Kila kitu kiko hapa!",
+    tip: "Ask me about your funding progress or how to attract more investors.",
+  },
+  news: {
+    greeting: "Jambo! Here are today's agriculture news.",
+    intro: "I can summarise any article or explain how Kenya's commodity prices affect your investments. Habari nzuri!",
+    tip: "Ask me 'how does maize price affect my returns?'",
+  },
+  default: {
+    greeting: "Jambo! Mimi ni msaidizi wako wa Investa Farm.",
+    intro: "I'm your Investa Farm voice assistant. I can help you invest in farms, understand returns, and navigate the app. Press the mic and ask anything!",
+    tip: "Say 'show me available farms' or 'explain how returns work'.",
+  },
+};
+
+const FEMALE_VOICE_KEYWORDS = [
+  "Samantha", "Google UK English Female", "Microsoft Zira",
+  "Karen", "Moira", "Victoria", "Tessa", "Fiona", "Female",
+  "en-GB", "en-AU", "en-ZA",
 ];
 
-const FARMER_QUICK_QUESTIONS = [
-  "How do I get funded?",
-  "When will investors see my farm?",
-  "What is the 55/45 split?",
-  "How do I complete KYC?",
-  "How do I post a field update?",
-  "What documents do I need?",
-];
-
-function getTime() {
-  return new Date().toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" });
+function pickFemaleVoice(): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices();
+  for (const kw of FEMALE_VOICE_KEYWORDS) {
+    const v = voices.find(v => v.name.includes(kw) || v.voiceURI.includes(kw));
+    if (v) return v;
+  }
+  const enFemale = voices.find(v => v.lang.startsWith("en") && (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("woman")));
+  return enFemale ?? voices.find(v => v.lang.startsWith("en")) ?? null;
 }
 
-function getFarmerStaticResponse(q: string): { text: string; action?: { label: string; path: string } } | null {
-  const lower = q.toLowerCase();
-  if (lower.includes("fund") || lower.includes("capital") || lower.includes("loan") || lower.includes("money")) {
-    return { text: "To get funded on Investa Farm:\n\n1️⃣ Complete KYC (National ID + farm docs)\n2️⃣ Apply for funding from your dashboard\n3️⃣ Sign the farmer contract (55/45 split)\n4️⃣ Get listed — investors start buying shares!\n\nFunding arrives within 2–5 days of reaching your target.", action: { label: "Apply for Funding", path: "/farmer/loan-apply" } };
-  }
-  if (lower.includes("55") || lower.includes("split") || lower.includes("share") || lower.includes("percent")) {
-    return { text: "Investa Farm uses a 55/45 revenue split:\n\n🌾 You keep 55% of all harvest revenue\n💰 45% goes to investors who funded your farm\n\nFor example: if your harvest earns KES 200,000:\n• Your share = KES 110,000\n• Investors share = KES 90,000\n\nThis is guaranteed in your signed contract." };
-  }
-  if (lower.includes("kyc") || lower.includes("verify") || lower.includes("document")) {
-    return { text: "KYC for farmers requires:\n\n📄 National ID (front & back)\n🏡 Farm ownership documents or lease agreement\n📋 Recent farm report or crop plan\n\nOnce you upload all documents, our team reviews within 24–48 hours. You'll get an email confirmation!", action: { label: "Start KYC", path: "/farmer/kyc" } };
-  }
-  if (lower.includes("update") || lower.includes("photo") || lower.includes("investor") || lower.includes("post")) {
-    return { text: "Posting regular updates builds investor trust:\n\n📸 Upload field photos (crop progress, harvest)\n📊 Share milestone updates (planting, flowering, harvest)\n\n📈 Farms with weekly updates get funded 3× faster!\n\nYour investors get notified every time you post.", action: { label: "Post an Update", path: "/farmer/updates" } };
-  }
-  if (lower.includes("listed") || lower.includes("market") || lower.includes("visible")) {
-    return { text: "Your farm appears on the investor market after:\n\n✅ KYC approved by admin\n✅ Funding application submitted\n✅ Contract signed\n\nOnce listed, investors can buy shares within minutes. Farms with photos and descriptions get 5× more investors!", action: { label: "View Market Listing", path: "/farmer/market" } };
-  }
-  if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey") || lower.includes("help")) {
-    return { text: "Hello, Farmer! 👋 I'm your Investa Farm AI farming advisor.\n\nI can help you:\n🌾 Navigate the funding process\n📋 Understand KYC requirements\n💰 Explain the 55/45 revenue split\n📸 Post field updates to attract investors\n\nWhat do you need help with?" };
-  }
-  if (lower.includes("earn") || lower.includes("profit") || lower.includes("revenue")) {
-    return { text: "Your earnings on Investa Farm:\n\n🌾 You earn 55% of all harvest revenue\n💼 No repayment required — investors share the harvest risk\n📈 Post-harvest funds arrive to your wallet in 1–3 days\n\nExample: KES 500,000 harvest → you receive KES 275,000 🎉" };
-  }
-  return null;
+function speak(text: string, onEnd?: () => void) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(
+    text.replace(/[🌾⚡📊💰🎤👋📈🛡️🌦️✅🤳📄⭐🚀🍵🥑🌱]/g, "")
+  );
+  utt.lang = "en-KE";
+  utt.rate = 0.9;
+  utt.pitch = 1.2;
+  utt.volume = 1;
+  const setVoice = () => {
+    const v = pickFemaleVoice();
+    if (v) utt.voice = v;
+  };
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length) setVoice();
+  else window.speechSynthesis.addEventListener("voiceschanged", setVoice, { once: true });
+  if (onEnd) utt.onend = onEnd;
+  window.speechSynthesis.speak(utt);
 }
 
-function getInvestorStaticResponse(q: string): { text: string; action?: { label: string; path: string } } | null {
-  const lower = q.toLowerCase();
-  if (lower.includes("return") || lower.includes("earn") || lower.includes("profit")) {
-    return { text: "You earn returns at harvest time:\n\n⚡ Mid-Season — +8–12% in 30–60 days\n🌾 Full Season — up to +28% in ~6 months\n\nReturns are calculated on your total investment and paid directly to your wallet as M-Pesa or bank transfer." };
+function getStaticResponse(q: string, role: string): string | null {
+  const l = q.toLowerCase();
+  if (l.includes("jambo") || l.includes("hello") || l.includes("hi") || l.includes("habari")) {
+    return role === "farmer"
+      ? "Jambo, Mkulima! Karibu sana. I can help you with KYC, funding, field updates, and your 55% revenue share. What do you need?"
+      : "Jambo! Karibu Investa Farm. I can show you available farms, explain returns, open your portfolio, or help you invest. What can I do for you?";
   }
-  if (lower.includes("mid-season") || lower.includes("full season") || lower.includes("exit plan")) {
-    return { text: "⚡ Mid-Season Exit: Sell shares back at +10% after 30–60 days — quick, lower risk.\n\n🌾 Full Season Exit: Hold until harvest for up to +28% over ~6 months.\n\nPick your exit type when you invest. Mid-Season is perfect for first-timers — lower commitment, steady returns." };
+  if (l.includes("return") || l.includes("earn") || l.includes("faida")) {
+    return "Nzuri swali! You earn returns at harvest: Mid-Season gives you plus 8 to 12 percent in 30 to 60 days, or Full Season gives up to plus 28 percent in about 6 months. Returns are paid directly to your Investa Wallet, M-Pesa ready. Asante!";
   }
-  if (lower.includes("kyc") || lower.includes("verify") || lower.includes("identity")) {
-    return { text: "KYC is a one-time identity check required by Kenyan financial law:\n\n📄 National ID (front & back)\n🤳 Live selfie\n\nDocuments reviewed in 24–48 hours. Once verified you unlock full trading — no limits on investment amounts!" };
+  if (l.includes("invest") || l.includes("buy") || l.includes("share") || l.includes("nunua")) {
+    return "Nzuri! To invest: go to the Primary Market, pick a farm, tap BUY, choose your exit type — Mid-Season or Full Season — then confirm. Minimum is KES 5,000, which is about 50 shares. Haraka — good farms fill up fast!";
   }
-  if (lower.includes("safe") || lower.includes("risk") || lower.includes("guarantee")) {
-    return { text: "Your investment is protected by:\n\n🛡️ Farmer Protection Fund (5% of all investments held in reserve)\n🌦️ Weather insurance partnerships with leading Kenyan insurers\n✅ KYC-verified farmers only — no anonymous listings\n📋 Legally binding harvest contracts\n\nNote: Agricultural investments carry inherent market risk — always diversify across 3–5 farms." };
+  if (l.includes("kyc") || l.includes("verify") || l.includes("document")) {
+    return "KYC ni muhimu sana! You need your National ID front and back, plus a live selfie. Upload from your Profile tab. Review takes 24 to 48 hours, then you unlock full trading with no limits. Karibu!";
   }
-  if (lower.includes("withdraw") || lower.includes("cash out") || lower.includes("mpesa")) {
-    return { text: "To withdraw earnings:\n1. Go to Portfolio → select a holding\n2. Tap 'Request Exit'\n3. Approval in 1–5 business days\n4. Funds sent to your M-Pesa or bank\n\nWallet balance can be withdrawn instantly to M-Pesa.", action: { label: "Open Wallet", path: "/wallet" } };
+  if (l.includes("safe") || l.includes("risk") || l.includes("salama")) {
+    return "Pesa yako iko salama! Your investment is protected by the Farmer Protection Fund — 5 percent of all investments in reserve — plus weather insurance and legally binding harvest contracts. Always diversify across 3 to 5 farms for best results.";
   }
-  if (lower.includes("minimum") || lower.includes("how much") || lower.includes("start investing") || lower.includes("how much to")) {
-    return { text: "You can start from as little as KES 5,000 — that's about 50 shares at KES 100/share.\n\n💡 Smart starting strategy:\n• KES 10K in maize (stable, +10%)\n• KES 10K in coffee (growth, +18%)\n• KES 5K in tea (long-term, +14%)\n\nThis gives you diversification from day one!" };
+  if (l.includes("wallet") || l.includes("mkoba") || l.includes("pesa") || l.includes("money") || l.includes("mpesa")) {
+    return "Your Investa Wallet is your money hub! You can top up via M-Pesa, Visa, or Mastercard through Paystack. Withdrawals go back to your M-Pesa within 1 to 2 business days. Pesa yako, wakati wako!";
   }
-  if (lower.includes("fee") || lower.includes("charge") || lower.includes("cost")) {
-    return { text: "Investa Farm charges:\n\n• 1.5% on returns only — never on your principal\n• No deposit fees via M-Pesa\n• Standard M-Pesa fees on withdrawal\n\nFor KES 10,000 invested at +10% return (KES 1,000), the platform fee is just KES 15. You keep KES 985." };
+  if (l.includes("55") || l.includes("split") || l.includes("farmer earn") || l.includes("revenue")) {
+    return role === "farmer"
+      ? "Habari nzuri! You keep 55 percent of all harvest revenue. Investors take 45 percent. For a KES 200,000 harvest, you get KES 110,000! No loans, no repayment — just harvest and earn. Asante sana Investa Farm!"
+      : "Farmers keep 55 percent of all harvest revenue. You as an investor earn from the 45 percent investor pool, proportional to your shares. It's a fair deal for everyone — wakulima na wawekezaji!";
   }
-  if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey") || lower.includes("help")) {
-    return { text: "Hello! 👋 I'm your Investa Farm AI investment advisor.\n\nI can:\n🌾 Show you available farm investments\n📊 Open your portfolio & track returns\n💰 Help you invest in a specific farm\n🔊 Speak my responses aloud\n📈 Explain strategies & market conditions\n\nJust ask or tap the mic to speak!" };
+  if (l.includes("explain") || l.includes("this section") || l.includes("what is this") || l.includes("where am i")) {
+    return null;
   }
-  if (lower.includes("diversif") || lower.includes("strategy") || lower.includes("allocation")) {
-    return { text: "Smart diversification strategy for Kenya farms:\n\n🌾 50% in stable crops (maize, wheat, beans) — steady +8–10%\n🥑 30% in growth crops (avocado, coffee) — +15–22%\n🍵 20% in premium crops (tea, macadamia) — long-term +16–24%\n\nThis balances risk and maximises overall returns. Spread across 3–5 farms minimum." };
-  }
-  if (lower.includes("broker") || lower.includes("status") || lower.includes("upgrade")) {
-    return { text: "Broker Status unlocks at KES 500,000 portfolio value:\n\n⭐ Bulk share orders with priority allocation\n🚀 First access to new farm listings (24h before public)\n📞 Dedicated relationship manager\n💰 Higher return tiers on select farms\n\nYou're automatically upgraded when you hit the threshold — no application needed!" };
+  if (l.includes("minimum") || l.includes("how much") || l.includes("start")) {
+    return "Unaweza kuanza na KES 5,000 tu — that's about 50 shares at KES 100 each. Smart strategy: spread across 3 farms — maize for stability, avocado for growth, and coffee for premium returns. Karibu!";
   }
   return null;
 }
 
 export function AiAssistant({ initialQuestion, role = "investor" }: { initialQuestion?: string; role?: "investor" | "farmer" }) {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "bot",
-      text: role === "farmer"
-        ? "Hello, Farmer! 👋 I'm your Investa Farm AI farming advisor. I can guide you through KYC, funding applications, posting updates, and understanding the 55/45 revenue split. What do you need help with?"
-        : "Hi! 👋 I'm your Investa Farm AI investment advisor. I can show available investments, open your portfolio, explain returns and exits, and even help you invest — just ask or tap 🎤 to speak.",
-      time: getTime(),
-    },
-  ]);
-  const [input, setInput] = useState("");
-  const [typing, setTyping] = useState(false);
+  return <VoiceOrb section="default" role={role} />;
+}
+
+export function VoiceOrb({ section = "default", itemName = "", role = "investor", farmData = null }: VoiceOrbProps) {
+  const [visible, setVisible] = useState(false);
   const [listening, setListening] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [listings, setListings] = useState<any[]>([]);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [speaking, setSpeaking] = useState(false);
+  const [bubble, setBubble] = useState<string | null>(null);
+  const [pulse, setPulse] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+  const bubbleTimer = useRef<ReturnType<typeof setTimeout>>();
   const recognitionRef = useRef<any>(null);
-  const [, setLocation] = useLocation();
   const token = getToken();
 
-  const quickQuestions = role === "farmer" ? FARMER_QUICK_QUESTIONS : INVESTOR_QUICK_QUESTIONS;
+  const ctx = SECTION_CTX[section] ?? SECTION_CTX.default;
+
+  const resetHideTimer = useCallback(() => {
+    clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setVisible(false), 60000);
+  }, []);
 
   useEffect(() => {
-    if (open) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      if (role === "investor") {
-        fetch("/api/market/primary", { headers: { Authorization: `Bearer ${token}` } })
-          .then(r => r.json())
-          .then(data => { if (Array.isArray(data)) setListings(data); })
-          .catch(() => {});
-      }
-    }
-  }, [messages, open, token, role]);
+    setVisible(false);
+    setBubble(null);
+    const t = setTimeout(() => {
+      setVisible(true);
+      resetHideTimer();
+    }, 1800);
+    return () => { clearTimeout(t); clearTimeout(hideTimer.current); };
+  }, [section, resetHideTimer]);
 
-  useEffect(() => {
-    if (initialQuestion && !open) {
-      setOpen(true);
-      setTimeout(() => sendMessage(initialQuestion), 400);
-    }
-  }, [initialQuestion]);
+  const showBubble = useCallback((text: string, duration = 5000) => {
+    setBubble(text);
+    clearTimeout(bubbleTimer.current);
+    bubbleTimer.current = setTimeout(() => setBubble(null), duration);
+  }, []);
 
-  const speak = useCallback((text: string) => {
-    if (!voiceEnabled || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text.replace(/[🌾⚡📊💰🎤👋📈🛡️🌦️✅🤳📄⭐🚀🍵🥑]/g, ""));
-    utterance.lang = "en-US";
-    utterance.rate = 0.92;
-    utterance.pitch = 1.05;
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v => v.name.includes("Female") || v.name.includes("Samantha") || v.name.includes("Google UK English Female"));
-    if (preferred) utterance.voice = preferred;
-    window.speechSynthesis.speak(utterance);
-  }, [voiceEnabled]);
+  const doSpeak = useCallback((text: string) => {
+    setSpeaking(true);
+    showBubble(text, Math.max(4000, text.length * 60));
+    speak(text, () => setSpeaking(false));
+  }, [showBubble]);
 
-  const addBotMessage = useCallback((text: string, action?: Message["action"]) => {
-    setMessages(prev => [...prev, { role: "bot", text, time: getTime(), action }]);
-    speak(text);
-  }, [speak]);
-
-  const handleNavAction = useCallback((path: string) => {
-    setOpen(false);
-    setLocation(path);
-  }, [setLocation]);
-
-  const getAIResponse = useCallback(async (q: string) => {
-    const lower = q.toLowerCase();
-
-    if (role === "farmer") {
-      if (lower.includes("open dashboard") || lower.includes("my dashboard") || lower.includes("home")) {
-        addBotMessage("Taking you to your farmer dashboard! 🌾");
-        setTimeout(() => handleNavAction("/farmer/dashboard"), 1000);
-        return;
-      }
-      if (lower.includes("kyc") || lower.includes("verify") || lower.includes("document")) {
-        addBotMessage("Let me take you straight to KYC! Upload your National ID and farm documents to get verified.", { label: "Start KYC Now", path: "/farmer/kyc" });
-        return;
-      }
-      if (lower.includes("update") || lower.includes("photo") || lower.includes("post")) {
-        addBotMessage("Post a field update to keep investors informed. Farms with frequent updates get funded faster!", { label: "Post Field Update", path: "/farmer/updates" });
-        return;
-      }
-      if (lower.includes("fund") || lower.includes("apply") || lower.includes("loan") || lower.includes("capital")) {
-        addBotMessage("I'll take you to the funding application. Make sure your KYC is approved first!", { label: "Apply for Funding", path: "/farmer/loan-apply" });
-        return;
-      }
-      if (lower.includes("market") || lower.includes("listing") || lower.includes("investor")) {
-        addBotMessage("Let me show you how your farm looks on the investor market!", { label: "View Farm Listing", path: "/farmer/market" });
-        return;
-      }
-      if (lower.includes("wallet") || lower.includes("earning") || lower.includes("payment")) {
-        addBotMessage("Let me open your farmer wallet where you can see earnings and withdrawals!", { label: "Open Farmer Wallet", path: "/farmer/wallet" });
-        return;
-      }
-      const staticResp = getFarmerStaticResponse(q);
-      if (staticResp) {
-        addBotMessage(staticResp.text, staticResp.action ? { label: staticResp.action.label, path: staticResp.action.path } : undefined);
-        return;
-      }
+  const handleOrbPress = useCallback(() => {
+    resetHideTimer();
+    setVisible(true);
+    if (speaking) { window.speechSynthesis?.cancel(); setSpeaking(false); return; }
+    let greeting = ctx.greeting;
+    if (farmData) {
+      greeting = `Jambo! This is ${farmData.name} — a ${farmData.cropType} shamba. ${ctx.intro}`;
     } else {
-      if (lower.includes("open portfolio") || lower.includes("my portfolio") || lower.includes("show portfolio") || lower.includes("view portfolio")) {
-        addBotMessage("Opening your portfolio now! 📊 See all your farm holdings, unrealised gains, and request exits there.");
-        setTimeout(() => handleNavAction("/portfolio"), 1200);
-        return;
-      }
-      if (lower.includes("open wallet") || lower.includes("my wallet") || lower.includes("top up") || lower.includes("deposit")) {
-        addBotMessage("Taking you to your wallet! 💰 Top up via M-Pesa or card and withdraw earnings instantly.");
-        setTimeout(() => handleNavAction("/wallet"), 1200);
-        return;
-      }
-      if (lower.includes("invest in") || lower.includes("buy shares") || lower.includes("invest now")) {
-        const cropMatch = listings.find(l =>
-          lower.includes(l.cropType?.toLowerCase()) || lower.includes(l.farmName?.toLowerCase())
-        );
-        if (cropMatch) {
-          addBotMessage(`Great choice! I found "${cropMatch.farmName}" — ${cropMatch.cropType} at ${formatKES(cropMatch.pricePerShare)}/share with ${cropMatch.sharesAvailable} shares available. Opening the listing for you now!`, {
-            label: `Invest in ${cropMatch.farmName}`,
-            path: `/market/${cropMatch.farmId}`,
-          });
-          return;
-        }
-        addBotMessage("Taking you to the Primary Market where all available farm listings live!");
-        setTimeout(() => handleNavAction("/market/primary"), 1200);
-        return;
-      }
-      if (lower.includes("available") || lower.includes("current farm") || lower.includes("what farm") || lower.includes("show farm") || lower.includes("investments available") || lower.includes("what can i invest")) {
-        if (listings.length === 0) {
-          addBotMessage("Let me pull up the live farm listings for you!", { label: "Browse All Farms", path: "/market/primary" });
-          return;
-        }
-        const top3 = listings.slice(0, 3);
-        const listText = top3.map(l => `🌾 ${l.farmName} — ${l.cropType} · ${formatKES(l.pricePerShare)}/share · ${l.sharesAvailable} shares left`).join("\n");
-        addBotMessage(
-          `Top ${top3.length} live farm listings right now:\n\n${listText}\n\n${listings.length} total listings available. Click below to browse all!`,
-          { label: "View All Listings", path: "/market/primary" }
-        );
-        return;
-      }
-      if (lower.includes("activity") || lower.includes("transactions") || lower.includes("history")) {
-        addBotMessage("Opening your Activity tab — all transactions, receipts, and investment history!", { label: "View Activity", path: "/activity" });
-        return;
-      }
-      const staticResp = getInvestorStaticResponse(q);
-      if (staticResp) {
-        addBotMessage(staticResp.text, staticResp.action ? { label: staticResp.action.label, path: staticResp.action.path } : undefined);
-        return;
-      }
+      greeting = `${ctx.greeting} ${ctx.intro}`;
     }
+    if (ctx.tip) greeting += ` ${ctx.tip}`;
+    doSpeak(greeting);
+  }, [ctx, farmData, speaking, doSpeak, resetHideTimer]);
 
-    try {
-      const systemContext = role === "farmer"
-        ? "You are an expert African agricultural finance advisor for Investa Farm Kenya. Help farmers understand: KYC (National ID + farm docs), 55/45 revenue split (farmer keeps 55%), funding applications, posting field updates, and how investors find their farm. Be concise, use emojis, be encouraging."
-        : `You are an expert investment advisor for Investa Farm Kenya. Available farms: ${listings.slice(0,5).map(l => l.farmName + " (" + l.cropType + ", KES " + l.pricePerShare + "/share)").join(", ")}. Help investors understand farm investments, returns (8–28%), KYC, diversification, and exits. Be concise, use emojis.`;
+  const handleMicPress = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    resetHideTimer();
+    setVisible(true);
+    if (listening) { recognitionRef.current?.stop(); setListening(false); return; }
 
-      const r = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: q, context: systemContext }),
-      });
-      if (r.ok) {
-        const d = await r.json();
-        addBotMessage(d.reply ?? d.message ?? (role === "farmer"
-          ? "I can guide you on KYC, funding applications, field updates, and understanding your earnings. What do you need help with? 🌱"
-          : "I can help you find farms to invest in, explain returns, and open your portfolio. What would you like to know? 🌾"
-        ));
-      } else {
-        throw new Error("AI unavailable");
-      }
-    } catch {
-      addBotMessage(role === "farmer"
-        ? "Great question! I can help you with:\n• KYC document requirements\n• Funding application process\n• Posting field updates\n• Understanding your 55% revenue share\n\nWhat would you like to explore? 🌱"
-        : "Great question! I can help you with:\n• Finding available farm investments\n• Understanding returns and exits\n• Opening your portfolio\n• KYC verification steps\n\nWhat would you like to know? 🌾"
-      );
-    }
-  }, [listings, addBotMessage, handleNavAction, token, role]);
-
-  const sendMessage = useCallback((text: string) => {
-    if (!text.trim()) return;
-    setMessages(prev => [...prev, { role: "user", text: text.trim(), time: getTime() }]);
-    setInput("");
-    setTyping(true);
-    setTimeout(async () => {
-      await getAIResponse(text.trim());
-      setTyping(false);
-    }, 600 + Math.random() * 400);
-  }, [getAIResponse]);
-
-  const startListening = useCallback(() => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRec) {
-      addBotMessage("Voice input isn't supported on this browser. Please type your question instead.");
-      return;
-    }
-    if (recognitionRef.current) recognitionRef.current.abort();
+    if (!SpeechRec) { doSpeak("Samahani! Voice input is not supported on this browser. Please try Chrome."); return; }
+
     const rec = new SpeechRec();
     rec.continuous = false;
     rec.interimResults = false;
-    rec.lang = "en-US";
-    rec.onresult = (e: any) => {
-      const transcript = e.results[0]?.[0]?.transcript ?? "";
-      if (transcript) sendMessage(transcript);
+    rec.lang = "en-KE";
+
+    rec.onresult = async (e: any) => {
+      const transcript = (e.results[0]?.[0]?.transcript ?? "").trim();
+      if (!transcript) return;
+      showBubble(`"${transcript}"`, 3000);
+      setListening(false);
+
+      const lower = transcript.toLowerCase();
+      if (lower.includes("go back") || lower.includes("previous") || lower.includes("rudi") || lower.includes("repeat")) {
+        doSpeak(`Sawa! ${ctx.greeting} ${ctx.intro}`);
+        return;
+      }
+
+      const staticReply = getStaticResponse(transcript, role);
+      if (staticReply) { doSpeak(staticReply); return; }
+
+      try {
+        const sectionContext = farmData
+          ? `User is viewing farm: ${farmData.name}, crop: ${farmData.cropType}, price: KES ${farmData.pricePerShare}/share. ${ctx.intro}`
+          : `User is on the ${section} section. ${ctx.intro}`;
+
+        const r = await fetch("/api/ai/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ message: transcript, context: sectionContext }),
+        });
+        if (r.ok) {
+          const d = await r.json();
+          doSpeak(d.reply ?? "Samahani, sijui jibu. Please try again!");
+        } else { throw new Error(); }
+      } catch {
+        doSpeak("Samahani! I had trouble connecting. Try asking again — niulize tena!");
+      }
     };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
+
+    rec.onend = () => { setListening(false); };
+    rec.onerror = () => { setListening(false); doSpeak("Samahani, sikukusikia. Please press the mic and try again!"); };
+
     recognitionRef.current = rec;
     rec.start();
     setListening(true);
-  }, [addBotMessage, sendMessage]);
-
-  const stopListening = useCallback(() => { recognitionRef.current?.stop(); setListening(false); }, []);
-  const toggleVoice = () => { const next = !voiceEnabled; setVoiceEnabled(next); if (!next) window.speechSynthesis?.cancel(); };
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); sendMessage(input); };
-
-  const gradientStyle = role === "farmer"
-    ? { background: "linear-gradient(135deg, #0f4c35, #15803d)" }
-    : { background: "linear-gradient(135deg, #0f4c35, #16a34a)" };
+    setPulse(true);
+    setTimeout(() => setPulse(false), 300);
+  }, [listening, doSpeak, showBubble, ctx, section, farmData, role, token, resetHideTimer]);
 
   return (
-    <>
-      <AnimatePresence>
-        {!open && (
-          <motion.div
-            initial={{ y: 16, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 16, opacity: 0 }}
-            transition={{ type: "spring", damping: 22, delay: 0.9 }}
-            className="fixed bottom-[4.5rem] inset-x-0 z-40 px-4 pointer-events-none"
-          >
-            <div className="max-w-[430px] mx-auto pointer-events-auto">
-              <button
-                onClick={() => setOpen(true)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl shadow-lg active:scale-[0.98] transition-transform"
-                style={gradientStyle}
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          className="fixed z-40 flex flex-col items-center gap-2 pointer-events-none"
+          style={{ bottom: "5.2rem", right: "1rem" }}
+          initial={{ opacity: 0, scale: 0.5, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.5, y: 20 }}
+          transition={{ type: "spring", damping: 18, stiffness: 260 }}
+        >
+          {/* Speech bubble */}
+          <AnimatePresence>
+            {bubble && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.9 }}
+                className="pointer-events-none max-w-[200px] bg-white/95 backdrop-blur-md rounded-2xl rounded-br-sm px-3 py-2 shadow-xl border border-green-100"
               >
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                  {role === "farmer" ? <Leaf size={15} className="text-white" /> : <Bot size={15} className="text-white" />}
-                </div>
-                <p className="flex-1 text-left text-white/75 text-sm font-medium">Ask me anything…</p>
-                <div className="flex items-center gap-1.5">
-                  {listening && <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />}
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); startListening(); setOpen(true); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); startListening(); setOpen(true); } }}
-                    className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
-                  >
-                    <Mic size={14} className={listening ? "text-red-300" : "text-white"} />
-                  </div>
-                </div>
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                <p className="text-gray-800 text-[11px] leading-relaxed font-medium">{bubble}</p>
+                <div className="absolute -bottom-1.5 right-4 w-3 h-3 bg-white rotate-45 border-r border-b border-green-100 shadow-sm" />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <AnimatePresence>
-        {open && (
+          {/* Orb container */}
           <motion.div
-            initial={{ opacity: 0, y: "100%" }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: "100%" }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 inset-x-0 z-50"
-            style={{ height: "88dvh" }}
+            animate={{
+              y: listening ? [0, -4, 0, -4, 0] : speaking ? [0, -6, 0, -3, 0] : [0, -5, 0, -3, 0],
+              rotate: listening ? [0, 0, 0] : [0, -2, 0, 2, 0],
+            }}
+            transition={{
+              duration: listening ? 0.5 : speaking ? 0.8 : 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="pointer-events-auto flex items-center gap-1.5"
           >
-            <div className="relative mx-auto w-full max-w-[430px] bg-card rounded-t-3xl shadow-2xl flex flex-col h-full overflow-hidden border border-border/50">
-              <div className="flex-shrink-0 flex items-center gap-3 px-5 py-3.5" style={gradientStyle}>
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                    {role === "farmer" ? <Leaf size={20} className="text-white" /> : <Bot size={20} className="text-white" />}
-                  </div>
-                  {listening && (
-                    <motion.div
-                      className="absolute -inset-1 rounded-full border-2 border-green-300"
-                      animate={{ scale: [1, 1.15, 1], opacity: [1, 0.5, 1] }}
-                      transition={{ repeat: Infinity, duration: 1.2 }}
-                    />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm">{role === "farmer" ? "Farming Advisor" : "Investment Advisor"}</p>
-                  <p className="text-white/70 text-xs flex items-center gap-1">
-                    {listening
-                      ? <><span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" /> Listening…</>
-                      : <><span className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse" /> Online · Powered by AI</>
-                    }
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button onClick={toggleVoice} className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center" title={voiceEnabled ? "Mute voice" : "Enable voice"}>
-                    {voiceEnabled ? <Volume2 size={14} className="text-white" /> : <VolumeX size={14} className="text-white/60" />}
-                  </button>
-                  <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center">
-                    <X size={16} className="text-white" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-                {messages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} items-end gap-2`}>
-                    {msg.role === "bot" && (
-                      <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-                        {role === "farmer" ? <Leaf size={13} className="text-primary" /> : <Bot size={13} className="text-primary" />}
-                      </div>
-                    )}
-                    <div className="max-w-[82%]">
-                      <div className={`rounded-2xl px-3.5 py-2.5 ${msg.role === "user" ? "bg-primary text-white rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}>
-                        <p className="text-sm leading-relaxed whitespace-pre-line">{msg.text}</p>
-                        <p className={`text-[9px] mt-1 ${msg.role === "user" ? "text-white/60" : "text-muted-foreground"}`}>{msg.time}</p>
-                      </div>
-                      {msg.action && (
-                        <button
-                          onClick={() => handleNavAction(msg.action!.path)}
-                          className="mt-1.5 flex items-center gap-1.5 bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-xl active:scale-95 transition-transform shadow-sm"
-                        >
-                          <ArrowRight size={12} />
-                          {msg.action.label}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {typing && (
-                  <div className="flex justify-start items-end gap-2">
-                    <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center">
-                      {role === "farmer" ? <Leaf size={13} className="text-primary" /> : <Bot size={13} className="text-primary" />}
-                    </div>
-                    <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3">
-                      <div className="flex gap-1">
-                        {[0, 1, 2].map(k => (
-                          <div key={k} className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: `${k * 0.15}s` }} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div ref={bottomRef} />
-              </div>
-
-              {messages.length < 3 && (
-                <div className="flex-shrink-0 px-4 pb-2">
-                  <p className="text-[10px] text-muted-foreground mb-2 font-medium">Quick questions:</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {quickQuestions.map(q => (
-                      <button key={q} onClick={() => sendMessage(q)} disabled={typing}
-                        className="flex-shrink-0 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20 whitespace-nowrap active:scale-95 transition-transform disabled:opacity-50">
-                        {q}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            {/* Main orb */}
+            <motion.button
+              onClick={handleOrbPress}
+              whileTap={{ scale: 0.88 }}
+              className="relative w-12 h-12 rounded-full flex items-center justify-center select-none outline-none"
+              style={{
+                background: listening
+                  ? "linear-gradient(135deg, #dc2626, #ef4444)"
+                  : speaking
+                  ? "linear-gradient(135deg, #0369a1, #0ea5e9)"
+                  : "linear-gradient(135deg, #052e16, #16a34a)",
+                boxShadow: listening
+                  ? "0 0 0 4px rgba(239,68,68,0.25), 0 4px 20px rgba(239,68,68,0.4)"
+                  : speaking
+                  ? "0 0 0 4px rgba(14,165,233,0.25), 0 4px 20px rgba(14,165,233,0.4)"
+                  : "0 0 0 3px rgba(34,197,94,0.2), 0 4px 18px rgba(22,163,74,0.45)",
+              }}
+            >
+              {/* Ripple when listening */}
+              {listening && (
+                <>
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-2 border-red-400"
+                    animate={{ scale: [1, 1.6], opacity: [0.7, 0] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  />
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-2 border-red-300"
+                    animate={{ scale: [1, 1.9], opacity: [0.5, 0] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: 0.3 }}
+                  />
+                </>
               )}
+              {/* Sound waves when speaking */}
+              {speaking && (
+                <motion.div
+                  className="absolute inset-0 rounded-full border-2 border-sky-300"
+                  animate={{ scale: [1, 1.5], opacity: [0.6, 0] }}
+                  transition={{ duration: 0.8, repeat: Infinity }}
+                />
+              )}
+              <span className="text-xl select-none">
+                {listening ? "🎤" : speaking ? "🔊" : "🤖"}
+              </span>
+            </motion.button>
 
-              <div className="flex-shrink-0 px-4 pb-6 pt-2 border-t border-border bg-card">
-                <form onSubmit={handleSubmit} className="flex gap-2">
-                  <button type="button" onClick={listening ? stopListening : startListening}
-                    className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${listening ? "bg-red-500 shadow-lg shadow-red-500/30" : "bg-muted border border-border"}`}>
-                    {listening ? <MicOff size={16} className="text-white" /> : <Mic size={16} className="text-muted-foreground" />}
-                  </button>
-                  <input type="text" value={input} onChange={e => setInput(e.target.value)}
-                    placeholder={listening ? "Listening…" : role === "farmer" ? "Ask about funding, KYC, earnings…" : "Ask anything, or tap 🎤"}
-                    className="flex-1 border border-border rounded-2xl px-4 py-2.5 text-sm bg-background focus:outline-none focus:border-primary transition-colors"
-                    disabled={listening} />
-                  <button type="submit" disabled={!input.trim() || typing || listening}
-                    className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform flex-shrink-0">
-                    {typing ? <Loader2 size={15} className="text-white animate-spin" /> : <Send size={15} className="text-white" />}
-                  </button>
-                </form>
-              </div>
-            </div>
+            {/* Mic button */}
+            <motion.button
+              onPointerDown={(e) => handleMicPress(e as any)}
+              whileTap={{ scale: 0.85 }}
+              className="w-8 h-8 rounded-full flex items-center justify-center shadow-md"
+              style={{
+                background: listening
+                  ? "linear-gradient(135deg, #dc2626, #b91c1c)"
+                  : "rgba(255,255,255,0.92)",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+              }}
+            >
+              {listening
+                ? <MicOff size={13} className="text-white" />
+                : <Mic size={13} className="text-green-700" />
+              }
+            </motion.button>
           </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
