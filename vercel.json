@@ -1,3 +1,4 @@
+
 {
   "version": 2,
   "builds": [
@@ -21,9 +22,9 @@
     },
     {
       "src": "/assets/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ],
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
       "dest": "artifacts/investa-farm/assets/$1"
     },
     {
