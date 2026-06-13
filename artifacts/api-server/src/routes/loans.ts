@@ -8,10 +8,6 @@ const router: IRouter = Router();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-if (!GROQ_API_KEY) {
-  throw new Error("GROQ_API_KEY environment variable is not set");
-}
-
 const ApplyLoanBody = z.object({
   amount: z.number().positive(),
   purpose: z.enum(["seeds", "fertilizer", "equipment", "irrigation", "labour", "other"]),

@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 
-const SMTP_USER = process.env.GOOGLE_SMTP_USER ?? "mosesochiengopiyo@gmail.com";
-const SMTP_PASS = process.env.GOOGLE_SMTP_PASS ?? "onaglgtpvvucqots";
+const SMTP_USER = process.env.GOOGLE_SMTP_USER;
+const SMTP_PASS = process.env.GOOGLE_SMTP_PASS;
 const APP_NAME = "Investa Farm";
 
 function from(label: string) {

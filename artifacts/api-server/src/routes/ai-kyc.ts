@@ -9,10 +9,6 @@ const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-if (!GROQ_API_KEY) {
-  throw new Error("GROQ_API_KEY environment variable is not set");
-}
-
 async function groqReview(docType: string, title: string, notes: string): Promise<{ status: "approved" | "rejected"; reason: string }> {
   const apiKey = GROQ_API_KEY;
   if (!apiKey) return { status: "approved", reason: "Auto-approved (AI not configured)" };
