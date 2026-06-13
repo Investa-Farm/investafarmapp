@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useListSecondaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, RefreshCcw, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, RefreshCcw, ChevronRight, BellRing } from "lucide-react";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -325,13 +325,22 @@ export default function SecondaryMarket() {
                                 <span className={`text-[9px] font-bold ${up ? "text-green-600" : "text-red-500"}`}>
                                   {formatChange(listing.changePercent)}
                                 </span>
-                                <button
-                                  data-testid={`button-buy-${listing.id}`}
-                                  onClick={(e) => handleBuyClick(e, listing)}
-                                  className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm"
-                                >
-                                  BUY
-                                </button>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); }}
+                                    title="Set price alert"
+                                    className="w-7 h-7 rounded-lg border border-border flex items-center justify-center active:scale-95 transition-transform hover:bg-amber-50 hover:border-amber-300 group"
+                                  >
+                                    <BellRing size={12} className="text-muted-foreground group-hover:text-amber-500" />
+                                  </button>
+                                  <button
+                                    data-testid={`button-buy-${listing.id}`}
+                                    onClick={(e) => handleBuyClick(e, listing)}
+                                    className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm"
+                                  >
+                                    BUY
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           );

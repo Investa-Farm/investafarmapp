@@ -17,6 +17,7 @@ import { CoachMark } from "@/components/coach-mark";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { AiAssistant } from "@/components/ai-assistant";
 import { AppTour } from "@/components/app-tour";
+import { NewsAiBot } from "@/components/news-ai-bot";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { useCurrency } from "@/lib/currency";
 import { InvestmentCalculator } from "@/components/investment-calculator";
@@ -640,10 +641,14 @@ export default function MarketHome() {
                       {/* Thumbnail */}
                       <div className="relative">
                         <img src={getNewsImage(item)} alt={item.title} className="w-full h-32 object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
                         <span className={`absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>
                           {item.tag}
                         </span>
+                        {/* AI Insight button on image */}
+                        <div className="absolute bottom-2 right-2">
+                          <NewsAiBot item={item} />
+                        </div>
                       </div>
 
                       {/* Tap to expand */}
@@ -666,16 +671,20 @@ export default function MarketHome() {
 
                       {/* Expanded body */}
                       {isExpanded && (
-                        <div className="px-3.5 pb-3.5 pt-0 border-t border-border">
+                        <div className="px-3.5 pb-3.5 pt-0 border-t border-border space-y-3">
                           <p className="text-muted-foreground text-sm leading-relaxed mt-3">{item.summary}</p>
-                          {item.url && item.url !== "#" && (
-                            <button
-                              onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
-                              className="inline-flex items-center gap-1.5 mt-3 text-primary text-xs font-semibold hover:text-primary/80 transition-colors active:scale-95"
-                            >
-                              Read full article <ExternalLink size={11} />
-                            </button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {item.url && item.url !== "#" && (
+                              <button
+                                onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
+                                className="inline-flex items-center gap-1.5 text-primary text-xs font-semibold hover:text-primary/80 transition-colors active:scale-95"
+                              >
+                                Read more <ExternalLink size={11} />
+                              </button>
+                            )}
+                            <span className="flex-1" />
+                            <NewsAiBot item={item} />
+                          </div>
                         </div>
                       )}
                     </div>

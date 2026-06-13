@@ -39,7 +39,12 @@ export default function InvestorAuth() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault(); setError("");
     login.mutate({ data: { email, password } }, {
-      onSuccess: (data) => {
+      onSuccess: (data: any) => {
+        if (data.requiresOtp) {
+          setToken(data.token); storeUser(data.user);
+          setLocation(`/verify-otp?email=${encodeURIComponent(data.email ?? email)}`);
+          return;
+        }
         if (data.user.role !== "investor") { setError("This account is not an investor account."); return; }
         setToken(data.token); storeUser(data.user);
         setLocation("/market");
@@ -53,9 +58,13 @@ export default function InvestorAuth() {
     if (!agreed) { setError("Please accept the Terms & Privacy Policy to continue."); return; }
     const name = fullName || email.split("@")[0]!.replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     register.mutate({ data: { email, password, name, role: "investor" } }, {
-      onSuccess: (data) => {
+      onSuccess: (data: any) => {
         setToken(data.token); storeUser(data.user);
-        setStep("welcome");
+        if (data.requiresOtp) {
+          setLocation(`/verify-otp?email=${encodeURIComponent(email)}`);
+        } else {
+          setStep("welcome");
+        }
       },
       onError: () => setError("Registration failed. Email may already be in use."),
     });

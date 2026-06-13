@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useGetMyFarms, useListPrimaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, isDemoAccount } from "@/lib/auth";
-import { Bell, Filter, TrendingUp, Star, MessageCircle, CheckCircle2, Clock, ChevronRight, ChevronDown, MapPin, Award, FileText, DollarSign } from "lucide-react";
+import { Bell, Filter, TrendingUp, Star, MessageCircle, CheckCircle2, Clock, ChevronRight, ChevronDown, MapPin, Award, FileText, DollarSign, Package, Leaf, ShieldCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,27 +10,55 @@ import { motion, AnimatePresence } from "framer-motion";
 const BUYER_OFFERS = [
   {
     id: 1, name: "Green Harvest Ltd.", verified: true, price: 450, priceUnit: "Ton",
-    quantity: 50, location: "Nairobi", duration: "60 Days", rating: 4.9,
+    quantity: 50, location: "Nairobi", region: "Central", duration: "60 Days", rating: 4.9,
     contracts: 1248, onTime: 99, bestPrice: true,
     crop: "Tomatoes", color: "#0B6B3A",
   },
   {
     id: 2, name: "FreshLink Traders", verified: true, price: 435, priceUnit: "Ton",
-    quantity: 80, location: "Kisumu", duration: "45 Days", rating: 4.7,
+    quantity: 80, location: "Kisumu", region: "Nyanza", duration: "45 Days", rating: 4.7,
     contracts: 876, onTime: 97, bestPrice: false,
     crop: "Tomatoes", color: "#1a6b4a",
   },
   {
     id: 3, name: "Agri Export Co.", verified: true, price: 470, priceUnit: "Ton",
-    quantity: 120, location: "Mombasa", duration: "90 Days", rating: 4.8,
+    quantity: 120, location: "Mombasa", region: "Coast", duration: "90 Days", rating: 4.8,
     contracts: 2100, onTime: 98, bestPrice: false,
     crop: "Tomatoes", color: "#22A45D",
   },
+  {
+    id: 4, name: "Nakuru Grain Traders", verified: true, price: 380, priceUnit: "Ton",
+    quantity: 200, location: "Nakuru", region: "Rift Valley", duration: "30 Days", rating: 4.6,
+    contracts: 540, onTime: 95, bestPrice: false,
+    crop: "Maize", color: "#c97f2b",
+  },
+  {
+    id: 5, name: "Highlands Export Ltd.", verified: true, price: 520, priceUnit: "Ton",
+    quantity: 60, location: "Eldoret", region: "North Rift", duration: "60 Days", rating: 4.9,
+    contracts: 312, onTime: 98, bestPrice: true,
+    crop: "Avocado", color: "#1d6b3a",
+  },
+  {
+    id: 6, name: "Meru Fresh Connect", verified: true, price: 290, priceUnit: "Ton",
+    quantity: 40, location: "Meru", region: "Mt Kenya", duration: "21 Days", rating: 4.5,
+    contracts: 183, onTime: 94, bestPrice: false,
+    crop: "French Beans", color: "#2d6a4f",
+  },
+];
+
+const INPUT_PROVIDERS = [
+  { id: 1, name: "Kenya Seed Company", type: "Seeds", region: "Nakuru", county: "Nakuru", crops: ["Maize","Wheat","Beans"], rating: 4.8, discount: "15% off for Investa members", icon: "🌱" },
+  { id: 2, name: "Yara Kenya Ltd.", type: "Fertilizer", region: "Central", county: "Kiambu", crops: ["All crops"], rating: 4.9, discount: "Free delivery above 2 bags", icon: "🧪" },
+  { id: 3, name: "Rift Agro Supplies", type: "Inputs", region: "Rift Valley", county: "Nakuru", crops: ["Maize","Tomatoes"], rating: 4.6, discount: "SACCO group pricing available", icon: "🏪" },
+  { id: 4, name: "AgroChem East Africa", type: "Pesticides", region: "Coast", county: "Mombasa", crops: ["Tomatoes","French Beans","Coffee"], rating: 4.7, discount: "Buy 3 get 1 free", icon: "🛡️" },
+  { id: 5, name: "Kisumu Organic Hub", type: "Organic Inputs", region: "Nyanza", county: "Kisumu", crops: ["Vegetables","Fruits"], rating: 4.5, discount: "Cooperative member discounts", icon: "🌿" },
+  { id: 6, name: "Mount Kenya Agri", type: "Seeds & Tools", region: "Mt Kenya", county: "Meru", crops: ["Coffee","Tea","Avocado"], rating: 4.8, discount: "Interest-free credit for verified farmers", icon: "⛰️" },
 ];
 
 const RECOMMENDED_BUYERS = [
-  { id: 1, name: "Nairobi Fresh Markets", match: 96, revenue: "KES 142,500", crop: "Tomatoes", distance: "14 km" },
-  { id: 2, name: "Highlands Agro Ltd.", match: 91, revenue: "KES 128,000", crop: "Avocado", distance: "22 km" },
+  { id: 1, name: "Nairobi Fresh Markets", match: 96, revenue: "KES 142,500", crop: "Tomatoes", distance: "14 km", region: "Nairobi" },
+  { id: 2, name: "Highlands Agro Ltd.", match: 91, revenue: "KES 128,000", crop: "Avocado", distance: "22 km", region: "Kiambu" },
+  { id: 3, name: "Rift Valley Grain Co.", match: 88, revenue: "KES 95,000", crop: "Maize", distance: "8 km", region: "Nakuru" },
 ];
 
 const ACTIVE_CONTRACTS = [
@@ -49,7 +77,7 @@ const demandData = Array.from({ length: 12 }, (_, i) => ({
 }));
 
 export default function FarmerMarket() {
-  const [tab, setTab] = useState<"offers" | "contracts">("offers");
+  const [tab, setTab] = useState<"offers" | "contracts" | "inputs">("offers");
   const [selectedOffer, setSelectedOffer] = useState<(typeof BUYER_OFFERS)[0] | null>(null);
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
   const { data: farms, isLoading } = useGetMyFarms();
@@ -78,17 +106,17 @@ export default function FarmerMarket() {
           </div>
         </div>
 
-        <div className="flex bg-black/20 rounded-xl p-1 gap-1">
-          {(["offers", "contracts"] as const).map(t => (
+        <div className="flex bg-white/15 border border-white/20 rounded-xl p-1 gap-1">
+          {(["offers", "inputs", "contracts"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${tab === t ? "bg-white text-foreground" : "text-white/70"}`}>
-              {t === "offers" ? "Buyer Offers" : "My Contracts"}
+              className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${tab === t ? "bg-white text-foreground shadow-sm" : "text-white/80"}`}>
+              {t === "offers" ? "🏪 Buyers" : t === "inputs" ? "🌱 Inputs" : "📋 Contracts"}
             </button>
           ))}
         </div>
       </div>
 
-      {tab === "offers" ? (
+      {tab === "offers" && (
         <div className="px-4 pt-4 space-y-4">
           {/* Market Insights Hero Card */}
           <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg,#0B6B3A,#22A45D)" }}>
@@ -277,7 +305,102 @@ export default function FarmerMarket() {
             </div>
           )}
         </div>
-      ) : (
+      )}
+
+      {tab === "inputs" && (
+        <div className="px-4 pt-4 space-y-4">
+          {/* Regional input providers header */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg,#052e16,#16a34a)" }}>
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-green-300 text-[9px] font-bold uppercase tracking-widest bg-green-600/30 px-2 py-0.5 rounded-full">Input Marketplace</span>
+                  </div>
+                  <p className="text-white text-base font-bold">Regional Agri-Input Providers</p>
+                  <p className="text-green-200/70 text-[11px] mt-0.5">Seeds, fertilizer & pesticides near you</p>
+                </div>
+                <div className="flex flex-col items-end">
+                  <p className="text-green-300 font-extrabold text-xl">{INPUT_PROVIDERS.length}</p>
+                  <p className="text-green-200/60 text-[9px]">Verified suppliers</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {[
+                  { label: "Seeds", count: INPUT_PROVIDERS.filter(p => p.type.includes("Seed")).length, icon: "🌱" },
+                  { label: "Fertilizer", count: INPUT_PROVIDERS.filter(p => p.type.includes("Fertilizer")).length, icon: "🧪" },
+                  { label: "Pesticides", count: INPUT_PROVIDERS.filter(p => p.type.includes("Pest")).length, icon: "🛡️" },
+                ].map(({ label, count, icon }) => (
+                  <div key={label} className="bg-white/10 rounded-xl p-2 text-center border border-white/10">
+                    <p className="text-lg">{icon}</p>
+                    <p className="text-white font-bold text-sm">{count}</p>
+                    <p className="text-green-200/60 text-[9px]">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Input provider cards */}
+          <div className="space-y-3">
+            {INPUT_PROVIDERS.map(provider => (
+              <div key={provider.id} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+                <div className="p-4">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-2xl bg-green-50 border border-green-100 flex items-center justify-center flex-shrink-0 text-2xl">
+                      {provider.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-foreground font-bold text-sm">{provider.name}</p>
+                        <ShieldCheck size={12} className="text-green-500 flex-shrink-0" />
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[9px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded-full">{provider.type}</span>
+                        <span className="text-muted-foreground text-[10px] flex items-center gap-0.5">
+                          <MapPin size={8} /> {provider.county} · {provider.region}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        {[1,2,3,4,5].map(i => (
+                          <Star key={i} size={9} className={i <= Math.floor(provider.rating) ? "text-amber-400 fill-amber-400" : "text-gray-200 fill-gray-200"} />
+                        ))}
+                        <span className="text-muted-foreground text-[9px] ml-0.5">{provider.rating}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Crops served */}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {provider.crops.map(crop => (
+                      <span key={crop} className="text-[9px] bg-green-50 text-green-700 border border-green-100 font-semibold px-2 py-0.5 rounded-full">
+                        🌾 {crop}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Investa member discount */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2 mb-3">
+                    <Leaf size={12} className="text-amber-600 flex-shrink-0" />
+                    <p className="text-amber-700 text-[10px] font-semibold leading-tight">{provider.discount}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="flex-1 bg-primary text-white font-semibold py-2.5 rounded-xl text-xs active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                      <Package size={12} /> Order Inputs
+                    </button>
+                    <button className="flex-1 border border-border text-foreground font-semibold py-2.5 rounded-xl text-xs active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                      <MessageCircle size={12} /> Enquire
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "contracts" && (
         <div className="px-4 pt-4 space-y-4">
           {/* Farm stats */}
           <div className="grid grid-cols-2 gap-2.5">
