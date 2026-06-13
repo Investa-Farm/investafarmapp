@@ -119,10 +119,10 @@
 .ticker-track { animation: ticker 25s linear infinite; }
 .ticker-track:hover { animation-play-state: paused; }
 
-/* Tour spotlight pulse — glow ring only, no heavy overlay */
+/* Tour spotlight pulse — soft glow ring */
 @keyframes tourPulse {
-  0%, 100% { box-shadow: 0 0 0 2px rgba(74,222,128,0.8), 0 0 12px rgba(74,222,128,0.25); }
-  50% { box-shadow: 0 0 0 4px rgba(74,222,128,1), 0 0 22px rgba(74,222,128,0.5); }
+  0%, 100% { box-shadow: 0 0 0 2px rgba(22,163,74,0.5), 0 0 10px rgba(22,163,74,0.15); }
+  50% { box-shadow: 0 0 0 3px rgba(22,163,74,0.7), 0 0 18px rgba(22,163,74,0.25); }
 }
 
 /* Page transition */

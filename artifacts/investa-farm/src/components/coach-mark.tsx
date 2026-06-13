@@ -93,8 +93,12 @@ export function CoachMark({ steps, storageKey, onDone }: Props) {
 
           {/* Highlight border */}
           <div
-            className="absolute rounded-xl ring-2 ring-green-400 ring-offset-0"
-            style={{ left: spotLeft, top: spotTop, width: spotW, height: spotH }}
+            className="absolute rounded-xl"
+            style={{
+              left: spotLeft, top: spotTop, width: spotW, height: spotH,
+              border: "2px solid rgba(22,163,74,0.65)",
+              boxShadow: "0 0 12px rgba(22,163,74,0.2)",
+            }}
           />
 
           {/* Tooltip */}

@@ -287,8 +287,8 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
                   borderRadius: 16,
                   zIndex: 2,
                   pointerEvents: "none",
-                  border: "2.5px solid rgba(74,222,128,0.9)",
-                  boxShadow: "0 0 0 4px rgba(74,222,128,0.25), 0 0 20px rgba(74,222,128,0.3)",
+                  border: "2px solid rgba(22,163,74,0.6)",
+                  boxShadow: "0 0 0 3px rgba(22,163,74,0.15), 0 0 16px rgba(22,163,74,0.2)",
                   animation: "tourPulse 2s ease-in-out infinite",
                 }}
               />
