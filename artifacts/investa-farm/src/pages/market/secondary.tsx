@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useListSecondaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, RefreshCcw, ChevronRight, BellRing } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, RefreshCcw, ChevronRight, BellRing, ShoppingBag } from "lucide-react";
+import { PriceAlertModal } from "@/components/price-alert-modal";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -106,6 +107,7 @@ export default function SecondaryMarket() {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [investOpen, setInvestOpen] = useState(false);
   const [cancelListing, setCancelListing] = useState<Listing | null>(null);
+  const [alertListing, setAlertListing] = useState<Listing | null>(null);
   const [tab, setTab] = useState<"market" | "mine">("market");
   const [cropFilter, setCropFilter] = useState<string>("all");
   const [expandedCrop, setExpandedCrop] = useState<string | null>(null);
@@ -327,7 +329,7 @@ export default function SecondaryMarket() {
                                 </span>
                                 <div className="flex items-center gap-1.5">
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); }}
+                                    onClick={(e) => { e.stopPropagation(); setAlertListing(listing); }}
                                     title="Set price alert"
                                     className="w-7 h-7 rounded-lg border border-border flex items-center justify-center active:scale-95 transition-transform hover:bg-amber-50 hover:border-amber-300 group"
                                   >
@@ -358,17 +360,17 @@ export default function SecondaryMarket() {
             {myLoading ? (
               Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
             ) : myListings.length === 0 ? (
-              <div className="text-center py-16">
+              <div className="text-center py-10">
                 <div className="w-16 h-16 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-3">
                   <Tag size={28} className="text-primary" />
                 </div>
                 <p className="text-foreground text-sm font-semibold">No listings yet</p>
                 <p className="text-muted-foreground text-xs mt-1 max-w-[220px] mx-auto leading-relaxed">
-                  Go to your Portfolio and tap "Sell on Market" to list shares here.
+                  Go to your Portfolio and tap "Sell" on any holding to list shares here.
                 </p>
                 <button onClick={() => setLocation("/portfolio")}
-                  className="mt-4 bg-primary text-white text-xs font-bold px-5 py-2.5 rounded-xl active:scale-95 transition-transform">
-                  Go to Portfolio
+                  className="mt-4 bg-primary text-white text-xs font-bold px-5 py-2.5 rounded-xl active:scale-95 transition-transform flex items-center gap-1.5 mx-auto">
+                  <ShoppingBag size={13} /> Go to Portfolio → Sell
                 </button>
               </div>
             ) : (
@@ -440,6 +442,17 @@ export default function SecondaryMarket() {
       </AnimatePresence>
 
       <InvestModal open={investOpen} onClose={() => setInvestOpen(false)} listing={selectedListing} />
+
+      <PriceAlertModal
+        open={!!alertListing}
+        onClose={() => setAlertListing(null)}
+        listing={alertListing ? {
+          farmId: alertListing.farmId,
+          farmName: alertListing.farmName,
+          pricePerShare: alertListing.pricePerShare,
+          cropType: alertListing.cropType,
+        } : null}
+      />
 
       <AnimatePresence>
         {cancelListing && (

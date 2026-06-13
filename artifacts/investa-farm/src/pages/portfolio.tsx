@@ -12,6 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExitModal } from "@/components/exit-modal";
 import { SellSharesModal } from "@/components/sell-shares-modal";
+import { PortfolioHealthAI } from "@/components/portfolio-health-ai";
 import { getCropImage } from "@/lib/crops";
 
 type Holding = {
@@ -382,6 +383,10 @@ export default function Portfolio() {
       {/* Holdings tab */}
       {activeTab === "holdings" && (
       <div className="px-4 pt-4 space-y-3">
+        {/* AI Health Card — show when there are holdings */}
+        {(holdings as Holding[])?.length > 0 && summary && (
+          <PortfolioHealthAI holdings={holdings as Holding[]} summary={summary} />
+        )}
         <h2 className="font-semibold text-foreground text-sm">My Holdings</h2>
         {isLoading
           ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)

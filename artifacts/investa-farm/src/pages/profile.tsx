@@ -3,7 +3,7 @@ import { useGetMe, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, formatKES, getToken, storeUser, getStoredUser } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, RefreshCw, ArrowUpRight } from "lucide-react";
+import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, RefreshCw, ArrowUpRight, Gift, Copy, Check } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { InvestorKycModal } from "@/components/investor-kyc-modal";
@@ -14,6 +14,64 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
 
 const BROKER_THRESHOLD = 500_000;
+
+function ReferralCard({ userId }: { userId?: number | string }) {
+  const code = `INVEST-${String(userId ?? "DEMO").slice(-6).toUpperCase()}`;
+  const shareUrl = `https://investafarm.co.ke/join?ref=${code}`;
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(shareUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({ title: "Join Investa Farm", text: `Invest in Kenya's agricultural sector. Use my referral code ${code} to get started!`, url: shareUrl });
+    } else {
+      handleCopy();
+    }
+  };
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-green-200"
+      style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 60%, #16a34a 100%)" }}>
+      <div className="p-4">
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20 flex-shrink-0">
+            <Gift size={18} className="text-yellow-300" />
+          </div>
+          <div>
+            <p className="text-white font-bold text-sm">Refer a Friend</p>
+            <p className="text-green-200/70 text-[10px]">You both get KES 500 when they invest</p>
+          </div>
+        </div>
+
+        <div className="bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 flex items-center gap-2 mb-3">
+          <span className="text-green-200 text-[10px] font-bold uppercase tracking-widest">Your Code</span>
+          <span className="text-white font-extrabold text-sm tracking-widest flex-1">{code}</span>
+          <button onClick={handleCopy}
+            className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center active:scale-90 transition-transform border border-white/20">
+            {copied ? <Check size={13} className="text-green-300" /> : <Copy size={13} className="text-white/80" />}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={handleCopy}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/15 border border-white/20 text-white text-xs font-semibold active:scale-95 transition-transform">
+            {copied ? <Check size={12} className="text-green-300" /> : <Copy size={12} />}
+            {copied ? "Copied!" : "Copy Link"}
+          </button>
+          <button onClick={handleShare}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white text-primary text-xs font-bold active:scale-95 transition-transform">
+            <Gift size={12} /> Share & Earn
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Profile() {
   const [, setLocation] = useLocation();
@@ -261,6 +319,9 @@ export default function Profile() {
             </span>
           </div>
         )}
+
+        {/* Referral card */}
+        <ReferralCard userId={user?.id ?? stored?.id} />
 
         {/* Theme toggle */}
         <button onClick={toggleTheme}
