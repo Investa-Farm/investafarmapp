@@ -184,9 +184,12 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
-  if (!user.emailVerified) {
+  let resolvedVerified = user.emailVerified;
+  if (!resolvedVerified) {
     if (DEMO_EMAILS.has(user.email.toLowerCase())) {
+      // Auto-verify demo accounts — update DB and mark resolved as true
       await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.id, user.id));
+      resolvedVerified = true;
     } else {
       const code = generateOtp();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -205,7 +208,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
   const token = signToken(user.id);
   res.json({
-    user: { id: user.id, email: user.email, name: user.name, role: user.role, emailVerified: user.emailVerified, createdAt: user.createdAt.toISOString() },
+    user: { id: user.id, email: user.email, name: user.name, role: user.role, emailVerified: resolvedVerified, createdAt: user.createdAt.toISOString() },
     token,
   });
 });

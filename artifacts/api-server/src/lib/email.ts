@@ -104,6 +104,75 @@ function emailWrapper(content: string, preheader = "") {
 </html>`;
 }
 
+export async function sendVerificationReminderEmail(
+  to: string,
+  name: string,
+  daysSince: number
+): Promise<void> {
+  const transport = createTransport();
+  if (!transport) return;
+
+  const isUrgent = daysSince >= 14;
+  const urgencyLabel = isUrgent ? "⚠️ Action Required" : "📧 Friendly Reminder";
+  const subject = isUrgent
+    ? `⚠️ Verify your Investa Farm email — account at risk`
+    : `Reminder: Verify your Investa Farm email`;
+
+  const content = `
+    <tr>
+      <td style="padding:32px 40px;">
+        <h2 style="color:#111827;font-size:22px;font-weight:800;margin:0 0 8px 0;">${urgencyLabel}</h2>
+        <h3 style="color:${GRASS_GREEN};font-size:17px;font-weight:700;margin:0 0 20px 0;">Verify Your Email Address</h3>
+        <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 16px 0;">
+          Hi <strong>${name}</strong>,<br><br>
+          You registered on <strong>Investa Farm</strong> ${Math.round(daysSince)} days ago but haven't verified your email yet.
+        </p>
+
+        ${isUrgent ? `
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+          <p style="color:#991b1b;font-size:13px;font-weight:700;margin:0 0 6px 0;">⚠️ Your account may be restricted</p>
+          <p style="color:#b91c1c;font-size:13px;margin:0;line-height:1.5;">
+            Unverified accounts cannot complete investments, withdraw funds, or access full platform features.
+            Verify now to keep your account in good standing.
+          </p>
+        </div>` : `
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+          <p style="color:#92400e;font-size:13px;font-weight:700;margin:0 0 6px 0;">Why verify your email?</p>
+          <ul style="color:#78350f;font-size:13px;line-height:1.8;margin:0;padding-left:16px;">
+            <li>Protect your account from unauthorised access</li>
+            <li>Receive price alerts and farm updates</li>
+            <li>Enable withdrawals and portfolio features</li>
+            <li>Get your weekly investment opportunity digest</li>
+          </ul>
+        </div>`}
+
+        <table cellpadding="0" cellspacing="0" style="margin:24px auto;">
+          <tr>
+            <td align="center" style="background:linear-gradient(135deg,${GRASS_DARK},${GRASS_GREEN});border-radius:12px;padding:1px;">
+              <a href="https://investafarm.co.ke/verify-otp" style="display:inline-block;background:linear-gradient(135deg,${GRASS_DARK},${GRASS_GREEN});color:#ffffff;font-size:15px;font-weight:800;text-decoration:none;padding:14px 36px;border-radius:12px;">
+                ✅ Verify My Email Now
+              </a>
+            </td>
+          </tr>
+        </table>
+
+        <p style="color:#9ca3af;font-size:12px;text-align:center;margin:16px 0 0 0;line-height:1.6;">
+          If you didn't create an Investa Farm account, you can safely ignore this email.<br>
+          Questions? <a href="mailto:investafarm@proton.me" style="color:${GRASS_GREEN};">investafarm@proton.me</a>
+        </p>
+      </td>
+    </tr>`;
+
+  await transport.sendMail({
+    from: from("Investa Farm"),
+    to,
+    subject,
+    replyTo: "investafarm@proton.me",
+    headers: { "X-Mailer": "Investa Farm Platform", "List-Unsubscribe": `<mailto:investafarm@proton.me?subject=Unsubscribe>` },
+    html: emailWrapper(content, `Verify your Investa Farm email to unlock all platform features.`),
+  });
+}
+
 function statCard(icon: string, label: string, value: string, color = GRASS_GREEN) {
   return `
     <td align="center" style="padding:0 6px;">

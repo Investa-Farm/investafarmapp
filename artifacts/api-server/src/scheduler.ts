@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import { db, usersTable, farmsTable, investmentsTable } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
-import { sendOpportunityDigest, sendPriceAlertEmail } from "./lib/email";
+import { eq, and, inArray, lt, isNull, or } from "drizzle-orm";
+import { sendOpportunityDigest, sendPriceAlertEmail, sendVerificationReminderEmail } from "./lib/email";
 import { notifyMany } from "./lib/push";
 
 export function startScheduler(): void {
@@ -25,8 +25,14 @@ export function startScheduler(): void {
     timezone: "Africa/Nairobi",
   });
 
+  // Daily 10:00 AM EAT — remind unverified users (after 7-day grace period)
+  cron.schedule("0 10 * * *", () => runVerificationReminders(), {
+    timezone: "Africa/Nairobi",
+  });
+
   console.log("[scheduler] Weekly digest: Mon 8am & Fri 6pm EAT");
   console.log("[scheduler] Price simulation & alerts: every 5 minutes");
+  console.log("[scheduler] Verification reminders: daily 10am EAT");
 }
 
 async function runOpportunityDigest(label: string): Promise<void> {
@@ -46,6 +52,34 @@ async function runOpportunityDigest(label: string): Promise<void> {
     console.log(`[scheduler] ${label} digest queued for ${queued} users`);
   } catch (e) {
     console.error("[scheduler] Digest run error:", e);
+  }
+}
+
+async function runVerificationReminders(): Promise<void> {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const allUnverified = await db
+      .select()
+      .from(usersTable)
+      .where(
+        and(
+          eq(usersTable.emailVerified, false),
+          lt(usersTable.createdAt, sevenDaysAgo)
+        )
+      );
+
+    let sent = 0;
+    for (const user of allUnverified) {
+      if (!user.email || !user.name) continue;
+      const daysSince = (Date.now() - user.createdAt.getTime()) / 86_400_000;
+      sendVerificationReminderEmail(user.email, user.name, daysSince).catch((e) =>
+        console.warn(`[scheduler] Verification reminder failed for ${user.email}:`, (e as Error)?.message)
+      );
+      sent++;
+    }
+    if (sent > 0) console.log(`[scheduler] Verification reminders queued for ${sent} unverified users`);
+  } catch (e) {
+    console.error("[scheduler] Verification reminder run error:", e);
   }
 }
 

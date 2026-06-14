@@ -136,10 +136,15 @@ export async function seedDemoUsers(log: (msg: string) => void = console.log) {
       const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, u.email));
       if (existing) {
         createdUsers[u.email] = existing.id;
+        // Ensure all demo users are verified (fix any existing unverified demo accounts)
+        if (!existing.emailVerified) {
+          await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.email, u.email));
+          log(`[seed] Auto-verified demo account: ${u.email}`);
+        }
       } else {
         const passwordHash = await bcrypt.hash(u.password, 10);
         const [inserted] = await db.insert(usersTable)
-          .values({ email: u.email, passwordHash, name: u.name, role: u.role })
+          .values({ email: u.email, passwordHash, name: u.name, role: u.role, emailVerified: true })
           .returning({ id: usersTable.id });
         createdUsers[u.email] = inserted!.id;
         log(`[seed] Created: ${u.email} (${u.role})`);

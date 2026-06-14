@@ -33,7 +33,12 @@ export default function FarmerAuth() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault(); setError("");
     login.mutate({ data: { email, password } }, {
-      onSuccess: (data) => {
+      onSuccess: (data: any) => {
+        if (data.requiresOtp) {
+          setToken(data.token); storeUser(data.user);
+          setLocation(`/verify-otp?email=${encodeURIComponent(data.email ?? email)}`);
+          return;
+        }
         if (data.user.role !== "farmer") { setError("This account is not a farmer account."); return; }
         setToken(data.token); storeUser(data.user);
         setLocation("/farmer");

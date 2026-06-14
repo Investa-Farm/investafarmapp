@@ -311,6 +311,25 @@ export default function VerifyOtp() {
                 </div>
               </div>
 
+              {/* Skip for now — only shown for users already logged in (coming from login, not fresh register) */}
+              {token && user && (
+                <div className="text-center">
+                  <button
+                    onClick={() => {
+                      const role = (user as any)?.role;
+                      if (role === "farmer") setLocation("/farmer");
+                      else if (role === "cooperative") setLocation("/cooperative/dashboard");
+                      else if (role === "agribusiness") setLocation("/agribusiness");
+                      else setLocation("/market");
+                    }}
+                    className="text-muted-foreground/60 text-xs hover:text-muted-foreground transition-colors underline underline-offset-2"
+                  >
+                    Skip for now — I'll verify later
+                  </button>
+                  <p className="text-muted-foreground/40 text-[10px] mt-0.5">You'll receive reminders after 7 days</p>
+                </div>
+              )}
+
               <div className="text-center space-y-2">
                 <p className="text-muted-foreground text-xs">Having trouble receiving the code?</p>
                 <div className="flex items-center justify-center gap-4">
