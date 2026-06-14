@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, PartyPopper, Mail, MessageCircle, Pencil, X } from "lucide-react";
+import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, PartyPopper, Mail, MessageCircle, Pencil, X, ArrowLeft } from "lucide-react";
 import { getToken, getStoredUser, storeUser, clearToken } from "@/lib/auth";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
@@ -132,6 +132,17 @@ export default function VerifyOtp() {
 
   return (
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-background flex flex-col items-center justify-center px-6 pb-10">
+      {/* Back to landing */}
+      <div className="w-full pt-10 pb-2">
+        <button
+          onClick={() => { clearToken(); setLocation("/"); }}
+          className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors active:scale-95"
+        >
+          <ArrowLeft size={15} />
+          Back to home
+        </button>
+      </div>
+
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full space-y-6">
         <div className="text-center">
           <img src={logoSrc} alt="Investa Farm" className="h-14 w-auto mx-auto" />
