@@ -356,7 +356,7 @@ export default function MarketHome() {
                               alt={m.farmName}
                               className="w-full h-28 object-cover"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent p-2.5 flex flex-col justify-end">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent p-2.5 flex flex-col justify-end">
                               <p className="text-white text-xs font-semibold leading-tight">{m.farmName}</p>
                               <p className="text-white/80 text-[10px]">{formatAmount(m.currentPrice)}</p>
                               <div className="flex items-center gap-1 mt-0.5">
@@ -402,7 +402,7 @@ export default function MarketHome() {
                                 alt={d.farmName}
                                 className="w-full h-28 object-cover"
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-red-800/60 via-transparent to-transparent p-2.5 flex flex-col justify-end">
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent p-2.5 flex flex-col justify-end">
                                 <p className="text-white text-xs font-semibold leading-tight">{d.farmName}</p>
                                 <p className="text-white/80 text-[10px]">{formatAmount(d.currentPrice)}</p>
                                 <div className="flex items-center gap-1 mt-0.5">

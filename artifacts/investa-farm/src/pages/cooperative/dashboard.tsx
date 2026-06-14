@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRight, LogOut, BarChart3, Globe, Phone, Camera } from "lucide-react";
+import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRight, LogOut, BarChart3, Globe, Phone, Camera, Package, ShoppingCart, Truck, Star, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { clearToken, getStoredUser } from "@/lib/auth";
 
@@ -13,13 +13,22 @@ fetch("https://api.investafarm.co.ke/v1/farmers", {
 
 const EXCEL_SNIPPET = `=INVESTAFARM_FARMERS("YOUR_KEY","county=Nakuru")`;
 
-const SERVICES = [
+const FARMERS_CONNECT_SERVICES = [
   { icon: "🌾", title: "Member Farmer Management", desc: "Onboard and manage farmer groups in your network", badge: "Active" },
   { icon: "💳", title: "Input Credit Facilitation", desc: "Connect farmers to input vouchers via Investa Farm loans", badge: "Active" },
   { icon: "📦", title: "Produce Aggregation", desc: "Receive and track produce from funded farms", badge: "Coming Soon" },
   { icon: "📊", title: "Data Analytics & Reports", desc: "Performance reports for your farmer network", badge: "Active" },
   { icon: "🔌", title: "API Integration", desc: "Embed Investa Farm data into your systems", badge: "Beta" },
   { icon: "🤝", title: "Co-financing Programs", desc: "Co-invest alongside Investa Farm on large farms", badge: "Coming Soon" },
+];
+
+const INPUT_PROVIDER_SERVICES = [
+  { icon: "🌱", title: "Input Catalog Listing", desc: "List seeds, fertilizer, and farm inputs on the Investa platform", badge: "Active" },
+  { icon: "💳", title: "Input Voucher Redemption", desc: "Accept Investa Farm loan vouchers as payment from farmers", badge: "Active" },
+  { icon: "📦", title: "Order Management", desc: "Track and fulfil input orders from funded farmers", badge: "Active" },
+  { icon: "📊", title: "Sales Analytics", desc: "Reports on voucher redemptions, sales volume and crop coverage", badge: "Active" },
+  { icon: "🚚", title: "Last-Mile Delivery", desc: "Coordinate input delivery to rural farm locations", badge: "Beta" },
+  { icon: "🤝", title: "Supply Chain Finance", desc: "Access working capital financing backed by Investa orders", badge: "Coming Soon" },
 ];
 
 const ORG_TYPE_IMAGES: Record<string, string> = {
@@ -35,7 +44,7 @@ export default function CooperativeDashboard() {
   const [, setLocation] = useLocation();
   const user = getStoredUser();
   const [copiedSnippet, setCopiedSnippet] = useState<"rest" | "excel" | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "api" | "farmers">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "api" | "farmers" | "orders">("overview");
 
   const handleLogout = () => { clearToken(); setLocation("/"); };
 
@@ -46,7 +55,18 @@ export default function CooperativeDashboard() {
   };
 
   const orgType = localStorage.getItem("investa_org_type") ?? "cooperative";
+  const subType = localStorage.getItem("investa_coop_sub_type") ?? "farmers_connect";
+  const isInputProvider = subType === "input_provider";
   const profileImage = ORG_TYPE_IMAGES[orgType] ?? ORG_TYPE_IMAGES.cooperative;
+  const services = isInputProvider ? INPUT_PROVIDER_SERVICES : FARMERS_CONNECT_SERVICES;
+
+  const tabs = isInputProvider
+    ? (["overview", "api", "orders"] as const)
+    : (["overview", "api", "farmers"] as const);
+
+  const statsRow = isInputProvider
+    ? [{ val: "—", label: "Active Orders" }, { val: "—", label: "Vouchers" }, { val: "—", label: "Revenue KES" }]
+    : [{ val: "—", label: "Farmers" }, { val: "—", label: "Active Loans" }, { val: "—", label: "Funded KES" }];
 
   return (
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-10">
@@ -55,23 +75,22 @@ export default function CooperativeDashboard() {
 
         <div className="flex items-center justify-between mb-4 relative z-10">
           <div className="flex items-center gap-3">
-            {/* Profile image card */}
             <div className="relative">
               <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/30 shadow-lg">
-                <img
-                  src={profileImage}
-                  alt="Organization"
-                  className="w-full h-full object-cover"
-                />
+                <img src={profileImage} alt="Organization" className="w-full h-full object-cover" />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-white flex items-center justify-center">
-                <Building2 size={9} className="text-white" />
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#16a34a] border-2 border-white flex items-center justify-center">
+                {isInputProvider ? <Package size={9} className="text-white" /> : <Building2 size={9} className="text-white" />}
               </div>
             </div>
             <div>
-              <p className="text-white/70 text-xs">Partner Dashboard</p>
+              <p className="text-white/70 text-xs">{isInputProvider ? "Input Provider" : "Farmers Connect"} Dashboard</p>
               <h1 className="text-white font-bold text-base leading-tight">{user?.name ?? "Partner"}</h1>
-              <p className="text-white/50 text-[9px] capitalize">{orgType.replace(/_/g, " ")} · Verified Partner</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${isInputProvider ? "bg-blue-500/30 text-blue-200" : "bg-[#16a34a]/40 text-green-200"}`}>
+                  {isInputProvider ? "🏭 Input Provider" : "🌾 Farmers Connect"}
+                </span>
+              </div>
             </div>
           </div>
           <button onClick={handleLogout} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
@@ -81,11 +100,7 @@ export default function CooperativeDashboard() {
 
         {/* Quick stats */}
         <div className="grid grid-cols-3 gap-2 relative z-10">
-          {[
-            { val: "—", label: "Farmers" },
-            { val: "—", label: "Active Loans" },
-            { val: "—", label: "Funded KES" },
-          ].map(({ val, label }) => (
+          {statsRow.map(({ val, label }) => (
             <div key={label} className="bg-white/10 rounded-xl p-2.5 text-center border border-white/10">
               <p className="text-white font-bold text-sm">{val}</p>
               <p className="text-white/60 text-[9px]">{label}</p>
@@ -95,10 +110,10 @@ export default function CooperativeDashboard() {
 
         {/* Tab switcher */}
         <div className="flex gap-1 mt-3 bg-black/20 rounded-xl p-1 relative z-10">
-          {(["overview", "api", "farmers"] as const).map(t => (
-            <button key={t} onClick={() => setActiveTab(t)}
+          {tabs.map(t => (
+            <button key={t} onClick={() => setActiveTab(t as any)}
               className={`flex-1 py-1.5 rounded-lg text-[10px] font-semibold capitalize transition-all ${activeTab === t ? "bg-white text-foreground" : "text-white/70"}`}>
-              {t === "api" ? "API / Plugin" : t}
+              {t === "api" ? "API / Plugin" : t === "orders" ? "Orders" : t === "farmers" ? "Farmers" : "Overview"}
             </button>
           ))}
         </div>
@@ -107,14 +122,16 @@ export default function CooperativeDashboard() {
       <div className="px-4 pt-4 space-y-4">
         {activeTab === "overview" && (
           <>
-            {/* Partnership notice */}
-            <div className="bg-white border border-border rounded-2xl p-4">
+            {/* Account type banner */}
+            <div className={`rounded-2xl p-4 border ${isInputProvider ? "bg-blue-50 border-blue-200" : "bg-[#16a34a]/5 border-[#16a34a]/20"}`}>
               <div className="flex items-center gap-2 mb-2">
-                <Globe size={15} className="text-primary" />
-                <p className="text-sm font-semibold">Welcome to Investa Farm Partners</p>
+                {isInputProvider ? <Package size={15} className="text-blue-600" /> : <Globe size={15} className="text-[#16a34a]" />}
+                <p className="text-sm font-semibold">{isInputProvider ? "Input Provider Dashboard" : "Welcome to Investa Farm Partners"}</p>
               </div>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                You are registered as a <strong>{user?.role ?? "partner"}</strong>. Use this dashboard to manage your farmer network, access loan facilitation, and integrate our data into your operations.
+              <p className={`text-xs leading-relaxed ${isInputProvider ? "text-blue-600" : "text-muted-foreground"}`}>
+                {isInputProvider
+                  ? "As an Input Provider, you can list products, accept voucher payments from Investa-funded farmers, and track order fulfilment across your distribution network."
+                  : "You are registered as a Farmers Connect partner. Use this dashboard to manage your farmer network, access loan facilitation, and integrate our data into your operations."}
               </p>
             </div>
 
@@ -122,7 +139,7 @@ export default function CooperativeDashboard() {
             <div className="bg-white border border-border rounded-2xl overflow-hidden">
               <div className="relative h-28">
                 <img src={profileImage} alt="Organization" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                 <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
                   <div>
                     <p className="text-white font-bold text-sm">{user?.name ?? "Your Organization"}</p>
@@ -151,17 +168,17 @@ export default function CooperativeDashboard() {
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Available Services</p>
               <div className="space-y-2">
-                {SERVICES.map(svc => (
+                {services.map(svc => (
                   <motion.div key={svc.title} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                     className="bg-white border border-border rounded-2xl p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-xl flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#16a34a]/10 flex items-center justify-center text-xl flex-shrink-0">
                       {svc.icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-foreground text-sm font-semibold">{svc.title}</p>
                       <p className="text-muted-foreground text-[10px] mt-0.5">{svc.desc}</p>
                     </div>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${svc.badge === "Active" ? "bg-green-100 text-green-700" : svc.badge === "Beta" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${svc.badge === "Active" ? "bg-[#16a34a]/10 text-[#16a34a]" : svc.badge === "Beta" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
                       {svc.badge}
                     </span>
                   </motion.div>
@@ -170,12 +187,12 @@ export default function CooperativeDashboard() {
             </div>
 
             {/* Contact */}
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-              <p className="text-green-700 font-semibold text-sm mb-2">Get Onboarded</p>
-              <p className="text-green-600 text-xs mb-3">Our partnership team will reach you within 24 hours to complete your onboarding and assign API credentials.</p>
-              <div className="flex items-center gap-2 text-green-700 text-xs">
+            <div className="bg-[#16a34a]/5 border border-[#16a34a]/20 rounded-2xl p-4">
+              <p className="text-[#16a34a] font-semibold text-sm mb-2">Get Onboarded</p>
+              <p className="text-[#16a34a]/70 text-xs mb-3">Our partnership team will reach you within 24 hours to complete your onboarding and assign API credentials.</p>
+              <div className="flex items-center gap-2 text-[#16a34a] text-xs">
                 <Phone size={12} /> <span>+254 700 000 000</span>
-                <span className="text-green-400">·</span>
+                <span className="text-[#16a34a]/40">·</span>
                 <span>partners@investafarm.co.ke</span>
               </div>
             </div>
@@ -186,22 +203,22 @@ export default function CooperativeDashboard() {
           <>
             <div className="bg-white border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Plug size={15} className="text-primary" />
+                <Plug size={15} className="text-[#16a34a]" />
                 <p className="text-sm font-semibold">REST API Integration</p>
               </div>
               <p className="text-muted-foreground text-xs mb-3">Connect your systems directly to Investa Farm's farmer database, loans, and market data via our REST API.</p>
               <div className="bg-gray-900 rounded-xl p-3 relative">
-                <pre className="text-green-400 text-[9px] font-mono leading-relaxed overflow-x-auto">{API_SNIPPET}</pre>
+                <pre className="text-[#16a34a] text-[9px] font-mono leading-relaxed overflow-x-auto">{API_SNIPPET}</pre>
                 <button onClick={() => copy(API_SNIPPET, "rest")}
                   className="absolute top-2 right-2 w-6 h-6 rounded bg-white/10 flex items-center justify-center">
-                  {copiedSnippet === "rest" ? <Check size={10} className="text-green-400" /> : <Copy size={10} className="text-white/60" />}
+                  {copiedSnippet === "rest" ? <Check size={10} className="text-[#16a34a]" /> : <Copy size={10} className="text-white/60" />}
                 </button>
               </div>
             </div>
 
             <div className="bg-white border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
-                <FileSpreadsheet size={15} className="text-green-600" />
+                <FileSpreadsheet size={15} className="text-[#16a34a]" />
                 <p className="text-sm font-semibold">Excel / Google Sheets Plugin</p>
                 <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Beta</span>
               </div>
@@ -210,13 +227,13 @@ export default function CooperativeDashboard() {
                 <pre className="text-yellow-400 text-[10px] font-mono">{EXCEL_SNIPPET}</pre>
                 <button onClick={() => copy(EXCEL_SNIPPET, "excel")}
                   className="absolute top-2 right-2 w-6 h-6 rounded bg-white/10 flex items-center justify-center">
-                  {copiedSnippet === "excel" ? <Check size={10} className="text-green-400" /> : <Copy size={10} className="text-white/60" />}
+                  {copiedSnippet === "excel" ? <Check size={10} className="text-[#16a34a]" /> : <Copy size={10} className="text-white/60" />}
                 </button>
               </div>
               <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
                 {["Download the Investa Farm Excel Add-in from our partner portal", "Install in Excel via Insert → Add-ins → Upload My Add-in", "Enter your API key when prompted — data syncs automatically"].map((step, i) => (
                   <div key={i} className="flex items-start gap-2">
-                    <span className="w-4 h-4 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
+                    <span className="w-4 h-4 rounded-full bg-[#16a34a]/10 text-[#16a34a] flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
                     <span>{step}</span>
                   </div>
                 ))}
@@ -237,7 +254,7 @@ export default function CooperativeDashboard() {
                   { method: "POST", path: "/v1/webhooks", desc: "Receive event notifications" },
                 ].map(ep => (
                   <div key={ep.path} className="flex items-center gap-3 bg-gray-50 rounded-xl p-2.5">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${ep.method === "GET" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>{ep.method}</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${ep.method === "GET" ? "bg-blue-100 text-blue-700" : "bg-[#16a34a]/10 text-[#16a34a]"}`}>{ep.method}</span>
                     <code className="text-foreground text-[10px] font-mono flex-1">{ep.path}</code>
                     <span className="text-muted-foreground text-[9px]">{ep.desc}</span>
                   </div>
@@ -247,13 +264,14 @@ export default function CooperativeDashboard() {
           </>
         )}
 
+        {/* Farmers tab — only for Farmers Connect */}
         {activeTab === "farmers" && (
           <>
             <div className="bg-white border border-border rounded-2xl p-4 text-center py-10">
               <Users size={32} className="text-muted-foreground mx-auto mb-3" />
               <p className="text-foreground font-semibold text-sm">No Farmers Linked Yet</p>
               <p className="text-muted-foreground text-xs mt-1 mb-4">Contact the Investa Farm team to link your farmer network to this partner account.</p>
-              <button className="bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 mx-auto">
+              <button className="bg-[#16a34a] text-white text-sm font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 mx-auto active:scale-95 transition-transform">
                 <Phone size={14} /> Contact Partnership Team <ChevronRight size={14} />
               </button>
             </div>
@@ -263,6 +281,38 @@ export default function CooperativeDashboard() {
                 <p className="text-blue-700 text-xs font-semibold">Farmer Database Import</p>
               </div>
               <p className="text-blue-600 text-xs">Upload a CSV of your farmer members and we'll bulk-onboard them onto Investa Farm, with group KYC pre-filled from your records.</p>
+            </div>
+          </>
+        )}
+
+        {/* Orders tab — only for Input Providers */}
+        {activeTab === "orders" && (
+          <>
+            <div className="bg-white border border-border rounded-2xl p-4 text-center py-10">
+              <ShoppingCart size={32} className="text-muted-foreground mx-auto mb-3" />
+              <p className="text-foreground font-semibold text-sm">No Orders Yet</p>
+              <p className="text-muted-foreground text-xs mt-1 mb-4">Orders from Investa-funded farmers will appear here once your product catalog is live.</p>
+              <button className="bg-[#16a34a] text-white text-sm font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 mx-auto active:scale-95 transition-transform">
+                <Package size={14} /> Set Up Product Catalog <ChevronRight size={14} />
+              </button>
+            </div>
+            <div className="bg-[#16a34a]/5 border border-[#16a34a]/20 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Truck size={14} className="text-[#16a34a]" />
+                <p className="text-[#16a34a] text-xs font-semibold">How Input Orders Work</p>
+              </div>
+              <div className="space-y-2 mt-2">
+                {[
+                  "Farmer receives a loan & gets an input voucher from Investa Farm",
+                  "Farmer redeems voucher with your business for seeds, fertilizer or tools",
+                  "You fulfil the order and Investa Farm credits your account",
+                ].map((step, i) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-[#16a34a] text-white flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
+                    <p className="text-[#16a34a]/80 text-xs leading-relaxed">{step}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         )}

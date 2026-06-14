@@ -48,10 +48,10 @@ export default function Landing() {
           className="w-full relative rounded-3xl overflow-hidden h-44 flex items-end active:scale-98 transition-all shadow-md group"
         >
           <img src={farmerImg} alt="Farmer" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
           <div className="relative z-10 p-4 w-full flex items-end justify-between">
             <div className="text-left">
-              <div className="inline-flex items-center gap-1.5 bg-green-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full mb-2">
+              <div className="inline-flex items-center gap-1.5 bg-[#16a34a] text-white text-[10px] font-bold px-2.5 py-1 rounded-full mb-2">
                 🌱 For Farmers
               </div>
               <p className="text-white font-bold text-lg leading-tight">I'm a Farmer</p>
@@ -70,7 +70,7 @@ export default function Landing() {
           className="w-full relative rounded-3xl overflow-hidden h-44 flex items-end active:scale-98 transition-all shadow-md group"
         >
           <img src={investorImg} alt="Investor" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
           <div className="relative z-10 p-4 w-full flex items-end justify-between">
             <div className="text-left">
               <div className="inline-flex items-center gap-1.5 bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full mb-2">
@@ -95,7 +95,7 @@ export default function Landing() {
           className="w-full relative rounded-3xl overflow-hidden h-32 flex items-end active:scale-98 transition-all shadow-md group"
         >
           <img src={coopImg} alt="Cooperative" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
           <div className="relative z-10 p-4 w-full flex items-end justify-between">
             <div className="text-left">
               <div className="inline-flex items-center gap-1.5 text-white text-[10px] font-bold px-2.5 py-1 rounded-full mb-2 border border-white/30 bg-white/10">

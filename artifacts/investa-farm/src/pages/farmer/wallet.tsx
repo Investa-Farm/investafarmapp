@@ -34,6 +34,7 @@ export default function FarmerWallet() {
   const [amount, setAmount] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
   const [paystackRef, setPaystackRef] = useState<string | null>(null);
+  const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const [paystackVerifying, setPaystackVerifying] = useState(false);
 
   const { data, isLoading, refetch } = useQuery<WalletData>({
@@ -57,7 +58,8 @@ export default function FarmerWallet() {
     },
     onSuccess: (data) => {
       setPaystackRef(data.reference);
-      window.open(data.authorizationUrl, "_blank", "width=600,height=700");
+      setPaystackUrl(data.authorizationUrl);
+      setModal("paystack");
     },
   });
 
@@ -321,21 +323,29 @@ export default function FarmerWallet() {
                 </>
               )}
 
-              {modal === "paystack" && paystackRef && (
-                <div className="space-y-4">
-                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
-                    <p className="text-primary font-semibold text-sm">Payment Window Opened</p>
-                    <p className="text-primary/70 text-xs mt-1">Complete your payment, then confirm below.</p>
-                    <p className="text-muted-foreground text-[10px] mt-1 font-mono">Ref: {paystackRef}</p>
+              {modal === "paystack" && paystackRef && paystackUrl && (
+                <div className="space-y-3">
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-center gap-2">
+                    <CheckCircle2 size={14} className="text-primary flex-shrink-0" />
+                    <div>
+                      <p className="text-primary font-semibold text-xs">Paystack Checkout — In-App</p>
+                      <p className="text-primary/60 text-[10px] font-mono">{paystackRef}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl overflow-hidden border border-border" style={{ height: 420 }}>
+                    <iframe
+                      src={paystackUrl}
+                      title="Paystack Checkout"
+                      width="100%"
+                      height="420"
+                      style={{ border: 0, display: "block" }}
+                      sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation"
+                    />
                   </div>
                   <button onClick={verifyPaystack} disabled={paystackVerifying}
                     className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
                     {paystackVerifying ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                    {paystackVerifying ? "Verifying…" : "I've Completed Payment"}
-                  </button>
-                  <button onClick={() => window.open(`https://checkout.paystack.com/${paystackRef}`, "_blank")}
-                    className="w-full border border-border text-foreground font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm active:scale-95">
-                    <ExternalLink size={14} /> Reopen Payment Window
+                    {paystackVerifying ? "Verifying payment…" : "I've Completed Payment ✓"}
                   </button>
                 </div>
               )}
