@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useGetFarm, getGetFarmQueryKey, useListPrimaryMarket } from "@workspace/api-client-react";
-import { ArrowLeft, TrendingUp, TrendingDown, Users, Share2, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles, BarChart2, Navigation } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Users, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles, BarChart2, Navigation, CloudRain, Wind, Thermometer, Droplet } from "lucide-react";
 import { ShareModal } from "@/components/share-modal";
+import { AiSectionBot } from "@/components/ai-section-bot";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
 import { getCropImage } from "@/lib/crops";
@@ -84,6 +85,129 @@ function AiInsightTags({ cropType, changePercent, stage, fundingPercent }: {
   );
 }
 
+const NDVI_BY_STAGE: Record<string, Record<string, number>> = {
+  planting: { maize: 0.28, wheat: 0.25, tea: 0.55, coffee: 0.45, avocado: 0.50, dairy: 0.58, default: 0.30 },
+  growing:  { maize: 0.72, wheat: 0.65, tea: 0.78, coffee: 0.63, avocado: 0.69, dairy: 0.73, default: 0.62 },
+  harvest:  { maize: 0.54, wheat: 0.48, tea: 0.71, coffee: 0.57, avocado: 0.61, dairy: 0.69, default: 0.52 },
+};
+
+function getNdvi(cropType: string, stage: string) {
+  const stageData = NDVI_BY_STAGE[stage] ?? NDVI_BY_STAGE["growing"]!;
+  const key = Object.keys(stageData).find(k => k !== "default" && cropType.toLowerCase().includes(k));
+  return key ? stageData[key]! : stageData["default"]!;
+}
+
+function ndviColor(v: number) {
+  if (v >= 0.65) return { label: "Excellent", color: "text-[#16a34a]", bg: "bg-[#16a34a]/10" };
+  if (v >= 0.50) return { label: "Good", color: "text-blue-600", bg: "bg-blue-50" };
+  if (v >= 0.35) return { label: "Fair", color: "text-amber-600", bg: "bg-amber-50" };
+  return { label: "Low", color: "text-red-500", bg: "bg-red-50" };
+}
+
+type WeatherRes = {
+  current: { temperature_2m: number; precipitation: number; relative_humidity_2m: number; windspeed_10m: number };
+  daily: { temperature_2m_max: number[]; temperature_2m_min: number[]; precipitation_sum: number[]; time: string[] };
+};
+
+function WeatherNdvi({ lat, lng, cropType, stage }: { lat: number; lng: number; cropType: string; stage: string }) {
+  const { data: wx, isLoading } = useQuery<WeatherRes>({
+    queryKey: ["weather-ndvi", lat.toFixed(3), lng.toFixed(3)],
+    staleTime: 30 * 60 * 1000,
+    queryFn: async () => {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,relative_humidity_2m,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Africa%2FNairobi&forecast_days=5`;
+      const r = await fetch(url);
+      return r.json();
+    },
+  });
+
+  const ndvi = getNdvi(cropType, stage);
+  const ndviMeta = ndviColor(ndvi);
+
+  return (
+    <div className="space-y-3">
+      {/* NDVI Card */}
+      <div className="bg-card rounded-2xl border border-border p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={14} className="text-[#16a34a]" />
+            <p className="text-sm font-semibold">Satellite Vegetation (NDVI)</p>
+            <AiSectionBot context={`NDVI score is ${ndvi.toFixed(2)} (${ndviMeta.label}) for a ${cropType} farm in ${stage} stage. What does this mean for the farmer and investor?`} label="NDVI" />
+          </div>
+          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${ndviMeta.bg} ${ndviMeta.color}`}>{ndviMeta.label}</span>
+        </div>
+        <div className="flex items-end gap-3 mb-3">
+          <div className="flex-1">
+            <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+              <span>0.0 (Bare)</span>
+              <span className={ndviMeta.color}>NDVI {ndvi.toFixed(2)}</span>
+              <span>1.0 (Dense)</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+              <div
+                className="h-3 rounded-full transition-all duration-700"
+                style={{
+                  width: `${ndvi * 100}%`,
+                  background: `linear-gradient(90deg, #eab308 0%, #16a34a ${ndvi * 100}%)`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+        <p className="text-muted-foreground text-[10px]">
+          Estimated from crop type &amp; growth stage. Higher NDVI = healthier, denser vegetation.
+        </p>
+      </div>
+
+      {/* Weather Card */}
+      <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-blue-200 rounded-2xl p-4">
+        <div className="flex items-center gap-1.5 mb-3">
+          <CloudRain size={14} className="text-blue-600" />
+          <p className="text-sm font-semibold text-blue-800">Live Weather &amp; Forecast</p>
+          <AiSectionBot
+            context={wx ? `Current weather near this farm: temperature ${wx.current.temperature_2m}°C, humidity ${wx.current.relative_humidity_2m}%, wind ${wx.current.windspeed_10m} km/h, precipitation ${wx.current.precipitation}mm. Crop: ${cropType} in ${stage} stage. What weather risks or opportunities should the investor know about?` : `Weather for a ${cropType} farm in ${stage} stage in Kenya`}
+            label="weather"
+          />
+        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-4 gap-2">
+            {Array(4).fill(0).map((_, i) => <div key={i} className="h-14 bg-blue-100 rounded-xl animate-pulse" />)}
+          </div>
+        ) : wx ? (
+          <>
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              {[
+                { icon: Thermometer, label: "Temp", val: `${wx.current.temperature_2m}°C`, color: "text-orange-500" },
+                { icon: Droplet, label: "Humidity", val: `${wx.current.relative_humidity_2m}%`, color: "text-blue-500" },
+                { icon: Wind, label: "Wind", val: `${wx.current.windspeed_10m}km/h`, color: "text-slate-500" },
+                { icon: CloudRain, label: "Rain", val: `${wx.current.precipitation}mm`, color: "text-blue-600" },
+              ].map(({ icon: Icon, label, val, color }) => (
+                <div key={label} className="bg-white/80 rounded-xl p-2 text-center">
+                  <Icon size={14} className={`${color} mx-auto mb-1`} />
+                  <p className="text-foreground font-bold text-xs">{val}</p>
+                  <p className="text-muted-foreground text-[9px]">{label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-blue-700 text-[10px] font-semibold mb-2 uppercase tracking-wide">5-Day Forecast</p>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {(wx.daily.time ?? []).slice(0, 5).map((t, i) => (
+                <div key={t} className="flex-shrink-0 bg-white/70 rounded-xl p-2 text-center min-w-[52px]">
+                  <p className="text-blue-600 text-[9px] font-semibold">{new Date(t).toLocaleDateString("en-KE", { weekday: "short" })}</p>
+                  <p className="text-foreground font-bold text-[11px] mt-0.5">{Math.round(wx.daily.temperature_2m_max[i] ?? 0)}°</p>
+                  <p className="text-blue-500 text-[9px]">{Math.round(wx.daily.temperature_2m_min[i] ?? 0)}°</p>
+                  <p className="text-blue-400 text-[9px]">{(wx.daily.precipitation_sum[i] ?? 0).toFixed(1)}mm</p>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-blue-600 text-xs">Unable to fetch weather data.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 type DetailTab = "overview" | "financials" | "growth" | "location";
 
 const DETAIL_TABS: { id: DetailTab; label: string; icon: string }[] = [
@@ -153,10 +277,7 @@ export default function FarmDetail() {
             className="w-9 h-9 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
             <ArrowLeft size={18} className="text-white" />
           </button>
-          <button data-testid="button-share" onClick={() => setShareOpen(true)}
-            className="w-9 h-9 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
-            <Share2 size={16} className="text-white" />
-          </button>
+          <div className="w-9 h-9" />
         </div>
         <div className="absolute bottom-3 left-4 right-4">
           <h1 className="text-white text-xl font-bold" style={{ fontFamily: "Space Grotesk, sans-serif" }}>{farm.name}</h1>
@@ -429,6 +550,8 @@ export default function FarmDetail() {
                   <p className="text-blue-800 font-bold text-xl">{formatKES(growth.marketPriceKes)} <span className="text-[10px] font-normal text-blue-600">/ 90kg bag</span></p>
                   <p className="text-blue-600 text-xs mt-1.5 italic">{growth.marketInsight}</p>
                 </div>
+
+                <WeatherNdvi lat={mapLat} lng={mapLng} cropType={farm.cropType} stage={growth.stage} />
 
                 <div className="bg-card rounded-2xl border border-border p-4">
                   <p className="text-sm font-semibold mb-3">Growth Timeline</p>

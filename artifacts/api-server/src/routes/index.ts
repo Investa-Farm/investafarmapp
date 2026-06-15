@@ -16,6 +16,7 @@ import notificationsRouter from "./notifications";
 import aiChatRouter from "./ai-chat";
 import newsRouter from "./news";
 import priceAlertsRouter from "./price-alerts";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(notificationsRouter);
 router.use(aiChatRouter);
 router.use(newsRouter);
 router.use(priceAlertsRouter);
+router.use(aiRouter);
 
 export default router;

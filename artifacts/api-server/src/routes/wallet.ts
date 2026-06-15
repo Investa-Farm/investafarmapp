@@ -58,11 +58,15 @@ router.post("/wallet/withdraw", async (req, res): Promise<void> => {
   const amount = Number(req.body.amount);
   const wallet = await getOrCreateWallet(user.id);
   if (!amount || amount <= 0) { res.status(400).json({ error: "Invalid amount." }); return; }
-  if (parseFloat(wallet.balance) < amount) {
-    res.status(400).json({ error: "Insufficient balance." });
+  const FEE_RATE = 0.005;
+  const FEE_CAP = 260;
+  const fee = Math.min(Math.round(amount * FEE_RATE * 100) / 100, FEE_CAP);
+  const totalDeducted = amount + fee;
+  if (parseFloat(wallet.balance) < totalDeducted) {
+    res.status(400).json({ error: `Insufficient balance. Amount + withdrawal fee (KES ${fee.toFixed(0)}) requires KES ${totalDeducted.toLocaleString("en-KE")}.` });
     return;
   }
-  const newBalance = parseFloat(wallet.balance) - amount;
+  const newBalance = parseFloat(wallet.balance) - totalDeducted;
   await db.update(walletsTable)
     .set({ balance: String(newBalance), updatedAt: new Date() })
     .where(eq(walletsTable.id, wallet.id));
@@ -73,12 +77,24 @@ router.post("/wallet/withdraw", async (req, res): Promise<void> => {
     userId: user.id,
     type: "withdrawal",
     amount: String(amount),
-    balanceAfter: String(newBalance),
+    balanceAfter: String(parseFloat(wallet.balance) - amount),
     description: req.body.description ?? `Withdraw to M-Pesa ${phoneDisplay}`.trim(),
     reference: `WDR-${Date.now()}`,
     status: "completed",
   }).returning();
-  res.json({ wallet: { ...wallet, balance: String(newBalance) }, transaction: tx });
+  if (fee > 0) {
+    await db.insert(walletTransactionsTable).values({
+      walletId: wallet.id,
+      userId: user.id,
+      type: "fee",
+      amount: String(fee),
+      balanceAfter: String(newBalance),
+      description: "Withdrawal fee (0.5%, max KES 260)",
+      reference: `FEE-WDR-${Date.now()}`,
+      status: "completed",
+    }).catch(() => {});
+  }
+  res.json({ wallet: { ...wallet, balance: String(newBalance) }, transaction: tx, fee });
 });
 
 router.post("/wallet/paystack/initialize", async (req, res): Promise<void> => {

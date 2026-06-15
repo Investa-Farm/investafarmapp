@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -63,42 +64,61 @@ type AppRole = "farmer" | "investor" | "cooperative" | "agribusiness";
 
 function VerifyBanner({ email, createdAt }: { email?: string; createdAt?: string }) {
   const [, setLocation] = useLocation();
+  const token = getToken();
   const dismissKey = "investa_verify_dismissed";
-  const dismissed = localStorage.getItem(dismissKey);
 
-  // After 7 days the banner can no longer be dismissed
   const registeredMs = createdAt ? new Date(createdAt).getTime() : 0;
   const daysSinceReg = registeredMs ? (Date.now() - registeredMs) / 86_400_000 : 0;
   const isOverdue = daysSinceReg >= 7;
 
-  // If dismissed within the last 24 h and not overdue, hide
-  if (!isOverdue && dismissed && Date.now() - parseInt(dismissed) < 86_400_000) return null;
+  const [dismissed, setDismissed] = useState(() => {
+    const v = localStorage.getItem(dismissKey);
+    return !isOverdue && v ? Date.now() - parseInt(v) < 86_400_000 : false;
+  });
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
 
-  const bg = isOverdue ? "bg-destructive/90" : "bg-amber-500";
-  const text = isOverdue
-    ? "⚠️ Verify your email now — your account may be restricted."
-    : "📧 Your email isn't verified yet. Verify to protect your account.";
+  if (dismissed) return null;
+
+  const handleResend = async () => {
+    if (sending || sent) return;
+    setSending(true);
+    try {
+      await fetch("/api/auth/send-otp", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      setSent(true);
+      setTimeout(() => setSent(false), 60_000);
+    } catch { /* silent */ } finally { setSending(false); }
+  };
+
+  const handleDismiss = () => {
+    localStorage.setItem(dismissKey, String(Date.now()));
+    setDismissed(true);
+  };
+
+  const bg = isOverdue ? "bg-red-600" : "bg-amber-500";
+  const label = isOverdue
+    ? "⚠️ Verify email now — account may be restricted."
+    : "📧 Email not verified. Verify to protect your account.";
 
   return (
-    <div className={`fixed top-0 left-0 right-0 z-50 ${bg} text-white text-xs font-semibold flex items-center justify-between px-4 py-2.5 shadow-md max-w-[430px] mx-auto`}>
-      <span className="flex-1 leading-snug">{text}</span>
-      <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-        <button
-          onClick={() => { const em = encodeURIComponent(email ?? ""); setLocation(`/verify-otp?email=${em}`); }}
-          className="bg-white/20 hover:bg-white/30 border border-white/40 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all"
-        >
-          Verify
-        </button>
-        {!isOverdue && (
-          <button
-            onClick={() => localStorage.setItem(dismissKey, String(Date.now()))}
-            className="opacity-70 hover:opacity-100 transition-opacity text-sm leading-none"
-            aria-label="Dismiss"
-          >
-            ×
-          </button>
-        )}
-      </div>
+    <div className={`fixed top-0 left-0 right-0 z-50 ${bg} text-white text-xs font-semibold flex items-center gap-2 px-3 py-2 shadow-md max-w-[430px] mx-auto`}>
+      <span className="flex-1 leading-snug truncate">{label}</span>
+      <button
+        onClick={handleResend}
+        disabled={sending || sent}
+        className="bg-white/20 border border-white/40 rounded-lg px-2 py-0.5 text-[10px] font-bold shrink-0 disabled:opacity-60"
+      >
+        {sent ? "✓ Sent!" : sending ? "…" : "Resend"}
+      </button>
+      <button
+        onClick={() => { const em = encodeURIComponent(email ?? ""); setLocation(`/verify-otp?email=${em}`); }}
+        className="bg-white/30 border border-white/50 rounded-lg px-2 py-0.5 text-[10px] font-bold shrink-0"
+      >
+        Verify
+      </button>
+      {!isOverdue && (
+        <button onClick={handleDismiss} className="opacity-70 hover:opacity-100 text-base leading-none shrink-0">×</button>
+      )}
     </div>
   );
 }

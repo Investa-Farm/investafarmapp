@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, farmsTable, marketListingsTable, usersTable, investmentsTable, transactionsTable, notificationsTable, walletsTable, walletTransactionsTable, loanApplicationsTable } from "@workspace/db";
+import { db, farmsTable, marketListingsTable, usersTable, investmentsTable, transactionsTable, notificationsTable, walletsTable, walletTransactionsTable, loanApplicationsTable, transactionFeesTable } from "@workspace/db";
 import { eq, and, desc, asc, count } from "drizzle-orm";
 import {
   BuySharesBody,
@@ -153,22 +153,26 @@ router.post("/market/buy", async (req, res): Promise<void> => {
   }
 
   const totalAmount = Number(listing.pricePerShare) * quantity;
+  const isPrimary = listing.listingType === "primary";
+  const feeRate = isPrimary ? 0.015 : 0.005; // 1.5% primary, 0.5% secondary
+  const feeAmount = Math.round(totalAmount * feeRate * 100) / 100;
+  const totalWithFee = totalAmount + feeAmount;
 
-  // Check wallet balance
+  // Check wallet balance (amount + fee)
   const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, user.id));
   const walletBalance = Number(wallet?.balance ?? 0);
-  if (!wallet || walletBalance < totalAmount) {
+  if (!wallet || walletBalance < totalWithFee) {
     res.status(400).json({
-      error: `Insufficient wallet balance. You need ${formatKESAPI(totalAmount)} but have ${formatKESAPI(walletBalance)}. Please top up your wallet first.`,
+      error: `Insufficient wallet balance. You need ${formatKESAPI(totalWithFee)} (incl. ${(feeRate * 100).toFixed(1)}% platform fee of ${formatKESAPI(feeAmount)}) but have ${formatKESAPI(walletBalance)}. Please top up your wallet first.`,
       code: "INSUFFICIENT_FUNDS",
-      needed: totalAmount,
+      needed: totalWithFee,
       available: walletBalance,
     });
     return;
   }
 
-  // Deduct from wallet
-  const newBalance = walletBalance - totalAmount;
+  // Deduct from wallet (amount + fee)
+  const newBalance = walletBalance - totalWithFee;
   await db.update(walletsTable)
     .set({ balance: String(newBalance) })
     .where(eq(walletsTable.id, wallet.id));
@@ -177,12 +181,21 @@ router.post("/market/buy", async (req, res): Promise<void> => {
     walletId: wallet.id,
     userId: user.id,
     type: "investment",
-    amount: String(totalAmount),
+    amount: String(totalWithFee),
     balanceAfter: String(newBalance),
-    description: `Investment: ${quantity} share${quantity > 1 ? "s" : ""} purchased`,
+    description: `Investment: ${quantity} share${quantity > 1 ? "s" : ""} purchased (incl. ${(feeRate * 100).toFixed(1)}% fee: KES ${feeAmount.toFixed(0)})`,
     reference: `inv_${Date.now()}`,
     status: "completed",
   });
+
+  // Log platform fee
+  await db.insert(transactionFeesTable).values({
+    investorId: user.id,
+    farmId: listing.farmId,
+    feeType: isPrimary ? "primary_purchase" : "secondary_trade",
+    amount: String(feeAmount),
+    currency: "KES",
+  }).catch(() => {});
 
   const exitDays = exitType === "wide_season" ? 45 : 180;
   const exitDate = new Date(Date.now() + exitDays * 24 * 60 * 60 * 1000);

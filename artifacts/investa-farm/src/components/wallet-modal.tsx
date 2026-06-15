@@ -230,16 +230,23 @@ export function WalletModal({ open, onClose }: Props) {
               )}
 
               {/* Action buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => { setModal("deposit"); setAmount(""); }}
-                  className="bg-primary text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md shadow-primary/20">
-                  <Plus size={16} /> Add Funds
-                </button>
-                <button onClick={() => { setModal("withdraw"); setAmount(""); }}
-                  className="bg-muted border border-border text-foreground font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                  <ArrowUpRight size={16} /> Withdraw
-                </button>
-              </div>
+              {(() => {
+                const isFarmer = (user as { role?: string } | null)?.role === "farmer";
+                return (
+                  <div className={`grid ${isFarmer ? "grid-cols-1" : "grid-cols-2"} gap-3`}>
+                    {!isFarmer && (
+                      <button onClick={() => { setModal("deposit"); setAmount(""); }}
+                        className="bg-primary text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md shadow-primary/20">
+                        <Plus size={16} /> Add Funds
+                      </button>
+                    )}
+                    <button onClick={() => { setModal("withdraw"); setAmount(""); }}
+                      className="bg-muted border border-border text-foreground font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                      <ArrowUpRight size={16} /> Withdraw
+                    </button>
+                  </div>
+                );
+              })()}
 
               <AnimatePresence>
                 {success && (

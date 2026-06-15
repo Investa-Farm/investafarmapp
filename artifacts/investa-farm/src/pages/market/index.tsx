@@ -23,6 +23,7 @@ import { useCurrency } from "@/lib/currency";
 import { InvestmentCalculator } from "@/components/investment-calculator";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { motion, AnimatePresence } from "framer-motion";
+import { AiSectionBot } from "@/components/ai-section-bot";
 
 const CROPS = [
   { name: "Maize",    change: 2.1  },
@@ -336,6 +337,7 @@ export default function MarketHome() {
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
                   <TrendingUp size={13} className="text-green-600" /> Top Movers Today
+                  <AiSectionBot context="What are 'top movers' in the Investa Farm market? Why do farm share prices change, and what should an investor look for when a farm shows big gains or losses?" label="top movers" />
                 </h2>
                 <Link href="/market/primary">
                   <span className="text-primary text-xs font-medium flex items-center gap-0.5">

@@ -455,13 +455,7 @@ export default function Portfolio() {
                       </div>
 
                       <div className="flex gap-1.5 flex-wrap">
-                        <button
-                          onClick={() => setShareHolding(h)}
-                          className="py-2 px-2.5 rounded-xl border border-border text-muted-foreground text-xs font-medium active:scale-95 transition-all flex items-center gap-1"
-                        >
-                          <Share2 size={12} /> Share
-                        </button>
-                                        <Link
+                        <Link
                           to={`/market/${h.farmId}`}
                           className="py-2 px-2.5 rounded-xl border border-border text-muted-foreground text-xs font-medium active:scale-95 transition-all flex items-center gap-1"
                         >

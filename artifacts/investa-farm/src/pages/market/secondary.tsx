@@ -12,6 +12,7 @@ import { getCropImage } from "@/lib/crops";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRiskLevel, RiskBadge } from "@/components/risk-badge";
+import { AiSectionBot } from "@/components/ai-section-bot";
 
 type Listing = {
   id: number; farmId: number; farmName: string; cropType: string;
@@ -225,7 +226,10 @@ export default function SecondaryMarket() {
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                 </div>
-                <p className="text-muted-foreground text-xs mt-2 px-1">Investors reselling shares · prices reflect market conditions</p>
+                <div className="flex items-center gap-1.5 mt-2 px-1">
+                  <p className="text-muted-foreground text-xs">Investors reselling shares · prices reflect market conditions</p>
+                  <AiSectionBot context="How does the secondary market work on Investa Farm? There is a 0.5% broker fee on both buyer and seller. How does this affect returns compared to the primary market?" label="secondary market" />
+                </div>
               </div>
             )}
 

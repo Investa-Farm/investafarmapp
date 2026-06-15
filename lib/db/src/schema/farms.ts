@@ -21,6 +21,8 @@ export const farmsTable = pgTable("farms", {
   changePercent: numeric("change_percent", { precision: 8, scale: 4 }).default("0").notNull(),
   tradeCount: integer("trade_count").default(0).notNull(),
   currentPrice: numeric("current_price", { precision: 15, scale: 2 }).notNull(),
+  latitude: numeric("latitude", { precision: 10, scale: 6 }),
+  longitude: numeric("longitude", { precision: 10, scale: 6 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
