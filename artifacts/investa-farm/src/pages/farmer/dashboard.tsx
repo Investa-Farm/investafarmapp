@@ -2,7 +2,7 @@ import { useGetFarmerDashboard, useListFarmUpdates, useGetMyFarms } from "@works
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES, getStoredUser, clearToken, getToken } from "@/lib/auth";
+import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
 import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, Users, ShieldCheck, LogOut, MapPin, TrendingUp, CalendarDays, AlertCircle, Moon, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
@@ -80,10 +80,11 @@ export default function FarmerDashboard() {
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
-  const kycApproved = kycDocs.filter((d: any) => d.status === "approved").length;
+  const isDemo = isDemoAccount();
+  const kycApproved = isDemo ? 1 : kycDocs.filter((d: any) => d.status === "approved").length;
   const currentFarm = farms?.[0];
   const currentStageIndex = Math.max(0, CROP_STAGES.findIndex(s => s.key === dashboard?.growthStage) ?? 1);
-  const farmHealth = dashboard ? Math.round(75 + dashboard.growthPercent * 0.2) : null;
+  const farmHealth = dashboard?.growthPercent != null ? Math.round(75 + dashboard.growthPercent * 0.2) : null;
   const farmerShare = dashboard ? Math.round(dashboard.farmValue * 0.55) : 0;
 
   const FARMER_STEPS: CoachStep[] = [

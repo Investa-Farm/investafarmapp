@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { db, usersTable, farmsTable, marketListingsTable } from "@workspace/db";
+import { db, usersTable, farmsTable, marketListingsTable, walletsTable, walletTransactionsTable, investmentsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 const DEMO_USERS = [
@@ -155,6 +155,88 @@ export async function seedDemoUsers(log: (msg: string) => void = console.log) {
   }
 
   await seedFarmsAndListings(createdUsers, log);
+  await seedDemoWallets(createdUsers, log);
+}
+
+const DEMO_WALLET_BALANCES: Record<string, number> = {
+  "david.investor@investafarm.com":  150000,
+  "demo.investor@investafarm.com":    75000,
+  "john.farmer@investafarm.com":      25000,
+  "demo.farmer@investafarm.com":      15000,
+  "grace.farmer@investafarm.com":     20000,
+  "peter.farmer@investafarm.com":     18000,
+};
+
+async function seedDemoWallets(userIds: Record<string, number>, log: (msg: string) => void) {
+  for (const [email, balance] of Object.entries(DEMO_WALLET_BALANCES)) {
+    const userId = userIds[email];
+    if (!userId) continue;
+    try {
+      const [existing] = await db.select().from(walletsTable).where(eq(walletsTable.userId, userId));
+      if (existing && parseFloat(existing.balance) > 0) continue;
+      if (existing) {
+        await db.update(walletsTable)
+          .set({ balance: String(balance), updatedAt: new Date() })
+          .where(eq(walletsTable.id, existing.id));
+      } else {
+        const [wallet] = await db.insert(walletsTable)
+          .values({ userId, balance: String(balance), currency: "KES" })
+          .returning();
+        await db.insert(walletTransactionsTable).values({
+          walletId: wallet!.id,
+          userId,
+          type: "deposit",
+          amount: String(balance),
+          balanceAfter: String(balance),
+          description: "Demo account starter balance",
+          reference: `DEMO-SEED-${userId}`,
+          status: "completed",
+        });
+      }
+      log(`[seed] Wallet funded: ${email} → KES ${balance.toLocaleString()}`);
+    } catch (err) {
+      log(`[seed] Wallet skip ${email}: ${String(err)}`);
+    }
+  }
+  await seedDemoInvestments(userIds, log);
+}
+
+async function seedDemoInvestments(userIds: Record<string, number>, log: (msg: string) => void) {
+  const investorId = userIds["david.investor@investafarm.com"] ?? userIds["demo.investor@investafarm.com"];
+  if (!investorId) return;
+
+  const existingInvestments = await db.select().from(investmentsTable)
+    .where(eq(investmentsTable.investorId, investorId));
+  if (existingInvestments.length > 0) return;
+
+  const farms = await db.select().from(farmsTable).limit(5);
+  if (farms.length === 0) return;
+
+  const demoInvestments = [
+    { shares: 500,  exitType: "full_season" },
+    { shares: 800,  exitType: "full_season" },
+    { shares: 400,  exitType: "mid_season"  },
+    { shares: 600,  exitType: "full_season" },
+    { shares: 300,  exitType: "mid_season"  },
+  ];
+
+  for (let i = 0; i < Math.min(farms.length, demoInvestments.length); i++) {
+    const farm = farms[i]!;
+    const cfg = demoInvestments[i]!;
+    try {
+      await db.insert(investmentsTable).values({
+        investorId,
+        farmId: farm.id,
+        quantity: cfg.shares,
+        purchasePrice: farm.sharePrice,
+        exitType: cfg.exitType,
+        status: "active",
+      });
+      log(`[seed] Investment: ${farm.name} — ${cfg.shares} shares for investor ${investorId}`);
+    } catch (err) {
+      log(`[seed] Investment skip ${farm.name}: ${String(err)}`);
+    }
+  }
 }
 
 async function seedFarmsAndListings(userIds: Record<string, number>, log: (msg: string) => void) {

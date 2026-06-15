@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useGetMyFarms, useGetFarmerDashboard } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES, getToken, getStoredUser } from "@/lib/auth";
+import { formatKES, getToken, getStoredUser, isDemoAccount } from "@/lib/auth";
 import {
   Settings, Bell, Droplets, CloudRain, BarChart3, MapPin, Leaf, Sun, Wheat,
   TrendingUp, CalendarDays, ChevronRight, Maximize2, CheckCircle2, Clock,
@@ -119,9 +119,10 @@ export default function FarmProfile() {
     },
   });
 
+  const isDemo = isDemoAccount();
   const currentFarm = farms?.[0];
-  const farmHealth = dashboard ? Math.round(75 + (dashboard.growthPercent ?? 0) * 0.2) : 91;
-  const currentStageIndex = 2;
+  const farmHealth = dashboard?.growthPercent != null ? Math.round(75 + dashboard.growthPercent * 0.2) : null;
+  const currentStageIndex = Math.max(0, CROP_STAGES.findIndex(s => s.key === (dashboard as any)?.growthStage));
   const activeLoan = loans.find((l: any) => ["approved", "submitted", "under_review"].includes(l.status));
   const kycApproved = kycDocs.filter((d: any) => d.status === "approved").length;
 
@@ -131,7 +132,7 @@ export default function FarmProfile() {
     { key: "activities",  label: "Activities" },
   ];
 
-  if (kycApproved === 0) {
+  if (kycApproved === 0 && !isDemo) {
     return (
       <div className="app-shell pb-20 bg-white min-h-screen">
         <div className="bg-white px-5 pt-12 pb-3 flex items-center justify-between border-b border-gray-100">
@@ -254,13 +255,13 @@ export default function FarmProfile() {
                 <div className="px-3 flex flex-col items-center">
                   <p className="text-muted-foreground text-[10px] font-medium mb-1">Farm Health Score</p>
                   <div className="relative w-14 h-14 flex items-center justify-center">
-                    <CircularProgress value={farmHealth} size={56} />
+                    <CircularProgress value={farmHealth ?? 0} size={56} />
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <p className="text-foreground font-bold text-xs leading-none">{farmHealth}</p>
-                      <p className="text-muted-foreground text-[8px]">/100</p>
+                      <p className="text-foreground font-bold text-xs leading-none">{farmHealth ?? "—"}</p>
+                      {farmHealth != null && <p className="text-muted-foreground text-[8px]">/100</p>}
                     </div>
                   </div>
-                  <span className="mt-0.5 inline-block bg-green-100 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-full">Good</span>
+                  {farmHealth != null && <span className="mt-0.5 inline-block bg-green-100 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-full">Good</span>}
                 </div>
                 <div className="pl-3">
                   <p className="text-muted-foreground text-[10px] font-medium mb-1">Next Activity</p>

@@ -47,21 +47,52 @@ router.get("/farmer/dashboard", async (req, res): Promise<void> => {
   const fundingTarget = farms.reduce((sum, f) => sum + Number(f.loanAmount), 0);
   const fundingPercent = fundingTarget > 0 ? Math.round((fundsRaised / fundingTarget) * 100) : 0;
 
-  const priceHistory = Array.from({ length: 7 }, (_, i) => ({
-    label: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
-    value: farmValue * (0.94 + i * 0.01),
-  }));
+  const hasFarms = farms.length > 0;
+
+  const priceHistory = hasFarms
+    ? Array.from({ length: 7 }, (_, i) => ({
+        label: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
+        value: farmValue * (0.94 + i * 0.01),
+      }))
+    : [];
+
+  // Derive growth stage and percent from the first active farm's funding progress
+  const firstFarm = farms[0];
+  let growthStage: string | null = null;
+  let growthPercent: number | null = null;
+  let harvestDays: number | null = null;
+  let weekChangePercent: number | null = null;
+
+  if (firstFarm) {
+    const funded = (firstFarm.totalShares - firstFarm.sharesAvailable) / firstFarm.totalShares;
+    growthPercent = Math.round(funded * 100);
+    weekChangePercent = Number(firstFarm.changePercent) || null;
+
+    // Map funding progress to crop stage
+    if (funded < 0.2)       growthStage = "planting";
+    else if (funded < 0.4)  growthStage = "vegetative";
+    else if (funded < 0.65) growthStage = "flowering";
+    else if (funded < 0.85) growthStage = "fruiting";
+    else                    growthStage = "harvest";
+
+    // Rough harvest estimate: 90–180 days from listing, reduced by funding progress
+    const ageMs = Date.now() - firstFarm.createdAt.getTime();
+    const ageDays = Math.floor(ageMs / 86_400_000);
+    const totalSeasonDays = 150;
+    harvestDays = Math.max(0, totalSeasonDays - ageDays);
+  }
 
   res.json({
     farmValue,
-    weekChangePercent: 6.2,
+    weekChangePercent,
     fundsRaised,
     fundingTarget,
     fundingPercent,
     profit: fundsRaised * 0.1,
     fundsReceived: fundsRaised,
-    growthStage: "growing" as const,
-    growthPercent: 65,
+    growthStage,
+    growthPercent,
+    harvestDays,
     activeFarms: farms.length,
     totalInvestors: new Set(myInvestors.map(i => i.investorId)).size,
     priceHistory,
