@@ -7,7 +7,7 @@ import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
-import { getCropImage } from "@/lib/crops";
+import { getCropImage, CROP_IMAGES } from "@/lib/crops";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 
 // --- Risk helpers ---
@@ -104,31 +104,29 @@ export default function PrimaryMarket() {
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="primary-market">
-      {/* Hero Header */}
-      <div className="hero-header pt-12 pb-5 px-5">
-        <div className="flex items-center gap-3 mb-3">
-          <button data-testid="button-back" onClick={() => setLocation("/market")}
-            className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-            <ArrowLeft size={16} className="text-white" />
-          </button>
-          <div>
-            <p className="text-white/80 text-xs font-medium">Buy Direct from Farmers</p>
-            <h1 className="text-white text-xl font-bold">Primary Market</h1>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white/15 rounded-xl p-2.5 flex items-center gap-2">
-            <span className="text-base">⚡</span>
+      {/* Image-based compact header */}
+      <div className="relative overflow-hidden" style={{ height: 118 }}>
+        <img src={CROP_IMAGES.maize} alt="Primary Market" className="w-full h-full object-cover" />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(120deg, rgba(5,46,22,0.88) 0%, rgba(20,83,45,0.75) 55%, rgba(22,163,74,0.40) 100%)" }} />
+        <div className="absolute inset-0 pt-12 px-4 flex flex-col justify-center">
+          <div className="flex items-center gap-2.5 mb-2">
+            <button data-testid="button-back" onClick={() => setLocation("/market")}
+              className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <ArrowLeft size={13} className="text-white" />
+            </button>
             <div>
-              <p className="text-white font-bold text-xs">Mid-Season Exit</p>
-              <p className="text-white/70 text-[9px]">+10% base · 30–60 days</p>
+              <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider">Buy Direct from Farmers</p>
+              <h1 className="text-white text-base font-bold leading-tight">Primary Market</h1>
             </div>
           </div>
-          <div className="bg-white/15 rounded-xl p-2.5 flex items-center gap-2">
-            <span className="text-base">🌾</span>
-            <div>
-              <p className="text-white font-bold text-xs">Full Season Exit</p>
-              <p className="text-white/70 text-[9px]">Up to +28% · ~6 months</p>
+          <div className="flex gap-2 ml-9">
+            <div className="flex items-center gap-1.5 bg-white/15 rounded-lg px-2 py-1">
+              <span className="text-xs">⚡</span>
+              <p className="text-white text-[10px] font-semibold">Mid-Season +10%</p>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/15 rounded-lg px-2 py-1">
+              <span className="text-xs">🌾</span>
+              <p className="text-white text-[10px] font-semibold">Full Season +28%</p>
             </div>
           </div>
         </div>

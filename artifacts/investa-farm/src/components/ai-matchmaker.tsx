@@ -92,7 +92,7 @@ export function AiMatchmaker({ open, onClose }: Props) {
           >
             <div className="px-5 pt-5 pb-3 border-b border-border flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-500/30">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center shadow-md shadow-green-600/30">
                   <Sparkles size={18} className="text-white" />
                 </div>
                 <div>
@@ -116,9 +116,9 @@ export function AiMatchmaker({ open, onClose }: Props) {
               <AnimatePresence mode="wait">
                 {step === "prefs" && (
                   <motion.div key="prefs" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5">
-                    <div className="bg-violet-50 border border-violet-200 rounded-2xl p-3 flex items-start gap-2">
-                      <Target size={14} className="text-violet-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-violet-700 text-xs leading-relaxed">
+                    <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-start gap-2">
+                      <Target size={14} className="text-green-700 flex-shrink-0 mt-0.5" />
+                      <p className="text-green-800 text-xs leading-relaxed">
                         Set your investment goals and the AI will scan all active farms to find your best matches — with match scores and return estimates.
                       </p>
                     </div>
@@ -205,7 +205,7 @@ export function AiMatchmaker({ open, onClose }: Props) {
                     <button
                       onClick={handleMatch}
                       disabled={loading}
-                      className="w-full bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-purple-500/25 disabled:opacity-70"
+                      className="w-full bg-gradient-to-r from-green-700 to-green-600 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-green-600/25 disabled:opacity-70"
                     >
                       {loading
                         ? <><Loader2 size={16} className="animate-spin" /> Analysing {15} active farms…</>
@@ -241,7 +241,7 @@ export function AiMatchmaker({ open, onClose }: Props) {
                                   <span className="text-[8px] font-bold uppercase tracking-widest text-white/80 bg-white/15 px-2 py-0.5 rounded-full">
                                     #{i + 1} Best Match
                                   </span>
-                                  <div className="flex items-center gap-1 bg-gradient-to-r from-violet-500 to-purple-600 px-2.5 py-1 rounded-full shadow-sm">
+                                  <div className="flex items-center gap-1 bg-gradient-to-r from-green-700 to-green-600 px-2.5 py-1 rounded-full shadow-sm">
                                     <Sparkles size={8} className="text-white" />
                                     <span className="text-white text-[9px] font-extrabold">{m.matchScore}% match</span>
                                   </div>

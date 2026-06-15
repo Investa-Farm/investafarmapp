@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useGetPortfolio, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getStoredUser, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen, Star, Plus, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen, Star, Plus, RefreshCw, Bell } from "lucide-react";
 import { PortfolioWizard } from "@/components/portfolio-wizard";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -141,7 +141,14 @@ export default function Portfolio() {
     <div className="app-shell pb-20 page-enter" data-testid="portfolio-page">
       {/* Hero header */}
       <div className="hero-header pt-12 pb-5 px-5">
-        <p className="text-white/80 text-xs font-medium">My Portfolio</p>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-white/80 text-xs font-medium">My Portfolio</p>
+          <button
+            onClick={() => setLocation("/market")}
+            className="w-8 h-8 rounded-full bg-white/20 border border-white/30 flex items-center justify-center relative">
+            <Bell size={14} className="text-white" />
+          </button>
+        </div>
         {summary ? (
           <>
             <p className="text-white/70 text-sm mt-1">Portfolio Value</p>
@@ -548,7 +555,7 @@ export default function Portfolio() {
           onClick={() => setReinvestOpen(true)}
           className="w-full rounded-2xl overflow-hidden relative h-16 active:scale-95 transition-transform"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-purple-700" />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #14532d, #16a34a)" }} />
           <div className="relative flex items-center gap-3 px-4 h-full">
             <div className="w-8 h-8 rounded-lg bg-white/15 border border-white/25 flex items-center justify-center flex-shrink-0">
               <RefreshCw size={14} className="text-white" />

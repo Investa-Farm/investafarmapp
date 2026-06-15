@@ -14,7 +14,6 @@ import { formatChange, getToken, formatKES, isDemoAccount } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
 import { getCropImage, CROP_IMAGES } from "@/lib/crops";
-import { CoachMark } from "@/components/coach-mark";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { InlineMicBot } from "@/components/ai-assistant";
 import { AppTour } from "@/components/app-tour";
@@ -1131,10 +1130,25 @@ export default function MarketHome() {
                   💡 Committing funds reserves your intent to invest when this crop listing opens. No charges now — you'll be notified first when shares go live.
                 </p>
               </div>
+              {commitInput && Number(commitInput) > 0 && walletData?.wallet && Number(commitInput) > Number(walletData.wallet.balance) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2 mb-0">
+                  <AlertTriangle size={14} className="text-amber-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-amber-700 text-xs font-semibold">Insufficient wallet balance</p>
+                    <p className="text-amber-600 text-[11px]">Your wallet has {formatKES(Number(walletData.wallet.balance))}. Top up to commit this amount.</p>
+                  </div>
+                </div>
+              )}
               <button
                 disabled={!commitInput || Number(commitInput) <= 0}
                 onClick={() => {
                   const amt = Number(commitInput);
+                  const balance = walletData?.wallet ? Number(walletData.wallet.balance) : Infinity;
+                  if (amt > 0 && amt > balance) {
+                    setCommitOpen(false);
+                    setWalletOpen(true);
+                    return;
+                  }
                   if (amt > 0) {
                     const updated = { ...committed, [commitCrop.id]: amt };
                     setCommitted(updated);
@@ -1145,7 +1159,10 @@ export default function MarketHome() {
                 className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-[0.98] transition-all disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, #052e16, #16a34a)" }}
               >
-                {committed[commitCrop.id] ? "Update Commitment" : "Commit Funds"} {commitInput && Number(commitInput) > 0 ? `· ${formatKES(Number(commitInput))}` : ""}
+                {commitInput && Number(commitInput) > 0 && walletData?.wallet && Number(commitInput) > Number(walletData.wallet.balance)
+                  ? "Top Up Wallet →"
+                  : `${committed[commitCrop.id] ? "Update Commitment" : "Commit Funds"}${commitInput && Number(commitInput) > 0 ? ` · ${formatKES(Number(commitInput))}` : ""}`
+                }
               </button>
               {committed[commitCrop.id] && (
                 <button
@@ -1187,12 +1204,6 @@ export default function MarketHome() {
       <BottomNav role="investor" />
       <AppTour role="investor" onAskAI={q => { setAiQuestion(q); }} />
 
-      <CoachMark storageKey="investor_onboarding_v1" steps={[
-        { target: "", title: "Welcome, Investor!", body: "Browse live farm listings here. Each one shows a risk badge — Low, Moderate, or High.", position: "bottom" },
-        { target: "[data-testid='nav-portfolio']", title: "Your Portfolio", body: "Track your farm share holdings, returns, and request exits.", position: "top" },
-        { target: "[data-testid='nav-activity']", title: "Activity Feed", body: "Your full transaction history and investment receipts live here.", position: "top" },
-        { target: "[data-testid='nav-profile']", title: "Profile & KYC", body: "Complete identity verification (KYC) to unlock trading and payouts.", position: "top" },
-      ]} />
       <NotificationPrompt storageKey="investor_notif_v1" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <AiMatchmaker open={matcherOpen} onClose={() => setMatcherOpen(false)} />

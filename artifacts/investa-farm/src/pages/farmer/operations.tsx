@@ -2,14 +2,143 @@ import { useState } from "react";
 import { useGetFarmerDashboard } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, isDemoAccount, getToken } from "@/lib/auth";
-import { Leaf, Droplets, Sun, CheckCircle2, Clock, Plus, X, Tag, Copy, Check } from "lucide-react";
+import { Leaf, Droplets, Sun, CheckCircle2, Clock, Plus, X, Tag, Copy, Check, ShoppingCart, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 
+type OrderItem = { name: string; qty: string; unit: string };
+
+const AGRO_ITEMS: Record<string, { items: OrderItem[]; icon: string }> = {
+  seeds:       { icon: "🌱", items: [{ name: "Certified Hybrid Seeds", qty: "50", unit: "kg" }, { name: "Open Pollinated Seeds", qty: "25", unit: "kg" }] },
+  fertilizer:  { icon: "🪣", items: [{ name: "DAP Fertilizer", qty: "1", unit: "bag (50kg)" }, { name: "CAN Fertilizer", qty: "2", unit: "bags (50kg)" }, { name: "NPK 23:23:0", qty: "1", unit: "bag (50kg)" }] },
+  pesticides:  { icon: "🛡️", items: [{ name: "Fungicide (Dithane M-45)", qty: "500", unit: "g" }, { name: "Insecticide (Lambda)", qty: "200", unit: "ml" }] },
+  default:     { icon: "📦", items: [{ name: "Farm Inputs Package", qty: "1", unit: "set" }] },
+};
+
+function getItemsForPurpose(purpose: string) {
+  const p = (purpose ?? "").toLowerCase();
+  if (p.includes("seed")) return AGRO_ITEMS.seeds;
+  if (p.includes("fertil")) return AGRO_ITEMS.fertilizer;
+  if (p.includes("pest") || p.includes("spray")) return AGRO_ITEMS.pesticides;
+  return AGRO_ITEMS.default;
+}
+
+function VoucherOrderModal({ voucher, onClose }: { voucher: any; onClose: () => void }) {
+  const [step, setStep] = useState<"select" | "confirm" | "done">("select");
+  const [selected, setSelected] = useState<string[]>([]);
+  const { items, icon } = getItemsForPurpose(voucher.purpose);
+
+  const toggleItem = (name: string) =>
+    setSelected(s => s.includes(name) ? s.filter(x => x !== name) : [...s, name]);
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-end justify-center">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+          transition={{ type: "spring", damping: 28, stiffness: 300 }}
+          className="relative w-full max-w-[430px] bg-card rounded-t-3xl shadow-2xl px-5 pt-5 pb-10">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="font-bold text-foreground">Place Input Order</p>
+              <p className="text-muted-foreground text-xs">Voucher {voucher.voucherCode} · {formatKES(voucher.amount)}</p>
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+              <X size={14} />
+            </button>
+          </div>
+
+          {step === "select" && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground font-medium">Select inputs to order — covered by your voucher:</p>
+              {items.map(item => (
+                <button key={item.name} onClick={() => toggleItem(item.name)}
+                  className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all active:scale-[0.98] ${selected.includes(item.name) ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+                  <span className="text-lg flex-shrink-0">{icon}</span>
+                  <div className="flex-1">
+                    <p className="text-foreground font-semibold text-sm">{item.name}</p>
+                    <p className="text-muted-foreground text-xs">{item.qty} {item.unit}</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selected.includes(item.name) ? "border-primary bg-primary" : "border-border"}`}>
+                    {selected.includes(item.name) && <Check size={11} className="text-white" />}
+                  </div>
+                </button>
+              ))}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <p className="text-amber-700 text-xs leading-relaxed">
+                  📍 Present your voucher code <strong>{voucher.voucherCode}</strong> at a partner agro-dealer to collect your inputs.
+                </p>
+              </div>
+              <button
+                disabled={selected.length === 0}
+                onClick={() => setStep("confirm")}
+                className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl text-sm active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                <ShoppingCart size={16} />
+                Review Order ({selected.length} items)
+              </button>
+            </div>
+          )}
+
+          {step === "confirm" && (
+            <div className="space-y-3">
+              <div className="bg-muted/50 rounded-2xl p-3.5 space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Order Summary</p>
+                {selected.map(name => {
+                  const item = items.find(i => i.name === name)!;
+                  return (
+                    <div key={name} className="flex items-center justify-between">
+                      <span className="text-foreground text-sm">{name}</span>
+                      <span className="text-muted-foreground text-xs">{item.qty} {item.unit}</span>
+                    </div>
+                  );
+                })}
+                <div className="border-t border-border pt-2 flex items-center justify-between">
+                  <span className="text-foreground font-semibold text-sm">Voucher Value</span>
+                  <span className="text-primary font-bold text-sm">{formatKES(voucher.amount)}</span>
+                </div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                <p className="text-green-700 text-xs leading-relaxed">
+                  ✅ Your order is reserved. Show code <strong>{voucher.voucherCode}</strong> at the agro-dealer to collect inputs. No cash required.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => setStep("select")}
+                  className="py-3 rounded-xl border border-border text-foreground text-sm font-semibold active:scale-95 transition-transform">
+                  ← Edit
+                </button>
+                <button onClick={() => setStep("done")}
+                  className="py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                  <CheckCircle2 size={14} /> Confirm Order
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === "done" && (
+            <div className="py-6 flex flex-col items-center gap-3 text-center">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle2 size={32} className="text-green-500" />
+              </div>
+              <p className="font-bold text-foreground text-lg">Order Placed!</p>
+              <p className="text-muted-foreground text-sm max-w-xs">
+                Visit any partner agro-dealer and present voucher code <span className="font-mono font-bold text-foreground">{voucher.voucherCode}</span> to collect your inputs.
+              </p>
+              <button onClick={onClose} className="w-full bg-primary text-white font-bold py-3 rounded-xl active:scale-95 transition-all mt-2">Done</button>
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
 function VoucherSection() {
   const token = getToken();
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [orderVoucher, setOrderVoucher] = useState<any | null>(null);
   const { data: vouchers = [], isLoading } = useQuery<any[]>({
     queryKey: ["farmer-vouchers"],
     queryFn: async () => {
@@ -81,11 +210,20 @@ function VoucherSection() {
                   </button>
                 </div>
                 <p className="text-muted-foreground text-[10px]">Present this code at any partner agro-dealer to redeem inputs for your farm.</p>
+                <button
+                  onClick={() => setOrderVoucher(v)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white text-xs font-bold active:scale-95 transition-transform">
+                  <ShoppingCart size={13} />
+                  Place Order on this Voucher
+                  <ChevronRight size={13} />
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {orderVoucher && <VoucherOrderModal voucher={orderVoucher} onClose={() => setOrderVoucher(null)} />}
     </div>
   );
 }

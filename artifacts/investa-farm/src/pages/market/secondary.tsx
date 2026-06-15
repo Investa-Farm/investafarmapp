@@ -137,30 +137,29 @@ export default function SecondaryMarket() {
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="secondary-market">
-      {/* Premium header */}
-      <div className="relative pt-12 pb-5 px-5 overflow-hidden"
-        style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 40%, #16a34a 80%, #22c55e 100%)" }}>
-        <div className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
-
-        <div className="relative flex items-center gap-3 mb-4">
-          <button data-testid="button-back" onClick={() => setLocation("/market")}
-            className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
-            <ArrowLeft size={16} className="text-white" />
-          </button>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <p className="text-white/70 text-[10px] font-semibold uppercase tracking-widest">Investor to Investor</p>
-              <span className="flex items-center gap-1 bg-green-400/20 border border-green-400/40 rounded-full px-2 py-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse" />
-                <span className="text-green-100 text-[9px] font-bold tracking-wider">LIVE</span>
-              </span>
+      {/* Image-based compact header */}
+      <div className="relative overflow-hidden" style={{ height: 130 }}>
+        <img src={getCropImage("coffee")} alt="Secondary Market" className="w-full h-full object-cover" />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(120deg, rgba(5,46,22,0.90) 0%, rgba(20,83,45,0.78) 55%, rgba(22,163,74,0.45) 100%)" }} />
+        <div className="absolute inset-0 pt-12 px-4 flex flex-col justify-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <button data-testid="button-back" onClick={() => setLocation("/market")}
+              className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <ArrowLeft size={13} className="text-white" />
+            </button>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-white/70 text-[10px] font-semibold uppercase tracking-widest">Investor to Investor</p>
+                <span className="flex items-center gap-1 bg-green-400/20 border border-green-400/40 rounded-full px-1.5 py-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse" />
+                  <span className="text-green-100 text-[9px] font-bold tracking-wider">LIVE</span>
+                </span>
+              </div>
+              <h1 className="text-white text-base font-extrabold leading-tight">Secondary Market</h1>
             </div>
-            <h1 className="text-white text-xl font-extrabold">Secondary Market</h1>
           </div>
-        </div>
 
-        <div className="relative grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2 ml-9">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
             <p className="text-white font-extrabold text-lg leading-none">{listings?.length ?? "—"}</p>
             <p className="text-white/60 text-[9px] mt-1 uppercase tracking-wider">Listings</p>
@@ -183,6 +182,7 @@ export default function SecondaryMarket() {
             </p>
           </div>
         )}
+        </div>
       </div>
 
       {/* Tabs */}

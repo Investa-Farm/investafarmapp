@@ -165,7 +165,9 @@ export default function FarmerDashboard() {
                   {farmHealth && <span className="inline-block bg-green-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full mt-0.5">Good</span>}
                 </div>
               </div>
-              <button className="mt-3 w-full flex items-center justify-center gap-2 py-2 border border-white/20 rounded-xl text-white/80 text-xs font-medium active:scale-95 transition-transform">
+              <button
+                onClick={() => setLocation("/farmer/farm-profile")}
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2 border border-white/20 rounded-xl text-white/80 text-xs font-medium active:scale-95 transition-transform">
                 View crop details <ChevronRight size={13} />
               </button>
             </div>

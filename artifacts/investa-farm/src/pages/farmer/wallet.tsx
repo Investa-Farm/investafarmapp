@@ -1,11 +1,12 @@
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
-import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
+import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, Loader2, CheckCircle2, ExternalLink, ChevronDown } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
+import { useCurrency, CURRENCIES, type CurrencyCode } from "@/lib/currency";
 
 type WalletData = {
   wallet: { id: number; balance: string; currency: string; updatedAt: string };
@@ -103,6 +104,9 @@ export default function FarmerWallet() {
     },
   });
 
+  const { currency, setCurrency, formatAmount } = useCurrency();
+  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
+
   const balance = parseFloat(data?.wallet.balance ?? "0");
   const txs = data?.transactions ?? [];
   const totalEarned = txs.filter(t => ["deposit", "return", "transfer"].includes(t.type)).reduce((s, t) => s + parseFloat(t.amount), 0);
@@ -167,7 +171,10 @@ export default function FarmerWallet() {
               <p className="text-white/60 text-[10px] uppercase tracking-wider mb-0.5">Available Balance</p>
               {isLoading
                 ? <div className="h-8 w-36 bg-white/20 rounded-lg animate-pulse mx-auto" />
-                : <p className="text-white font-bold text-3xl">{formatKES(balance)}</p>}
+                : <p className="text-white font-bold text-3xl">{formatAmount(balance)}</p>}
+              {currency.code !== "KES" && !isLoading && (
+                <p className="text-white/50 text-[10px] mt-0.5">{formatKES(balance)} KES</p>
+              )}
             </div>
 
             {/* Bottom: name + expiry */}
@@ -187,11 +194,11 @@ export default function FarmerWallet() {
         {/* Stats strip */}
         <div className="bg-white border border-border rounded-2xl mt-3 grid grid-cols-3 gap-0 overflow-hidden">
           <div className="p-3 text-center border-r border-border">
-            <p className="text-green-600 font-bold text-sm">{formatKES(totalEarned)}</p>
+            <p className="text-green-600 font-bold text-sm">{formatAmount(totalEarned)}</p>
             <p className="text-muted-foreground text-[10px] mt-0.5">Total Received</p>
           </div>
           <div className="p-3 text-center border-r border-border">
-            <p className="text-amber-600 font-bold text-sm">{formatKES(totalEarned * 0.03)}</p>
+            <p className="text-amber-600 font-bold text-sm">{formatAmount(totalEarned * 0.03)}</p>
             <p className="text-muted-foreground text-[10px] mt-0.5">Pension Saved</p>
           </div>
           <div className="p-3 text-center">
@@ -215,14 +222,37 @@ export default function FarmerWallet() {
           </div>
         )}
 
-        {/* Currency indicator */}
-        <div className="flex items-center gap-2 mt-3 bg-white border border-border rounded-2xl px-3 py-2.5">
-          <span className="text-base">🇰🇪</span>
-          <div>
-            <p className="text-foreground font-semibold text-xs">Currency: KES — Kenyan Shilling</p>
-            <p className="text-muted-foreground text-[10px]">All transactions are processed in Kenyan Shillings</p>
+        {/* Interactive Currency Selector */}
+        <button
+          onClick={() => setCurrencyPickerOpen(s => !s)}
+          className="w-full flex items-center gap-2.5 mt-3 bg-white border border-border rounded-2xl px-3 py-2.5 active:scale-[0.98] transition-transform">
+          <span className="text-base flex-shrink-0">{currency.flag}</span>
+          <div className="flex-1 text-left">
+            <p className="text-foreground font-semibold text-xs">{currency.code} — {currency.name}</p>
+            <p className="text-muted-foreground text-[10px]">Tap to change display currency</p>
           </div>
-        </div>
+          <ChevronDown size={14} className={`text-muted-foreground transition-transform flex-shrink-0 ${currencyPickerOpen ? "rotate-180" : ""}`} />
+        </button>
+        <AnimatePresence>
+          {currencyPickerOpen && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden mt-1">
+              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                {CURRENCIES.map((c, i) => (
+                  <button key={c.code} onClick={() => { setCurrency(c.code as CurrencyCode); setCurrencyPickerOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted/60 ${i > 0 ? "border-t border-border" : ""} ${c.code === currency.code ? "bg-primary/5" : ""}`}>
+                    <span className="text-base flex-shrink-0">{c.flag}</span>
+                    <div className="flex-1">
+                      <p className="text-foreground font-semibold text-xs">{c.code} — {c.name}</p>
+                      <p className="text-muted-foreground text-[10px]">{c.symbol} {(balance / c.kesPerUnit).toLocaleString("en-US", { maximumFractionDigits: 0 })}</p>
+                    </div>
+                    {c.code === currency.code && <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Withdraw only (farmer) */}
         <button onClick={() => { setModal("withdraw"); setAmount(""); }}
