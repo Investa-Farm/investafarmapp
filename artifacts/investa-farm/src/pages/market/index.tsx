@@ -16,7 +16,7 @@ import { InvestModal } from "@/components/invest-modal";
 import { getCropImage, CROP_IMAGES } from "@/lib/crops";
 import { CoachMark } from "@/components/coach-mark";
 import { NotificationPrompt } from "@/components/notification-prompt";
-import { AiAssistant } from "@/components/ai-assistant";
+import { InlineMicBot } from "@/components/ai-assistant";
 import { AppTour } from "@/components/app-tour";
 import { NewsAiBot } from "@/components/news-ai-bot";
 import { NotificationsPanel } from "@/components/notifications-panel";
@@ -197,25 +197,24 @@ export default function MarketHome() {
 
   const [expandedNews, setExpandedNews] = useState<number | null>(null);
 
-  // Slideshow state for movers & decliners
+  // Combined movers/decliners tab
+  const [moverTab, setMoverTab] = useState<"movers" | "decliners">("movers");
   const [moverSlide, setMoverSlide] = useState(0);
-  const [declinerSlide, setDeclinerSlide] = useState(0);
   const moverTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const declinerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    moverTimer.current = setInterval(() => {
-      setMoverSlide(s => s + 1);
-    }, 30000);
+    moverTimer.current = setInterval(() => setMoverSlide(s => s + 1), 30000);
     return () => { if (moverTimer.current) clearInterval(moverTimer.current); };
   }, []);
 
+  // Featured listings animated cycling (2 visible at a time)
+  const [featIdx, setFeatIdx] = useState(0);
+  const featTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
-    declinerTimer.current = setInterval(() => {
-      setDeclinerSlide(s => s + 1);
-    }, 45000);
-    return () => { if (declinerTimer.current) clearInterval(declinerTimer.current); };
-  }, []);
+    if (!listings || listings.length <= 2) return;
+    featTimer.current = setInterval(() => setFeatIdx(i => i + 1), 3500);
+    return () => { if (featTimer.current) clearInterval(featTimer.current); };
+  }, [listings?.length]);
 
   const { data: newsItems, isLoading: newsLoading } = useQuery<any[]>({
     queryKey: ["news"],
@@ -355,125 +354,91 @@ export default function MarketHome() {
       <div className="px-4 pt-4 space-y-5">
         {activeSection === "market" && (
           <>
-            {/* Top Movers */}
+            {/* Top Movers / Decliners — combined section */}
             <section>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
-                  <TrendingUp size={13} className="text-green-600" /> Top Movers Today
-                  <AiSectionBot context="What are 'top movers' in the Investa Farm market? Why do farm share prices change, and what should an investor look for when a farm shows big gains or losses?" label="top movers" />
+                  {moverTab === "movers"
+                    ? <TrendingUp size={13} className="text-green-600" />
+                    : <TrendingDown size={13} className="text-red-500" />}
+                  {moverTab === "movers" ? "Top Movers" : "Top Decliners"}
+                  <AiSectionBot context="What are 'top movers' and 'top decliners' in the Investa Farm market? Why do farm share prices change, and what should an investor look for?" label="movers & decliners" />
+                  <InlineMicBot section="market" role="investor" />
                 </h2>
-                <Link href="/market/primary">
-                  <span className="text-primary text-xs font-medium flex items-center gap-0.5">
-                    View All <ChevronRight size={13} />
-                  </span>
-                </Link>
-              </div>
-              {moversLoading ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
-                </div>
-              ) : (movers ?? []).length === 0 ? (
-                <div className="bg-muted/40 border border-border rounded-2xl px-4 py-3 text-center">
-                  <p className="text-muted-foreground text-xs">No movers data yet</p>
-                </div>
-              ) : (
-                <div className="overflow-hidden">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={moverSlide % Math.ceil((movers?.length ?? 1) / 2)}
-                      initial={{ opacity: 0, x: 30 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -30 }}
-                      transition={{ duration: 0.35 }}
-                      className="grid grid-cols-2 gap-3"
+                <div className="flex items-center gap-1.5">
+                  {/* Tab toggle on same line */}
+                  <div className="flex bg-muted rounded-full p-0.5 gap-0.5">
+                    <button
+                      onClick={() => { setMoverTab("movers"); setMoverSlide(0); }}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${moverTab === "movers" ? "bg-green-600 text-white shadow-sm" : "text-muted-foreground"}`}
                     >
-                      {(movers ?? []).slice((moverSlide % Math.ceil((movers?.length ?? 1) / 2)) * 2, (moverSlide % Math.ceil((movers?.length ?? 1) / 2)) * 2 + 2).map((m: any) => {
-                        const risk = getRiskLevel(m.cropType ?? "", m.changePercent);
-                        return (
-                          <Link key={m.farmId} href={`/market/exchange/${m.farmId}`}>
-                            <div className="rounded-2xl overflow-hidden relative cursor-pointer active:scale-95 transition-transform shadow-md">
-                              <img
-                                src={getCropImage(m.cropType ?? "", m.imageUrl ?? undefined)}
-                                alt={m.farmName}
-                                className="w-full h-36 object-cover"
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-3 flex flex-col justify-end">
-                                <p className="text-white text-xs font-bold leading-tight">{m.farmName}</p>
-                                <p className="text-white/70 text-[9px]">{m.cropType} · {formatAmount(m.currentPrice)}</p>
-                                <div className="flex items-center justify-between mt-1">
-                                  <div className="flex items-center gap-1">
-                                    <TrendingUp size={9} className="text-green-300" />
-                                    <span className="text-[10px] font-bold text-green-300">{formatChange(m.changePercent)}</span>
-                                  </div>
-                                  <RiskBadge level={risk} />
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
-                        );
-                      })}
-                    </motion.div>
-                  </AnimatePresence>
-                  {/* Slide dots */}
-                  {(movers ?? []).length > 2 && (
-                    <div className="flex justify-center gap-1 mt-2">
-                      {Array(Math.ceil((movers?.length ?? 0) / 2)).fill(0).map((_, i) => (
-                        <button key={i} onClick={() => setMoverSlide(i)}
-                          className={`h-1 rounded-full transition-all ${i === moverSlide % Math.ceil((movers?.length ?? 1) / 2) ? "w-4 bg-primary" : "w-1.5 bg-muted"}`} />
-                      ))}
-                    </div>
-                  )}
+                      <TrendingUp size={9} /> Movers
+                    </button>
+                    <button
+                      onClick={() => { setMoverTab("decliners"); setMoverSlide(0); }}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${moverTab === "decliners" ? "bg-red-500 text-white shadow-sm" : "text-muted-foreground"}`}
+                    >
+                      <TrendingDown size={9} /> Decliners
+                    </button>
+                  </div>
+                  <Link href="/market/primary">
+                    <span className="text-primary text-xs font-medium flex items-center gap-0.5">
+                      All <ChevronRight size={13} />
+                    </span>
+                  </Link>
                 </div>
-              )}
-            </section>
-
-            {/* Top Decliners */}
-            <section>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
-                  <TrendingDown size={13} className="text-red-500" /> Top Decliners Today
-                </h2>
               </div>
-              {declinersLoading ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
-                </div>
-              ) : (decliners ?? []).filter((d: any) => d.changePercent <= 0).length === 0 ? (
-                <div className="bg-muted/40 border border-border rounded-2xl px-4 py-3 text-center">
-                  <p className="text-muted-foreground text-xs">All farms up today 🌟</p>
-                </div>
-              ) : (() => {
-                const negDecliners = (decliners ?? []).filter((d: any) => d.changePercent <= 0);
-                const pageCount = Math.ceil(negDecliners.length / 2);
-                const page = declinerSlide % pageCount;
+              {(() => {
+                const isMovers = moverTab === "movers";
+                const rawData = isMovers
+                  ? (movers ?? [])
+                  : (decliners ?? []).filter((d: any) => d.changePercent <= 0);
+                const isLoading = isMovers ? moversLoading : declinersLoading;
+                const pageCount = Math.max(1, Math.ceil(rawData.length / 2));
+                const page = moverSlide % pageCount;
+                const pageData = rawData.slice(page * 2, page * 2 + 2);
+                const accentColor = isMovers ? "#16a34a" : "#ef4444";
+
+                if (isLoading) return (
+                  <div className="grid grid-cols-2 gap-3">
+                    {Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
+                  </div>
+                );
+                if (rawData.length === 0) return (
+                  <div className="bg-muted/40 border border-border rounded-2xl px-4 py-3 text-center">
+                    <p className="text-muted-foreground text-xs">
+                      {isMovers ? "No movers data yet" : "All farms up today 🌟"}
+                    </p>
+                  </div>
+                );
                 return (
                   <div className="overflow-hidden">
                     <AnimatePresence mode="wait">
                       <motion.div
-                        key={page}
-                        initial={{ opacity: 0, x: 30 }}
+                        key={`${moverTab}-${page}`}
+                        initial={{ opacity: 0, x: isMovers ? 30 : -30 }}
                         animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -30 }}
-                        transition={{ duration: 0.35 }}
+                        exit={{ opacity: 0, x: isMovers ? -30 : 30 }}
+                        transition={{ duration: 0.32 }}
                         className="grid grid-cols-2 gap-3"
                       >
-                        {negDecliners.slice(page * 2, page * 2 + 2).map((d: any) => {
-                          const risk = getRiskLevel(d.cropType ?? "", d.changePercent);
+                        {pageData.map((item: any) => {
+                          const risk = getRiskLevel(item.cropType ?? "", item.changePercent);
                           return (
-                            <Link key={d.farmId} href={`/market/exchange/${d.farmId}`}>
+                            <Link key={item.farmId} href={`/market/exchange/${item.farmId}`}>
                               <div className="rounded-2xl overflow-hidden relative cursor-pointer active:scale-95 transition-transform shadow-md">
-                                <img
-                                  src={getCropImage(d.cropType ?? "", d.imageUrl ?? undefined)}
-                                  alt={d.farmName}
-                                  className="w-full h-36 object-cover"
-                                />
+                                <img src={getCropImage(item.cropType ?? "", item.imageUrl ?? undefined)} alt={item.farmName} className="w-full h-36 object-cover" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-3 flex flex-col justify-end">
-                                  <p className="text-white text-xs font-bold leading-tight">{d.farmName}</p>
-                                  <p className="text-white/70 text-[9px]">{d.cropType} · {formatAmount(d.currentPrice)}</p>
+                                  <p className="text-white text-xs font-bold leading-tight">{item.farmName}</p>
+                                  <p className="text-white/70 text-[9px]">{item.cropType} · {formatAmount(item.currentPrice)}</p>
                                   <div className="flex items-center justify-between mt-1">
                                     <div className="flex items-center gap-1">
-                                      <TrendingDown size={9} className="text-red-300" />
-                                      <span className="text-[10px] font-bold text-red-300">{formatChange(d.changePercent)}</span>
+                                      {isMovers
+                                        ? <TrendingUp size={9} className="text-green-300" />
+                                        : <TrendingDown size={9} className="text-red-300" />}
+                                      <span className={`text-[10px] font-bold ${isMovers ? "text-green-300" : "text-red-300"}`}>
+                                        {formatChange(item.changePercent)}
+                                      </span>
                                     </div>
                                     <RiskBadge level={risk} />
                                   </div>
@@ -484,12 +449,12 @@ export default function MarketHome() {
                         })}
                       </motion.div>
                     </AnimatePresence>
-                    {/* Slide dots */}
-                    {negDecliners.length > 2 && (
+                    {rawData.length > 2 && (
                       <div className="flex justify-center gap-1 mt-2">
                         {Array(pageCount).fill(0).map((_, i) => (
-                          <button key={i} onClick={() => setDeclinerSlide(i)}
-                            className={`h-1 rounded-full transition-all ${i === page ? "w-4 bg-red-500" : "w-1.5 bg-muted"}`} />
+                          <button key={i} onClick={() => setMoverSlide(i)}
+                            className={`h-1 rounded-full transition-all ${i === page ? "w-4" : "w-1.5 bg-muted"}`}
+                            style={i === page ? { width: 16, background: accentColor } : {}} />
                         ))}
                       </div>
                     )}
@@ -526,27 +491,6 @@ export default function MarketHome() {
               </Link>
             </div>
 
-            {/* AI Smart Match banner */}
-            <button
-              onClick={() => setMatcherOpen(true)}
-              className="w-full rounded-2xl overflow-hidden relative h-20 active:scale-95 transition-transform shadow-md shadow-violet-500/20"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-purple-600 to-violet-800" />
-              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 80% 50%, white 0%, transparent 60%)" }} />
-              <div className="relative flex items-center gap-3 px-4 h-full">
-                <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">✨</span>
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-white font-extrabold text-sm leading-tight">AI Smart Match</p>
-                  <p className="text-white/70 text-[10px] mt-0.5">Set your goals · AI finds your best farms</p>
-                </div>
-                <div className="bg-white text-violet-700 text-[10px] font-extrabold px-3 py-1.5 rounded-full flex-shrink-0">
-                  Match Me →
-                </div>
-              </div>
-            </button>
-
             {/* Risk level legend */}
             <div className="bg-card border border-border rounded-2xl p-3 flex items-center gap-4">
               <p className="text-muted-foreground text-[10px] font-medium flex-shrink-0">Risk levels:</p>
@@ -557,10 +501,14 @@ export default function MarketHome() {
               </div>
             </div>
 
-            {/* Market Listings */}
+            {/* Featured Listings — 2 visible, climbing animation */}
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-foreground text-sm">Featured Listings</h2>
+                <h2 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                  <Star size={13} className="text-amber-500 fill-amber-400" />
+                  Featured Listings
+                  <InlineMicBot section="listings" role="investor" />
+                </h2>
                 {listings && listings.length > 0 && (
                   <Link href="/market/primary">
                     <span className="text-primary text-xs font-medium flex items-center gap-0.5">
@@ -569,10 +517,10 @@ export default function MarketHome() {
                   </Link>
                 )}
               </div>
-              <div className="space-y-3">
+              <div className="space-y-3 overflow-hidden">
                 {listingsLoading
-                  ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
-                  : listings?.length === 0
+                  ? Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
+                  : !listings || listings.length === 0
                     ? (
                       <div className="text-center py-10 bg-muted/30 rounded-2xl border border-border">
                         <TrendingUp size={28} className="text-muted-foreground mx-auto mb-2" />
@@ -580,82 +528,97 @@ export default function MarketHome() {
                         <p className="text-muted-foreground text-xs mt-1">Farms will appear here as farmers list them</p>
                       </div>
                     )
-                    : listings?.slice(0, 5).map((listing: any, idx: number) => {
-                        const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
-                        const isUp = listing.changePercent >= 0;
-                        const imgSrc = getCropImage(listing.cropType, listing.imageUrl ?? undefined);
-                        const risk = getRiskLevel(listing.cropType, listing.changePercent);
-                        const isFeatured = idx === 0;
+                    : (() => {
+                        const total = listings.length;
+                        const featListings = [
+                          listings[featIdx % total],
+                          ...(total > 1 ? [listings[(featIdx + 1) % total]] : []),
+                        ];
                         return (
-                          <Link key={listing.id} href={`/market/exchange/${listing.farmId}`}>
-                            <div className={`rounded-2xl border overflow-hidden cursor-pointer active:scale-[0.98] transition-all ${isFeatured ? "border-primary/30 shadow-lg shadow-green-600/15" : "border-border bg-card shadow-sm shadow-green-500/10"}`}>
-                              {isFeatured && (
-                                <div className="bg-gradient-to-r from-primary/90 to-green-600 px-4 py-1.5 flex items-center gap-1.5">
-                                  <Star size={10} className="text-white fill-white" />
-                                  <span className="text-white text-[9px] font-bold uppercase tracking-wider">Featured Listing</span>
-                                </div>
-                              )}
-                              <div className={`flex items-center gap-3 p-3 ${isFeatured ? "bg-primary/5" : "bg-card"}`}>
-                                {/* Listing number */}
-                                <span className="text-muted-foreground font-black text-lg w-5 text-center flex-shrink-0 leading-none">
-                                  {idx + 1}
-                                </span>
-                                <div className="relative flex-shrink-0">
-                                  <img src={imgSrc} alt={listing.farmName}
-                                    className="w-14 h-14 rounded-xl object-cover" />
-                                  <span className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${isUp ? "bg-green-500" : "bg-red-500"}`}>
-                                    {isUp ? <TrendingUp size={9} className="text-white" /> : <TrendingDown size={9} className="text-white" />}
-                                  </span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-foreground text-sm font-bold leading-tight truncate">{listing.farmName}</p>
-                                  <p className="text-muted-foreground text-[11px] mt-0.5 truncate">{listing.cropType} · {listing.location}</p>
-                                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                    <span className={`text-[10px] font-bold ${isUp ? "text-green-600" : "text-red-500"}`}>
-                                      {formatChange(listing.changePercent)}
-                                    </span>
-                                    <span className="text-muted-foreground/40 text-[10px]">·</span>
-                                    <RiskBadge level={risk} />
-                                  </div>
-                                </div>
-                                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                                  <div className="w-16">
-                                    <Sparkline data={sparkData} color={isUp ? "#16a34a" : "#dc2626"} height={28} />
-                                  </div>
-                                  <p className="text-foreground text-sm font-bold">{formatAmount(listing.pricePerShare)}</p>
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      title="Investment Calculator"
-                                      className="w-6 h-6 rounded-lg bg-muted border border-border flex items-center justify-center active:scale-95 transition-transform"
-                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCalcListing(listing); setCalcOpen(true); }}
-                                    >
-                                      <Calculator size={11} className="text-muted-foreground" />
-                                    </button>
-                                    <button
-                                      title="Price Alert"
-                                      className="w-6 h-6 rounded-lg bg-muted border border-border flex items-center justify-center active:scale-95 transition-transform"
-                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAlertListing(listing); setAlertOpen(true); }}
-                                    >
-                                      <BellRing size={11} className="text-muted-foreground" />
-                                    </button>
-                                    <button
-                                      className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm shadow-primary/30"
-                                      onClick={(e) => handleBuyClick(e, listing as Listing)}
-                                    >
-                                      BUY
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                              {listing.sharesAvailable < 50 && (
-                                <div className="bg-amber-50 border-t border-amber-200 px-4 py-1.5">
-                                  <p className="text-amber-700 text-[9px] font-semibold">⚡ Only {listing.sharesAvailable} shares remaining</p>
-                                </div>
-                              )}
-                            </div>
-                          </Link>
+                          <AnimatePresence mode="popLayout" initial={false}>
+                            {featListings.map((listing: any, idx: number) => {
+                              const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
+                              const isUp = listing.changePercent >= 0;
+                              const imgSrc = getCropImage(listing.cropType, listing.imageUrl ?? undefined);
+                              const risk = getRiskLevel(listing.cropType, listing.changePercent);
+                              const isFeatured = idx === 0;
+                              return (
+                                <motion.div
+                                  key={listing.id}
+                                  layout
+                                  initial={{ opacity: 0, y: 56 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -48, scale: 0.97 }}
+                                  transition={{ duration: 0.42, ease: "easeInOut", layout: { duration: 0.4, ease: "easeInOut" } }}
+                                >
+                                  <Link href={`/market/exchange/${listing.farmId}`}>
+                                    <div className={`rounded-2xl border overflow-hidden cursor-pointer active:scale-[0.98] transition-all ${isFeatured ? "border-primary/30 shadow-lg shadow-green-600/15" : "border-border bg-card shadow-sm shadow-green-500/10"}`}>
+                                      {isFeatured && (
+                                        <div className="bg-gradient-to-r from-primary/90 to-green-600 px-4 py-1.5 flex items-center gap-1.5">
+                                          <Star size={10} className="text-white fill-white" />
+                                          <span className="text-white text-[9px] font-bold uppercase tracking-wider">Featured Listing</span>
+                                        </div>
+                                      )}
+                                      <div className={`flex items-center gap-3 p-3 ${isFeatured ? "bg-primary/5" : "bg-card"}`}>
+                                        <div className="relative flex-shrink-0">
+                                          <img src={imgSrc} alt={listing.farmName} className="w-14 h-14 rounded-xl object-cover" />
+                                          <span className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${isUp ? "bg-green-500" : "bg-red-500"}`}>
+                                            {isUp ? <TrendingUp size={9} className="text-white" /> : <TrendingDown size={9} className="text-white" />}
+                                          </span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-foreground text-sm font-bold leading-tight truncate">{listing.farmName}</p>
+                                          <p className="text-muted-foreground text-[11px] mt-0.5 truncate">{listing.cropType} · {listing.location}</p>
+                                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                            <span className={`text-[10px] font-bold ${isUp ? "text-green-600" : "text-red-500"}`}>
+                                              {formatChange(listing.changePercent)}
+                                            </span>
+                                            <span className="text-muted-foreground/40 text-[10px]">·</span>
+                                            <RiskBadge level={risk} />
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                          <div className="w-16">
+                                            <Sparkline data={sparkData} color={isUp ? "#16a34a" : "#dc2626"} height={28} />
+                                          </div>
+                                          <p className="text-foreground text-sm font-bold">{formatAmount(listing.pricePerShare)}</p>
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              title="Investment Calculator"
+                                              className="w-6 h-6 rounded-lg bg-muted border border-border flex items-center justify-center active:scale-95 transition-transform"
+                                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCalcListing(listing); setCalcOpen(true); }}
+                                            >
+                                              <Calculator size={11} className="text-muted-foreground" />
+                                            </button>
+                                            <button
+                                              title="Price Alert"
+                                              className="w-6 h-6 rounded-lg bg-muted border border-border flex items-center justify-center active:scale-95 transition-transform"
+                                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAlertListing(listing); setAlertOpen(true); }}
+                                            >
+                                              <BellRing size={11} className="text-muted-foreground" />
+                                            </button>
+                                            <button
+                                              className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm shadow-primary/30"
+                                              onClick={(e) => handleBuyClick(e, listing as Listing)}
+                                            >
+                                              BUY
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      {listing.sharesAvailable < 50 && (
+                                        <div className="bg-amber-50 border-t border-amber-200 px-4 py-1.5">
+                                          <p className="text-amber-700 text-[9px] font-semibold">⚡ Only {listing.sharesAvailable} shares remaining</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </Link>
+                                </motion.div>
+                              );
+                            })}
+                          </AnimatePresence>
                         );
-                      })}
+                      })()}
               </div>
             </section>
 
@@ -1021,8 +984,6 @@ export default function MarketHome() {
         { target: "[data-testid='nav-profile']", title: "Profile & KYC", body: "Complete identity verification (KYC) to unlock trading and payouts.", position: "top" },
       ]} />
       <NotificationPrompt storageKey="investor_notif_v1" />
-      <AiAssistant initialQuestion={aiQuestion} />
-
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <AiMatchmaker open={matcherOpen} onClose={() => setMatcherOpen(false)} />
     </div>

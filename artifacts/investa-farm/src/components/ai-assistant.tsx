@@ -107,11 +107,11 @@ function getStaticResponse(q: string, role: string): string | null {
   return null;
 }
 
-export function AiAssistant({ initialQuestion, role = "investor" }: { initialQuestion?: string; role?: "investor" | "farmer" }) {
-  return <VoiceOrb section="default" role={role} />;
+export function AiAssistant({ initialQuestion: _initialQuestion, role = "investor" }: { initialQuestion?: string; role?: "investor" | "farmer" }) {
+  return <InlineMicBot section="default" role={role} />;
 }
 
-export function VoiceOrb({ section = "default", itemName = "", role = "investor", farmData = null }: VoiceOrbProps) {
+function useMicLogic(section: string, role: string, farmData: VoiceOrbProps["farmData"]) {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -125,7 +125,6 @@ export function VoiceOrb({ section = "default", itemName = "", role = "investor"
 
   const handleMicPress = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
-
     if (speaking) { window.speechSynthesis?.cancel(); setSpeaking(false); return; }
     if (listening) { recognitionRef.current?.stop(); setListening(false); return; }
 
@@ -147,15 +146,12 @@ export function VoiceOrb({ section = "default", itemName = "", role = "investor"
       const transcript = (e.results[0]?.[0]?.transcript ?? "").trim();
       if (!transcript) return;
       setListening(false);
-
       const staticReply = getStaticResponse(transcript, role);
       if (staticReply) { doSpeak(staticReply); return; }
-
       try {
         const sectionContext = farmData
           ? `User is viewing farm: ${farmData.name}, crop: ${farmData.cropType}, price: KES ${farmData.pricePerShare}/share. ${ctx.intro}`
           : `User is on the ${section} section. ${ctx.intro}`;
-
         const r = await fetch("/api/ai/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -169,15 +165,63 @@ export function VoiceOrb({ section = "default", itemName = "", role = "investor"
         doSpeak("Samahani! I had trouble connecting. Try asking again — niulize tena!");
       }
     };
-
     rec.onend = () => setListening(false);
     rec.onerror = () => { setListening(false); doSpeak("Samahani, sikukusikia. Please press the mic and try again!"); };
-
     recognitionRef.current = rec;
     rec.start();
     setListening(true);
   }, [listening, speaking, doSpeak, ctx, section, farmData, role, token]);
 
+  return { listening, speaking, handleMicPress };
+}
+
+export function InlineMicBot({ section = "default", role = "investor", farmData = null }: Omit<VoiceOrbProps, "itemName">) {
+  const { listening, speaking, handleMicPress } = useMicLogic(section, role, farmData);
+
+  return (
+    <motion.button
+      onPointerDown={handleMicPress}
+      whileTap={{ scale: 0.82 }}
+      title="Ask AI"
+      className="relative flex items-center justify-center rounded-full select-none outline-none flex-shrink-0"
+      style={{
+        width: 22,
+        height: 22,
+        background: listening
+          ? "linear-gradient(135deg, #dc2626, #ef4444)"
+          : speaking
+          ? "linear-gradient(135deg, #0369a1, #0ea5e9)"
+          : "linear-gradient(135deg, #052e16, #16a34a)",
+        boxShadow: listening
+          ? "0 0 0 2px rgba(239,68,68,0.35)"
+          : speaking
+          ? "0 0 0 2px rgba(14,165,233,0.35)"
+          : "0 1px 6px rgba(22,163,74,0.5)",
+      }}
+    >
+      {listening && (
+        <motion.div
+          className="absolute inset-0 rounded-full border border-red-400"
+          animate={{ scale: [1, 1.8], opacity: [0.6, 0] }}
+          transition={{ duration: 0.8, repeat: Infinity }}
+        />
+      )}
+      {speaking && (
+        <motion.div
+          className="absolute inset-0 rounded-full border border-sky-300"
+          animate={{ scale: [1, 1.6], opacity: [0.5, 0] }}
+          transition={{ duration: 0.65, repeat: Infinity }}
+        />
+      )}
+      {listening
+        ? <MicOff size={10} className="text-white" />
+        : <Mic size={10} className="text-white" />}
+    </motion.button>
+  );
+}
+
+export function VoiceOrb({ section = "default", itemName: _itemName = "", role = "investor", farmData = null }: VoiceOrbProps) {
+  const { listening, speaking, handleMicPress } = useMicLogic(section, role, farmData);
   const isActive = listening || speaking;
 
   return (
@@ -208,29 +252,17 @@ export function VoiceOrb({ section = "default", itemName = "", role = "investor"
       >
         {listening && (
           <>
-            <motion.div
-              className="absolute inset-0 rounded-full border-2 border-red-400"
-              animate={{ scale: [1, 1.7], opacity: [0.6, 0] }}
-              transition={{ duration: 0.9, repeat: Infinity }}
-            />
-            <motion.div
-              className="absolute inset-0 rounded-full border-2 border-red-300"
-              animate={{ scale: [1, 2.0], opacity: [0.4, 0] }}
-              transition={{ duration: 0.9, repeat: Infinity, delay: 0.3 }}
-            />
+            <motion.div className="absolute inset-0 rounded-full border-2 border-red-400"
+              animate={{ scale: [1, 1.7], opacity: [0.6, 0] }} transition={{ duration: 0.9, repeat: Infinity }} />
+            <motion.div className="absolute inset-0 rounded-full border-2 border-red-300"
+              animate={{ scale: [1, 2.0], opacity: [0.4, 0] }} transition={{ duration: 0.9, repeat: Infinity, delay: 0.3 }} />
           </>
         )}
         {speaking && (
-          <motion.div
-            className="absolute inset-0 rounded-full border-2 border-sky-300"
-            animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
-            transition={{ duration: 0.7, repeat: Infinity }}
-          />
+          <motion.div className="absolute inset-0 rounded-full border-2 border-sky-300"
+            animate={{ scale: [1, 1.5], opacity: [0.5, 0] }} transition={{ duration: 0.7, repeat: Infinity }} />
         )}
-        {listening
-          ? <MicOff size={15} className="text-white" />
-          : <Mic size={15} className="text-white" />
-        }
+        {listening ? <MicOff size={15} className="text-white" /> : <Mic size={15} className="text-white" />}
       </motion.button>
     </motion.div>
   );

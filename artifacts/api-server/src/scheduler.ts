@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { db, usersTable, farmsTable, investmentsTable } from "@workspace/db";
-import { eq, and, inArray, lt, isNull, or } from "drizzle-orm";
+import { db, usersTable, farmsTable, investmentsTable, marketListingsTable } from "@workspace/db";
+import { eq, inArray, lt, and } from "drizzle-orm";
 import { sendOpportunityDigest, sendPriceAlertEmail, sendVerificationReminderEmail } from "./lib/email";
 import { notifyMany } from "./lib/push";
 
@@ -86,28 +86,95 @@ async function runVerificationReminders(): Promise<void> {
 // In-memory price history: farmId → { price, lastAlertedAt }
 const priceHistory = new Map<number, { price: number; lastAlertedAt: number }>();
 
+// Risk scores (1–10) by crop type — higher = riskier
+const CROP_RISK_SCORE: Record<string, number> = {
+  tobacco: 9, coffee: 8, avocado: 7, horticulture: 7, tomatoes: 6,
+  tea: 5, potatoes: 5, onions: 5, rice: 4, wheat: 4, sunflower: 4,
+  maize: 3, beans: 3, cassava: 3,
+};
+
+// Typical growing season length (days) by crop type
+const CROP_SEASON_DAYS: Record<string, number> = {
+  coffee: 180, avocado: 150, rice: 120, wheat: 90, maize: 90,
+  tea: 90, sunflower: 90, potatoes: 90, tomatoes: 60, beans: 60,
+  onions: 75, cassava: 270, tobacco: 120,
+};
+
 async function runPriceSimulation(): Promise<void> {
+  // Pricing formula constants
+  const ALPHA = 0.20;           // investor share of harvest revenue
+  const P_MAX = 0.40;           // max probability of default
+  const LGD = 0.80;             // loss given default
+  const RISK_FREE = 0.10;       // annual risk-free rate (10%)
+  const LIQUIDITY_DISCOUNT = 0.02;
+  const REVENUE_MULTIPLE = 1.40; // forecast revenue = capital × 1.40
+
   try {
     const farms = await db.select().from(farmsTable);
+    const listings = await db.select().from(marketListingsTable);
+
+    // Build per-farm supply/demand from active listings
+    const farmListingMap = new Map<number, { primaryShares: number; secondaryShares: number }>();
+    for (const l of listings) {
+      if (!l.isActive) continue;
+      const entry = farmListingMap.get(l.farmId) ?? { primaryShares: 0, secondaryShares: 0 };
+      if (l.listingType === "primary") entry.primaryShares += l.sharesAvailable;
+      else entry.secondaryShares += l.sharesAvailable;
+      farmListingMap.set(l.farmId, entry);
+    }
+
     for (const farm of farms) {
-      const currentPrice = parseFloat((farm as any).currentPrice?.toString() ?? (farm as any).sharePrice?.toString() ?? "100");
-      // Random walk: ±0 to 3% per tick (biased slightly positive to simulate growth)
-      const rand = Math.random();
-      let changePct: number;
-      if (rand < 0.05) {
-        // 5% chance of a big move (4–8%)
-        changePct = (Math.random() > 0.45 ? 1 : -1) * (4 + Math.random() * 4);
-      } else {
-        // Normal small move ±0–2%
-        changePct = (Math.random() - 0.46) * 4;
-      }
-      const newPrice = Math.max(currentPrice * (1 + changePct / 100), 1);
+      const totalShares = farm.totalShares;
+      if (totalShares <= 0) continue;
+
+      // Forecast revenue derived from capital
+      const capital = Number(farm.loanAmount);
+      const forecastRevenue = capital * REVENUE_MULTIPLE;
+
+      // Risk score from crop type (fallback = 5 = moderate)
+      const cropKey = (farm.cropType ?? "").toLowerCase().trim();
+      const riskScore = CROP_RISK_SCORE[cropKey] ?? 5;
+
+      // Remaining days to harvest from creation + typical season length
+      const seasonDays = CROP_SEASON_DAYS[cropKey] ?? 90;
+      const ageMs = Date.now() - new Date(farm.createdAt).getTime();
+      const ageDays = ageMs / (1000 * 60 * 60 * 24);
+      const daysToHarvest = Math.max(7, seasonDays - ageDays);
+
+      // Order-book demand multiplier from sold shares + listing activity
+      const soldShares = Math.max(0, farm.totalShares - farm.sharesAvailable);
+      const demandRatio = soldShares / totalShares; // 0–1
+      const farmListing = farmListingMap.get(farm.id) ?? { primaryShares: 0, secondaryShares: 0 };
+      const supplyPressure = farmListing.secondaryShares / (totalShares + 1);
+      const rawImbalance = demandRatio - supplyPressure * 0.5; // net demand
+      const imbalanceFactor = 1 + Math.max(-0.10, Math.min(0.10, rawImbalance * 0.20));
+
+      // Fair-value formula
+      const expectedDividend = (forecastRevenue * ALPHA) / totalShares;
+      const timeValue = 1 + RISK_FREE * (daysToHarvest / 365);
+      const riskAdj = P_MAX * LGD * (riskScore / 10);
+      const fairValue =
+        (expectedDividend / timeValue) *
+        (1 - riskAdj - LIQUIDITY_DISCOUNT) *
+        imbalanceFactor;
+
+      // Add tiny ±0.3% market noise to simulate real tick-by-tick variation
+      const noise = 1 + (Math.random() - 0.5) * 0.006;
+      const newPrice = Math.max(fairValue * noise, 1);
+
+      const prevPrice = Number(farm.currentPrice) || Number(farm.sharePrice) || newPrice;
+      const changePercent = ((newPrice - prevPrice) / Math.max(prevPrice, 0.01)) * 100;
+
       await db
         .update(farmsTable)
-        .set({ changePercent: changePct.toFixed(2) } as any)
+        .set({
+          currentPrice: newPrice.toFixed(2),
+          changePercent: changePercent.toFixed(4),
+        } as any)
         .where(eq(farmsTable.id, farm.id))
         .catch(() => {});
     }
+    console.log(`[scheduler] Dynamic pricing updated ${farms.length} farms`);
   } catch (e) {
     console.warn("[scheduler] Price simulation error:", (e as Error)?.message);
   }
