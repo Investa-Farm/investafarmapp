@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useGetPortfolio, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getStoredUser, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen, Star, Plus } from "lucide-react";
+import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen, Star, Plus, RefreshCw } from "lucide-react";
 import { PortfolioWizard } from "@/components/portfolio-wizard";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -17,6 +17,7 @@ import { ExitModal } from "@/components/exit-modal";
 import { SellSharesModal } from "@/components/sell-shares-modal";
 import { PortfolioHealthAI } from "@/components/portfolio-health-ai";
 import { getCropImage } from "@/lib/crops";
+import { ReinvestmentSettings } from "@/components/reinvestment-settings";
 
 type Holding = {
   id: number; farmId: number; farmName: string; cropType: string; location: string;
@@ -70,6 +71,7 @@ export default function Portfolio() {
   const [brokerEnabled, setBrokerEnabled] = useState(() => localStorage.getItem("investa_broker_mode") === "true");
   const [copied, setCopied] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [reinvestOpen, setReinvestOpen] = useState(false);
   const [, setLocation] = useLocation();
   const token = getToken();
   const user = getStoredUser();
@@ -531,6 +533,27 @@ export default function Portfolio() {
         {(holdings as Holding[])?.length > 0 && summary && (
           <PortfolioHealthAI holdings={holdings as Holding[]} summary={summary} />
         )}
+
+        {/* Reinvestment Automation banner */}
+        <button
+          onClick={() => setReinvestOpen(true)}
+          className="w-full rounded-2xl overflow-hidden relative h-16 active:scale-95 transition-transform"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-purple-700" />
+          <div className="relative flex items-center gap-3 px-4 h-full">
+            <div className="w-8 h-8 rounded-lg bg-white/15 border border-white/25 flex items-center justify-center flex-shrink-0">
+              <RefreshCw size={14} className="text-white" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-white font-bold text-xs">Auto-Reinvest Payouts</p>
+              <p className="text-white/70 text-[10px]">Set rules · AI picks farms · grow automatically</p>
+            </div>
+            <div className="bg-white/20 border border-white/30 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+              Set Up →
+            </div>
+          </div>
+        </button>
+
         <h2 className="font-semibold text-foreground text-sm">My Holdings</h2>
         {isLoading
           ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)
@@ -635,6 +658,7 @@ export default function Portfolio() {
       )}
       <ExitModal open={exitOpen} onClose={() => setExitOpen(false)} holding={selectedHolding} />
       <SellSharesModal open={sellOpen} onClose={() => setSellOpen(false)} holding={selectedHolding} />
+      <ReinvestmentSettings open={reinvestOpen} onClose={() => setReinvestOpen(false)} />
       <ShareModal
         open={!!shareHolding}
         onClose={() => setShareHolding(null)}
