@@ -249,7 +249,6 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
           >
             <div
               className="absolute inset-0 pointer-events-auto"
-              style={{ background: "rgba(0,0,0,0.04)" }}
               onClick={dismiss}
             />
 

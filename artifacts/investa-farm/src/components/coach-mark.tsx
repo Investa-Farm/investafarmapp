@@ -49,22 +49,30 @@ export function CoachMark({ steps, storageKey, onDone }: Props) {
     }
   };
 
-  if (!active || !rect) return null;
+  if (!active) return null;
 
   const step = steps[idx]!;
   const pos = step.position ?? "top";
+  const hasSpot = !!rect && !!step.target;
 
   const spotPad = 10;
-  const spotLeft  = rect.left   - spotPad;
-  const spotTop   = rect.top    - spotPad;
-  const spotW     = rect.width  + spotPad * 2;
-  const spotH     = rect.height + spotPad * 2;
+  const spotLeft  = rect ? rect.left   - spotPad : 0;
+  const spotTop   = rect ? rect.top    - spotPad : 0;
+  const spotW     = rect ? rect.width  + spotPad * 2 : 0;
+  const spotH     = rect ? rect.height + spotPad * 2 : 0;
 
   const tooltipStyle: React.CSSProperties = {};
-  if (pos === "top")    { tooltipStyle.bottom = window.innerHeight - spotTop + 8;  tooltipStyle.left = Math.max(12, spotLeft); }
-  if (pos === "bottom") { tooltipStyle.top    = spotTop + spotH + 8;               tooltipStyle.left = Math.max(12, spotLeft); }
-  if (pos === "left")   { tooltipStyle.right  = window.innerWidth - spotLeft + 8;  tooltipStyle.top  = spotTop; }
-  if (pos === "right")  { tooltipStyle.left   = spotLeft + spotW + 8;              tooltipStyle.top  = spotTop; }
+  if (!hasSpot) {
+    // No target — float centered near bottom
+    tooltipStyle.bottom = 100;
+    tooltipStyle.left = "50%";
+    tooltipStyle.transform = "translateX(-50%)";
+  } else {
+    if (pos === "top")    { tooltipStyle.bottom = window.innerHeight - spotTop + 8;  tooltipStyle.left = Math.max(12, spotLeft); }
+    if (pos === "bottom") { tooltipStyle.top    = spotTop + spotH + 8;               tooltipStyle.left = Math.max(12, spotLeft); }
+    if (pos === "left")   { tooltipStyle.right  = window.innerWidth - spotLeft + 8;  tooltipStyle.top  = spotTop; }
+    if (pos === "right")  { tooltipStyle.left   = spotLeft + spotW + 8;              tooltipStyle.top  = spotTop; }
+  }
 
   return (
     <AnimatePresence>
@@ -75,36 +83,35 @@ export function CoachMark({ steps, storageKey, onDone }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[9999] pointer-events-none"
-          style={{ backgroundColor: "rgba(0,0,0,0.28)" }}
         >
-          {/* Spotlight cutout */}
-          <svg className="absolute inset-0 w-full h-full">
-            <defs>
-              <mask id="cm-mask">
-                <rect width="100%" height="100%" fill="white" />
-                <rect
-                  x={spotLeft} y={spotTop} width={spotW} height={spotH}
-                  rx={10} fill="black"
-                />
-              </mask>
-            </defs>
-            <rect width="100%" height="100%" fill="rgba(0,0,0,0.28)" mask="url(#cm-mask)" />
-          </svg>
-
-          {/* Highlight border */}
-          <div
-            className="absolute rounded-xl"
-            style={{
-              left: spotLeft, top: spotTop, width: spotW, height: spotH,
-              border: "2px solid rgba(22,163,74,0.65)",
-              boxShadow: "0 0 12px rgba(22,163,74,0.2)",
-            }}
-          />
+          {/* Dark overlay — only when spotlighting a specific element */}
+          {hasSpot && (
+            <>
+              <svg className="absolute inset-0 w-full h-full">
+                <defs>
+                  <mask id="cm-mask">
+                    <rect width="100%" height="100%" fill="white" />
+                    <rect x={spotLeft} y={spotTop} width={spotW} height={spotH} rx={10} fill="black" />
+                  </mask>
+                </defs>
+                <rect width="100%" height="100%" fill="rgba(0,0,0,0.28)" mask="url(#cm-mask)" />
+              </svg>
+              {/* Highlight border */}
+              <div
+                className="absolute rounded-xl"
+                style={{
+                  left: spotLeft, top: spotTop, width: spotW, height: spotH,
+                  border: "2px solid rgba(22,163,74,0.65)",
+                  boxShadow: "0 0 12px rgba(22,163,74,0.2)",
+                }}
+              />
+            </>
+          )}
 
           {/* Tooltip */}
           <motion.div
             key={idx}
-            initial={{ opacity: 0, scale: 0.92, y: pos === "bottom" ? -6 : 6 }}
+            initial={{ opacity: 0, scale: 0.92, y: 6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}

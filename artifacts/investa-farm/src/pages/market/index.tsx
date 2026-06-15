@@ -1181,7 +1181,7 @@ export default function MarketHome() {
       <AppTour role="investor" onAskAI={q => { setAiQuestion(q); }} />
 
       <CoachMark storageKey="investor_onboarding_v1" steps={[
-        { target: "[data-testid='market-home']", title: "Welcome, Investor!", body: "Browse live farm listings here. Each one shows a risk badge — Low, Moderate, or High.", position: "bottom" },
+        { target: "", title: "Welcome, Investor!", body: "Browse live farm listings here. Each one shows a risk badge — Low, Moderate, or High.", position: "bottom" },
         { target: "[data-testid='nav-portfolio']", title: "Your Portfolio", body: "Track your farm share holdings, returns, and request exits.", position: "top" },
         { target: "[data-testid='nav-activity']", title: "Activity Feed", body: "Your full transaction history and investment receipts live here.", position: "top" },
         { target: "[data-testid='nav-profile']", title: "Profile & KYC", body: "Complete identity verification (KYC) to unlock trading and payouts.", position: "top" },
