@@ -98,7 +98,7 @@ export default function FarmerDashboard() {
       {/* Hero header with farm background */}
       <div className="relative overflow-hidden" style={{ minHeight: 240 }}>
         <img src={FARMER_HERO_IMAGE} alt="Farm" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(160deg, rgba(5,46,22,0.55) 0%, rgba(20,83,45,0.45) 45%, rgba(22,163,74,0.25) 100%)" }} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(160deg, rgba(5,46,22,0.30) 0%, rgba(20,83,45,0.22) 45%, rgba(22,163,74,0.08) 100%)" }} />
 
         {/* Top bar */}
         <div className="relative z-10 pt-12 px-5">

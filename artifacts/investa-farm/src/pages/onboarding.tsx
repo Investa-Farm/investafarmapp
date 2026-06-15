@@ -17,7 +17,7 @@ const slides = [
     image: farmerImg,
     stat: "4 farms listed",
     statSub: "across Kenya",
-    overlay: "from-black/60 via-black/30 to-transparent",
+    overlay: "from-black/30 via-black/10 to-transparent",
   },
   {
     id: 1,
@@ -28,7 +28,7 @@ const slides = [
     image: financeImg,
     stat: "KES 500K+",
     statSub: "managed by investors",
-    overlay: "from-black/60 via-black/30 to-transparent",
+    overlay: "from-black/30 via-black/10 to-transparent",
   },
   {
     id: 2,
@@ -39,7 +39,7 @@ const slides = [
     image: teamImg,
     stat: "Africa's #1",
     statSub: "farm investment platform",
-    overlay: "from-black/60 via-black/30 to-transparent",
+    overlay: "from-black/30 via-black/10 to-transparent",
   },
 ];
 
@@ -68,7 +68,7 @@ export default function Onboarding() {
           {/* Background photo */}
           <img src={slide.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
           <div className={`absolute inset-0 bg-gradient-to-t ${slide.overlay}`} />
-          <div className={`absolute inset-0 bg-gradient-to-b ${slide.bg} opacity-60`} />
+          <div className={`absolute inset-0 bg-gradient-to-b ${slide.bg} opacity-40`} />
 
           {/* Content */}
           <div className="absolute inset-0 flex flex-col">

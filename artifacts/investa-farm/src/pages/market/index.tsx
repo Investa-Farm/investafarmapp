@@ -25,6 +25,7 @@ import { InvestmentCalculator } from "@/components/investment-calculator";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { motion, AnimatePresence } from "framer-motion";
 import { AiSectionBot } from "@/components/ai-section-bot";
+import { AiMatchmaker } from "@/components/ai-matchmaker";
 
 const CROPS = [
   { name: "Maize",    change: 2.1  },
@@ -188,6 +189,7 @@ export default function MarketHome() {
   const [aiQuestion, setAiQuestion] = useState<string | undefined>(undefined);
   const [calcOpen, setCalcOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
+  const [matcherOpen, setMatcherOpen] = useState(false);
   const [calcListing, setCalcListing] = useState<any>(null);
   const [alertListing, setAlertListing] = useState<any>(null);
   const token = getToken();
@@ -523,6 +525,27 @@ export default function MarketHome() {
                 </div>
               </Link>
             </div>
+
+            {/* AI Smart Match banner */}
+            <button
+              onClick={() => setMatcherOpen(true)}
+              className="w-full rounded-2xl overflow-hidden relative h-20 active:scale-95 transition-transform shadow-md shadow-violet-500/20"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-purple-600 to-violet-800" />
+              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 80% 50%, white 0%, transparent 60%)" }} />
+              <div className="relative flex items-center gap-3 px-4 h-full">
+                <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl">✨</span>
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-white font-extrabold text-sm leading-tight">AI Smart Match</p>
+                  <p className="text-white/70 text-[10px] mt-0.5">Set your goals · AI finds your best farms</p>
+                </div>
+                <div className="bg-white text-violet-700 text-[10px] font-extrabold px-3 py-1.5 rounded-full flex-shrink-0">
+                  Match Me →
+                </div>
+              </div>
+            </button>
 
             {/* Risk level legend */}
             <div className="bg-card border border-border rounded-2xl p-3 flex items-center gap-4">
@@ -1001,6 +1024,7 @@ export default function MarketHome() {
       <AiAssistant initialQuestion={aiQuestion} />
 
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <AiMatchmaker open={matcherOpen} onClose={() => setMatcherOpen(false)} />
     </div>
   );
 }

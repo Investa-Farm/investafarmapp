@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/lib/currency";
 import { InvestModal } from "@/components/invest-modal";
 import { motion } from "framer-motion";
+import { AiYieldPredictor } from "@/components/ai-yield-predictor";
 
 const CROP_FUNDAMENTALS: Record<string, { season: string; harvestMonths: string; keyMarkets: string; avgYield: string; outlook: string }> = {
   maize:    { season: "Long Rains (Mar–Aug)", harvestMonths: "Jul–Aug", keyMarkets: "Nairobi, Mombasa, Kisumu", avgYield: "2.5–4 t/ha", outlook: "Demand rising due to population growth and ethanol production." },
@@ -187,6 +188,15 @@ export default function FarmExchange() {
                 <div><p className="text-muted-foreground">Change</p><p className={`font-bold ${isUp?"text-green-600":"text-red-500"}`}>{isUp?"+":""}{(farm.changePercent??0).toFixed(2)}%</p></div>
               </div>
             </div>
+
+            <AiYieldPredictor
+              farmId={farm.id}
+              farmName={farm.name}
+              cropType={farm.cropType}
+              fundingPercent={farm.fundingPercent ?? 0}
+              daysRemaining={farm.harvestDays ?? 120}
+              riskScore={farm.riskScore ?? 7}
+            />
 
             <button
               onClick={() => { setSelectedListing({ id: farm.id, farmId: farm.id, farmName: farm.name, cropType: farm.cropType, location: farm.location, pricePerShare: farm.currentPrice ?? farm.sharePrice, sharesAvailable: farm.sharesAvailable, changePercent: farm.changePercent }); setInvestOpen(true); }}
