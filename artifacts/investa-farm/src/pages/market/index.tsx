@@ -482,49 +482,26 @@ export default function MarketHome() {
           <>
             {/* Top Movers / Decliners — combined section */}
             <section>
-              {/* Market type labels */}
-              <div className="flex items-center gap-2 mb-2">
-                <Link href="/market/primary">
-                  <span className="inline-flex items-center gap-1 bg-green-600/10 border border-green-600/20 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition-transform">
-                    <TrendingUp size={9} /> Primary Market
-                  </span>
-                </Link>
-                <Link href="/market/secondary">
-                  <span className="inline-flex items-center gap-1 bg-amber-600/10 border border-amber-600/20 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition-transform">
-                    <TrendingDown size={9} /> Secondary Market
-                  </span>
-                </Link>
-              </div>
               <div className="flex items-center justify-between mb-2.5">
-                <h2 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
-                  {moverTab === "movers"
-                    ? <TrendingUp size={13} className="text-green-600" />
-                    : <TrendingDown size={13} className="text-red-500" />}
-                  {moverTab === "movers" ? "Top Gainers" : "Top Decliners"}
-                  <AiSectionBot context="What are 'top movers' and 'top decliners' in the Investa Farm market? Why do farm share prices change, and what should an investor look for?" label="movers & decliners" />
-                  <InlineMicBot section="market" role="investor" />
-                </h2>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex bg-muted rounded-full p-0.5 gap-0.5">
-                    <button
-                      onClick={() => { setMoverTab("movers"); setMoverSlide(0); }}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${moverTab === "movers" ? "bg-green-600 text-white shadow-sm" : "text-muted-foreground"}`}
-                    >
-                      <TrendingUp size={9} /> Gainers
-                    </button>
-                    <button
-                      onClick={() => { setMoverTab("decliners"); setMoverSlide(0); }}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${moverTab === "decliners" ? "bg-red-500 text-white shadow-sm" : "text-muted-foreground"}`}
-                    >
-                      <TrendingDown size={9} /> Decliners
-                    </button>
-                  </div>
-                  <Link href="/market/primary">
-                    <span className="text-primary text-xs font-medium flex items-center gap-0.5">
-                      All <ChevronRight size={13} />
-                    </span>
-                  </Link>
+                <div className="flex bg-muted rounded-full p-0.5 gap-0.5">
+                  <button
+                    onClick={() => { setMoverTab("movers"); setMoverSlide(0); }}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${moverTab === "movers" ? "bg-green-600 text-white shadow-sm" : "text-muted-foreground"}`}
+                  >
+                    <TrendingUp size={9} /> Gainers
+                  </button>
+                  <button
+                    onClick={() => { setMoverTab("decliners"); setMoverSlide(0); }}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${moverTab === "decliners" ? "bg-red-500 text-white shadow-sm" : "text-muted-foreground"}`}
+                  >
+                    <TrendingDown size={9} /> Decliners
+                  </button>
                 </div>
+                <Link href="/market/primary">
+                  <span className="text-primary text-xs font-medium flex items-center gap-0.5">
+                    All <ChevronRight size={13} />
+                  </span>
+                </Link>
               </div>
               {(() => {
                 const isMovers = moverTab === "movers";
@@ -840,91 +817,93 @@ export default function MarketHome() {
             </div>
 
             {newsLoading
-              ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)
+              ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)
               : (newsItems ?? []).map((item: any, idx: number) => {
                   const isExpanded = expandedNews === item.id;
                   const isFeatured = idx === 0;
-                  return (
-                    <div
-                      key={item.id}
-                      className={`bg-card rounded-2xl border overflow-hidden transition-all ${isFeatured ? "border-primary/30 shadow-md shadow-green-500/10" : "border-border shadow-sm"}`}
-                    >
-                      {/* Thumbnail */}
-                      <div className="relative">
-                        <img src={getNewsImage(item)} alt={item.title} className={`w-full object-cover ${isFeatured ? "h-44" : "h-28"}`} />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                        {isFeatured && (
-                          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-                        )}
-                        <div className="absolute top-2 left-2 flex items-center gap-1.5">
-                          {isFeatured && (
+
+                  if (isFeatured) {
+                    return (
+                      <div key={item.id} className="rounded-2xl overflow-hidden border border-primary/20 shadow-md shadow-green-500/8">
+                        <div className="relative h-48">
+                          <img src={getNewsImage(item)} alt={item.title} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                          <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent" />
+                          <div className="absolute top-3 left-3 flex items-center gap-1.5">
                             <span className="bg-primary text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Featured</span>
-                          )}
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>
-                            {item.tag}
-                          </span>
-                        </div>
-                        {isFeatured && (
-                          <div className="absolute bottom-3 left-3 right-3">
-                            <p className="text-white font-bold text-sm leading-snug drop-shadow-sm line-clamp-2">{item.title}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-white/70 text-[10px] flex items-center gap-1">
-                                <Clock size={9} /> {item.time}
-                              </span>
-                              <span className="text-white/60 text-[10px]">· {item.source}</span>
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
+                          </div>
+                          <div className="absolute top-3 right-3"><NewsAiBot item={item} /></div>
+                          <div className="absolute bottom-0 left-0 right-0 p-4">
+                            <p className="text-white font-bold text-base leading-snug drop-shadow-sm line-clamp-2">{item.title}</p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="text-white/60 text-[10px] flex items-center gap-1"><Clock size={9} />{item.time}</span>
+                              <span className="text-white/40 text-[10px]">·</span>
+                              <span className="text-white/60 text-[10px] font-medium">{item.source}</span>
                             </div>
                           </div>
-                        )}
-                        <div className="absolute bottom-2 right-2">
-                          <NewsAiBot item={item} />
                         </div>
-                      </div>
-
-                      {/* Content */}
-                      <button
-                        className="w-full text-left px-3.5 py-3 active:bg-muted/30 transition-colors"
-                        onClick={() => setExpandedNews(isExpanded ? null : item.id)}
-                      >
-                        {!isFeatured && (
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span className="text-muted-foreground text-[10px] flex items-center gap-1">
-                              <Clock size={9} /> {item.time}
-                            </span>
-                            <span className="text-primary/60 text-[10px] font-medium truncate">{item.source}</span>
+                        <button className="w-full text-left bg-card px-4 py-3 active:bg-muted/40 transition-colors"
+                          onClick={() => setExpandedNews(isExpanded ? null : item.id)}>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-muted-foreground text-xs leading-relaxed line-clamp-2 flex-1">{item.summary}</p>
+                            <ChevronDown size={14} className={`text-muted-foreground mt-0.5 flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                           </div>
-                        )}
-                        {!isFeatured && (
-                          <p className="text-foreground font-semibold text-sm leading-snug">{item.title}</p>
-                        )}
-                        <div className="flex items-center justify-between mt-1.5">
-                          <p className={`text-muted-foreground text-xs line-clamp-1 flex-1 ${isFeatured ? "mt-0" : ""}`}>
-                            {item.summary?.slice(0, 80)}{item.summary?.length > 80 ? "…" : ""}
-                          </p>
-                          <ChevronDown
-                            size={13}
-                            className={`ml-2 text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
-                          />
+                        </button>
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden bg-card">
+                              <div className="px-4 pb-4 pt-0 border-t border-border space-y-3">
+                                <p className="text-muted-foreground text-sm leading-relaxed pt-3">{item.summary}</p>
+                                <div className="flex items-center gap-2">
+                                  {item.url && item.url !== "#" && (
+                                    <button onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
+                                      className="inline-flex items-center gap-1.5 bg-primary text-white text-xs font-semibold px-3 py-2 rounded-xl active:scale-95 transition-transform">
+                                      Read full story <ExternalLink size={11} />
+                                    </button>
+                                  )}
+                                  <span className="flex-1" />
+                                  <NewsAiBot item={item} />
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={item.id} className="bg-card rounded-2xl border border-border overflow-hidden">
+                      <button className="w-full text-left active:bg-muted/30 transition-colors"
+                        onClick={() => setExpandedNews(isExpanded ? null : item.id)}>
+                        <div className="flex gap-0 items-stretch">
+                          <div className="relative w-24 flex-shrink-0">
+                            <img src={getNewsImage(item)} alt={item.title} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/10" />
+                          </div>
+                          <div className="flex-1 p-3">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
+                              <span className="text-muted-foreground text-[9px] flex items-center gap-0.5"><Clock size={8} />{item.time}</span>
+                            </div>
+                            <p className="text-foreground font-semibold text-xs leading-snug line-clamp-2">{item.title}</p>
+                            <div className="flex items-center justify-between mt-1.5">
+                              <span className="text-muted-foreground/70 text-[9px] font-medium">{item.source}</span>
+                              <ChevronDown size={12} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                            </div>
+                          </div>
                         </div>
                       </button>
-
-                      {/* Expanded body */}
                       <AnimatePresence>
                         {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.22 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="px-3.5 pb-3.5 pt-0 border-t border-border space-y-3">
-                              <p className="text-muted-foreground text-sm leading-relaxed mt-3">{item.summary}</p>
+                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+                            <div className="px-3.5 pb-3.5 pt-3 border-t border-border space-y-3">
+                              <p className="text-muted-foreground text-sm leading-relaxed">{item.summary}</p>
                               <div className="flex items-center gap-2">
                                 {item.url && item.url !== "#" && (
-                                  <button
-                                    onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
-                                    className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors active:scale-95"
-                                  >
+                                  <button onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
+                                    className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
                                     Read full story <ExternalLink size={11} />
                                   </button>
                                 )}
@@ -938,13 +917,13 @@ export default function MarketHome() {
                     </div>
                   );
                 })}
-            <div className="bg-muted/40 border border-border rounded-2xl p-4 flex items-center gap-3">
+            <div className="bg-primary/5 border border-primary/15 rounded-2xl p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Newspaper size={16} className="text-primary" />
               </div>
               <div>
                 <p className="text-foreground font-semibold text-xs">Kenya Agri-Market News</p>
-                <p className="text-muted-foreground text-[10px] mt-0.5">Sourced from online agriculture feeds · refreshed every 30 min</p>
+                <p className="text-muted-foreground text-[10px] mt-0.5">AI-sourced · refreshed every hour</p>
               </div>
             </div>
           </section>
@@ -960,103 +939,109 @@ export default function MarketHome() {
                   <h2 className="text-white font-bold text-base leading-tight">Upcoming Crop Seasons</h2>
                   <p className="text-white/60 text-xs mt-0.5">Save crops &amp; commit funds early</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-white/60 text-[10px]">Bookmarked</p>
-                  <p className="text-green-300 font-bold text-sm">{watchlisted.size} crops</p>
+                <div className="flex flex-col items-end gap-1.5">
+                  <div className="bg-white/15 rounded-xl px-3 py-1.5 text-right">
+                    <p className="text-white/60 text-[9px] uppercase tracking-wider">Watching</p>
+                    <p className="text-green-300 font-bold text-lg leading-none">{watchlisted.size}</p>
+                  </div>
                   {Object.values(committed).reduce((a, b) => a + b, 0) > 0 && (
-                    <>
-                      <p className="text-white/50 text-[9px] mt-1">Committed</p>
-                      <p className="text-green-400 font-bold text-xs">{formatKES(Object.values(committed).reduce((a, b) => a + b, 0))}</p>
-                    </>
+                    <div className="bg-white/15 rounded-xl px-3 py-1.5 text-right">
+                      <p className="text-white/60 text-[9px] uppercase tracking-wider">Committed</p>
+                      <p className="text-green-400 font-bold text-sm leading-none">{formatKES(Object.values(committed).reduce((a, b) => a + b, 0))}</p>
+                    </div>
                   )}
                 </div>
               </div>
               {watchlisted.size === 0 && (
-                <div className="px-4 pb-3 flex items-center gap-2">
-                  <span className="text-white/50 text-[11px]">👆 Tap the bookmark on any crop below to track it</span>
+                <div className="px-4 pb-3 flex items-center gap-2 border-t border-white/10">
+                  <BookmarkPlus size={12} className="text-white/40" />
+                  <span className="text-white/50 text-[11px]">Tap bookmark on any crop below to track it</span>
                 </div>
               )}
             </div>
 
-            {/* All upcoming crop seasons — always visible */}
+            {/* All upcoming crop seasons */}
             {WATCHLIST_CROPS.map(crop => {
               const isWatchlisted = watchlisted.has(crop.id);
               return (
-                <div key={crop.id} className={`bg-card rounded-2xl border overflow-hidden transition-all ${isWatchlisted ? "border-primary/40 shadow-md shadow-green-500/10" : "border-border"}`}>
-                  <div className="relative h-28">
+                <div key={crop.id} className={`bg-card rounded-2xl border overflow-hidden transition-all ${isWatchlisted ? "border-primary/40 shadow-lg shadow-green-500/8" : "border-border"}`}>
+                  {/* Image band */}
+                  <div className="relative h-32">
                     <img src={crop.image} alt={crop.name} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/75 to-black/30" />
+                    <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.50) 50%, rgba(0,0,0,0.20) 100%)" }} />
                     {isWatchlisted && (
                       <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-primary via-green-400 to-primary" />
                     )}
-                    <div className="absolute inset-0 p-3 flex flex-col justify-between">
+                    <div className="absolute inset-0 p-3.5 flex flex-col justify-between">
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-2 mb-0.5">
-                            <p className="text-white font-bold text-base">{crop.name}</p>
+                            <p className="text-white font-extrabold text-lg leading-none">{crop.name}</p>
                             {isWatchlisted && (
-                              <span className="bg-primary/80 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">Watching</span>
+                              <span className="bg-primary text-white text-[8px] font-bold px-2 py-0.5 rounded-full tracking-wide">● Watching</span>
                             )}
                           </div>
-                          <p className="text-white/70 text-[11px]">{crop.season}</p>
+                          <p className="text-white/65 text-[11px] font-medium">{crop.season}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-white/60 text-[9px]">Est. Return</p>
-                          <p className="text-green-400 font-bold text-base">{crop.expectedReturn}</p>
+                        <div className="bg-black/30 backdrop-blur-sm rounded-xl px-2.5 py-1.5 text-right border border-white/10">
+                          <p className="text-white/60 text-[8px] uppercase tracking-wider">Est. Return</p>
+                          <p className="text-green-300 font-extrabold text-base leading-none mt-0.5">{crop.expectedReturn}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${crop.demandColor}`}>{crop.demand} Demand</span>
-                        <span className="text-white/60 text-[9px]">{crop.farms} farms</span>
+                        <span className="bg-white/15 text-white text-[9px] font-medium px-1.5 py-0.5 rounded-full">{crop.farms} farms</span>
                         <RiskBadge level={getRiskLevel(crop.name, crop.change)} />
                       </div>
                     </div>
                   </div>
-                  <div className="p-3">
-                    <div className="grid grid-cols-3 gap-2 mb-3">
-                      <div className="bg-muted/50 rounded-xl p-2 text-center">
-                        <p className="text-muted-foreground text-[8px] uppercase font-semibold">Planting</p>
-                        <p className="text-foreground font-bold text-[10px] mt-0.5">{crop.plantingStart}</p>
-                      </div>
-                      <div className="bg-muted/50 rounded-xl p-2 text-center">
-                        <p className="text-muted-foreground text-[8px] uppercase font-semibold">Harvest</p>
-                        <p className="text-foreground font-bold text-[10px] mt-0.5">{crop.harvestEst}</p>
-                      </div>
-                      <div className="bg-green-50 border border-green-100 rounded-xl p-2 text-center">
-                        <p className="text-muted-foreground text-[8px] uppercase font-semibold">Return</p>
-                        <p className="text-green-700 font-bold text-[10px] mt-0.5">{crop.expectedReturn}</p>
-                      </div>
+
+                  {/* Info strip */}
+                  <div className="grid grid-cols-3 border-b border-border">
+                    <div className="p-2.5 text-center border-r border-border">
+                      <p className="text-muted-foreground text-[8px] uppercase font-semibold tracking-wider">Planting</p>
+                      <p className="text-foreground font-bold text-[11px] mt-0.5">{crop.plantingStart}</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="p-2.5 text-center border-r border-border">
+                      <p className="text-muted-foreground text-[8px] uppercase font-semibold tracking-wider">Harvest</p>
+                      <p className="text-foreground font-bold text-[11px] mt-0.5">{crop.harvestEst}</p>
+                    </div>
+                    <div className="p-2.5 text-center bg-primary/4">
+                      <p className="text-muted-foreground text-[8px] uppercase font-semibold tracking-wider">ROI Target</p>
+                      <p className="text-primary font-extrabold text-[11px] mt-0.5">{crop.expectedReturn}</p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="p-3 flex gap-2">
+                    <button
+                      onClick={() => {
+                        setWatchlisted(s => {
+                          const n = new Set(s);
+                          n.has(crop.id) ? n.delete(crop.id) : n.add(crop.id);
+                          try { localStorage.setItem("investa_watchlist", JSON.stringify([...n])); } catch {}
+                          return n;
+                        });
+                      }}
+                      className={`flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${isWatchlisted ? "bg-primary border-primary text-white" : "border-border text-foreground"}`}>
+                      <BookmarkPlus size={13} />
+                      {isWatchlisted ? "Watching" : "Watch"}
+                    </button>
+                    {committed[crop.id] ? (
                       <button
-                        onClick={() => {
-                          setWatchlisted(s => {
-                            const n = new Set(s);
-                            n.has(crop.id) ? n.delete(crop.id) : n.add(crop.id);
-                            try { localStorage.setItem("investa_watchlist", JSON.stringify([...n])); } catch {}
-                            return n;
-                          });
-                        }}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${isWatchlisted ? "bg-primary border-primary text-white" : "border-border text-foreground"}`}>
-                        <BookmarkPlus size={13} />
-                        {isWatchlisted ? "Watching" : "Watch"}
+                        onClick={() => { setCommitCrop(crop); setCommitInput(String(committed[crop.id])); setCommitOpen(true); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 text-white text-xs font-semibold py-2.5 rounded-xl active:scale-95 transition-transform">
+                        <CheckCircle2 size={13} />
+                        {formatKES(committed[crop.id])} committed
                       </button>
-                      {committed[crop.id] ? (
-                        <button
-                          onClick={() => { setCommitCrop(crop); setCommitInput(String(committed[crop.id])); setCommitOpen(true); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 text-white text-xs font-semibold py-2.5 rounded-xl active:scale-95 transition-transform">
-                          <CheckCircle2 size={13} />
-                          {formatKES(committed[crop.id])} committed
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => { setCommitCrop(crop); setCommitInput(""); setCommitOpen(true); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 bg-foreground text-background text-xs font-semibold py-2.5 rounded-xl active:scale-95 transition-transform">
-                          <DollarSign size={13} />
-                          Commit Funds
-                        </button>
-                      )}
-                    </div>
+                    ) : (
+                      <button
+                        onClick={() => { setCommitCrop(crop); setCommitInput(""); setCommitOpen(true); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-foreground text-background text-xs font-semibold py-2.5 rounded-xl active:scale-95 transition-transform">
+                        <DollarSign size={13} />
+                        Commit Funds
+                      </button>
+                    )}
                   </div>
                 </div>
               );

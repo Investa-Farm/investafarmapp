@@ -99,7 +99,7 @@ export default function FarmerDashboard() {
       {/* Hero header with farm background */}
       <div className="relative overflow-hidden" style={{ minHeight: 240 }}>
         <img src={FARMER_HERO_IMAGE} alt="Farm" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(160deg, rgba(5,46,22,0.30) 0%, rgba(20,83,45,0.22) 45%, rgba(22,163,74,0.08) 100%)" }} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.10) 60%, transparent 100%)" }} />
 
         {/* Top bar */}
         <div className="relative z-10 pt-12 px-5">
@@ -143,7 +143,7 @@ export default function FarmerDashboard() {
 
         {/* Active Crop Card */}
         <div className="relative z-10 mx-5 mb-0">
-          <div className="rounded-2xl overflow-hidden shadow-lg" style={{ background: "rgba(15,75,53,0.92)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.15)" }}>
+          <div className="rounded-2xl overflow-hidden shadow-xl" style={{ background: "rgba(0,0,0,0.52)", backdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.14)" }}>
             <div className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">

@@ -59,27 +59,54 @@ function getFarmCoords(location: string): [number, number] {
 
 function FarmBoundaryMap({ cropType, location }: { cropType: string; location?: string }) {
   const [lat, lng] = getFarmCoords(location ?? "");
-  const osmUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${(lng - 0.02).toFixed(4)}%2C${(lat - 0.015).toFixed(4)}%2C${(lng + 0.02).toFixed(4)}%2C${(lat + 0.015).toFixed(4)}&layer=mapnik&marker=${lat.toFixed(4)}%2C${lng.toFixed(4)}`;
+  const zoom = 13;
+  const tileSize = 256;
+  const latRad = (lat * Math.PI) / 180;
+  const n = Math.pow(2, zoom);
+  const xTile = Math.floor(((lng + 180) / 360) * n);
+  const yTile = Math.floor(((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n);
+  const tileUrl = `https://tile.openstreetmap.org/${zoom}/${xTile}/${yTile}.png`;
+  const tileUrlL = `https://tile.openstreetmap.org/${zoom}/${xTile - 1}/${yTile}.png`;
+  const tileUrlR = `https://tile.openstreetmap.org/${zoom}/${xTile + 1}/${yTile}.png`;
+
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-border shadow-sm">
-      <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-border">
+    <div className="relative rounded-2xl overflow-hidden border border-border shadow-sm" style={{ height: 180 }}>
+      <div className="absolute inset-0 flex overflow-hidden bg-[#aad3df]">
+        <img src={tileUrlL} alt="" width={tileSize} height={tileSize} className="h-full w-auto flex-shrink-0 object-cover" style={{ width: tileSize, height: tileSize, minHeight: "100%" }} />
+        <img src={tileUrl}  alt="" width={tileSize} height={tileSize} className="h-full w-auto flex-shrink-0 object-cover" style={{ width: tileSize, height: tileSize, minHeight: "100%" }} />
+        <img src={tileUrlR} alt="" width={tileSize} height={tileSize} className="h-full w-auto flex-shrink-0 object-cover" style={{ width: tileSize, height: tileSize, minHeight: "100%" }} />
+      </div>
+      {/* Pin marker */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="flex flex-col items-center -mt-4">
+          <div className="w-7 h-7 rounded-full bg-primary border-2 border-white shadow-lg flex items-center justify-center">
+            <MapPin size={13} className="text-white" />
+          </div>
+          <div className="w-1.5 h-3 bg-primary/80 rounded-b-full" />
+          <div className="w-3 h-0.5 bg-black/20 rounded-full mt-0.5 blur-[1px]" />
+        </div>
+      </div>
+      {/* Top badge */}
+      <div className="absolute top-0 inset-x-0 flex items-center justify-between px-3 py-2 bg-white/90 backdrop-blur-sm border-b border-border">
         <div className="flex items-center gap-1.5">
-          <MapPin size={12} className="text-primary" />
-          <p className="text-xs font-semibold text-foreground">{cropType} Farm · GPS Verified</p>
+          <MapPin size={11} className="text-primary" />
+          <p className="text-[11px] font-semibold text-foreground">{cropType ? `${cropType} Farm` : "Farm"} · GPS Verified</p>
         </div>
         <div className="flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
           <span className="text-[9px] text-green-600 font-bold uppercase">Live Map</span>
         </div>
       </div>
-      <iframe
-        src={osmUrl}
-        width="100%"
-        height="180"
-        style={{ border: 0, display: "block" }}
-        loading="lazy"
-        title={`Farm location — ${location}`}
-      />
+      {/* Bottom location badge */}
+      <div className="absolute bottom-2 left-2 right-2">
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-sm border border-white/60">
+          <MapPin size={11} className="text-primary flex-shrink-0" />
+          <p className="text-[11px] font-semibold text-foreground truncate">{location ?? "Kenya"}</p>
+          <span className="ml-auto text-[9px] text-muted-foreground font-mono">
+            {lat.toFixed(4)}, {lng.toFixed(4)}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -188,7 +215,6 @@ export default function FarmProfile() {
         <div className="flex items-center gap-2">
           <button className="relative w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
             <Bell size={16} className="text-gray-600" />
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[8px] text-white font-bold flex items-center justify-center">3</span>
           </button>
           <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
             <span className="text-white text-sm font-bold">{user?.name?.charAt(0) ?? "F"}</span>
