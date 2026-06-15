@@ -258,10 +258,10 @@ export default function SecondaryMarket() {
               const isUp = avgChange >= 0;
               const regions = [...new Set(cropListings.map(l => l.location?.split(",")[0]?.trim() ?? "Kenya"))].slice(0, 3);
               return (
-                <div key={crop} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+                <div key={crop} className="rounded-2xl border overflow-hidden shadow-sm" style={{ borderColor: isUp ? "rgba(22,163,74,0.25)" : undefined, background: "var(--card)" }}>
                   {/* Crop group header */}
                   <button
-                    className="w-full flex items-center gap-3 p-3 active:bg-muted/30 transition-colors"
+                    className="w-full flex items-center gap-3 p-3 active:bg-green-50/50 transition-colors"
                     onClick={() => setExpandedCrop(isExpanded ? null : crop)}
                   >
                     <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
@@ -296,7 +296,7 @@ export default function SecondaryMarket() {
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="overflow-hidden border-t border-border"
+                        className="overflow-hidden border-t border-green-100"
                       >
                         {cropListings.map((listing, i) => {
                           const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);

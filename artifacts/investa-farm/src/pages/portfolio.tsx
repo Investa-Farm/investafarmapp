@@ -1,8 +1,11 @@
 import { useState, useMemo } from "react";
 import { useGetPortfolio, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES, formatChange, getStoredUser } from "@/lib/auth";
-import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight } from "lucide-react";
+import { formatKES, formatChange, getStoredUser, getToken } from "@/lib/auth";
+import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen, Star, Plus } from "lucide-react";
+import { PortfolioWizard } from "@/components/portfolio-wizard";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { ShareModal } from "@/components/share-modal";
 import {
@@ -66,7 +69,31 @@ export default function Portfolio() {
   const [activeTab, setActiveTab] = useState<"holdings" | "broker">("holdings");
   const [brokerEnabled, setBrokerEnabled] = useState(() => localStorage.getItem("investa_broker_mode") === "true");
   const [copied, setCopied] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [, setLocation] = useLocation();
+  const token = getToken();
   const user = getStoredUser();
+  const qc = useQueryClient();
+
+  const { data: myPortfolios = [], refetch: refetchPortfolios } = useQuery<any[]>({
+    queryKey: ["my-portfolios"],
+    queryFn: async () => {
+      const r = await fetch("/api/portfolio-manager/my", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: qualification } = useQuery<any>({
+    queryKey: ["pm-qualification"],
+    queryFn: async () => {
+      const r = await fetch("/api/portfolio-manager/qualification", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { qualified: false, totalInvested: 0, threshold: 500000 };
+      return r.json();
+    },
+    staleTime: 120_000,
+  });
 
   const brokerLink = `https://investafarm.co.ke/broker/${user?.id ?? ""}`;
   const handleCopyLink = async () => {
@@ -78,6 +105,13 @@ export default function Portfolio() {
     const next = !brokerEnabled;
     setBrokerEnabled(next);
     localStorage.setItem("investa_broker_mode", String(next));
+  };
+
+  const handlePublish = async (portfolioId: number) => {
+    await fetch(`/api/portfolio-manager/${portfolioId}/publish`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}` },
+    });
+    refetchPortfolios();
   };
 
   const handleExitClick = (h: Holding) => { setSelectedHolding(h); setExitOpen(true); };
@@ -259,15 +293,125 @@ export default function Portfolio() {
           </button>
           <button onClick={() => setActiveTab("broker")}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${activeTab === "broker" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            <Users size={12} /> Broker Profile
+            <Star size={12} /> Portfolio Mgr
           </button>
         </div>
       </div>
 
-      {/* Broker tab */}
+      {/* Portfolio Manager tab */}
       {activeTab === "broker" && (
         <div className="px-4 pt-4 space-y-4">
-          {/* Broker enable toggle */}
+
+          {/* Qualification banner */}
+          {qualification && !qualification.qualified && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <Star size={18} className="text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-amber-800 font-bold text-sm">Unlock Portfolio Manager</p>
+                  <p className="text-amber-700 text-xs mt-0.5 leading-relaxed">
+                    Invest a total of KES 500,000 to qualify. You're at KES {Math.round(qualification.totalInvested).toLocaleString()} ({Math.round((qualification.totalInvested / qualification.threshold) * 100)}%).
+                  </p>
+                  <div className="mt-2 bg-amber-200/50 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-amber-500 h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (qualification.totalInvested / qualification.threshold) * 100)}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Create portfolio CTA */}
+          {qualification?.qualified && (
+            <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-green-300 text-[10px] font-bold uppercase tracking-widest mb-1">✅ Qualified Manager</p>
+                    <p className="text-white font-bold text-base">Build AI Portfolios</p>
+                    <p className="text-white/70 text-xs mt-0.5">Charge fees · Earn passively · Grow followers</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                    <Zap size={22} className="text-yellow-300" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setWizardOpen(true)}
+                    className="bg-white text-primary font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Plus size={14} /> New Portfolio
+                  </button>
+                  <button
+                    onClick={() => setLocation("/market/portfolios")}
+                    className="bg-white/20 text-white font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <BookOpen size={14} /> Community
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* My portfolios list */}
+          {myPortfolios.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-foreground font-bold text-sm flex items-center gap-1.5">
+                <Star size={14} className="text-primary" /> My Portfolios
+              </p>
+              {myPortfolios.map((p: any) => (
+                <div key={p.id} className="bg-white border border-border rounded-2xl p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground font-bold text-sm truncate">{p.name}</p>
+                      <p className="text-muted-foreground text-xs capitalize">{p.strategy?.replace("_"," ")} · Risk {p.targetRisk}/10</p>
+                    </div>
+                    {p.isPublished
+                      ? <span className="text-[9px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">Published</span>
+                      : <span className="text-[9px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-full flex-shrink-0">Draft</span>
+                    }
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                    <Users size={10} /> {p.followerCount ?? 0} followers
+                    <span>·</span> {p.holdingCount ?? 0} farms
+                    {Number(p.managementFeePercent) > 0 && <><span>·</span> {p.managementFeePercent}%/yr fee</>}
+                  </div>
+                  {!p.isPublished && (
+                    <button
+                      onClick={() => handlePublish(p.id)}
+                      className="w-full bg-primary text-white text-xs font-bold py-2 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Globe size={12} /> Publish to Community
+                    </button>
+                  )}
+                  {p.isPublished && (
+                    <div className="flex items-center gap-2 bg-muted/40 rounded-xl px-3 py-2">
+                      <Globe size={11} className="text-muted-foreground" />
+                      <p className="text-muted-foreground text-[10px] flex-1 font-mono truncate">investafarm.co.ke/market/portfolios/{p.id}</p>
+                      <button onClick={() => { navigator.clipboard.writeText(`https://investafarm.co.ke/market/portfolios/${p.id}`).catch(()=>{}); }}
+                        className="text-primary text-[10px] font-bold">Copy</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {qualification?.qualified && myPortfolios.length === 0 && (
+            <div className="bg-white border border-border rounded-2xl p-6 text-center">
+              <Zap size={32} className="text-muted-foreground mx-auto mb-2" />
+              <p className="text-foreground font-bold text-sm">No portfolios yet</p>
+              <p className="text-muted-foreground text-xs mt-1">Build your first AI-optimised portfolio in minutes.</p>
+              <button onClick={() => setWizardOpen(true)} className="mt-3 bg-primary text-white font-bold px-5 py-2.5 rounded-xl text-sm active:scale-95">
+                Build My First Portfolio
+              </button>
+            </div>
+          )}
+
+          {/* Legacy broker toggle — keep for investors not yet qualified */}
           <div className="bg-white border border-border rounded-2xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -486,6 +630,9 @@ export default function Portfolio() {
       </div>
       )}
 
+      {wizardOpen && (
+        <PortfolioWizard onClose={() => setWizardOpen(false)} onCreated={() => { setWizardOpen(false); refetchPortfolios(); }} />
+      )}
       <ExitModal open={exitOpen} onClose={() => setExitOpen(false)} holding={selectedHolding} />
       <SellSharesModal open={sellOpen} onClose={() => setSellOpen(false)} holding={selectedHolding} />
       <ShareModal

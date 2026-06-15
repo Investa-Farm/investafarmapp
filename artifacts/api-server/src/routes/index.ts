@@ -17,6 +17,7 @@ import aiChatRouter from "./ai-chat";
 import newsRouter from "./news";
 import priceAlertsRouter from "./price-alerts";
 import aiRouter from "./ai";
+import portfolioManagerRouter from "./portfolio-manager";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(aiChatRouter);
 router.use(newsRouter);
 router.use(priceAlertsRouter);
 router.use(aiRouter);
+router.use(portfolioManagerRouter);
 
 export default router;

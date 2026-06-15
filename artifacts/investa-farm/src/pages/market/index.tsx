@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap } from "lucide-react";
 import {
@@ -194,6 +194,26 @@ export default function MarketHome() {
 
   const [expandedNews, setExpandedNews] = useState<number | null>(null);
 
+  // Slideshow state for movers & decliners
+  const [moverSlide, setMoverSlide] = useState(0);
+  const [declinerSlide, setDeclinerSlide] = useState(0);
+  const moverTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const declinerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    moverTimer.current = setInterval(() => {
+      setMoverSlide(s => s + 1);
+    }, 30000);
+    return () => { if (moverTimer.current) clearInterval(moverTimer.current); };
+  }, []);
+
+  useEffect(() => {
+    declinerTimer.current = setInterval(() => {
+      setDeclinerSlide(s => s + 1);
+    }, 45000);
+    return () => { if (declinerTimer.current) clearInterval(declinerTimer.current); };
+  }, []);
+
   const { data: newsItems, isLoading: newsLoading } = useQuery<any[]>({
     queryKey: ["news"],
     queryFn: async () => {
@@ -345,37 +365,63 @@ export default function MarketHome() {
                   </span>
                 </Link>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
-                {moversLoading
-                  ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="w-36 h-28 rounded-2xl flex-shrink-0" />)
-                  : movers?.slice(0, 5).map((m: any) => {
-                      const risk = getRiskLevel(m.cropType ?? "", m.changePercent);
-                      return (
-                        <Link key={m.farmId} href={`/market/${m.farmId}`}>
-                          <div className="flex-shrink-0 w-36 rounded-2xl overflow-hidden relative cursor-pointer active:scale-95 transition-transform card-lift">
-                            <img
-                              src={getCropImage(m.cropType ?? "", m.imageUrl ?? undefined)}
-                              alt={m.farmName}
-                              className="w-full h-28 object-cover"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent p-2.5 flex flex-col justify-end">
-                              <p className="text-white text-xs font-semibold leading-tight">{m.farmName}</p>
-                              <p className="text-white/80 text-[10px]">{formatAmount(m.currentPrice)}</p>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <TrendingUp size={9} className="text-green-300" />
-                                <span className="text-[10px] font-bold text-green-300">
-                                  {formatChange(m.changePercent)}
-                                </span>
-                              </div>
-                              <div className="mt-1">
-                                <RiskBadge level={risk} />
+              {moversLoading ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
+                </div>
+              ) : (movers ?? []).length === 0 ? (
+                <div className="bg-muted/40 border border-border rounded-2xl px-4 py-3 text-center">
+                  <p className="text-muted-foreground text-xs">No movers data yet</p>
+                </div>
+              ) : (
+                <div className="overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={moverSlide % Math.ceil((movers?.length ?? 1) / 2)}
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -30 }}
+                      transition={{ duration: 0.35 }}
+                      className="grid grid-cols-2 gap-3"
+                    >
+                      {(movers ?? []).slice((moverSlide % Math.ceil((movers?.length ?? 1) / 2)) * 2, (moverSlide % Math.ceil((movers?.length ?? 1) / 2)) * 2 + 2).map((m: any) => {
+                        const risk = getRiskLevel(m.cropType ?? "", m.changePercent);
+                        return (
+                          <Link key={m.farmId} href={`/market/exchange/${m.farmId}`}>
+                            <div className="rounded-2xl overflow-hidden relative cursor-pointer active:scale-95 transition-transform shadow-md">
+                              <img
+                                src={getCropImage(m.cropType ?? "", m.imageUrl ?? undefined)}
+                                alt={m.farmName}
+                                className="w-full h-36 object-cover"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-3 flex flex-col justify-end">
+                                <p className="text-white text-xs font-bold leading-tight">{m.farmName}</p>
+                                <p className="text-white/70 text-[9px]">{m.cropType} · {formatAmount(m.currentPrice)}</p>
+                                <div className="flex items-center justify-between mt-1">
+                                  <div className="flex items-center gap-1">
+                                    <TrendingUp size={9} className="text-green-300" />
+                                    <span className="text-[10px] font-bold text-green-300">{formatChange(m.changePercent)}</span>
+                                  </div>
+                                  <RiskBadge level={risk} />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </Link>
-                      );
-                    })}
-              </div>
+                          </Link>
+                        );
+                      })}
+                    </motion.div>
+                  </AnimatePresence>
+                  {/* Slide dots */}
+                  {(movers ?? []).length > 2 && (
+                    <div className="flex justify-center gap-1 mt-2">
+                      {Array(Math.ceil((movers?.length ?? 0) / 2)).fill(0).map((_, i) => (
+                        <button key={i} onClick={() => setMoverSlide(i)}
+                          className={`h-1 rounded-full transition-all ${i === moverSlide % Math.ceil((movers?.length ?? 1) / 2) ? "w-4 bg-primary" : "w-1.5 bg-muted"}`} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
 
             {/* Top Decliners */}
@@ -385,43 +431,68 @@ export default function MarketHome() {
                   <TrendingDown size={13} className="text-red-500" /> Top Decliners Today
                 </h2>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
-                {declinersLoading
-                  ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="w-36 h-28 rounded-2xl flex-shrink-0" />)
-                  : (decliners ?? []).filter((d: any) => d.changePercent <= 0).length === 0
-                    ? (
-                      <div className="flex-shrink-0 bg-muted/40 border border-border rounded-2xl px-4 py-3 text-center">
-                        <p className="text-muted-foreground text-xs">All farms up today 🌟</p>
-                      </div>
-                    )
-                    : (decliners ?? []).filter((d: any) => d.changePercent <= 0).slice(0, 5).map((d: any) => {
-                        const risk = getRiskLevel(d.cropType ?? "", d.changePercent);
-                        return (
-                          <Link key={d.farmId} href={`/market/${d.farmId}`}>
-                            <div className="flex-shrink-0 w-36 rounded-2xl overflow-hidden relative cursor-pointer active:scale-95 transition-transform card-lift">
-                              <img
-                                src={getCropImage(d.cropType ?? "", d.imageUrl ?? undefined)}
-                                alt={d.farmName}
-                                className="w-full h-28 object-cover"
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent p-2.5 flex flex-col justify-end">
-                                <p className="text-white text-xs font-semibold leading-tight">{d.farmName}</p>
-                                <p className="text-white/80 text-[10px]">{formatAmount(d.currentPrice)}</p>
-                                <div className="flex items-center gap-1 mt-0.5">
-                                  <TrendingDown size={9} className="text-red-300" />
-                                  <span className="text-[10px] font-bold text-red-300">
-                                    {formatChange(d.changePercent)}
-                                  </span>
-                                </div>
-                                <div className="mt-1">
-                                  <RiskBadge level={risk} />
+              {declinersLoading ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
+                </div>
+              ) : (decliners ?? []).filter((d: any) => d.changePercent <= 0).length === 0 ? (
+                <div className="bg-muted/40 border border-border rounded-2xl px-4 py-3 text-center">
+                  <p className="text-muted-foreground text-xs">All farms up today 🌟</p>
+                </div>
+              ) : (() => {
+                const negDecliners = (decliners ?? []).filter((d: any) => d.changePercent <= 0);
+                const pageCount = Math.ceil(negDecliners.length / 2);
+                const page = declinerSlide % pageCount;
+                return (
+                  <div className="overflow-hidden">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={page}
+                        initial={{ opacity: 0, x: 30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -30 }}
+                        transition={{ duration: 0.35 }}
+                        className="grid grid-cols-2 gap-3"
+                      >
+                        {negDecliners.slice(page * 2, page * 2 + 2).map((d: any) => {
+                          const risk = getRiskLevel(d.cropType ?? "", d.changePercent);
+                          return (
+                            <Link key={d.farmId} href={`/market/exchange/${d.farmId}`}>
+                              <div className="rounded-2xl overflow-hidden relative cursor-pointer active:scale-95 transition-transform shadow-md">
+                                <img
+                                  src={getCropImage(d.cropType ?? "", d.imageUrl ?? undefined)}
+                                  alt={d.farmName}
+                                  className="w-full h-36 object-cover"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-3 flex flex-col justify-end">
+                                  <p className="text-white text-xs font-bold leading-tight">{d.farmName}</p>
+                                  <p className="text-white/70 text-[9px]">{d.cropType} · {formatAmount(d.currentPrice)}</p>
+                                  <div className="flex items-center justify-between mt-1">
+                                    <div className="flex items-center gap-1">
+                                      <TrendingDown size={9} className="text-red-300" />
+                                      <span className="text-[10px] font-bold text-red-300">{formatChange(d.changePercent)}</span>
+                                    </div>
+                                    <RiskBadge level={risk} />
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </Link>
-                        );
-                      })}
-              </div>
+                            </Link>
+                          );
+                        })}
+                      </motion.div>
+                    </AnimatePresence>
+                    {/* Slide dots */}
+                    {negDecliners.length > 2 && (
+                      <div className="flex justify-center gap-1 mt-2">
+                        {Array(pageCount).fill(0).map((_, i) => (
+                          <button key={i} onClick={() => setDeclinerSlide(i)}
+                            className={`h-1 rounded-full transition-all ${i === page ? "w-4 bg-red-500" : "w-1.5 bg-muted"}`} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </section>
 
             {/* Market type links */}
@@ -473,15 +544,15 @@ export default function MarketHome() {
                         <p className="text-muted-foreground text-xs mt-1">Farms will appear here as farmers list them</p>
                       </div>
                     )
-                    : listings?.slice(0, 3).map((listing: any, idx: number) => {
+                    : listings?.slice(0, 5).map((listing: any, idx: number) => {
                         const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
                         const isUp = listing.changePercent >= 0;
                         const imgSrc = getCropImage(listing.cropType, listing.imageUrl ?? undefined);
                         const risk = getRiskLevel(listing.cropType, listing.changePercent);
                         const isFeatured = idx === 0;
                         return (
-                          <Link key={listing.id} href={`/market/${listing.farmId}`}>
-                            <div className={`rounded-2xl border overflow-hidden cursor-pointer active:scale-[0.98] transition-all shadow-sm ${isFeatured ? "border-primary/30 shadow-primary/10" : "border-border bg-card"}`}>
+                          <Link key={listing.id} href={`/market/exchange/${listing.farmId}`}>
+                            <div className={`rounded-2xl border overflow-hidden cursor-pointer active:scale-[0.98] transition-all ${isFeatured ? "border-primary/30 shadow-md shadow-primary/10" : "border-border bg-card shadow-sm"}`}>
                               {isFeatured && (
                                 <div className="bg-gradient-to-r from-primary/90 to-green-600 px-4 py-1.5 flex items-center gap-1.5">
                                   <Star size={10} className="text-white fill-white" />
@@ -489,6 +560,10 @@ export default function MarketHome() {
                                 </div>
                               )}
                               <div className={`flex items-center gap-3 p-3 ${isFeatured ? "bg-primary/5" : "bg-card"}`}>
+                                {/* Listing number */}
+                                <span className="text-muted-foreground font-black text-lg w-5 text-center flex-shrink-0 leading-none">
+                                  {idx + 1}
+                                </span>
                                 <div className="relative flex-shrink-0">
                                   <img src={imgSrc} alt={listing.farmName}
                                     className="w-14 h-14 rounded-xl object-cover" />
@@ -548,73 +623,71 @@ export default function MarketHome() {
               </div>
             </section>
 
-            {/* Investment Ad Cards */}
-            <section className="space-y-3">
-              {/* Gold card — premium ROI */}
-              <div className="rounded-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg, #78350f 0%, #b45309 40%, #d97706 70%, #fbbf24 100%)" }}>
-                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "16px 16px" }} />
-                <div className="relative p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className="text-yellow-100 text-[9px] font-bold uppercase tracking-widest bg-yellow-600/40 px-2 py-0.5 rounded-full">Premium Opportunity</span>
+            {/* Investment Ad Cards — horizontal side-by-side */}
+            <section>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Gold card — avocado */}
+                <Link href="/market/primary">
+                  <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
+                    style={{ background: "linear-gradient(160deg, #78350f 0%, #b45309 50%, #fbbf24 100%)" }}>
+                    <img src={getCropImage("avocado")} alt="Avocado"
+                      className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-luminosity" />
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
+                    <div className="relative h-full flex flex-col justify-between p-3">
+                      <div>
+                        <span className="text-yellow-100 text-[8px] font-bold uppercase tracking-widest bg-yellow-600/40 px-1.5 py-0.5 rounded-full">Premium</span>
+                        <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Avocado Export Season</p>
+                        <p className="text-yellow-100/70 text-[10px] mt-0.5">Kiambu · EU demand</p>
                       </div>
-                      <h3 className="text-white font-extrabold text-lg leading-tight">Avocado Export Season</h3>
-                      <p className="text-yellow-100/80 text-xs mt-0.5">Kiambu · EU export demand</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-yellow-300 font-extrabold text-2xl">+22%</p>
-                      <p className="text-yellow-100/70 text-[10px]">projected ROI</p>
+                      <div>
+                        <p className="text-yellow-300 font-black text-2xl leading-none">+22%</p>
+                        <p className="text-yellow-100/60 text-[9px]">projected ROI</p>
+                        <div className="mt-2 bg-white text-amber-700 font-bold text-[10px] py-1.5 rounded-lg text-center flex items-center justify-center gap-1">
+                          <Zap size={10} /> Invest Now
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    {[{ label: "Min. Investment", val: "KES 500" }, { label: "Exit Period", val: "6 months" }, { label: "Risk Level", val: "Moderate" }].map(({ label, val }) => (
-                      <div key={label} className="bg-white/15 rounded-xl p-2 text-center">
-                        <p className="text-yellow-100/60 text-[8px] uppercase tracking-wide">{label}</p>
-                        <p className="text-white font-bold text-[10px] mt-0.5">{val}</p>
+                </Link>
+
+                {/* Green card — maize */}
+                <Link href="/market/primary">
+                  <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
+                    style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
+                    <img src={getCropImage("maize")} alt="Maize"
+                      className="absolute inset-0 w-full h-full object-cover opacity-25 mix-blend-luminosity" />
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
+                    <div className="relative h-full flex flex-col justify-between p-3">
+                      <div>
+                        <span className="text-green-200 text-[8px] font-bold uppercase tracking-widest bg-green-600/30 px-1.5 py-0.5 rounded-full">Low Risk</span>
+                        <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Maize Long Rains</p>
+                        <p className="text-green-200/70 text-[10px] mt-0.5">Nakuru · Rift Valley</p>
                       </div>
-                    ))}
+                      <div>
+                        <p className="text-green-300 font-black text-2xl leading-none">+14%</p>
+                        <p className="text-green-200/60 text-[9px]">target return</p>
+                        <div className="mt-2 bg-white text-primary font-bold text-[10px] py-1.5 rounded-lg text-center flex items-center justify-center gap-1">
+                          🌽 Invest Now
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <Link href="/market/primary">
-                    <button className="w-full bg-white text-amber-700 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5">
-                      <Zap size={14} /> Invest in Avocado Now
-                    </button>
-                  </Link>
-                </div>
+                </Link>
               </div>
 
-              {/* Green card — maize/staple */}
-              <div className="rounded-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
-                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
-                <div className="relative p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className="text-green-200 text-[9px] font-bold uppercase tracking-widest bg-green-600/30 px-2 py-0.5 rounded-full">Staple Crop · Low Risk</span>
-                      </div>
-                      <h3 className="text-white font-extrabold text-lg leading-tight">Maize Long Rains</h3>
-                      <p className="text-green-200/70 text-xs mt-0.5">Nakuru · Rift Valley</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-green-300 font-extrabold text-2xl">+14%</p>
-                      <p className="text-green-200/60 text-[10px]">target return</p>
-                    </div>
+              {/* Community portfolio banner */}
+              <Link href="/market/portfolios">
+                <div className="mt-3 bg-muted/50 border border-border rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-all">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Star size={18} className="text-primary" />
                   </div>
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    {[{ label: "Min. Investment", val: "KES 250" }, { label: "Exit Period", val: "45 days" }, { label: "Farmers", val: "12 active" }].map(({ label, val }) => (
-                      <div key={label} className="bg-white/10 rounded-xl p-2 text-center">
-                        <p className="text-green-200/60 text-[8px] uppercase tracking-wide">{label}</p>
-                        <p className="text-white font-bold text-[10px] mt-0.5">{val}</p>
-                      </div>
-                    ))}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-foreground font-bold text-sm">Community Portfolios</p>
+                    <p className="text-muted-foreground text-xs mt-0.5">Copy AI-built portfolios from top investors</p>
                   </div>
-                  <Link href="/market/primary">
-                    <button className="w-full bg-white text-primary font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5">
-                      🌽 Invest in Maize Now
-                    </button>
-                  </Link>
+                  <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
                 </div>
-              </div>
+              </Link>
             </section>
           </>
         )}

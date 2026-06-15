@@ -1,0 +1,585 @@
+An investor commits, say, $500 today into a commitment contract for a specific farm season.
+
+The funds are held in escrow (or a wallet) and will be automatically used to buy shares at a fixed future date (e.g., 30 days before harvest) at a guaranteed price 
+P
+commit
+P 
+commit
+​
+ .
+
+The guaranteed price is set at a discount to the expected future spot price at that time, so investors gain if the price rises.
+
+If the investor changes their mind, they may forfeit a small penalty (e.g., 5% of committed funds) – or the commitment is non‑refundable after a grace period.
+
+2. Mathematical Model
+Let:
+
+t
+0
+t 
+0
+​
+  = current time (when commitment is made)
+
+t
+c
+t 
+c
+​
+  = time of automatic purchase (e.g., 30 days before harvest)
+
+T
+T = harvest time
+
+P
+spot
+(
+t
+c
+)
+P 
+spot
+​
+ (t 
+c
+​
+ ) = expected spot price at 
+t
+c
+t 
+c
+​
+  (computed by the secondary market pricing model)
+
+P
+commit
+P 
+commit
+​
+  = guaranteed purchase price for committed investors
+
+δ
+δ = discount factor (e.g., 0.90 means 10% discount)
+
+Definition:
+
+P
+commit
+=
+P
+spot
+(
+t
+c
+)
+×
+(
+1
+−
+δ
+)
+P 
+commit
+​
+ =P 
+spot
+​
+ (t 
+c
+​
+ )×(1−δ)
+Where 
+0
+<
+δ
+<
+1
+0<δ<1. The platform chooses 
+δ
+δ (say 5–15%) to incentivize early commitment.
+
+How 
+P
+spot
+(
+t
+c
+)
+P 
+spot
+​
+ (t 
+c
+​
+ ) is estimated today:
+Use the secondary market pricing model with time to harvest = 
+T
+−
+t
+c
+T−t 
+c
+​
+  and risk score forecast at 
+t
+c
+t 
+c
+​
+  (could use current AI risk score unless expected to change significantly). For simplicity, assume risk score constant.
+
+From earlier secondary seller price formula (ignoring liquidity & demand for this forecast):
+
+P
+spot
+(
+t
+c
+)
+=
+α
+R
+^
+(
+t
+c
+)
+N
+(
+1
++
+r
+f
+)
+(
+T
+−
+t
+c
+)
+/
+365
+×
+(
+1
+−
+λ
+(
+t
+c
+)
+)
+P 
+spot
+​
+ (t 
+c
+​
+ )= 
+N(1+r 
+f
+​
+ ) 
+(T−t 
+c
+​
+ )/365
+ 
+α 
+R
+^
+ (t 
+c
+​
+ )
+​
+ ×(1−λ(t 
+c
+​
+ ))
+Where 
+R
+^
+(
+t
+c
+)
+R
+^
+ (t 
+c
+​
+ ) is forecast revenue at 
+t
+c
+t 
+c
+​
+  (may be updated by AI). But at 
+t
+0
+t 
+0
+​
+ , we use current forecast 
+R
+^
+(
+t
+0
+)
+R
+^
+ (t 
+0
+​
+ ) and project forward using expected growth/decline. Often simpler: assume 
+R
+^
+R
+^
+  constant.
+
+3. Investor’s Incentive & Break‑Even
+If an investor commits 
+C
+C dollars today, they will receive at 
+t
+c
+t 
+c
+​
+ :
+
+Number of shares
+=
+C
+P
+commit
+Number of shares= 
+P 
+commit
+​
+ 
+C
+​
+ 
+At harvest, their proceeds (if they hold) = shares × dividend 
+D
+D. But they could also sell the shares immediately at 
+t
+c
+t 
+c
+​
+  on secondary market for 
+P
+spot
+(
+t
+c
+)
+P 
+spot
+​
+ (t 
+c
+​
+ ) (assuming no liquidity discount). Their profit from flipping:
+
+Profit
+=
+shares
+×
+(
+P
+spot
+(
+t
+c
+)
+−
+P
+commit
+)
+Profit=shares×(P 
+spot
+​
+ (t 
+c
+​
+ )−P 
+commit
+​
+ )
+But since 
+P
+commit
+=
+P
+spot
+(
+t
+c
+)
+(
+1
+−
+δ
+)
+P 
+commit
+​
+ =P 
+spot
+​
+ (t 
+c
+​
+ )(1−δ), the profit = 
+C
+P
+commit
+×
+δ
+P
+spot
+(
+t
+c
+)
+=
+C
+×
+δ
+1
+−
+δ
+P 
+commit
+​
+ 
+C
+​
+ ×δP 
+spot
+​
+ (t 
+c
+​
+ )=C× 
+1−δ
+δ
+​
+ .
+
+Example: 
+δ
+=
+0.10
+δ=0.10 (10% discount) → profit = 
+C
+×
+0.10
+/
+0.90
+=
+11.11
+%
+C×0.10/0.90=11.11% immediate return (on paper) at 
+t
+c
+t 
+c
+​
+ .
+
+Thus investors are enticed to commit early.
+
+4. Feature Specifications for Replit / Dev Team
+4.1 Database Additions
+Table: commitment_watchlists
+
+Column	Type	Description
+id	SERIAL PRIMARY KEY	
+investor_id	INTEGER	
+farm_id	INTEGER REFERENCES farms(id)	
+committed_amount	DECIMAL(12,2)	USD locked
+guaranteed_price	DECIMAL(10,2)	
+P
+commit
+P 
+commit
+​
+  calculated at commitment time
+purchase_date	DATE	
+t
+c
+t 
+c
+​
+  (e.g., 30 days before harvest)
+status	VARCHAR	'active', 'executed', 'cancelled', 'forfeited'
+created_at	TIMESTAMP	
+4.2 API Endpoints
+POST /farms/{farm_id}/commit – Lock funds into watchlist commitment.
+
+Request body:
+
+json
+{
+  "investor_id": 123,
+  "amount": 500.00
+}
+Response:
+
+json
+{
+  "commitment_id": 9001,
+  "guaranteed_price": 8.10,
+  "estimated_spot_at_purchase": 9.00,
+  "discount_percent": 10.0,
+  "purchase_date": "2026-08-01",
+  "penalty_if_cancelled": 0.05
+}
+GET /farms/{farm_id}/commitment-price – Calculate current commitment price without committing.
+
+DELETE /commitments/{id} – Cancel with penalty (if within grace period, else forfeit).
+
+4.3 Automated Execution
+At 
+t
+c
+t 
+c
+​
+ , the system:
+
+Uses committed funds to buy shares at 
+P
+commit
+P 
+commit
+​
+  (no further action by investor).
+
+Shares appear in investor’s portfolio.
+
+Any remaining uncommitted funds (if price changed? No – exact share count = amount / 
+P
+commit
+P 
+commit
+​
+ ).
+
+If the investor already sold the commitment (some platforms allow trading commitments), the new buyer assumes the obligation.
+
+5. Risk Management for the Platform
+The platform must hedge the discount. If too many investors commit and spot price at 
+t
+c
+t 
+c
+​
+  is actually lower than 
+P
+commit
+P 
+commit
+​
+  (e.g., due to bad weather forecast), the platform takes a loss.
+
+Solution: Set 
+δ
+δ conservatively, or use a dynamic discount linked to the volatility of the farm’s risk score. Higher risk = lower discount.
+
+Alternatively, the platform can sell call options to investors: investor pays a premium now for the right to buy at 
+P
+commit
+P 
+commit
+​
+  later. Then the platform caps downside.
+
+But for simplicity, start with small 
+δ
+δ (5%) and limit total commitment per farm.
+
+6. Summary Formula for Replit Implementation
+Given current secondary fair price 
+P
+fair
+(
+t
+c
+)
+P 
+fair
+​
+ (t 
+c
+​
+ ) (forecasted for the purchase date), the commitment price is:
+
+P
+commit
+=
+P
+fair
+(
+t
+c
+)
+×
+(
+1
+−
+δ
+)
+P 
+commit
+​
+ =P 
+fair
+​
+ (t 
+c
+​
+ )×(1−δ)
+​
+ 
+Where 
+P
+fair
+(
+t
+c
+)
+P 
+fair
+​
+ (t 
+c
+​
+ ) is computed using the secondary market model with remaining days = 
+T
+−
+t
+c
+T−t 
+c
+​
+ .
+The number of shares an investor gets at purchase = 
+committed_amount
+P
+commit
+P 
+commit
+​
+ 
+committed_amount
+​
+ 

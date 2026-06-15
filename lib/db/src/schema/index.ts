@@ -13,3 +13,7 @@ export * from "./notifications";
 export * from "./push_subscriptions";
 export * from "./price_alerts";
 export * from "./transaction_fees";
+export * from "./portfolios";
+export * from "./portfolio_holdings";
+export * from "./investor_portfolio_subscriptions";
+export * from "./portfolio_fees";

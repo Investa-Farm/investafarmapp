@@ -20,6 +20,8 @@ import PrimaryMarket from "@/pages/market/primary";
 import SecondaryMarket from "@/pages/market/secondary";
 import FarmMap from "@/pages/market/farm-map";
 import FarmDetail from "@/pages/market/farm-detail";
+import FarmExchange from "@/pages/market/farm-exchange";
+import CommunityPortfolios from "@/pages/market/community-portfolios";
 import Portfolio from "@/pages/portfolio";
 import Activity from "@/pages/activity";
 import Profile from "@/pages/profile";
@@ -208,6 +210,15 @@ function Router() {
       </Route>
       <Route path="/market/map">
         <AuthGuard role="investor"><FarmMap /></AuthGuard>
+      </Route>
+      <Route path="/market/portfolios">
+        <AuthGuard role="investor"><CommunityPortfolios /></AuthGuard>
+      </Route>
+      <Route path="/market/portfolios/:id">
+        <AuthGuard role="investor"><CommunityPortfolios /></AuthGuard>
+      </Route>
+      <Route path="/market/exchange/:id">
+        <AuthGuard role="investor"><FarmExchange /></AuthGuard>
       </Route>
       <Route path="/market/:id">
         <AuthGuard role="investor"><FarmDetail /></AuthGuard>

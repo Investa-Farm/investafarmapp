@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Clock, CheckCircle2, Loader2, Sprout } from "lucide-react";
+import { X, Clock, CheckCircle2, Loader2, Sprout, AlertTriangle } from "lucide-react";
 import { formatKES } from "@/lib/auth";
 import { useRequestExit } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,6 +32,12 @@ export function ExitModal({ open, onClose, holding }: ExitModalProps) {
   const selectedReturn = exitType === "wide_season" ? midReturnRate * 100 : fullReturnRate * 100;
   const selectedProfit = selectedPayout - invested;
 
+  const EARLY_PENALTY_RATE = 0.05; // 5%
+  const earlyPenaltyMid = invested * EARLY_PENALTY_RATE;
+  const earlyPenaltyFull = invested * EARLY_PENALTY_RATE;
+  const netMidPayout = midPayout - earlyPenaltyMid;
+  const netFullPayout = fullPayout - earlyPenaltyFull;
+
   const EXIT_OPTIONS = [
     {
       type: "wide_season" as const,
@@ -39,11 +45,14 @@ export function ExitModal({ open, onClose, holding }: ExitModalProps) {
       period: "30–60 days",
       returnPct: 10,
       payout: midPayout,
+      netPayout: netMidPayout,
+      penalty: earlyPenaltyMid,
       icon: "⚡",
       badge: "Quick Return",
       color: "border-orange-300 bg-orange-50",
       badgeCls: "bg-orange-100 text-orange-700",
       desc: "Exit at mid-harvest. Base revenue of 10% on your invested capital. Faster, lower risk.",
+      isEarly: true,
     },
     {
       type: "full_season" as const,
@@ -51,11 +60,14 @@ export function ExitModal({ open, onClose, holding }: ExitModalProps) {
       period: "~6 months",
       returnPct: 22,
       payout: fullPayout,
+      netPayout: netFullPayout,
+      penalty: 0,
       icon: "🌾",
       badge: "Max Return",
       color: "border-green-300 bg-green-50",
       badgeCls: "bg-green-100 text-green-700",
       desc: "Hold until full harvest for yield appreciation. Up to 22% on your capital.",
+      isEarly: false,
     },
   ];
 
@@ -130,9 +142,17 @@ export function ExitModal({ open, onClose, holding }: ExitModalProps) {
                           </div>
                         </div>
                         <p className="text-muted-foreground text-[11px] leading-relaxed">{opt.desc}</p>
+                        {opt.isEarly && (
+                          <div className="mt-2 bg-red-50 border border-red-200 rounded-xl p-2 flex items-start gap-1.5">
+                            <AlertTriangle size={11} className="text-red-500 flex-shrink-0 mt-0.5" />
+                            <p className="text-red-600 text-[10px] font-semibold leading-relaxed">
+                              5% early-exit penalty applies — {formatKES(opt.penalty)} deducted from payout. Net: <strong>{formatKES(opt.netPayout)}</strong>
+                            </p>
+                          </div>
+                        )}
                         <div className="mt-2 bg-white/60 rounded-xl p-2.5 flex justify-between items-center">
-                          <span className="text-muted-foreground text-xs">You receive</span>
-                          <span className="text-foreground font-bold text-sm">{formatKES(opt.payout)}</span>
+                          <span className="text-muted-foreground text-xs">{opt.isEarly ? "Net payout (after penalty)" : "You receive"}</span>
+                          <span className="text-foreground font-bold text-sm">{formatKES(opt.isEarly ? opt.netPayout : opt.payout)}</span>
                         </div>
                       </button>
                     ))}
