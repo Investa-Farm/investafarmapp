@@ -19,6 +19,7 @@ import priceAlertsRouter from "./price-alerts";
 import aiRouter from "./ai";
 import portfolioManagerRouter from "./portfolio-manager";
 import reinvestmentRouter from "./reinvestment";
+import investorFeedRouter from "./investor-feed";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(priceAlertsRouter);
 router.use(aiRouter);
 router.use(portfolioManagerRouter);
 router.use(reinvestmentRouter);
+router.use(investorFeedRouter);
 
 export default router;

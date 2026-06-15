@@ -1,10 +1,94 @@
 import { useState } from "react";
 import { useGetFarmerDashboard } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES, isDemoAccount } from "@/lib/auth";
-import { Leaf, Droplets, Sun, CheckCircle2, Clock, Plus, X } from "lucide-react";
+import { formatKES, isDemoAccount, getToken } from "@/lib/auth";
+import { Leaf, Droplets, Sun, CheckCircle2, Clock, Plus, X, Tag, Copy, Check } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
+
+function VoucherSection() {
+  const token = getToken();
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const { data: vouchers = [], isLoading } = useQuery<any[]>({
+    queryKey: ["farmer-vouchers"],
+    queryFn: async () => {
+      const r = await fetch("/api/farmer/vouchers", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
+
+  const handleCopy = async (code: string, id: number) => {
+    await navigator.clipboard.writeText(code).catch(() => {});
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const approvedVouchers = vouchers.filter(v => v.voucherCode);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+          <Tag size={12} className="text-amber-700" />
+        </div>
+        <p className="text-sm font-semibold text-foreground">Input Vouchers</p>
+      </div>
+
+      {isLoading ? (
+        <div className="h-20 rounded-2xl bg-muted animate-pulse" />
+      ) : approvedVouchers.length === 0 ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+          <Tag size={20} className="text-amber-400 mx-auto mb-2" />
+          <p className="text-amber-800 font-medium text-sm">No vouchers yet</p>
+          <p className="text-amber-600 text-xs mt-0.5">Approved loan applications generate input vouchers redeemable at partner agro-dealers.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {approvedVouchers.map(v => (
+            <div key={v.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-2 flex items-center justify-between">
+                <p className="text-white font-bold text-xs uppercase tracking-wide">🎟 Input Voucher</p>
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                  v.status === "disbursed" ? "bg-green-100 text-green-700" : "bg-white/20 text-white"
+                }`}>
+                  {v.status === "disbursed" ? "Disbursed" : "Approved"}
+                </span>
+              </div>
+              <div className="p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground text-[10px]">Amount</p>
+                    <p className="text-foreground font-bold text-base">{formatKES(v.amount)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-muted-foreground text-[10px]">Purpose</p>
+                    <p className="text-foreground font-semibold text-xs capitalize">{v.purpose}</p>
+                  </div>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-muted-foreground text-[9px] mb-0.5">Voucher Code</p>
+                    <p className="text-foreground font-mono font-bold text-sm tracking-wider">{v.voucherCode}</p>
+                  </div>
+                  <button
+                    onClick={() => handleCopy(v.voucherCode, v.id)}
+                    className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center active:scale-90 transition-transform flex-shrink-0"
+                  >
+                    {copiedId === v.id ? <Check size={14} className="text-green-600" /> : <Copy size={14} className="text-primary" />}
+                  </button>
+                </div>
+                <p className="text-muted-foreground text-[10px]">Present this code at any partner agro-dealer to redeem inputs for your farm.</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const defaultTasks = [
   { id: 1, label: "Seeds Planted", done: true, icon: "🌱", notes: "50 kg certified hybrid seeds — Rows A–D", category: "Planting" },
@@ -155,6 +239,9 @@ export default function FarmerOperations() {
             </p>
           </div>
         )}
+
+        {/* Voucher Section */}
+        <VoucherSection />
       </div>
 
       <BottomNav role="farmer" />

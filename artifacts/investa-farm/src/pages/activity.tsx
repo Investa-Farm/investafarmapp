@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useListTransactions } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowUpRight, Clock, Receipt, X, ChevronRight, Calendar, Layers, DollarSign, CheckCircle2 } from "lucide-react";
+import { formatKES, getToken } from "@/lib/auth";
+import { TrendingUp, TrendingDown, ArrowUpRight, Clock, Receipt, X, ChevronRight, Calendar, Layers, DollarSign, CheckCircle2, Newspaper, MapPin } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
+import { getCropImage } from "@/lib/crops";
 
 const typeConfig = {
   buy:  { label: "Bought",    color: "text-green-600",  bg: "bg-green-500/10",  icon: TrendingUp },
@@ -136,7 +137,7 @@ type Placement = {
 export default function Activity() {
   const { data: transactions, isLoading } = useListTransactions();
   const [selectedTx, setSelectedTx] = useState<TxItem | null>(null);
-  const [tab, setTab] = useState<"transactions" | "placements">("transactions");
+  const [tab, setTab] = useState<"transactions" | "placements" | "feed">("transactions");
   const token = typeof window !== "undefined" ? localStorage.getItem("investa_token") : null;
 
   const { data: placements = [], isLoading: placementsLoading } = useQuery<Placement[]>({
@@ -152,6 +153,17 @@ export default function Activity() {
   const activePlacements = placements.filter(p => p.isActive !== false);
   const soldPlacements = placements.filter(p => p.isActive === false);
 
+  const { data: feedItems = [], isLoading: feedLoading } = useQuery<any[]>({
+    queryKey: ["investor-feed"],
+    queryFn: async () => {
+      const r = await fetch("/api/investor/feed", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: tab === "feed",
+    staleTime: 60_000,
+  });
+
   return (
     <div className="app-shell pb-20 page-enter" data-testid="activity-page">
       <div className="hero-header pt-12 pb-5 px-5">
@@ -165,26 +177,35 @@ export default function Activity() {
         <div className="flex bg-muted rounded-2xl p-1">
           <button
             onClick={() => setTab("transactions")}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
               tab === "transactions" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
             }`}
           >
-            <Receipt size={13} />
+            <Receipt size={12} />
             Transactions
           </button>
           <button
             onClick={() => setTab("placements")}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
               tab === "placements" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
             }`}
           >
-            <Layers size={13} />
-            My Placements
+            <Layers size={12} />
+            Placements
             {activePlacements.length > 0 && (
               <span className="bg-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                 {activePlacements.length}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setTab("feed")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
+              tab === "feed" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            <Newspaper size={12} />
+            Farm Feed
           </button>
         </div>
       </div>
@@ -333,6 +354,56 @@ export default function Activity() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {tab === "feed" && (
+        <div className="px-4 pt-3 space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Newspaper size={14} className="text-primary" />
+            <p className="text-xs font-semibold text-foreground">Updates from farms you're invested in</p>
+          </div>
+          {feedLoading ? (
+            Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)
+          ) : feedItems.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center mx-auto mb-3">
+                <Newspaper size={28} className="text-primary/40" />
+              </div>
+              <p className="text-foreground font-semibold text-sm">No updates yet</p>
+              <p className="text-muted-foreground text-xs mt-1 max-w-[220px] mx-auto leading-relaxed">
+                Farm updates from your invested farms will appear here once posted by farmers.
+              </p>
+            </div>
+          ) : feedItems.map((item: any) => {
+            const img = getCropImage(item.cropType, item.updateImageUrl ?? item.imageUrl);
+            const date = new Date(item.createdAt);
+            return (
+              <div key={item.id} className="bg-card rounded-2xl border border-border overflow-hidden">
+                <div className="relative h-24">
+                  <img src={img} alt={item.farmName} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent" />
+                  <div className="absolute inset-0 p-3 flex flex-col justify-end">
+                    <span className="text-white font-bold text-sm leading-tight">{item.farmName}</span>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <MapPin size={9} className="text-white/60" />
+                      <span className="text-white/60 text-[10px]">{item.location}</span>
+                      <span className="text-white/40 text-[10px] ml-1">· {item.cropType}</span>
+                    </div>
+                  </div>
+                  <div className="absolute top-2 right-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg px-2 py-0.5">
+                    <span className="text-white text-[9px] font-semibold">
+                      {date.toLocaleDateString("en-KE", { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <p className="text-foreground font-semibold text-sm">{item.title}</p>
+                  <p className="text-muted-foreground text-xs mt-0.5 leading-relaxed line-clamp-2">{item.description}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

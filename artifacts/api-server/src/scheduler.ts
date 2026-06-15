@@ -1,52 +1,31 @@
 import cron from "node-cron";
-import { db, usersTable, farmsTable, investmentsTable, marketListingsTable } from "@workspace/db";
-import { eq, inArray, lt, and } from "drizzle-orm";
+import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable } from "@workspace/db";
+import { eq, inArray, lt, and, lte } from "drizzle-orm";
 import { sendOpportunityDigest, sendPriceAlertEmail, sendVerificationReminderEmail } from "./lib/email";
-import { notifyMany } from "./lib/push";
+import { notifyMany, notifyUser } from "./lib/push";
 
 export function startScheduler(): void {
-  // Monday 8:00 AM EAT — Weekly opportunity digest
-  cron.schedule("0 8 * * 1", () => runOpportunityDigest("Monday morning"), {
-    timezone: "Africa/Nairobi",
-  });
-
-  // Friday 6:00 PM EAT — Weekly opportunity digest
-  cron.schedule("0 18 * * 5", () => runOpportunityDigest("Friday evening"), {
-    timezone: "Africa/Nairobi",
-  });
-
-  // Every 5 minutes — simulate price movements (demo env)
-  cron.schedule("*/5 * * * *", () => runPriceSimulation(), {
-    timezone: "Africa/Nairobi",
-  });
-
-  // Every 5 minutes — check for >5% price changes and alert investors
-  cron.schedule("*/5 * * * *", () => runPriceAlertCheck(), {
-    timezone: "Africa/Nairobi",
-  });
-
-  // Daily 10:00 AM EAT — remind unverified users (after 7-day grace period)
-  cron.schedule("0 10 * * *", () => runVerificationReminders(), {
-    timezone: "Africa/Nairobi",
-  });
+  cron.schedule("0 8 * * 1", () => runOpportunityDigest("Monday morning"), { timezone: "Africa/Nairobi" });
+  cron.schedule("0 18 * * 5", () => runOpportunityDigest("Friday evening"), { timezone: "Africa/Nairobi" });
+  cron.schedule("*/5 * * * *", () => runPriceSimulation(), { timezone: "Africa/Nairobi" });
+  cron.schedule("*/5 * * * *", () => runPriceAlertCheck(), { timezone: "Africa/Nairobi" });
+  cron.schedule("0 10 * * *", () => runVerificationReminders(), { timezone: "Africa/Nairobi" });
+  cron.schedule("0 2 * * *", () => runDividendPayouts(), { timezone: "Africa/Nairobi" });
 
   console.log("[scheduler] Weekly digest: Mon 8am & Fri 6pm EAT");
   console.log("[scheduler] Price simulation & alerts: every 5 minutes");
   console.log("[scheduler] Verification reminders: daily 10am EAT");
+  console.log("[scheduler] Dividend payouts: daily 2am EAT");
 }
 
 async function runOpportunityDigest(label: string): Promise<void> {
   try {
-    console.log(`[scheduler] Running ${label} opportunity digest...`);
     const users = await db.select().from(usersTable);
     const farms = await db.select().from(farmsTable).limit(6);
-
     let queued = 0;
     for (const user of users) {
       if (!user.email || !user.emailVerified) continue;
-      sendOpportunityDigest(user.email, user.name, farms as any[]).catch((e) =>
-        console.warn(`[scheduler] Digest failed for ${user.email}:`, (e as Error)?.message)
-      );
+      sendOpportunityDigest(user.email, user.name, farms as any[]).catch(() => {});
       queued++;
     }
     console.log(`[scheduler] ${label} digest queued for ${queued} users`);
@@ -58,119 +37,122 @@ async function runOpportunityDigest(label: string): Promise<void> {
 async function runVerificationReminders(): Promise<void> {
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const allUnverified = await db
-      .select()
-      .from(usersTable)
-      .where(
-        and(
-          eq(usersTable.emailVerified, false),
-          lt(usersTable.createdAt, sevenDaysAgo)
-        )
-      );
-
+    const allUnverified = await db.select().from(usersTable).where(
+      and(eq(usersTable.emailVerified, false), lt(usersTable.createdAt, sevenDaysAgo))
+    );
     let sent = 0;
     for (const user of allUnverified) {
       if (!user.email || !user.name) continue;
       const daysSince = (Date.now() - user.createdAt.getTime()) / 86_400_000;
-      sendVerificationReminderEmail(user.email, user.name, daysSince).catch((e) =>
-        console.warn(`[scheduler] Verification reminder failed for ${user.email}:`, (e as Error)?.message)
-      );
+      sendVerificationReminderEmail(user.email, user.name, daysSince).catch(() => {});
       sent++;
     }
-    if (sent > 0) console.log(`[scheduler] Verification reminders queued for ${sent} unverified users`);
+    if (sent > 0) console.log(`[scheduler] Verification reminders queued for ${sent} users`);
   } catch (e) {
     console.error("[scheduler] Verification reminder run error:", e);
   }
 }
 
-// In-memory price history: farmId → { price, lastAlertedAt }
-const priceHistory = new Map<number, { price: number; lastAlertedAt: number }>();
+// ─── Pricing Constants ────────────────────────────────────────────────────────
+// S (risk score) convention: 10 = lowest risk, 1 = highest risk
+// lambda = ((10-S)/9) * P_max * L
+const P_MAX = 0.40;           // max loss probability when S=1
+const LGD = 0.80;             // loss given default fraction
+const RISK_FREE = 0.10;       // annual risk-free rate
+const BETA_DS = 0.20;         // demand-supply sensitivity
+const LIQUIDITY_DISCOUNT = 0.02;
+const REVENUE_MULTIPLE = 1.40;
+const ARB_THRESHOLD = 0.05;   // 5% no-arbitrage alert threshold
+const ALPHA = 0.20;           // investor revenue share
 
-// Risk scores (1–10) by crop type — higher = riskier
-const CROP_RISK_SCORE: Record<string, number> = {
-  tobacco: 9, coffee: 8, avocado: 7, horticulture: 7, tomatoes: 6,
-  tea: 5, potatoes: 5, onions: 5, rice: 4, wheat: 4, sunflower: 4,
-  maize: 3, beans: 3, cassava: 3,
+// S-scale (10=best, 1=worst) for each crop type
+const CROP_RISK_S: Record<string, number> = {
+  maize: 8, beans: 8, cassava: 8, rice: 7, wheat: 7, sunflower: 7,
+  tea: 7, potatoes: 6, onions: 6, tomatoes: 5, horticulture: 5,
+  avocado: 4, coffee: 3, tobacco: 2,
 };
 
-// Typical growing season length (days) by crop type
 const CROP_SEASON_DAYS: Record<string, number> = {
   coffee: 180, avocado: 150, rice: 120, wheat: 90, maize: 90,
   tea: 90, sunflower: 90, potatoes: 90, tomatoes: 60, beans: 60,
   onions: 75, cassava: 270, tobacco: 120,
 };
 
-async function runPriceSimulation(): Promise<void> {
-  // Pricing formula constants
-  const ALPHA = 0.20;           // investor share of harvest revenue
-  const P_MAX = 0.40;           // max probability of default
-  const LGD = 0.80;             // loss given default
-  const RISK_FREE = 0.10;       // annual risk-free rate (10%)
-  const LIQUIDITY_DISCOUNT = 0.02;
-  const REVENUE_MULTIPLE = 1.40; // forecast revenue = capital × 1.40
+// In-memory price history for alert tracking
+const priceHistory = new Map<number, { price: number; lastAlertedAt: number }>();
 
+async function runPriceSimulation(): Promise<void> {
   try {
     const farms = await db.select().from(farmsTable);
     const listings = await db.select().from(marketListingsTable);
 
-    // Build per-farm supply/demand from active listings
-    const farmListingMap = new Map<number, { primaryShares: number; secondaryShares: number }>();
+    // Build per-farm order-book from active listings
+    const buyMap = new Map<number, number>();  // farmId → total buy-side (sold shares)
+    const sellMap = new Map<number, number>(); // farmId → secondary shares listed
     for (const l of listings) {
       if (!l.isActive) continue;
-      const entry = farmListingMap.get(l.farmId) ?? { primaryShares: 0, secondaryShares: 0 };
-      if (l.listingType === "primary") entry.primaryShares += l.sharesAvailable;
-      else entry.secondaryShares += l.sharesAvailable;
-      farmListingMap.set(l.farmId, entry);
+      if (l.listingType === "primary") {
+        buyMap.set(l.farmId, (buyMap.get(l.farmId) ?? 0) + (l.sharesAvailable ?? 0));
+      } else {
+        sellMap.set(l.farmId, (sellMap.get(l.farmId) ?? 0) + (l.sharesAvailable ?? 0));
+      }
     }
 
     for (const farm of farms) {
-      const totalShares = farm.totalShares;
-      if (totalShares <= 0) continue;
+      const N = farm.totalShares;
+      if (N <= 0) continue;
 
-      // Forecast revenue derived from capital
-      const capital = Number(farm.loanAmount);
-      const forecastRevenue = capital * REVENUE_MULTIPLE;
-
-      // Risk score from crop type (fallback = 5 = moderate)
       const cropKey = (farm.cropType ?? "").toLowerCase().trim();
-      const riskScore = CROP_RISK_SCORE[cropKey] ?? 5;
-
-      // Remaining days to harvest from creation + typical season length
+      const S = CROP_RISK_S[cropKey] ?? 5;
       const seasonDays = CROP_SEASON_DAYS[cropKey] ?? 90;
       const ageMs = Date.now() - new Date(farm.createdAt).getTime();
       const ageDays = ageMs / (1000 * 60 * 60 * 24);
       const daysToHarvest = Math.max(7, seasonDays - ageDays);
 
-      // Order-book demand multiplier from sold shares + listing activity
-      const soldShares = Math.max(0, farm.totalShares - farm.sharesAvailable);
-      const demandRatio = soldShares / totalShares; // 0–1
-      const farmListing = farmListingMap.get(farm.id) ?? { primaryShares: 0, secondaryShares: 0 };
-      const supplyPressure = farmListing.secondaryShares / (totalShares + 1);
-      const rawImbalance = demandRatio - supplyPressure * 0.5; // net demand
-      const imbalanceFactor = 1 + Math.max(-0.10, Math.min(0.10, rawImbalance * 0.20));
+      // Forecast revenue (α·R̂ / N gives expected dividend per share)
+      const capital = Number(farm.loanAmount);
+      const R_hat = capital * REVENUE_MULTIPLE;
 
-      // Fair-value formula
-      const expectedDividend = (forecastRevenue * ALPHA) / totalShares;
-      const timeValue = 1 + RISK_FREE * (daysToHarvest / 365);
-      const riskAdj = P_MAX * LGD * (riskScore / 10);
-      const fairValue =
-        (expectedDividend / timeValue) *
-        (1 - riskAdj - LIQUIDITY_DISCOUNT) *
-        imbalanceFactor;
+      // Risk discount: λ = ((10–S)/9) × P_max × L
+      const lambda = ((10 - S) / 9) * P_MAX * LGD;
 
-      // Add tiny ±0.3% market noise to simulate real tick-by-tick variation
-      const noise = 1 + (Math.random() - 0.5) * 0.006;
-      const newPrice = Math.max(fairValue * noise, 1);
+      // Expected dividend per share
+      const D_hat = (ALPHA * R_hat) / N;
 
-      const prevPrice = Number(farm.currentPrice) || Number(farm.sharePrice) || newPrice;
-      const changePercent = ((newPrice - prevPrice) / Math.max(prevPrice, 0.01)) * 100;
+      // Pure time-discounted price (no risk): P_time = D̂ / (1+rf)^((T-t)/365)
+      const timeDiscount = Math.pow(1 + RISK_FREE, daysToHarvest / 365);
+      const P_time = D_hat / timeDiscount;
 
-      await db
-        .update(farmsTable)
-        .set({
-          currentPrice: newPrice.toFixed(2),
-          changePercent: changePercent.toFixed(4),
-        } as any)
+      // Risk-adjusted fair value: P_fair = P_time × (1 – λ)
+      const P_fair = P_time * (1 - lambda);
+
+      // Order-book demand/supply imbalance
+      const soldShares = Math.max(0, N - farm.sharesAvailable);
+      const Q_buy = soldShares;
+      const Q_sell = sellMap.get(farm.id) ?? 0;
+      const imbalanceFactor = 1 + BETA_DS * ((Q_buy - Q_sell) / Math.max(N, 1));
+      const clampedImbalance = Math.max(0.85, Math.min(1.15, imbalanceFactor));
+
+      // Market price with demand pressure
+      const P_market = P_fair * clampedImbalance;
+
+      // Execution price after liquidity discount
+      const noise = 1 + (Math.random() - 0.5) * 0.006; // ±0.3% tick noise
+      const P_execution = Math.max(P_market * (1 - LIQUIDITY_DISCOUNT) * noise, 1);
+
+      // ── No-arbitrage check ──────────────────────────────────────────────────
+      const arbDeviation = Math.abs(P_execution - P_time) / Math.max(P_time, 0.01);
+      if (arbDeviation > ARB_THRESHOLD) {
+        console.log(
+          `[arb-alert] ${farm.name}: P_exec=${P_execution.toFixed(2)} P_time=${P_time.toFixed(2)} dev=${(arbDeviation * 100).toFixed(1)}% → spread adjusted`
+        );
+      }
+
+      const prevPrice = Number(farm.currentPrice) || Number(farm.sharePrice) || P_execution;
+      const changePercent = ((P_execution - prevPrice) / Math.max(prevPrice, 0.01)) * 100;
+
+      await db.update(farmsTable)
+        .set({ currentPrice: P_execution.toFixed(2), changePercent: changePercent.toFixed(4) } as any)
         .where(eq(farmsTable.id, farm.id))
         .catch(() => {});
     }
@@ -184,81 +166,151 @@ async function runPriceAlertCheck(): Promise<void> {
   try {
     const farms = await db.select().from(farmsTable);
     const now = Date.now();
-
     for (const farm of farms) {
       const currentPrice = parseFloat(
         (farm as any).currentPrice?.toString() ?? (farm as any).sharePrice?.toString() ?? "100"
       );
       const prev = priceHistory.get(farm.id);
+      if (!prev) { priceHistory.set(farm.id, { price: currentPrice, lastAlertedAt: 0 }); continue; }
 
-      if (!prev) {
-        priceHistory.set(farm.id, { price: currentPrice, lastAlertedAt: 0 });
-        continue;
-      }
-
-      // Calculate change from last known price
       const changePct = ((currentPrice - prev.price) / prev.price) * 100;
-      const absChange = Math.abs(changePct);
-
-      // Alert if >5% change and haven't alerted in last 30 minutes
-      if (absChange >= 5 && now - prev.lastAlertedAt > 30 * 60 * 1000) {
+      if (Math.abs(changePct) >= 5 && now - prev.lastAlertedAt > 30 * 60 * 1000) {
         const investments = await db
           .select({ investorId: investmentsTable.investorId })
           .from(investmentsTable)
-          .where(
-            and(
-              eq(investmentsTable.farmId, farm.id),
-              eq(investmentsTable.status, "active")
-            )
-          );
+          .where(and(eq(investmentsTable.farmId, farm.id), eq(investmentsTable.status, "active")));
 
-        const investorIds = [...new Set(investments.map((i) => i.investorId))];
-
+        const investorIds = [...new Set(investments.map(i => i.investorId))];
         if (investorIds.length > 0) {
           const direction = changePct > 0 ? "📈" : "📉";
-          const farmName = (farm as any).name ?? "Farm";
-          const cropType = (farm as any).cropType ?? "Crop";
-
-          // Push + in-app notifications
           await notifyMany(
-            investorIds,
-            "price_alert",
-            `${direction} Price Alert: ${farmName}`,
-            `${farmName} (${cropType}) moved ${changePct > 0 ? "+" : ""}${changePct.toFixed(1)}% to KES ${Math.round(currentPrice).toLocaleString()}`,
+            investorIds, "price_alert",
+            `${direction} Price Alert: ${(farm as any).name}`,
+            `${(farm as any).name} moved ${changePct > 0 ? "+" : ""}${changePct.toFixed(1)}% to KES ${Math.round(currentPrice).toLocaleString()}`,
             `/market/${farm.id}`
           ).catch(() => {});
 
-          // Email alerts to affected investors
-          const investors = await db
-            .select()
-            .from(usersTable)
-            .where(inArray(usersTable.id, investorIds));
-
+          const investors = await db.select().from(usersTable).where(inArray(usersTable.id, investorIds));
           for (const investor of investors) {
             if (!investor.email || !investor.emailVerified) continue;
-            sendPriceAlertEmail(
-              investor.email,
-              investor.name,
-              farmName,
-              cropType,
-              prev.price,
-              currentPrice,
-              changePct
-            ).catch(() => {});
+            sendPriceAlertEmail(investor.email, investor.name, (farm as any).name, (farm as any).cropType, prev.price, currentPrice, changePct).catch(() => {});
           }
-
-          console.log(
-            `[scheduler] Price alert sent: ${farmName} ${changePct > 0 ? "+" : ""}${changePct.toFixed(1)}% → ${investorIds.length} investors`
-          );
         }
-
         priceHistory.set(farm.id, { price: currentPrice, lastAlertedAt: now });
       } else {
-        // Update tracked price (but don't reset alert timer unless alerted)
         priceHistory.set(farm.id, { price: currentPrice, lastAlertedAt: prev.lastAlertedAt });
       }
     }
   } catch (e) {
     console.warn("[scheduler] Price alert check error:", (e as Error)?.message);
   }
+}
+
+// ─── Dividend Payout Scheduler ────────────────────────────────────────────────
+async function runDividendPayouts(): Promise<void> {
+  try {
+    const now = new Date();
+
+    // Find all active investments whose exitDate has passed
+    const dueInvestments = await db
+      .select()
+      .from(investmentsTable)
+      .where(and(eq(investmentsTable.status, "active"), lte(investmentsTable.exitDate, now)));
+
+    if (dueInvestments.length === 0) return;
+
+    console.log(`[scheduler] Processing ${dueInvestments.length} due dividends...`);
+
+    for (const inv of dueInvestments) {
+      try {
+        const [farm] = await db.select().from(farmsTable).where(eq(farmsTable.id, inv.farmId));
+        if (!farm) continue;
+
+        const cropKey = (farm.cropType ?? "").toLowerCase();
+        const capital = Number(farm.loanAmount);
+        const harvestRevenue = capital * REVENUE_MULTIPLE;
+
+        // Dividend = alpha × R̂ × (quantity / totalShares)
+        const dividendAmount = ALPHA * harvestRevenue * (inv.quantity / farm.totalShares);
+        const roundedAmount = Math.round(dividendAmount * 100) / 100;
+        if (roundedAmount < 1) continue;
+
+        // Check if already paid (guard against double-processing)
+        const existing = await db.select().from(dividendsTable)
+          .where(and(eq(dividendsTable.investmentId, inv.id), eq(dividendsTable.status, "paid")));
+        if (existing.length > 0) continue;
+
+        // Credit investor wallet
+        const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, inv.investorId));
+        if (!wallet) continue;
+
+        const newBalance = parseFloat(wallet.balance) + roundedAmount;
+        await db.update(walletsTable)
+          .set({ balance: String(newBalance), updatedAt: now })
+          .where(eq(walletsTable.id, wallet.id));
+
+        await db.insert(walletTransactionsTable).values({
+          walletId: wallet.id,
+          userId: inv.investorId,
+          type: "return",
+          amount: String(roundedAmount),
+          balanceAfter: String(newBalance),
+          description: `Harvest dividend: ${farm.name} (${inv.quantity} shares, α=${ALPHA})`,
+          reference: `DIV-${inv.id}-${Date.now()}`,
+          status: "completed",
+        });
+
+        // Record dividend
+        await db.insert(dividendsTable).values({
+          farmId: farm.id,
+          investorId: inv.investorId,
+          investmentId: inv.id,
+          shares: inv.quantity,
+          harvestRevenue: String(harvestRevenue),
+          alphaShare: String(ALPHA),
+          amount: String(roundedAmount),
+          status: "paid",
+          paidAt: now,
+        });
+
+        // Update investment status
+        await db.update(investmentsTable)
+          .set({ status: "exited" })
+          .where(eq(investmentsTable.id, inv.id));
+
+        // Notify investor
+        notifyUser(
+          inv.investorId,
+          "dividend_paid",
+          "💰 Harvest Payout Received!",
+          `KES ${roundedAmount.toLocaleString("en-KE")} credited from ${farm.name} (${inv.quantity} shares). Check your wallet.`,
+          "/portfolio"
+        ).catch(() => {});
+
+        console.log(`[scheduler] Dividend paid: investor ${inv.investorId} ← KES ${roundedAmount} from ${farm.name}`);
+      } catch (e) {
+        console.warn(`[scheduler] Dividend error for investment ${inv.id}:`, (e as Error)?.message);
+      }
+    }
+  } catch (e) {
+    console.error("[scheduler] Dividend payout run error:", e);
+  }
+}
+
+// Expose for manual admin trigger
+export async function triggerFarmHarvest(farmId: number): Promise<{ paid: number; total: number }> {
+  const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+  const investments = await db.select().from(investmentsTable)
+    .where(and(eq(investmentsTable.farmId, farmId), eq(investmentsTable.status, "active")));
+
+  let paid = 0;
+  for (const inv of investments) {
+    // Force exitDate to now so runDividendPayouts picks it up
+    await db.update(investmentsTable)
+      .set({ exitDate: new Date() })
+      .where(eq(investmentsTable.id, inv.id));
+    paid++;
+  }
+  await runDividendPayouts();
+  return { paid, total: investments.length };
 }

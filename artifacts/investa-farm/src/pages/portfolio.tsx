@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useGetPortfolio, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getStoredUser, getToken } from "@/lib/auth";
@@ -72,6 +72,8 @@ export default function Portfolio() {
   const [copied, setCopied] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [reinvestOpen, setReinvestOpen] = useState(false);
+  const [brokerUnlockOpen, setBrokerUnlockOpen] = useState(false);
+  const [brokerUnlockStep, setBrokerUnlockStep] = useState(0);
   const [, setLocation] = useLocation();
   const token = getToken();
   const user = getStoredUser();
@@ -118,6 +120,13 @@ export default function Portfolio() {
 
   const handleExitClick = (h: Holding) => { setSelectedHolding(h); setExitOpen(true); };
   const handleSellClick = (h: Holding) => { setSelectedHolding(h); setSellOpen(true); };
+
+  useEffect(() => {
+    if (qualification?.qualified && localStorage.getItem("investa_broker_unlocked") !== "true") {
+      setBrokerUnlockOpen(true);
+      setBrokerUnlockStep(0);
+    }
+  }, [qualification?.qualified]);
 
   const chartData = useMemo(() => {
     if (!summary) return [];
@@ -666,6 +675,98 @@ export default function Portfolio() {
         text={shareHolding ? `🌱 I'm invested in ${shareHolding.farmName} on Investa Farm! ${shareHolding.cropType} · ${shareHolding.location} · Earn up to +22% returns` : ""}
         url="https://investafarm.co.ke"
       />
+
+      {/* Stock Broker Unlock Popup */}
+      {brokerUnlockOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setBrokerUnlockOpen(false); localStorage.setItem("investa_broker_unlocked", "true"); }} />
+          <div className="relative bg-white rounded-t-3xl w-full max-w-[430px] overflow-hidden">
+            {/* Step indicators */}
+            <div className="flex gap-1.5 justify-center pt-5 pb-2">
+              {[0, 1, 2].map(s => (
+                <div key={s} className={`h-1.5 rounded-full transition-all ${s === brokerUnlockStep ? "w-8 bg-primary" : "w-1.5 bg-gray-200"}`} />
+              ))}
+            </div>
+
+            {brokerUnlockStep === 0 && (
+              <div className="px-6 pb-8 text-center">
+                <div className="w-20 h-20 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-4 mt-2">
+                  <span className="text-4xl">🏆</span>
+                </div>
+                <h2 className="text-foreground font-extrabold text-xl mb-2">You Qualify as a Stock Broker!</h2>
+                <p className="text-muted-foreground text-sm leading-relaxed mb-2">
+                  Your investment portfolio has crossed the <strong>KES 500,000</strong> threshold. You're eligible to manage portfolios and earn broker commissions.
+                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-6 text-left">
+                  <p className="text-amber-800 text-xs font-semibold">📊 Total Invested</p>
+                  <p className="text-amber-900 font-extrabold text-lg">{formatKES(qualification?.totalInvested ?? 0)}</p>
+                </div>
+                <button onClick={() => setBrokerUnlockStep(1)}
+                  className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform">
+                  See What You Can Do →
+                </button>
+              </div>
+            )}
+
+            {brokerUnlockStep === 1 && (
+              <div className="px-6 pb-8">
+                <h2 className="text-foreground font-extrabold text-lg mb-1 mt-2">Stock Broker Benefits</h2>
+                <p className="text-muted-foreground text-xs mb-4">As a verified broker you unlock all of these</p>
+                <div className="space-y-3 mb-6">
+                  {[
+                    { icon: "📁", title: "Manage Portfolios", desc: "Create & publish curated farm portfolios for followers to copy" },
+                    { icon: "💸", title: "Earn Management Fees", desc: "Charge up to 2% annual fee on AUM from your subscribers" },
+                    { icon: "🤝", title: "1% Placement Fees", desc: "Earn on every secondary market trade your followers execute" },
+                    { icon: "👥", title: "Build Followers", desc: "Share your broker link — followers see your picks in real-time" },
+                    { icon: "📈", title: "Priority Allocation", desc: "Get priority access to new farm listings before general investors" },
+                  ].map(b => (
+                    <div key={b.title} className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 text-lg">{b.icon}</div>
+                      <div>
+                        <p className="text-foreground font-semibold text-sm">{b.title}</p>
+                        <p className="text-muted-foreground text-xs">{b.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setBrokerUnlockStep(2)}
+                  className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform">
+                  Activate My Profile →
+                </button>
+              </div>
+            )}
+
+            {brokerUnlockStep === 2 && (
+              <div className="px-6 pb-10 text-center">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center mx-auto mb-4 mt-2">
+                  <span className="text-4xl">🌱</span>
+                </div>
+                <h2 className="text-foreground font-extrabold text-xl mb-2">Activate Broker Mode</h2>
+                <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+                  Turn on your broker profile and start creating portfolios that others can follow and invest in.
+                </p>
+                <button
+                  onClick={() => {
+                    setBrokerEnabled(true);
+                    localStorage.setItem("investa_broker_mode", "true");
+                    localStorage.setItem("investa_broker_unlocked", "true");
+                    setBrokerUnlockOpen(false);
+                    setActiveTab("broker");
+                  }}
+                  className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform mb-3">
+                  🚀 Activate Broker Profile
+                </button>
+                <button
+                  onClick={() => { setBrokerUnlockOpen(false); localStorage.setItem("investa_broker_unlocked", "true"); }}
+                  className="w-full py-3 rounded-2xl border border-border text-muted-foreground font-medium text-sm active:scale-95 transition-transform">
+                  Maybe Later
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <BottomNav role="investor" />
     </div>
   );

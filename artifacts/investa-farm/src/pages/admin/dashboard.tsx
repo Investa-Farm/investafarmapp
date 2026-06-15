@@ -33,7 +33,7 @@ interface TxRecord {
   description: string | null; status: string; createdAt: string;
 }
 
-type Tab = "overview" | "users" | "kyc" | "transactions";
+type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts";
 
 const TX_EMOJI: Record<string, string> = {
   deposit: "⬇️", withdrawal: "⬆️", investment: "📈", return: "💰", fee: "💳", transfer: "↔️",
@@ -51,10 +51,15 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [kycdocs, setKycDocs] = useState<KycDoc[]>([]);
   const [transactions, setTransactions] = useState<TxRecord[]>([]);
+  const [farms, setFarms] = useState<any[]>([]);
+  const [dividends, setDividends] = useState<{ totalPaid: number; count: number; dividends: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(false);
   const [kycLoading, setKycLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
+  const [farmsLoading, setFarmsLoading] = useState(false);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
+  const [harvestLoading, setHarvestLoading] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -71,6 +76,8 @@ export default function AdminDashboard() {
     if (tab === "users") fetchUsers();
     if (tab === "kyc") fetchKyc();
     if (tab === "transactions") fetchTransactions();
+    if (tab === "farms") fetchFarms();
+    if (tab === "payouts") fetchPayouts();
   }, [tab]);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -116,6 +123,56 @@ export default function AdminDashboard() {
     } finally {
       setTxLoading(false);
     }
+  };
+
+  const fetchFarms = async () => {
+    setFarmsLoading(true);
+    try {
+      const r = await fetch("/api/admin/farms", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setFarms(await r.json());
+    } finally {
+      setFarmsLoading(false);
+    }
+  };
+
+  const fetchPayouts = async () => {
+    setPayoutsLoading(true);
+    try {
+      const r = await fetch("/api/admin/dividends", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setDividends(await r.json());
+    } finally {
+      setPayoutsLoading(false);
+    }
+  };
+
+  const triggerHarvest = async (farmId: number, farmName: string) => {
+    if (!confirm(`Trigger harvest payout for "${farmName}"? This will pay all active investors their dividends.`)) return;
+    setHarvestLoading(farmId);
+    try {
+      const r = await fetch(`/api/admin/farms/${farmId}/harvest`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showToast(`✅ Paid ${data.paid} investors for ${farmName}`);
+        fetchFarms();
+        if (tab === "payouts") fetchPayouts();
+      } else {
+        showToast(data.error ?? "Harvest failed", "error");
+      }
+    } finally {
+      setHarvestLoading(null);
+    }
+  };
+
+  const updateFarmStatus = async (farmId: number, status: string) => {
+    const r = await fetch(`/api/admin/farms/${farmId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status }),
+    });
+    if (r.ok) { showToast(`Farm status → ${status} ✓`); fetchFarms(); }
+    else showToast("Status update failed", "error");
   };
 
   const approveUser = async (userId: number, approve: boolean) => {
@@ -183,7 +240,9 @@ export default function AdminDashboard() {
     { id: "overview", label: "Overview", icon: <LayoutGrid size={14} /> },
     { id: "users", label: "Users", icon: <Users size={14} /> },
     { id: "kyc", label: "KYC", icon: <FileText size={14} /> },
-    { id: "transactions", label: "Transactions", icon: <Activity size={14} /> },
+    { id: "transactions", label: "Txns", icon: <Activity size={14} /> },
+    { id: "farms", label: "Farms", icon: <Tractor size={14} /> },
+    { id: "payouts", label: "Payouts", icon: <DollarSign size={14} /> },
   ];
 
   return (
@@ -516,6 +575,138 @@ export default function AdminDashboard() {
             ))}
           </>
         )}
+        {/* FARMS TAB */}
+        {tab === "farms" && (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                {farms.length} total farms
+              </p>
+              <button onClick={fetchFarms} className="text-xs text-primary flex items-center gap-1">
+                <RefreshCw size={11} className={farmsLoading ? "animate-spin" : ""} /> Refresh
+              </button>
+            </div>
+
+            {farmsLoading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading farms…</div>
+            ) : farms.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No farms yet</div>
+            ) : farms.map((f: any) => (
+              <div key={f.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                <div className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground font-semibold text-sm truncate">{f.name}</p>
+                      <p className="text-muted-foreground text-[10px] mt-0.5">{f.cropType} · {f.location}</p>
+                      <p className="text-muted-foreground text-[10px]">Farmer: {f.farmerName}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                        f.status === "active" ? "bg-green-100 text-green-700" :
+                        f.status === "funded" ? "bg-blue-100 text-blue-700" :
+                        f.status === "harvested" ? "bg-gray-100 text-gray-600" :
+                        "bg-amber-100 text-amber-700"}`}>
+                        {f.status}
+                      </span>
+                      <p className="text-foreground font-bold text-xs mt-1">{fmtKES(f.loanAmount)}</p>
+                    </div>
+                  </div>
+
+                  {/* Funding progress */}
+                  <div className="mt-2.5">
+                    <div className="flex items-center justify-between text-[10px] mb-1">
+                      <span className="text-muted-foreground">Funded: {fmtKES(f.fundedAmount)}</span>
+                      <span className="text-primary font-semibold">{f.fundedPercent}%</span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, f.fundedPercent)}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 mt-2 text-[10px] text-muted-foreground">
+                    <span>{f.investorCount} investors</span>
+                    <span>·</span>
+                    <span>{f.totalShares - f.sharesAvailable}/{f.totalShares} shares sold</span>
+                  </div>
+                </div>
+
+                <div className="border-t border-border px-3 py-2 flex gap-1.5 flex-wrap">
+                  {["pending", "active", "funded", "harvested"].filter(s => s !== f.status).map(s => (
+                    <button key={s} onClick={() => updateFarmStatus(f.id, s)}
+                      className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-gray-50 border border-gray-200 text-gray-600 active:scale-95 transition-transform">
+                      → {s}
+                    </button>
+                  ))}
+                  {f.status !== "harvested" && (
+                    <button
+                      onClick={() => triggerHarvest(f.id, f.name)}
+                      disabled={harvestLoading === f.id}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-50 border border-amber-300 text-amber-700 active:scale-95 transition-transform disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {harvestLoading === f.id ? "Paying…" : "🌾 Harvest & Pay"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* PAYOUTS TAB */}
+        {tab === "payouts" && (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                Dividend History
+              </p>
+              <button onClick={fetchPayouts} className="text-xs text-primary flex items-center gap-1">
+                <RefreshCw size={11} className={payoutsLoading ? "animate-spin" : ""} /> Refresh
+              </button>
+            </div>
+
+            {dividends && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-gradient-to-br from-green-600 to-emerald-500 rounded-2xl p-3">
+                  <p className="text-white/70 text-[10px]">Total Paid Out</p>
+                  <p className="text-white font-extrabold text-lg leading-tight">{fmtKES(dividends.totalPaid)}</p>
+                </div>
+                <div className="bg-card border border-border rounded-2xl p-3">
+                  <p className="text-muted-foreground text-[10px]">Dividend Records</p>
+                  <p className="text-foreground font-extrabold text-lg leading-tight">{dividends.count}</p>
+                </div>
+              </div>
+            )}
+
+            {payoutsLoading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading payouts…</div>
+            ) : !dividends || dividends.dividends.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground text-sm">No dividends paid yet</p>
+                <p className="text-muted-foreground text-xs mt-1">Use the Farms tab to trigger harvest payouts</p>
+              </div>
+            ) : dividends.dividends.map((d: any) => (
+              <div key={d.id} className="bg-card border border-border rounded-2xl px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-foreground text-xs font-semibold">{d.investorName}</p>
+                    <p className="text-muted-foreground text-[10px] truncate">{d.investorEmail}</p>
+                    <p className="text-muted-foreground text-[10px] mt-0.5">🌾 {d.farmName} · {d.shares} shares</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-green-600 font-extrabold text-sm">+{fmtKES(d.amount)}</p>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${d.status === "paid" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                      {d.status}
+                    </span>
+                    <p className="text-muted-foreground text-[9px] mt-0.5">
+                      {d.paidAt ? new Date(d.paidAt).toLocaleDateString("en-KE") : "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
       </div>
     </div>
   );

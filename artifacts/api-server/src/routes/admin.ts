@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable } from "@workspace/db";
+import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail } from "../lib/email";
+import { triggerFarmHarvest } from "../scheduler";
 
 const router: IRouter = Router();
 
@@ -243,15 +244,82 @@ router.get("/admin/farms", async (req, res): Promise<void> => {
     .select({ farm: farmsTable, farmer: usersTable })
     .from(farmsTable)
     .leftJoin(usersTable, eq(farmsTable.farmerId, usersTable.id));
-  res.json(farms.map(r => ({
-    id: r.farm.id,
-    name: r.farm.name,
-    cropType: r.farm.cropType,
-    status: r.farm.status,
-    farmerName: r.farmer?.name ?? "Unknown",
-    farmerEmail: r.farmer?.email ?? "",
-    createdAt: r.farm.createdAt.toISOString(),
-  })));
+  const investments = await db.select().from(investmentsTable);
+  res.json(farms.map(r => {
+    const farmInvestors = investments.filter(i => i.farmId === r.farm.id);
+    const fundedAmount = farmInvestors.reduce((s, i) => s + Number(i.purchasePrice) * i.quantity, 0);
+    return {
+      id: r.farm.id,
+      name: r.farm.name,
+      cropType: r.farm.cropType,
+      location: r.farm.location,
+      status: r.farm.status,
+      loanAmount: Number(r.farm.loanAmount),
+      fundedAmount,
+      fundedPercent: Math.round((fundedAmount / Math.max(Number(r.farm.loanAmount), 1)) * 100),
+      sharePrice: Number(r.farm.sharePrice),
+      currentPrice: Number((r.farm as any).currentPrice ?? r.farm.sharePrice),
+      totalShares: r.farm.totalShares,
+      sharesAvailable: r.farm.sharesAvailable,
+      investorCount: [...new Set(farmInvestors.map(i => i.investorId))].length,
+      farmerName: r.farmer?.name ?? "Unknown",
+      farmerEmail: r.farmer?.email ?? "",
+      createdAt: r.farm.createdAt.toISOString(),
+    };
+  }));
+});
+
+router.patch("/admin/farms/:id/status", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const id = Number(req.params["id"]);
+  const { status } = req.body as { status: string };
+  const valid = ["pending", "active", "funded", "harvested"];
+  if (!valid.includes(status)) { res.status(400).json({ error: "Invalid status" }); return; }
+  await db.update(farmsTable).set({ status: status as any }).where(eq(farmsTable.id, id));
+  res.json({ ok: true });
+});
+
+router.post("/admin/farms/:id/harvest", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const farmId = Number(req.params["id"]);
+  try {
+    const result = await triggerFarmHarvest(farmId);
+    await db.update(farmsTable).set({ status: "harvested" } as any).where(eq(farmsTable.id, farmId));
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+router.get("/admin/dividends", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const divs = await db
+    .select({ div: dividendsTable, investor: usersTable, farm: farmsTable })
+    .from(dividendsTable)
+    .leftJoin(usersTable, eq(dividendsTable.investorId, usersTable.id))
+    .leftJoin(farmsTable, eq(dividendsTable.farmId, farmsTable.id))
+    .orderBy(desc(dividendsTable.createdAt))
+    .limit(100);
+
+  const totalPaid = divs.reduce((s, d) => s + Number(d.div.amount), 0);
+  res.json({
+    totalPaid,
+    count: divs.length,
+    dividends: divs.map(d => ({
+      id: d.div.id,
+      farmName: (d.farm as any)?.name ?? "Unknown",
+      investorName: d.investor?.name ?? "Unknown",
+      investorEmail: d.investor?.email ?? "",
+      shares: d.div.shares,
+      amount: Number(d.div.amount),
+      status: d.div.status,
+      paidAt: d.div.paidAt?.toISOString() ?? null,
+      createdAt: d.div.createdAt.toISOString(),
+    })),
+  });
 });
 
 export default router;

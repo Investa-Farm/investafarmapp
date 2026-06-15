@@ -18,3 +18,4 @@ export * from "./portfolio_holdings";
 export * from "./investor_portfolio_subscriptions";
 export * from "./portfolio_fees";
 export * from "./reinvestment_rules";
+export * from "./dividends";
