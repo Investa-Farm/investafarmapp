@@ -31,7 +31,9 @@ export function CoachMark({ steps, storageKey, onDone }: Props) {
 
   useEffect(() => {
     if (!active) return;
-    const el = document.querySelector(steps[idx]?.target ?? "");
+    const target = steps[idx]?.target;
+    if (!target) return;
+    const el = document.querySelector(target);
     if (el) setRect(el.getBoundingClientRect());
   }, [active, idx, steps]);
 
