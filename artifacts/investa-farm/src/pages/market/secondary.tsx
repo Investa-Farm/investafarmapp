@@ -211,20 +211,23 @@ export default function SecondaryMarket() {
             {/* Crop filter + info */}
             {!isLoading && (listings?.length ?? 0) > 0 && (
               <div className="px-4 mb-3">
-                <div className="relative">
-                  <select
-                    value={cropFilter}
-                    onChange={e => { setCropFilter(e.target.value); setExpandedCrop(null); }}
-                    className="w-full border border-border rounded-2xl px-4 py-2.5 text-sm font-semibold text-foreground bg-white focus:outline-none focus:border-primary appearance-none pr-9"
+                {/* Horizontal chip filter */}
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  <button
+                    onClick={() => { setCropFilter("all"); setExpandedCrop(null); }}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${cropFilter === "all" ? "bg-primary text-white border-primary shadow-sm shadow-green-500/30" : "bg-white text-muted-foreground border-border"}`}
                   >
-                    <option value="all">🌍 All Crops</option>
-                    {Array.from(new Set((listings as Listing[] ?? []).map((l: Listing) => l.cropType))).map((crop: string) => (
-                      <option key={crop} value={crop}>🌾 {crop}</option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </div>
+                    🌍 All
+                  </button>
+                  {Array.from(new Set((listings as Listing[] ?? []).map((l: Listing) => l.cropType))).map((crop: string) => (
+                    <button
+                      key={crop}
+                      onClick={() => { setCropFilter(crop); setExpandedCrop(null); }}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${cropFilter === crop ? "bg-primary text-white border-primary shadow-sm shadow-green-500/30" : "bg-white text-muted-foreground border-border"}`}
+                    >
+                      🌾 {crop}
+                    </button>
+                  ))}
                 </div>
                 <div className="flex items-center gap-1.5 mt-2 px-1">
                   <p className="text-muted-foreground text-xs">Investors reselling shares · prices reflect market conditions</p>

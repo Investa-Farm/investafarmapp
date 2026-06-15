@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap } from "lucide-react";
+import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import {
   useGetTopMovers,
   useListPrimaryMarket,
@@ -256,8 +257,8 @@ export default function MarketHome() {
       <div className="bg-background border-b border-border relative overflow-hidden pt-12 pb-4 px-5" data-tour="market-header">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <p className="text-muted-foreground text-[10px] font-semibold tracking-widest uppercase">Farm Exchange</p>
+            <div className="flex items-center gap-2 mb-1">
+              <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" />
               <span className="inline-flex items-center gap-1 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                 <span className="text-green-600 text-[9px] font-bold uppercase tracking-wider">Live</span>
@@ -495,18 +496,30 @@ export default function MarketHome() {
               })()}
             </section>
 
-            {/* Market type links */}
+            {/* Market type links — image cards */}
             <div className="grid grid-cols-2 gap-2.5">
               <Link href="/market/primary">
-                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-3.5 cursor-pointer active:scale-95 transition-transform">
-                  <p className="text-primary font-bold text-sm">Primary Market</p>
-                  <p className="text-muted-foreground text-[11px] mt-0.5">Buy from farmers directly</p>
+                <div className="rounded-2xl overflow-hidden relative h-24 cursor-pointer active:scale-95 transition-transform shadow-lg shadow-green-600/20">
+                  <img src={getCropImage("maize")} alt="Primary Market" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-green-800/70 to-green-950/60 p-3 flex flex-col justify-between">
+                    <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest bg-white/10 self-start px-1.5 py-0.5 rounded-full">New Issue</span>
+                    <div>
+                      <p className="text-white font-extrabold text-sm leading-tight">Primary Market</p>
+                      <p className="text-white/70 text-[10px]">Buy direct from farms</p>
+                    </div>
+                  </div>
                 </div>
               </Link>
               <Link href="/market/secondary">
-                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-3.5 cursor-pointer active:scale-95 transition-transform">
-                  <p className="text-primary font-bold text-sm">Secondary Market</p>
-                  <p className="text-muted-foreground text-[11px] mt-0.5">Trade between investors</p>
+                <div className="rounded-2xl overflow-hidden relative h-24 cursor-pointer active:scale-95 transition-transform shadow-lg shadow-amber-600/20">
+                  <img src={getCropImage("coffee")} alt="Secondary Market" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-800/85 via-amber-900/70 to-amber-950/60 p-3 flex flex-col justify-between">
+                    <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest bg-white/10 self-start px-1.5 py-0.5 rounded-full">Resale</span>
+                    <div>
+                      <p className="text-white font-extrabold text-sm leading-tight">Secondary Market</p>
+                      <p className="text-white/70 text-[10px]">Trade between investors</p>
+                    </div>
+                  </div>
                 </div>
               </Link>
             </div>
@@ -552,7 +565,7 @@ export default function MarketHome() {
                         const isFeatured = idx === 0;
                         return (
                           <Link key={listing.id} href={`/market/exchange/${listing.farmId}`}>
-                            <div className={`rounded-2xl border overflow-hidden cursor-pointer active:scale-[0.98] transition-all ${isFeatured ? "border-primary/30 shadow-md shadow-primary/10" : "border-border bg-card shadow-sm"}`}>
+                            <div className={`rounded-2xl border overflow-hidden cursor-pointer active:scale-[0.98] transition-all ${isFeatured ? "border-primary/30 shadow-lg shadow-green-600/15" : "border-border bg-card shadow-sm shadow-green-500/10"}`}>
                               {isFeatured && (
                                 <div className="bg-gradient-to-r from-primary/90 to-green-600 px-4 py-1.5 flex items-center gap-1.5">
                                   <Star size={10} className="text-white fill-white" />

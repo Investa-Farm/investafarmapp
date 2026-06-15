@@ -136,7 +136,7 @@ export default function CooperativeDashboard() {
             </div>
 
             {/* Org profile card */}
-            <div className="bg-white border border-border rounded-2xl overflow-hidden">
+            <div className="bg-white border border-green-100 rounded-2xl overflow-hidden shadow-lg shadow-green-500/10">
               <div className="relative h-28">
                 <img src={profileImage} alt="Organization" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -170,7 +170,7 @@ export default function CooperativeDashboard() {
               <div className="space-y-2">
                 {services.map(svc => (
                   <motion.div key={svc.title} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                    className="bg-white border border-border rounded-2xl p-4 flex items-center gap-3">
+                    className="bg-white border border-green-100 rounded-2xl p-4 flex items-center gap-3 shadow-md shadow-green-500/10">
                     <div className="w-10 h-10 rounded-xl bg-[#16a34a]/10 flex items-center justify-center text-xl flex-shrink-0">
                       {svc.icon}
                     </div>
