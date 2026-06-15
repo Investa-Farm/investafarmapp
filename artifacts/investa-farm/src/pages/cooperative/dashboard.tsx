@@ -14,12 +14,12 @@ fetch("https://api.investafarm.co.ke/v1/farmers", {
 const EXCEL_SNIPPET = `=INVESTAFARM_FARMERS("YOUR_KEY","county=Nakuru")`;
 
 const FARMERS_CONNECT_SERVICES = [
-  { icon: "🌾", title: "Member Farmer Management", desc: "Onboard and manage farmer groups in your network", badge: "Active" },
-  { icon: "💳", title: "Input Credit Facilitation", desc: "Connect farmers to input vouchers via Investa Farm loans", badge: "Active" },
-  { icon: "📦", title: "Produce Aggregation", desc: "Receive and track produce from funded farms", badge: "Coming Soon" },
-  { icon: "📊", title: "Data Analytics & Reports", desc: "Performance reports for your farmer network", badge: "Active" },
-  { icon: "🔌", title: "API Integration", desc: "Embed Investa Farm data into your systems", badge: "Beta" },
-  { icon: "🤝", title: "Co-financing Programs", desc: "Co-invest alongside Investa Farm on large farms", badge: "Coming Soon" },
+  { icon: "🌾", title: "Farmer Group Onboarding", desc: "Register and verify entire SACCO or cooperative farmer groups at once", badge: "Active" },
+  { icon: "💳", title: "Group Loan Facilitation", desc: "Apply for bulk input credit on behalf of your farmer network", badge: "Active" },
+  { icon: "📦", title: "Bulk Produce Aggregation", desc: "Pool harvests from all member farms and sell as a single bulk consignment", badge: "Active" },
+  { icon: "📊", title: "Network Analytics & Reports", desc: "Monitor yield, revenue, and loan repayment across all member farms", badge: "Active" },
+  { icon: "🔌", title: "System Integration (API)", desc: "Sync Investa Farm data with your cooperative's existing software", badge: "Beta" },
+  { icon: "🤝", title: "Co-investment Programs", desc: "Co-fund large farm seasons alongside Investa Farm investors", badge: "Coming Soon" },
 ];
 
 const INPUT_PROVIDER_SERVICES = [

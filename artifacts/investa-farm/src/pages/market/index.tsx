@@ -187,7 +187,9 @@ export default function MarketHome() {
   const { data: summary } = useGetMarketSummary();
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [investOpen, setInvestOpen] = useState(false);
-  const [watchlisted, setWatchlisted] = useState<Set<number>>(new Set());
+  const [watchlisted, setWatchlisted] = useState<Set<number>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("investa_watchlist") ?? "[]") as number[]); } catch { return new Set(); }
+  });
   const [activeSection, setActiveSection] = useState<"market" | "news" | "watchlist">("market");
   const [committed, setCommitted] = useState<Record<number, number>>(() => {
     try { return JSON.parse(localStorage.getItem("investa_watchlist_commits") ?? "{}") ?? {}; } catch { return {}; }
@@ -224,7 +226,7 @@ export default function MarketHome() {
   const featTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     if (!listings || listings.length <= 2) return;
-    featTimer.current = setInterval(() => setFeatIdx(i => i + 1), 3500);
+    featTimer.current = setInterval(() => setFeatIdx(i => i + 1), 45000);
     return () => { if (featTimer.current) clearInterval(featTimer.current); };
   }, [listings?.length]);
 
@@ -369,19 +371,19 @@ export default function MarketHome() {
           </div>
         </div>
 
-        {/* Stat cards — clickable */}
+        {/* Market stats inline strip */}
         {summary && (
-          <div className="relative grid grid-cols-3 gap-2 mb-3">
-            {(["turnover", "return", "listings"] as const).map((key) => {
+          <div className="flex items-stretch gap-2 mb-3">
+            {(["turnover", "return", "listings"] as const).map((key, i) => {
               const d = STAT_DETAILS[key];
-              const isUp = key === "return" ? true : key === "listings" ? (summary.totalListings ?? 0) > 0 : (summary.totalVolumeKes ?? 0) > 0;
               return (
                 <button key={key} onClick={() => setStatModal(key)}
-                  className="bg-card rounded-2xl p-2.5 text-center border border-border shadow-sm active:scale-95 transition-transform hover:border-primary/30 hover:shadow-md hover:shadow-primary/10 group">
-                  <p className="text-[12px] mb-0.5">{d.icon}</p>
-                  <p className={`font-bold text-sm ${key === "return" ? "text-green-600" : "text-foreground"}`}>{d.val}</p>
-                  <p className="text-muted-foreground text-[9px] mt-0.5 font-medium">{key === "turnover" ? "Turnover" : key === "return" ? "Avg Return" : "Listings"}</p>
-                  <p className="text-primary/60 text-[8px] mt-0.5 group-hover:text-primary transition-colors">tap for details</p>
+                  className="flex-1 flex items-center gap-2 bg-card rounded-xl px-2.5 py-2 border border-border shadow-sm active:scale-95 transition-transform hover:border-primary/20 group">
+                  <span className="text-base leading-none">{d.icon}</span>
+                  <div className="min-w-0 text-left">
+                    <p className={`font-extrabold text-xs leading-tight ${key === "return" ? "text-green-600" : "text-foreground"}`}>{d.val}</p>
+                    <p className="text-muted-foreground text-[9px] leading-tight">{key === "turnover" ? "Turnover" : key === "return" ? "Avg Return" : "Listings"}</p>
+                  </div>
                 </button>
               );
             })}
@@ -474,23 +476,35 @@ export default function MarketHome() {
           <>
             {/* Top Movers / Decliners — combined section */}
             <section>
-              <div className="flex items-center justify-between mb-3">
+              {/* Market type labels */}
+              <div className="flex items-center gap-2 mb-2">
+                <Link href="/market/primary">
+                  <span className="inline-flex items-center gap-1 bg-green-600/10 border border-green-600/20 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition-transform">
+                    <TrendingUp size={9} /> Primary Market
+                  </span>
+                </Link>
+                <Link href="/market/secondary">
+                  <span className="inline-flex items-center gap-1 bg-amber-600/10 border border-amber-600/20 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition-transform">
+                    <TrendingDown size={9} /> Secondary Market
+                  </span>
+                </Link>
+              </div>
+              <div className="flex items-center justify-between mb-2.5">
                 <h2 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
                   {moverTab === "movers"
                     ? <TrendingUp size={13} className="text-green-600" />
                     : <TrendingDown size={13} className="text-red-500" />}
-                  {moverTab === "movers" ? "Top Movers" : "Top Decliners"}
+                  {moverTab === "movers" ? "Top Gainers" : "Top Decliners"}
                   <AiSectionBot context="What are 'top movers' and 'top decliners' in the Investa Farm market? Why do farm share prices change, and what should an investor look for?" label="movers & decliners" />
                   <InlineMicBot section="market" role="investor" />
                 </h2>
                 <div className="flex items-center gap-1.5">
-                  {/* Tab toggle on same line */}
                   <div className="flex bg-muted rounded-full p-0.5 gap-0.5">
                     <button
                       onClick={() => { setMoverTab("movers"); setMoverSlide(0); }}
                       className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${moverTab === "movers" ? "bg-green-600 text-white shadow-sm" : "text-muted-foreground"}`}
                     >
-                      <TrendingUp size={9} /> Movers
+                      <TrendingUp size={9} /> Gainers
                     </button>
                     <button
                       onClick={() => { setMoverTab("decliners"); setMoverSlide(0); }}
@@ -545,7 +559,7 @@ export default function MarketHome() {
                           return (
                             <Link key={item.farmId} href={`/market/exchange/${item.farmId}`}>
                               <div className="rounded-2xl overflow-hidden relative cursor-pointer active:scale-95 transition-transform shadow-md">
-                                <img src={getCropImage(item.cropType ?? "", item.imageUrl ?? undefined)} alt={item.farmName} className="w-full h-36 object-cover" />
+                                <img src={getCropImage(item.cropType ?? "", item.imageUrl ?? undefined)} alt={item.farmName} className="w-full h-24 object-cover" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-3 flex flex-col justify-end">
                                   <p className="text-white text-xs font-bold leading-tight">{item.farmName}</p>
                                   <p className="text-white/70 text-[9px]">{item.cropType} · {formatAmount(item.currentPrice)}</p>
@@ -801,174 +815,255 @@ export default function MarketHome() {
 
         {activeSection === "news" && (
           <section className="space-y-3">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <Newspaper size={15} className="text-primary" />
-                <h2 className="font-semibold text-sm text-foreground">Agriculture & Market News</h2>
+            {/* News header */}
+            <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg,#052e16,#166534,#16a34a)" }}>
+              <div className="p-4 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Newspaper size={14} className="text-green-300" />
+                    <span className="text-green-300 text-[10px] font-bold uppercase tracking-widest">Agriculture News</span>
+                  </div>
+                  <h2 className="text-white font-bold text-base leading-tight">Kenya Agri Market</h2>
+                  <p className="text-white/60 text-xs mt-0.5">Prices, weather & investment insights</p>
+                </div>
+                <span className="flex items-center gap-1.5 bg-green-500/20 border border-green-400/30 px-2.5 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-green-300 text-[10px] font-bold">Live</span>
+                </span>
               </div>
-              <span className="text-muted-foreground text-[10px] flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                Live feed
-              </span>
             </div>
+
             {newsLoading
               ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)
-              : (newsItems ?? []).map((item: any) => {
+              : (newsItems ?? []).map((item: any, idx: number) => {
                   const isExpanded = expandedNews === item.id;
+                  const isFeatured = idx === 0;
                   return (
                     <div
                       key={item.id}
-                      className="bg-card rounded-2xl border border-border overflow-hidden"
+                      className={`bg-card rounded-2xl border overflow-hidden transition-all ${isFeatured ? "border-primary/30 shadow-md shadow-green-500/10" : "border-border shadow-sm"}`}
                     >
                       {/* Thumbnail */}
                       <div className="relative">
-                        <img src={getNewsImage(item)} alt={item.title} className="w-full h-32 object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
-                        <span className={`absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>
-                          {item.tag}
-                        </span>
-                        {/* AI Insight button on image */}
+                        <img src={getNewsImage(item)} alt={item.title} className={`w-full object-cover ${isFeatured ? "h-44" : "h-28"}`} />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                        {isFeatured && (
+                          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+                        )}
+                        <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                          {isFeatured && (
+                            <span className="bg-primary text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Featured</span>
+                          )}
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>
+                            {item.tag}
+                          </span>
+                        </div>
+                        {isFeatured && (
+                          <div className="absolute bottom-3 left-3 right-3">
+                            <p className="text-white font-bold text-sm leading-snug drop-shadow-sm line-clamp-2">{item.title}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-white/70 text-[10px] flex items-center gap-1">
+                                <Clock size={9} /> {item.time}
+                              </span>
+                              <span className="text-white/60 text-[10px]">· {item.source}</span>
+                            </div>
+                          </div>
+                        )}
                         <div className="absolute bottom-2 right-2">
                           <NewsAiBot item={item} />
                         </div>
                       </div>
 
-                      {/* Tap to expand */}
+                      {/* Content */}
                       <button
-                        className="w-full text-left p-3.5 active:bg-muted/30 transition-colors"
+                        className="w-full text-left px-3.5 py-3 active:bg-muted/30 transition-colors"
                         onClick={() => setExpandedNews(isExpanded ? null : item.id)}
                       >
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-muted-foreground text-[10px] flex items-center gap-1">
-                            <Clock size={9} /> {item.time}
-                          </span>
-                          <span className="text-primary/60 text-[10px] font-medium truncate">{item.source}</span>
+                        {!isFeatured && (
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-muted-foreground text-[10px] flex items-center gap-1">
+                              <Clock size={9} /> {item.time}
+                            </span>
+                            <span className="text-primary/60 text-[10px] font-medium truncate">{item.source}</span>
+                          </div>
+                        )}
+                        {!isFeatured && (
+                          <p className="text-foreground font-semibold text-sm leading-snug">{item.title}</p>
+                        )}
+                        <div className="flex items-center justify-between mt-1.5">
+                          <p className={`text-muted-foreground text-xs line-clamp-1 flex-1 ${isFeatured ? "mt-0" : ""}`}>
+                            {item.summary?.slice(0, 80)}{item.summary?.length > 80 ? "…" : ""}
+                          </p>
                           <ChevronDown
                             size={13}
-                            className={`ml-auto text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
+                            className={`ml-2 text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
                           />
                         </div>
-                        <p className="text-foreground font-semibold text-sm leading-snug">{item.title}</p>
                       </button>
 
                       {/* Expanded body */}
-                      {isExpanded && (
-                        <div className="px-3.5 pb-3.5 pt-0 border-t border-border space-y-3">
-                          <p className="text-muted-foreground text-sm leading-relaxed mt-3">{item.summary}</p>
-                          <div className="flex items-center gap-2">
-                            {item.url && item.url !== "#" && (
-                              <button
-                                onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
-                                className="inline-flex items-center gap-1.5 text-primary text-xs font-semibold hover:text-primary/80 transition-colors active:scale-95"
-                              >
-                                Read more <ExternalLink size={11} />
-                              </button>
-                            )}
-                            <span className="flex-1" />
-                            <NewsAiBot item={item} />
-                          </div>
-                        </div>
-                      )}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.22 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-3.5 pb-3.5 pt-0 border-t border-border space-y-3">
+                              <p className="text-muted-foreground text-sm leading-relaxed mt-3">{item.summary}</p>
+                              <div className="flex items-center gap-2">
+                                {item.url && item.url !== "#" && (
+                                  <button
+                                    onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
+                                    className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors active:scale-95"
+                                  >
+                                    Read full story <ExternalLink size={11} />
+                                  </button>
+                                )}
+                                <span className="flex-1" />
+                                <NewsAiBot item={item} />
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 })}
-            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 text-center">
-              <Newspaper size={20} className="text-primary mx-auto mb-2" />
-              <p className="text-primary font-semibold text-sm">Live Agriculture News</p>
-              <p className="text-muted-foreground text-xs mt-0.5">Kenya agri-market news from online sources · refreshed every 30 min</p>
+            <div className="bg-muted/40 border border-border rounded-2xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Newspaper size={16} className="text-primary" />
+              </div>
+              <div>
+                <p className="text-foreground font-semibold text-xs">Kenya Agri-Market News</p>
+                <p className="text-muted-foreground text-[10px] mt-0.5">Sourced from online agriculture feeds · refreshed every 30 min</p>
+              </div>
             </div>
           </section>
         )}
 
         {activeSection === "watchlist" && (
           <section className="space-y-3">
-            {/* Grass-green watchlist header */}
+            {/* Watchlist header */}
             <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
               <div className="p-4 flex items-center justify-between">
                 <div>
                   <p className="text-green-300 text-[10px] font-bold uppercase tracking-widest mb-0.5">🌱 Season Watchlist</p>
                   <h2 className="text-white font-bold text-base leading-tight">Upcoming Crop Seasons</h2>
-                  <p className="text-white/60 text-xs mt-0.5">Commit funds before listings go live</p>
+                  <p className="text-white/60 text-xs mt-0.5">Save crops &amp; commit funds early</p>
                 </div>
-                {Object.values(committed).reduce((a, b) => a + b, 0) > 0 && (
-                  <div className="text-right">
-                    <p className="text-white/60 text-[10px]">Committed</p>
-                    <p className="text-green-300 font-bold text-sm">{formatKES(Object.values(committed).reduce((a, b) => a + b, 0))}</p>
-                  </div>
-                )}
+                <div className="text-right">
+                  <p className="text-white/60 text-[10px]">Bookmarked</p>
+                  <p className="text-green-300 font-bold text-sm">{watchlisted.size} crops</p>
+                  {Object.values(committed).reduce((a, b) => a + b, 0) > 0 && (
+                    <>
+                      <p className="text-white/50 text-[9px] mt-1">Committed</p>
+                      <p className="text-green-400 font-bold text-xs">{formatKES(Object.values(committed).reduce((a, b) => a + b, 0))}</p>
+                    </>
+                  )}
+                </div>
               </div>
+              {watchlisted.size === 0 && (
+                <div className="px-4 pb-3 flex items-center gap-2">
+                  <span className="text-white/50 text-[11px]">👆 Tap the bookmark on any crop below to track it</span>
+                </div>
+              )}
             </div>
-            {!isDemoAccount() && (
-              <div className="bg-muted/40 border border-border rounded-2xl p-6 text-center">
-                <BookmarkPlus size={28} className="text-muted-foreground mx-auto mb-2" />
-                <p className="text-foreground font-semibold text-sm">Your watchlist is empty</p>
-                <p className="text-muted-foreground text-xs mt-1">Browse the market and bookmark farms to add them here</p>
-              </div>
-            )}
-            {(isDemoAccount() ? WATCHLIST_CROPS : []).map(crop => (
-              <div key={crop.id} className="bg-card rounded-2xl border border-border overflow-hidden">
-                <div className="relative h-28">
-                  <img src={crop.image} alt={crop.name} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30" />
-                  <div className="absolute inset-0 p-3 flex flex-col justify-between">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-white font-bold text-lg">{crop.name}</p>
-                        <p className="text-white/70 text-xs">{crop.season}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-white/60 text-[9px]">Expected Return</p>
-                        <p className="text-green-400 font-bold text-base">{crop.expectedReturn}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${crop.demandColor}`}>{crop.demand} Demand</span>
-                      <span className="text-white/60 text-[9px]">{crop.farms} farms available</span>
-                      <RiskBadge level={getRiskLevel(crop.name, crop.change)} />
-                    </div>
-                  </div>
-                </div>
-                <div className="p-3 flex items-center gap-3">
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                    <div>
-                      <p className="text-muted-foreground text-[9px]">Planting Starts</p>
-                      <p className="text-foreground font-semibold text-xs">{crop.plantingStart}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground text-[9px]">Est. Harvest</p>
-                      <p className="text-foreground font-semibold text-xs">{crop.harvestEst}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => setWatchlisted(s => { const n = new Set(s); n.has(crop.id) ? n.delete(crop.id) : n.add(crop.id); return n; })}
-                      className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all active:scale-95 ${watchlisted.has(crop.id) ? "bg-primary border-primary" : "border-border"}`}>
-                      <BookmarkPlus size={14} className={watchlisted.has(crop.id) ? "text-white" : "text-muted-foreground"} />
-                    </button>
-                    {committed[crop.id] ? (
-                      <button
-                        onClick={() => { setCommitCrop(crop); setCommitInput(String(committed[crop.id])); setCommitOpen(true); }}
-                        className="flex items-center gap-1.5 bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-xl active:scale-95 transition-transform">
-                        <CheckCircle2 size={12} />
-                        {formatKES(committed[crop.id])}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => { setCommitCrop(crop); setCommitInput(""); setCommitOpen(true); }}
-                        className="bg-primary text-white text-xs font-semibold px-3 py-2 rounded-xl active:scale-95 transition-transform flex items-center gap-1">
-                        <DollarSign size={11} />
-                        Commit
-                      </button>
+
+            {/* All upcoming crop seasons — always visible */}
+            {WATCHLIST_CROPS.map(crop => {
+              const isWatchlisted = watchlisted.has(crop.id);
+              return (
+                <div key={crop.id} className={`bg-card rounded-2xl border overflow-hidden transition-all ${isWatchlisted ? "border-primary/40 shadow-md shadow-green-500/10" : "border-border"}`}>
+                  <div className="relative h-28">
+                    <img src={crop.image} alt={crop.name} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/75 to-black/30" />
+                    {isWatchlisted && (
+                      <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-primary via-green-400 to-primary" />
                     )}
+                    <div className="absolute inset-0 p-3 flex flex-col justify-between">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className="text-white font-bold text-base">{crop.name}</p>
+                            {isWatchlisted && (
+                              <span className="bg-primary/80 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">Watching</span>
+                            )}
+                          </div>
+                          <p className="text-white/70 text-[11px]">{crop.season}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-white/60 text-[9px]">Est. Return</p>
+                          <p className="text-green-400 font-bold text-base">{crop.expectedReturn}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${crop.demandColor}`}>{crop.demand} Demand</span>
+                        <span className="text-white/60 text-[9px]">{crop.farms} farms</span>
+                        <RiskBadge level={getRiskLevel(crop.name, crop.change)} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <div className="bg-muted/50 rounded-xl p-2 text-center">
+                        <p className="text-muted-foreground text-[8px] uppercase font-semibold">Planting</p>
+                        <p className="text-foreground font-bold text-[10px] mt-0.5">{crop.plantingStart}</p>
+                      </div>
+                      <div className="bg-muted/50 rounded-xl p-2 text-center">
+                        <p className="text-muted-foreground text-[8px] uppercase font-semibold">Harvest</p>
+                        <p className="text-foreground font-bold text-[10px] mt-0.5">{crop.harvestEst}</p>
+                      </div>
+                      <div className="bg-green-50 border border-green-100 rounded-xl p-2 text-center">
+                        <p className="text-muted-foreground text-[8px] uppercase font-semibold">Return</p>
+                        <p className="text-green-700 font-bold text-[10px] mt-0.5">{crop.expectedReturn}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setWatchlisted(s => {
+                            const n = new Set(s);
+                            n.has(crop.id) ? n.delete(crop.id) : n.add(crop.id);
+                            try { localStorage.setItem("investa_watchlist", JSON.stringify([...n])); } catch {}
+                            return n;
+                          });
+                        }}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${isWatchlisted ? "bg-primary border-primary text-white" : "border-border text-foreground"}`}>
+                        <BookmarkPlus size={13} />
+                        {isWatchlisted ? "Watching" : "Watch"}
+                      </button>
+                      {committed[crop.id] ? (
+                        <button
+                          onClick={() => { setCommitCrop(crop); setCommitInput(String(committed[crop.id])); setCommitOpen(true); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 text-white text-xs font-semibold py-2.5 rounded-xl active:scale-95 transition-transform">
+                          <CheckCircle2 size={13} />
+                          {formatKES(committed[crop.id])} committed
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => { setCommitCrop(crop); setCommitInput(""); setCommitOpen(true); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-foreground text-background text-xs font-semibold py-2.5 rounded-xl active:scale-95 transition-transform">
+                          <DollarSign size={13} />
+                          Commit Funds
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-start gap-3">
+              <span className="text-xl flex-shrink-0">💡</span>
+              <div>
+                <p className="text-green-800 font-semibold text-xs mb-1">Early Investor Advantage</p>
+                <p className="text-green-700 text-xs leading-relaxed">
+                  Investing at planting stage locks in better share prices before demand rises. Committed funds are reserved — no charges until the listing goes live.
+                </p>
               </div>
-            ))}
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-              <p className="text-green-700 font-semibold text-sm mb-1">💡 Planting Season Tip</p>
-              <p className="text-green-600 text-xs leading-relaxed">
-                Investing at the planting stage gives you exposure to the full season return of up to +28%. Early investors often get the best share prices before demand rises.
-              </p>
             </div>
           </section>
         )}
