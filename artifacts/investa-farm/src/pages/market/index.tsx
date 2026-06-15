@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import {
   useGetTopMovers,
@@ -26,16 +26,31 @@ import { PriceAlertModal } from "@/components/price-alert-modal";
 import { motion, AnimatePresence } from "framer-motion";
 import { AiSectionBot } from "@/components/ai-section-bot";
 import { AiMatchmaker } from "@/components/ai-matchmaker";
+import { WalletModal } from "@/components/wallet-modal";
 
-const CROPS = [
-  { name: "Maize",    change: 2.1  },
-  { name: "Tomatoes", change: -1.3 },
-  { name: "Avocado",  change: 0.8  },
-  { name: "Tea",      change: 1.4  },
-  { name: "Coffee",   change: -0.6 },
-  { name: "Beans",    change: 3.2  },
-  { name: "Wheat",    change: 0.5  },
-  { name: "Potatoes", change: -0.9 },
+const TICKER_ITEMS = [
+  { name: "Maize",     price: "4,200",  unit: "/bag",    change: 2.1,  statement: false },
+  { name: "Tomatoes",  price: "120",    unit: "/kg",     change: -1.3, statement: false },
+  { name: "Avocado",   price: "18,500", unit: "/100kg",  change: 0.8,  statement: false },
+  { name: "Tea",       price: "65",     unit: "/kg",     change: 1.4,  statement: false },
+  { name: "Coffee",    price: "680",    unit: "/kg",     change: -0.6, statement: false },
+  { name: "Beans",     price: "1,450",  unit: "/kg",     change: 3.2,  statement: false },
+  { name: "Wheat",     price: "3,900",  unit: "/bag",    change: 0.5,  statement: false },
+  { name: "Potatoes",  price: "2,800",  unit: "/bag",    change: -0.9, statement: false },
+  { name: "Onions",    price: "95",     unit: "/kg",     change: 1.8,  statement: false },
+  { name: "Rice",      price: "180",    unit: "/kg",     change: 0.3,  statement: false },
+  { name: "Sunflower", price: "4,100",  unit: "/bag",    change: -0.4, statement: false },
+  { name: "Sorghum",   price: "2,600",  unit: "/bag",    change: 1.1,  statement: false },
+];
+
+const MARKET_INSIGHTS = [
+  { text: "🔥 Nairobi maize demand surge — prices up 4.2% this week",  statement: true },
+  { text: "📊 KES 4.2M invested across 18 farms this month",            statement: true },
+  { text: "🌾 Long rains forecast — tea & coffee yields projected high", statement: true },
+  { text: "💰 Top performers: Avocado +22%, Coffee +18% ROI",           statement: true },
+  { text: "⚡ 3 new farm listings added — invest before shares run out", statement: true },
+  { text: "🌍 Kenya agri exports up 8% YoY — strong investor outlook",  statement: true },
+  { text: "☀️ Optimal planting season begins — book your shares now",   statement: true },
 ];
 
 function getNewsImage(item: { imageKey?: string; tag?: string; title?: string }): string {
@@ -129,23 +144,18 @@ function getRiskLevel(cropType: string, changePercent: number): RiskLevel {
 }
 
 function RiskBadge({ level }: { level: RiskLevel }) {
-  if (level === "High") {
-    return (
-      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
-        <AlertTriangle size={7} /> High Risk
-      </span>
-    );
-  }
-  if (level === "Moderate") {
-    return (
-      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
-        <Minus size={7} /> Moderate
-      </span>
-    );
-  }
+  const bars = level === "High" ? 5 : level === "Moderate" ? 3 : 2;
+  const barColor = level === "High" ? "#ef4444" : level === "Moderate" ? "#f59e0b" : "#16a34a";
+  const textClass = level === "High" ? "text-red-600" : level === "Moderate" ? "text-amber-600" : "text-green-700";
   return (
-    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
-      <ShieldCheck size={7} /> Low Risk
+    <span className={`inline-flex items-center gap-1 ${textClass}`}>
+      <span className="flex gap-[2px] items-end">
+        {[1,2,3,4,5].map(i => (
+          <span key={i} className="w-[3px] rounded-[1px] flex-shrink-0"
+            style={{ height: 3 + i * 1.5, background: i <= bars ? barColor : "rgba(0,0,0,0.12)" }} />
+        ))}
+      </span>
+      <span className="text-[9px] font-bold">{level}</span>
     </span>
   );
 }
@@ -190,6 +200,8 @@ export default function MarketHome() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
   const [matcherOpen, setMatcherOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [statModal, setStatModal] = useState<"turnover" | "return" | "listings" | null>(null);
   const [calcListing, setCalcListing] = useState<any>(null);
   const [alertListing, setAlertListing] = useState<any>(null);
   const token = getToken();
@@ -246,59 +258,108 @@ export default function MarketHome() {
 
   const walletBalance = walletData?.wallet?.balance;
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
-  const tickerItems = [...CROPS, ...CROPS];
+  // Build rich ticker: interleave commodity prices with market insights
+  const tickerItems = (() => {
+    const result: Array<{ type: "price"; name: string; price: string; unit: string; change: number } | { type: "insight"; text: string }> = [];
+    const prices = TICKER_ITEMS.map(t => ({ type: "price" as const, ...t }));
+    const insights = MARKET_INSIGHTS.map(i => ({ type: "insight" as const, ...i }));
+    for (let i = 0; i < prices.length; i++) {
+      result.push(prices[i]);
+      if (i % 3 === 2 && insights[Math.floor(i / 3)]) result.push(insights[Math.floor(i / 3)]);
+    }
+    return [...result, ...result]; // double for seamless loop
+  })();
 
   const handleBuyClick = (e: React.MouseEvent, listing: Listing) => {
     e.preventDefault(); e.stopPropagation();
     setSelectedListing(listing); setInvestOpen(true);
   };
 
+  const STAT_DETAILS = {
+    turnover: {
+      title: "24h Market Turnover",
+      icon: "💰",
+      val: formatAmount(summary?.totalVolumeKes ?? 0),
+      color: "from-emerald-600 to-green-500",
+      description: "Total KES traded across all farm listings in the last 24 hours. Includes primary market purchases, secondary market trades, and exit redemptions.",
+      bullets: [
+        "High turnover signals strong investor demand",
+        "Calculated across all active listings",
+        "Updated in real-time as trades execute",
+      ],
+    },
+    return: {
+      title: "Average Return",
+      icon: "📈",
+      val: `+${summary?.averageReturn ?? "0"}%`,
+      color: "from-blue-600 to-sky-500",
+      description: "Weighted average projected annual return across all active farm listings. Powered by AI harvest forecast models that factor in crop type, season length, and regional data.",
+      bullets: [
+        "Based on AI-driven revenue forecasting",
+        "Weighted by total listing value",
+        "Includes dividend + capital appreciation",
+      ],
+    },
+    listings: {
+      title: "Active Listings",
+      icon: "🌾",
+      val: String(summary?.totalListings ?? 0),
+      color: "from-amber-600 to-orange-500",
+      description: "Number of active farm investment listings currently open for purchase. Spans primary market (new issues from farmers) and secondary market (investor resale shares).",
+      bullets: [
+        "Primary: new farm season shares",
+        "Secondary: investor-to-investor resale",
+        "Listings close when fully subscribed",
+      ],
+    },
+  } as const;
+
   return (
     <div className="app-shell pb-20 page-enter" data-testid="market-home">
-      <div className="bg-background border-b border-border relative overflow-hidden pt-12 pb-4 px-5" data-tour="market-header">
-        <div className="flex items-center justify-between mb-3">
+      {/* Market Header */}
+      <div className="relative overflow-hidden pt-12 pb-0 px-5 border-b border-border bg-background" data-tour="market-header">
+        {/* Subtle dot grid decoration */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle, #16a34a 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+        <div className="absolute -top-12 -right-8 w-36 h-36 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute -bottom-4 -left-4 w-24 h-24 rounded-full bg-primary/5 blur-2xl" />
+
+        <div className="relative flex items-center justify-between mb-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" />
               <span className="inline-flex items-center gap-1 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-green-600 text-[9px] font-bold uppercase tracking-wider">Live</span>
+                <span className="text-green-700 text-[9px] font-bold uppercase tracking-wider">Live</span>
               </span>
             </div>
             <h1 className="text-foreground text-xl font-bold flex items-center gap-1.5">
               Live Market <TrendingUp size={16} className="text-primary" />
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            {walletBalance !== undefined && (
-              <button
-                data-tour="wallet-btn"
-                onClick={() => setLocation("/profile")}
-                className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-3 py-1.5"
-              >
-                <Wallet size={12} className="text-primary" />
-                <span className="text-primary text-xs font-bold">{formatAmount(parseFloat(walletBalance ?? "0"))}</span>
-              </button>
-            )}
+          <div className="flex items-center gap-1.5">
+            {/* Wallet — tap to top up */}
             <button
-              onClick={handleRefresh}
-              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center border border-border"
-              title="Refresh market"
+              data-tour="wallet-btn"
+              onClick={() => setWalletOpen(true)}
+              className="flex items-center gap-1.5 bg-primary text-white rounded-full px-3 py-1.5 shadow-sm shadow-primary/30 active:scale-95 transition-transform"
             >
-              <RefreshCw size={15} className={`text-foreground ${refreshing ? "animate-spin" : ""}`} />
+              <Wallet size={12} className="text-white" />
+              <span className="text-white text-xs font-bold">{walletBalance !== undefined ? formatAmount(parseFloat(walletBalance ?? "0")) : "Wallet"}</span>
+              <ArrowUpRight size={11} className="text-white/80" />
             </button>
-            <button
-              onClick={() => setLocation("/market/map")}
-              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center border border-border"
-              title="Farm Map"
-            >
-              <Map size={17} className="text-foreground" />
+            <button onClick={handleRefresh}
+              className="w-8 h-8 rounded-full bg-card flex items-center justify-center border border-border shadow-sm"
+              title="Refresh market">
+              <RefreshCw size={14} className={`text-foreground ${refreshing ? "animate-spin" : ""}`} />
             </button>
-            <button
-              onClick={() => setNotifOpen(true)}
-              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center relative border border-border"
-            >
-              <Bell size={17} className="text-foreground" />
+            <button onClick={() => setLocation("/market/map")}
+              className="w-8 h-8 rounded-full bg-card flex items-center justify-center border border-border shadow-sm"
+              title="Farm Map">
+              <Map size={15} className="text-foreground" />
+            </button>
+            <button onClick={() => setNotifOpen(true)}
+              className="w-8 h-8 rounded-full bg-card flex items-center justify-center relative border border-border shadow-sm">
+              <Bell size={15} className="text-foreground" />
               {unreadCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[7px] text-white font-bold flex items-center justify-center">
                   {Math.min(unreadCount, 9)}
@@ -308,36 +369,93 @@ export default function MarketHome() {
           </div>
         </div>
 
+        {/* Stat cards — clickable */}
         {summary && (
           <div className="relative grid grid-cols-3 gap-2 mb-3">
-            {[
-              { label: "Turnover",   val: formatAmount((summary.totalVolumeKes ?? 0)), icon: "💰" },
-              { label: "Avg Return", val: `+${summary.averageReturn}%`,                icon: "📈" },
-              { label: "Listings",   val: String(summary.totalListings),               icon: "🌾" },
-            ].map(({ label, val, icon }) => (
-              <div key={label} className="bg-primary/5 rounded-2xl p-2.5 text-center border border-primary/15">
-                <p className="text-[11px] mb-0.5">{icon}</p>
-                <p className="text-foreground font-bold text-sm">{val}</p>
-                <p className="text-muted-foreground text-[9px] mt-0.5 font-medium">{label}</p>
-              </div>
-            ))}
+            {(["turnover", "return", "listings"] as const).map((key) => {
+              const d = STAT_DETAILS[key];
+              const isUp = key === "return" ? true : key === "listings" ? (summary.totalListings ?? 0) > 0 : (summary.totalVolumeKes ?? 0) > 0;
+              return (
+                <button key={key} onClick={() => setStatModal(key)}
+                  className="bg-card rounded-2xl p-2.5 text-center border border-border shadow-sm active:scale-95 transition-transform hover:border-primary/30 hover:shadow-md hover:shadow-primary/10 group">
+                  <p className="text-[12px] mb-0.5">{d.icon}</p>
+                  <p className={`font-bold text-sm ${key === "return" ? "text-green-600" : "text-foreground"}`}>{d.val}</p>
+                  <p className="text-muted-foreground text-[9px] mt-0.5 font-medium">{key === "turnover" ? "Turnover" : key === "return" ? "Avg Return" : "Listings"}</p>
+                  <p className="text-primary/60 text-[8px] mt-0.5 group-hover:text-primary transition-colors">tap for details</p>
+                </button>
+              );
+            })}
           </div>
         )}
 
-        <div className="relative overflow-hidden rounded-xl bg-muted border border-border">
+        {/* Ticker — rich with KES commodity prices + market insights */}
+        <div className="relative overflow-hidden rounded-xl mb-0 border-t border-border" style={{ background: "rgba(0,0,0,0.03)" }}>
           <div className="flex ticker-track whitespace-nowrap py-2">
-            {tickerItems.map((c, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 px-4 text-xs font-medium">
-                <span className="text-foreground/80">{c.name}</span>
-                <span className={c.change >= 0 ? "text-green-600 font-bold" : "text-red-500 font-bold"}>
-                  {formatChange(c.change)}
+            {tickerItems.map((item, i) => (
+              item.type === "price" ? (
+                <span key={i} className="inline-flex items-center gap-1 px-3.5 text-xs flex-shrink-0">
+                  <span className="font-bold text-foreground/90">{item.name}</span>
+                  <span className="text-muted-foreground text-[10px]">KES {item.price}{item.unit}</span>
+                  <span className={`font-bold text-[10px] ${item.change >= 0 ? "text-green-600" : "text-red-500"}`}>
+                    {item.change >= 0 ? "▲" : "▼"}{Math.abs(item.change)}%
+                  </span>
+                  <span className="text-border/50 ml-1 text-[10px]">·</span>
                 </span>
-                <span className="text-border ml-1">|</span>
-              </span>
+              ) : (
+                <span key={i} className="inline-flex items-center px-4 text-[10px] font-medium text-amber-700 bg-amber-50/60 border-l border-r border-amber-200/50 flex-shrink-0">
+                  {item.text}
+                  <span className="text-border/50 ml-3 text-[10px]">·</span>
+                </span>
+              )
             ))}
           </div>
         </div>
       </div>
+
+      {/* Stat detail bottom sheet */}
+      <AnimatePresence>
+        {statModal && (() => {
+          const d = STAT_DETAILS[statModal];
+          return (
+            <motion.div className="fixed inset-0 z-50 flex items-end"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setStatModal(null)} />
+              <motion.div className="relative w-full bg-card rounded-t-3xl overflow-hidden shadow-2xl"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}>
+                {/* gradient top bar */}
+                <div className={`h-1.5 bg-gradient-to-r ${d.color}`} />
+                <div className="px-5 pt-4 pb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${d.color} flex items-center justify-center shadow-sm`}>
+                        <span className="text-xl">{d.icon}</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-foreground text-base">{d.title}</p>
+                        <p className={`font-extrabold text-2xl mt-0 leading-none ${statModal === "return" ? "text-green-600" : "text-foreground"}`}>{d.val}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setStatModal(null)}
+                      className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                      <X size={14} className="text-muted-foreground" />
+                    </button>
+                  </div>
+                  <p className="text-muted-foreground text-sm leading-relaxed mb-4">{d.description}</p>
+                  <div className="space-y-2">
+                    {d.bullets.map((b, i) => (
+                      <div key={i} className="flex items-center gap-2.5 bg-muted/50 rounded-xl px-3 py-2.5">
+                        <span className={`w-2 h-2 rounded-full bg-gradient-to-br ${d.color} flex-shrink-0`} />
+                        <p className="text-foreground text-xs font-medium">{b}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
 
       {/* Section tabs */}
       <div className="px-4 pt-3">
@@ -489,16 +607,6 @@ export default function MarketHome() {
                   </div>
                 </div>
               </Link>
-            </div>
-
-            {/* Risk level legend */}
-            <div className="bg-card border border-border rounded-2xl p-3 flex items-center gap-4">
-              <p className="text-muted-foreground text-[10px] font-medium flex-shrink-0">Risk levels:</p>
-              <div className="flex items-center gap-2 flex-wrap">
-                <RiskBadge level="Low" />
-                <RiskBadge level="Moderate" />
-                <RiskBadge level="High" />
-              </div>
             </div>
 
             {/* Featured Listings — 2 visible, climbing animation */}
@@ -986,6 +1094,7 @@ export default function MarketHome() {
       <NotificationPrompt storageKey="investor_notif_v1" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <AiMatchmaker open={matcherOpen} onClose={() => setMatcherOpen(false)} />
+      <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
     </div>
   );
 }
