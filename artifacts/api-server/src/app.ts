@@ -25,17 +25,43 @@ app.use(
     },
   }),
 );
-const allowedOrigins = process.env.ALLOWED_ORIGINS
+// Build the allowed-origins list.
+// • ALLOWED_ORIGINS env var: comma-separated list (set on Render/Railway).
+// • Production fallback: mirror any origin back (frontend+backend share the
+//   same domain, so real cross-origin abuse still requires a valid JWT).
+// • Dev fallback: localhost ports used by Vite / the dev workflow.
+const allowedOriginsEnv = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-  : ["http://localhost:5000", "http://localhost:3000"];
+  : null;
 
 const corsMiddleware = cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS blocked: ${origin}`));
+    // No Origin header → same-origin curl/Postman/server-side call → allow.
+    if (!origin) return callback(null, true);
+
+    // Explicit list set via env var → honour it exactly.
+    if (allowedOriginsEnv) {
+      return allowedOriginsEnv.includes(origin)
+        ? callback(null, true)
+        : callback(new Error(`CORS blocked: ${origin}`));
     }
+
+    // Production with no explicit list → echo origin back.
+    // Auth is JWT-based so this doesn't weaken security.
+    if (process.env.NODE_ENV === "production") {
+      return callback(null, true);
+    }
+
+    // Development → allow localhost on common Vite / API ports.
+    const devOrigins = [
+      "http://localhost:5000",
+      "http://localhost:3000",
+      "http://localhost:19899",
+      "http://localhost:4173",
+    ];
+    return devOrigins.includes(origin)
+      ? callback(null, true)
+      : callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
 });
