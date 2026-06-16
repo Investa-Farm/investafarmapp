@@ -212,7 +212,7 @@ export default function CooperativeAuth() {
 
                 <div className="mt-6 pt-4 border-t border-border">
                   <button
-                    onClick={() => { setSubType("farmers_connect"); setEmail("demo.coop@investafarm.com"); setPassword("demo1234"); setTab("signin"); }}
+                    onClick={() => { setSubType("farmers_connect"); setEmail("demo.coop@investafarm.com"); setPassword("password123"); setTab("signin"); }}
                     className="w-full py-2.5 border border-[#16a34a]/30 rounded-xl text-[#16a34a] text-xs font-semibold bg-[#16a34a]/5 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
                     🤝 Try Demo Cooperative Account
                   </button>

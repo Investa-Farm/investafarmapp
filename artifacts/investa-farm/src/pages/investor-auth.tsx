@@ -164,7 +164,7 @@ export default function InvestorAuth() {
                   <IPwField label="Password" value={password} set={setPassword} show={showPw} toggle={() => setShowPw(s => !s)} />
                   <button type="button" className="w-full text-right text-xs text-primary font-medium -mt-2 pr-1">Forgot password?</button>
                   <SubmitBtn loading={login.isPending} label="Sign In" />
-                  <button type="button" onClick={() => { setEmail("demo.investor@investafarm.com"); setPassword("demo1234"); }}
+                  <button type="button" onClick={() => { setEmail("demo.investor@investafarm.com"); setPassword("password123"); }}
                     className="w-full py-2.5 border border-green-200 rounded-xl text-green-700 text-xs font-semibold bg-green-50 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
                     📈 Try Demo Investor Account
                   </button>

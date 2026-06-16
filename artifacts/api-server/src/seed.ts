@@ -5,9 +5,9 @@ import { eq, and } from "drizzle-orm";
 const DEMO_USERS = [
   { email: "john.farmer@investafarm.com",   password: "password123", name: "John Kamau",       role: "farmer"      as const },
   { email: "david.investor@investafarm.com",password: "password123", name: "David Mwangi",     role: "investor"    as const },
-  { email: "demo.farmer@investafarm.com",   password: "demo1234",    name: "Demo Farmer",       role: "farmer"      as const },
-  { email: "demo.investor@investafarm.com", password: "demo1234",    name: "Demo Investor",     role: "investor"    as const },
-  { email: "demo.coop@investafarm.com",     password: "demo1234",    name: "Demo Coop",         role: "cooperative" as const },
+  { email: "demo.farmer@investafarm.com",   password: "password123", name: "Demo Farmer",       role: "farmer"      as const },
+  { email: "demo.investor@investafarm.com", password: "password123", name: "Demo Investor",     role: "investor"    as const },
+  { email: "demo.coop@investafarm.com",     password: "password123", name: "Demo Coop",         role: "cooperative" as const },
   { email: "admin@investafarm.com",         password: "admin2024!",  name: "Platform Admin",    role: "admin"       as const },
   { email: "grace.farmer@investafarm.com",  password: "password123", name: "Grace Wanjiku",     role: "farmer"      as const },
   { email: "peter.farmer@investafarm.com",  password: "password123", name: "Peter Otieno",      role: "farmer"      as const },
@@ -136,9 +136,12 @@ export async function seedDemoUsers(log: (msg: string) => void = console.log) {
       const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, u.email));
       if (existing) {
         createdUsers[u.email] = existing.id;
-        // Ensure all demo users are verified (fix any existing unverified demo accounts)
+        // Ensure all demo users are verified and have the correct password
+        const passwordHash = await bcrypt.hash(u.password, 10);
+        await db.update(usersTable)
+          .set({ emailVerified: true, passwordHash })
+          .where(eq(usersTable.email, u.email));
         if (!existing.emailVerified) {
-          await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.email, u.email));
           log(`[seed] Auto-verified demo account: ${u.email}`);
         }
       } else {

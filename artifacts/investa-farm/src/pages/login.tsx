@@ -188,7 +188,7 @@ export default function Login() {
 
         <div className="mt-4 bg-primary/5 border border-primary/20 rounded-xl p-4">
           <p className="text-muted-foreground text-xs text-center leading-relaxed">
-            Demo: <strong className="text-foreground">john.farmer@investafarm.com</strong> (farmer) or <strong className="text-foreground">david.investor@investafarm.com</strong> — password <strong className="text-foreground">password123</strong>
+            Demo: <strong className="text-foreground">john.farmer@investafarm.com</strong> (farmer) or <strong className="text-foreground">david.investor@investafarm.com</strong> (investor) — password <strong className="text-foreground">password123</strong>
           </p>
         </div>
       </div>
