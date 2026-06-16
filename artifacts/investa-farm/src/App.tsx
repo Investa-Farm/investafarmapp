@@ -16,6 +16,8 @@ import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Onboarding from "@/pages/onboarding";
 import VerifyOtp from "@/pages/verify-otp";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 
 import MarketHome from "@/pages/market/index";
 import PrimaryMarket from "@/pages/market/primary";
@@ -198,6 +200,12 @@ function Router() {
       </Route>
       <Route path="/verify-otp">
         <VerifyOtp />
+      </Route>
+      <Route path="/forgot-password">
+        <ForgotPassword />
+      </Route>
+      <Route path="/reset-password">
+        <ResetPassword />
       </Route>
 
       {/* Investor routes */}

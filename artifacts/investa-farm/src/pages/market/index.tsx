@@ -1271,6 +1271,17 @@ export default function MarketHome() {
         listing={alertListing}
       />
 
+      {/* Investment tips & disclaimer */}
+      <div className="mx-4 mb-4 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+        <p className="text-amber-800 text-xs font-bold mb-2 flex items-center gap-1.5">⚠️ Investment Notice</p>
+        <ul className="space-y-1.5">
+          <li className="text-amber-700 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>All farm investments carry risk. Returns are not guaranteed.</li>
+          <li className="text-amber-700 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Diversify across 3+ farms to reduce exposure to a single crop.</li>
+          <li className="text-amber-700 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Primary market: 1.5% fee · Secondary market: 0.5% broker fee.</li>
+          <li className="text-amber-700 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Exit windows: Wide Season (30–60 days) or Full Season (~6 months).</li>
+        </ul>
+      </div>
+
       <BottomNav role="investor" />
       <AppTour role="investor" onAskAI={q => { setAiQuestion(q); }} />
 

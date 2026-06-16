@@ -163,7 +163,7 @@ export default function FarmerAuth() {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <Field label="Email address" id="email" type="email" value={email} set={setEmail} placeholder="you@example.com" icon={<Mail size={15} />} />
                   <PwField label="Password" value={password} set={setPassword} show={showPw} toggle={() => setShowPw(s => !s)} />
-                  <button type="button" className="w-full text-right text-xs text-green-600 font-medium -mt-2 pr-1">Forgot password?</button>
+                  <a href="/forgot-password" className="w-full text-right text-xs text-green-600 font-medium -mt-2 pr-1 block">Forgot password?</a>
                   <SubmitBtn loading={login.isPending} label="Sign In" />
                   <button type="button" onClick={() => { setEmail("demo.farmer@investafarm.com"); setPassword("password123"); }}
                     className="w-full py-2.5 border border-green-200 rounded-xl text-green-700 text-xs font-semibold bg-green-50 active:scale-95 transition-transform flex items-center justify-center gap-1.5">

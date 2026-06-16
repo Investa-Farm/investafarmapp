@@ -352,6 +352,17 @@ export default function Profile() {
         </p>
       </div>
 
+      {/* Account security tips */}
+      <div className="mx-4 mb-4 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+        <p className="text-slate-700 text-xs font-bold mb-2 flex items-center gap-1.5">🔒 Account Security</p>
+        <ul className="space-y-1.5">
+          <li className="text-slate-600 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Use a strong, unique password — at least 8 characters with numbers and symbols.</li>
+          <li className="text-slate-600 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Keep your email verified — it's how we send dividend notices and security alerts.</li>
+          <li className="text-slate-600 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Complete KYC to unlock full withdrawal and trading limits.</li>
+          <li className="text-slate-600 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Never share your password or OTP codes with anyone, including support staff.</li>
+        </ul>
+      </div>
+
       <BottomNav role="investor" />
       <InvestorKycModal open={kycOpen} onClose={() => setKycOpen(false)} onVerified={() => setKycOpen(false)} />
 

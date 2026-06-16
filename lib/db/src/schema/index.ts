@@ -23,3 +23,4 @@ export * from "./order_book";
 export * from "./watchlist";
 export * from "./stellar_accounts";
 export * from "./voucher_orders";
+export * from "./password_reset_tokens";

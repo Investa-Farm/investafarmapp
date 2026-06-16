@@ -920,6 +920,17 @@ export default function Portfolio() {
         })()}
       </AnimatePresence>
 
+      {/* Portfolio tips */}
+      <div className="mx-4 mb-4 bg-primary/5 border border-primary/20 rounded-2xl p-4">
+        <p className="text-primary text-xs font-bold mb-2 flex items-center gap-1.5">📊 Portfolio Tips</p>
+        <ul className="space-y-1.5">
+          <li className="text-muted-foreground text-xs flex items-start gap-1.5"><span className="text-primary mt-0.5 flex-shrink-0">•</span>Hold shares across different crop types to balance seasonal risks.</li>
+          <li className="text-muted-foreground text-xs flex items-start gap-1.5"><span className="text-primary mt-0.5 flex-shrink-0">•</span>Reinvest dividends automatically via the Reinvestment Settings.</li>
+          <li className="text-muted-foreground text-xs flex items-start gap-1.5"><span className="text-primary mt-0.5 flex-shrink-0">•</span>Monitor farm updates regularly — active farmers post better returns.</li>
+          <li className="text-muted-foreground text-xs flex items-start gap-1.5"><span className="text-primary mt-0.5 flex-shrink-0">•</span>Expected returns: <strong className="text-foreground">10–28% annually</strong> depending on crop and season.</li>
+        </ul>
+      </div>
+
       <BottomNav role="investor" />
     </div>
   );

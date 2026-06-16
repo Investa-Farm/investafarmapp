@@ -165,6 +165,10 @@ export default function Login() {
               </div>
             </div>
 
+            <div className="text-right -mt-2">
+              <a href="/forgot-password" className="text-xs text-primary font-medium hover:underline">Forgot password?</a>
+            </div>
+
             <button
               data-testid="button-login"
               type="submit"

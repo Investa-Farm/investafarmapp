@@ -278,6 +278,46 @@ export async function sendFirstInvestmentEmail(
 }
 
 // ─── OTP EMAIL ───────────────────────────────────────────────────────────────
+export async function sendPasswordResetEmail(to: string, name: string, resetUrl: string): Promise<void> {
+  const transport = createTransport();
+  if (!transport) {
+    console.log(`[EMAIL] Password reset for ${to}: ${resetUrl} (SMTP not configured)`);
+    return;
+  }
+
+  const content = `
+    <tr>
+      <td style="padding:40px 40px 32px;">
+        <h1 style="color:#111827;font-size:24px;font-weight:800;margin:0 0 8px 0;">Reset your password 🔑</h1>
+        <p style="color:#6b7280;font-size:15px;line-height:1.6;margin:0 0 28px 0;">Hi <strong style="color:#111827;">${name}</strong>, we received a request to reset your Investa Farm password. Click the button below to choose a new password.</p>
+
+        <div style="text-align:center;margin:0 0 28px 0;">
+          <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#16a34a,#15803d);color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:14px;box-shadow:0 4px 14px rgba(22,163,74,0.35);">
+            Reset Password
+          </a>
+        </div>
+
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:16px;margin:0 0 24px 0;">
+          <p style="color:#166534;font-size:13px;margin:0 0 6px 0;">🔗 Or copy this link into your browser:</p>
+          <p style="color:#15803d;font-size:12px;word-break:break-all;margin:0;font-family:Courier,monospace;">${resetUrl}</p>
+        </div>
+
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px;margin:0 0 24px 0;">
+          <p style="color:#92400e;font-size:13px;margin:0;">⏱ <strong>This link expires in 1 hour.</strong> If you didn't request a password reset, you can safely ignore this email — your account is not at risk.</p>
+        </div>
+
+        <p style="color:#9ca3af;font-size:13px;margin:0;">For your security, never share this link with anyone.</p>
+      </td>
+    </tr>`;
+
+  await transport.sendMail({
+    from: from("Investa Farm Security"),
+    to,
+    subject: `Reset your Investa Farm password`,
+    html: emailWrapper(content, "Reset your Investa Farm password — link expires in 1 hour."),
+  });
+}
+
 export async function sendOtpEmail(to: string, name: string, code: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
