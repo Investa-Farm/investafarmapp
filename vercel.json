@@ -4,6 +4,9 @@
   "buildCommand": "pnpm --filter @workspace/api-zod run build && pnpm --filter @workspace/api-client-react run build && BASE_PATH=/ pnpm --filter @workspace/investa-farm run build",
   "outputDirectory": "artifacts/investa-farm/dist/public",
   "framework": null,
+  "env": {
+    "VITE_API_URL": "https://bitcoin-chama.onrender.com"
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
