@@ -1,23 +1,27 @@
 import nodemailer from "nodemailer";
 
-const SMTP_USER = process.env.GOOGLE_SMTP_USER;
-const SMTP_PASS = process.env.GOOGLE_SMTP_PASS;
 const APP_NAME = "Investa Farm";
 const GRASS_GREEN = "#16a34a";
 const GRASS_DARK = "#14532d";
 const GRASS_MID = "#166534";
 
 function from(label: string) {
-  return `"${label}" <${SMTP_USER}>`;
+  return `"${label}" <${process.env.GOOGLE_SMTP_USER ?? ""}>`;
 }
 
 function createTransport() {
-  if (!SMTP_USER || !SMTP_PASS) return null;
+  const user = process.env.GOOGLE_SMTP_USER;
+  const pass = process.env.GOOGLE_SMTP_PASS;
+  if (!user || !pass) {
+    console.warn("[EMAIL] SMTP not configured — set GOOGLE_SMTP_USER and GOOGLE_SMTP_PASS secrets to enable emails");
+    return null;
+  }
   return nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 465,
     secure: true,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false },
   });
 }
 

@@ -48,10 +48,6 @@ function UploadPopup({
       setStream(s);
       if (videoRef.current) {
         videoRef.current.srcObject = s;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch(() => {});
-          setCameraReady(true);
-        };
       }
     } catch {
       setCameraReady(false);
@@ -165,6 +161,8 @@ function UploadPopup({
                       muted
                       className="w-full object-cover"
                       style={{ transform: "scaleX(-1)", minHeight: 220, display: "block" }}
+                      onLoadedMetadata={() => { videoRef.current?.play().catch(() => {}); setCameraReady(true); }}
+                      onCanPlay={() => setCameraReady(true)}
                     />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="w-28 h-36 rounded-[50%] border-2 border-white/70" style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.35)" }} />

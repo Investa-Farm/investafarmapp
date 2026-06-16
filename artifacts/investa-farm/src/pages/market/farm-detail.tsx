@@ -227,13 +227,14 @@ export default function FarmDetail() {
   const token = getToken();
 
   const { data: farm, isLoading } = useGetFarm(farmId, {
-    query: { enabled: !!farmId, queryKey: getGetFarmQueryKey(farmId) },
+    query: { enabled: !!farmId, queryKey: getGetFarmQueryKey(farmId), staleTime: 3 * 60 * 1000 },
   });
   const { data: primaryListings } = useListPrimaryMarket();
 
   const { data: growth } = useQuery<GrowthData>({
     queryKey: ["farm-growth", farmId],
     enabled: !!farmId,
+    staleTime: 3 * 60 * 1000,
     queryFn: async () => {
       const r = await fetch(`/api/farmer/growth/${farmId}`, { headers: { Authorization: `Bearer ${token}` } });
       return r.json();
@@ -636,7 +637,7 @@ export default function FarmDetail() {
 
       {/* Floating Invest Now CTA */}
       {listing && (
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-40">
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50">
           <div className="bg-background/95 backdrop-blur-md border-t border-border px-4 pt-3 pb-8 shadow-2xl">
             <div className="flex items-center justify-between mb-2.5">
               <div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
@@ -39,6 +39,19 @@ export default function InvestorWallet() {
   const [success, setSuccess] = useState<string | null>(null);
   const [paystackRef, setPaystackRef] = useState<string | null>(null);
   const [paystackVerifying, setPaystackVerifying] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlRef = params.get("reference") ?? params.get("trxref");
+    const localRef = localStorage.getItem("paystack_pending_ref");
+    const ref = urlRef ?? localRef;
+    if (ref) {
+      localStorage.removeItem("paystack_pending_ref");
+      setPaystackRef(ref);
+      setModal("paystack");
+      if (urlRef) window.history.replaceState({}, "", "/wallet");
+    }
+  }, []);
   const [stellarCopied, setStellarCopied] = useState(false);
   const { currency, setCurrency, formatAmount } = useCurrency();
 
@@ -99,8 +112,8 @@ export default function InvestorWallet() {
       return r.json();
     },
     onSuccess: (data) => {
-      setPaystackRef(data.reference);
-      window.open(data.authorizationUrl, "_blank", "width=600,height=700");
+      localStorage.setItem("paystack_pending_ref", data.reference);
+      window.location.href = data.authorizationUrl;
     },
   });
 

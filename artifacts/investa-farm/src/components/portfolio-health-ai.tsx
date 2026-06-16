@@ -51,34 +51,19 @@ async function fetchHealthAnalysis(holdings: Holding[], summary: Summary): Promi
     ? ((summary.totalValue - summary.totalInvested) / summary.totalInvested * 100).toFixed(1)
     : "0";
 
-  const prompt = `You are a portfolio analyst for Investa Farm Kenya.
-Investor portfolio summary:
-- Total value: KES ${summary.totalValue.toLocaleString()}
-- Total invested: KES ${summary.totalInvested.toLocaleString()}
-- Total return: ${returnPct}%
-- Holdings: ${summary.holdings} farms
-- Crop types: ${diversification} different crops (${[...new Set(holdings.map(h => h.cropType))].join(", ")})
-- Winners: ${gainers}, Losers: ${losers}
-- Today change: ${summary.todayReturnPercent}%
-
-Score this portfolio 1-100 where 100=perfect. Reply ONLY with valid JSON (no markdown):
-{
-  "score": 78,
-  "headline": "8-word portfolio health summary",
-  "topRisk": "1 sentence about the biggest risk to watch",
-  "topOpportunity": "1 sentence about the best opportunity",
-  "action": "1 clear action the investor should take this week"
-}`;
+  const cropList = [...new Set(holdings.map(h => h.cropType))].join(", ");
+  const contextData = `Kenyan farm portfolio: ${summary.holdings} farms, value KES ${Math.round(summary.totalValue).toLocaleString()}, invested KES ${Math.round(summary.totalInvested).toLocaleString()}, return ${returnPct}%, crops: ${cropList}, winners ${gainers}/losers ${losers}, today ${summary.todayReturnPercent.toFixed(1)}%`;
+  const scoreMessage = `Score this farm portfolio 1-100. Reply ONLY with JSON (no markdown): {"score":75,"headline":"8-word health summary","topRisk":"one risk sentence","topOpportunity":"one opportunity sentence","action":"one action this week"}`;
 
   try {
     const r = await fetch("/api/ai/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ message: scoreMessage, context: contextData }),
     });
     if (!r.ok) throw new Error("AI unavailable");
     const d = await r.json();
-    const raw: string = d.message ?? d.content ?? d.reply ?? "";
+    const raw: string = d.reply ?? d.message ?? d.content ?? "";
     const json = raw.match(/\{[\s\S]*\}/)?.[0] ?? "";
     const parsed = JSON.parse(json);
     return { ...parsed, grade: scoreToGrade(parsed.score) };

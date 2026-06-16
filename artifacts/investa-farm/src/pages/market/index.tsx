@@ -295,15 +295,15 @@ export default function MarketHome() {
     refetchInterval: 5 * 60 * 1000,
   });
 
-  // Build rich ticker: live prices for real users, static data for demo accounts
+  // Build rich ticker: live prices for real users, static fallback only for demo accounts
   const tickerItems = (() => {
     const result: Array<{ type: "price"; name: string; price: string; unit: string; change: number } | { type: "insight"; text: string }> = [];
-    const priceSource = (!isDemo && liveTickerData?.prices?.length)
-      ? liveTickerData.prices
-      : TICKER_ITEMS;
-    const insightSource = (!isDemo && liveTickerData?.insights?.length)
-      ? liveTickerData.insights.map(text => ({ text }))
-      : MARKET_INSIGHTS;
+    const priceSource = isDemo
+      ? TICKER_ITEMS
+      : (liveTickerData?.prices?.length ? liveTickerData.prices : []);
+    const insightSource = isDemo
+      ? MARKET_INSIGHTS
+      : (liveTickerData?.insights?.length ? liveTickerData.insights.map(text => ({ text })) : []);
     const prices = priceSource.map(t => ({ type: "price" as const, ...t }));
     const insights = insightSource.map(i => ({ type: "insight" as const, ...i }));
     for (let i = 0; i < prices.length; i++) {

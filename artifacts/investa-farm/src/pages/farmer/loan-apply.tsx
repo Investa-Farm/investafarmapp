@@ -360,10 +360,16 @@ export default function LoanApply() {
             </div>
 
             <button type="submit" disabled={apply.isPending}
-              className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
+              className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-60">
               {apply.isPending ? <Loader2 size={16} className="animate-spin" /> : <DollarSign size={16} />}
               {apply.isPending ? "Submitting..." : "Submit Application"}
             </button>
+            {apply.isError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                <AlertCircle size={14} className="text-red-600 flex-shrink-0" />
+                <p className="text-red-700 text-xs font-medium">Submission failed. Check your details and try again.</p>
+              </div>
+            )}
           </form>
         )}
 
