@@ -88,7 +88,7 @@ export default function FarmerDashboard() {
   const farmerShare = dashboard ? Math.round(dashboard.farmValue * 0.55) : 0;
 
   const FARMER_STEPS: CoachStep[] = [
-    { target: "[data-testid='farmer-dashboard']", title: "Welcome, Farmer!", body: "This is your farm command centre. Check crop health, funding progress, and earnings here.", position: "bottom" },
+    { target: "[data-testid='nav-my-farm']", title: "Welcome, Farmer!", body: "This is your farm command centre. Check crop health, funding progress, and earnings here.", position: "top" },
     { target: "[data-testid='nav-my-farm']", title: "My Farm Profile", body: "View how your farm looks to investors and manage your public listing.", position: "top" },
     { target: "[data-testid='nav-market']", title: "Buyer Market", body: "Browse buyer offers and manage contracts for your produce.", position: "top" },
   ];

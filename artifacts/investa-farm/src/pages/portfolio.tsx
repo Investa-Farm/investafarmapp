@@ -359,8 +359,17 @@ export default function Portfolio() {
         </div>
       </div>
 
+      {/* Section divider */}
+      <div className="mx-4 mt-4 mb-1 flex items-center gap-3">
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-widest flex items-center gap-1.5">
+          <TrendingUp size={10} /> Holdings &amp; Management
+        </span>
+        <div className="flex-1 h-px bg-border" />
+      </div>
+
       {/* Tab switcher */}
-      <div className="mx-4 mt-3">
+      <div className="mx-4 mt-2">
         <div className="flex bg-muted rounded-2xl p-1 gap-1">
           <button onClick={() => setActiveTab("holdings")}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${activeTab === "holdings" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>

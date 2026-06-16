@@ -221,10 +221,26 @@ export default function MarketHome() {
   const [moverTab, setMoverTab] = useState<"movers" | "decliners">("movers");
   const [moverSlide, setMoverSlide] = useState(0);
   const moverTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [marketPhase, setMarketPhase] = useState<"movers" | "ads">("movers");
+  const phaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     moverTimer.current = setInterval(() => setMoverSlide(s => s + 1), 30000);
     return () => { if (moverTimer.current) clearInterval(moverTimer.current); };
+  }, []);
+
+  useEffect(() => {
+    const cycle = () => {
+      phaseTimer.current = setTimeout(() => {
+        setMarketPhase("ads");
+        phaseTimer.current = setTimeout(() => {
+          setMarketPhase("movers");
+          cycle();
+        }, 45_000);
+      }, 90_000);
+    };
+    cycle();
+    return () => { if (phaseTimer.current) clearTimeout(phaseTimer.current); };
   }, []);
 
   // Featured listings animated cycling (2 visible at a time)
@@ -508,8 +524,14 @@ export default function MarketHome() {
               </Link>
             </div>
 
-            {/* Top Movers / Decliners — combined section */}
+            {/* Rotating Spotlight — Gainers/Decliners ↔ Investment Opportunities */}
             <section>
+              <AnimatePresence mode="wait">
+                {marketPhase === "movers" ? (
+                  <motion.div key="movers-phase"
+                    initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.35 }}>
+
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex bg-muted rounded-full p-0.5 gap-0.5">
                   <button
@@ -525,11 +547,17 @@ export default function MarketHome() {
                     <TrendingDown size={9} /> Decliners
                   </button>
                 </div>
-                <Link href="/market/primary">
-                  <span className="text-primary text-xs font-medium flex items-center gap-0.5">
-                    All <ChevronRight size={13} />
-                  </span>
-                </Link>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-0.5">
+                    <span className="w-3 h-1.5 rounded-full bg-green-600" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/25" />
+                  </div>
+                  <Link href="/market/primary">
+                    <span className="text-primary text-xs font-medium flex items-center gap-0.5">
+                      All <ChevronRight size={13} />
+                    </span>
+                  </Link>
+                </div>
               </div>
               {(() => {
                 const isMovers = moverTab === "movers";
@@ -604,6 +632,70 @@ export default function MarketHome() {
                   </div>
                 );
               })()}
+                  </motion.div>
+                ) : (
+                  <motion.div key="ads-phase"
+                    initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.35 }}>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <h2 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                        <Zap size={13} className="text-amber-500" />
+                        Investment Opportunities
+                      </h2>
+                      <div className="flex items-center gap-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/25" />
+                        <span className="w-3 h-1.5 rounded-full bg-amber-500" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Link href="/market/primary">
+                        <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
+                          style={{ background: "linear-gradient(160deg, #78350f 0%, #b45309 50%, #fbbf24 100%)" }}>
+                          <img src={getCropImage("avocado")} alt="Avocado"
+                            className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-luminosity" />
+                          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
+                          <div className="relative h-full flex flex-col justify-between p-3">
+                            <div>
+                              <span className="text-yellow-100 text-[8px] font-bold uppercase tracking-widest bg-yellow-600/40 px-1.5 py-0.5 rounded-full">Premium</span>
+                              <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Avocado Export Season</p>
+                              <p className="text-yellow-100/70 text-[10px] mt-0.5">Kiambu · EU demand</p>
+                            </div>
+                            <div>
+                              <p className="text-yellow-300 font-black text-2xl leading-none">+22%</p>
+                              <p className="text-yellow-100/60 text-[9px]">projected ROI</p>
+                              <div className="mt-2 bg-white text-amber-700 font-bold text-[10px] py-1.5 rounded-lg text-center flex items-center justify-center gap-1">
+                                <Zap size={10} /> Invest Now
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                      <Link href="/market/primary">
+                        <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
+                          style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
+                          <img src={getCropImage("maize")} alt="Maize"
+                            className="absolute inset-0 w-full h-full object-cover opacity-25 mix-blend-luminosity" />
+                          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
+                          <div className="relative h-full flex flex-col justify-between p-3">
+                            <div>
+                              <span className="text-green-200 text-[8px] font-bold uppercase tracking-widest bg-green-600/30 px-1.5 py-0.5 rounded-full">Low Risk</span>
+                              <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Maize Long Rains</p>
+                              <p className="text-green-200/70 text-[10px] mt-0.5">Nakuru · Rift Valley</p>
+                            </div>
+                            <div>
+                              <p className="text-green-300 font-black text-2xl leading-none">+14%</p>
+                              <p className="text-green-200/60 text-[9px]">target return</p>
+                              <div className="mt-2 bg-white text-primary font-bold text-[10px] py-1.5 rounded-lg text-center flex items-center justify-center gap-1">
+                                🌽 Invest Now
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </section>
 
 
@@ -728,93 +820,66 @@ export default function MarketHome() {
               </div>
             </section>
 
-            {/* Investment Ad Cards — horizontal side-by-side */}
-            <section>
-              <div className="grid grid-cols-2 gap-3">
-                {/* Gold card — avocado */}
-                <Link href="/market/primary">
-                  <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
-                    style={{ background: "linear-gradient(160deg, #78350f 0%, #b45309 50%, #fbbf24 100%)" }}>
-                    <img src={getCropImage("avocado")} alt="Avocado"
-                      className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-luminosity" />
-                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
-                    <div className="relative h-full flex flex-col justify-between p-3">
-                      <div>
-                        <span className="text-yellow-100 text-[8px] font-bold uppercase tracking-widest bg-yellow-600/40 px-1.5 py-0.5 rounded-full">Premium</span>
-                        <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Avocado Export Season</p>
-                        <p className="text-yellow-100/70 text-[10px] mt-0.5">Kiambu · EU demand</p>
-                      </div>
-                      <div>
-                        <p className="text-yellow-300 font-black text-2xl leading-none">+22%</p>
-                        <p className="text-yellow-100/60 text-[9px]">projected ROI</p>
-                        <div className="mt-2 bg-white text-amber-700 font-bold text-[10px] py-1.5 rounded-lg text-center flex items-center justify-center gap-1">
-                          <Zap size={10} /> Invest Now
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-
-                {/* Green card — maize */}
-                <Link href="/market/primary">
-                  <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
-                    style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
-                    <img src={getCropImage("maize")} alt="Maize"
-                      className="absolute inset-0 w-full h-full object-cover opacity-25 mix-blend-luminosity" />
-                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
-                    <div className="relative h-full flex flex-col justify-between p-3">
-                      <div>
-                        <span className="text-green-200 text-[8px] font-bold uppercase tracking-widest bg-green-600/30 px-1.5 py-0.5 rounded-full">Low Risk</span>
-                        <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Maize Long Rains</p>
-                        <p className="text-green-200/70 text-[10px] mt-0.5">Nakuru · Rift Valley</p>
-                      </div>
-                      <div>
-                        <p className="text-green-300 font-black text-2xl leading-none">+14%</p>
-                        <p className="text-green-200/60 text-[9px]">target return</p>
-                        <div className="mt-2 bg-white text-primary font-bold text-[10px] py-1.5 rounded-lg text-center flex items-center justify-center gap-1">
-                          🌽 Invest Now
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </div>
-
-              {/* Community portfolio banner */}
-              <Link href="/market/portfolios">
-                <div className="mt-3 bg-muted/50 border border-border rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-all">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Star size={18} className="text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-foreground font-bold text-sm">Community Portfolios</p>
-                    <p className="text-muted-foreground text-xs mt-0.5">Copy AI-built portfolios from top investors</p>
-                  </div>
-                  <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
+            {/* Community portfolio banner */}
+            <Link href="/market/portfolios">
+              <div className="bg-muted/50 border border-border rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-all">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Star size={18} className="text-primary" />
                 </div>
-              </Link>
-            </section>
+                <div className="flex-1 min-w-0">
+                  <p className="text-foreground font-bold text-sm">Community Portfolios</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">Copy AI-built portfolios from top investors</p>
+                </div>
+                <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
+              </div>
+            </Link>
           </>
         )}
 
         {activeSection === "news" && (
           <section className="space-y-3">
             {/* News header */}
-            <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg,#052e16,#166534,#16a34a)" }}>
-              <div className="p-4 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Newspaper size={14} className="text-green-300" />
-                    <span className="text-green-300 text-[10px] font-bold uppercase tracking-widest">Agriculture News</span>
+            <div className="rounded-2xl overflow-hidden shadow-lg" style={{ background: "linear-gradient(135deg,#052e16,#166534,#16a34a)" }}>
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Newspaper size={14} className="text-green-300" />
+                      <span className="text-green-300 text-[10px] font-bold uppercase tracking-widest">Agriculture News</span>
+                    </div>
+                    <h2 className="text-white font-bold text-base leading-tight">Kenya Agri Market</h2>
+                    <p className="text-white/60 text-xs mt-0.5">Prices, weather &amp; investment insights</p>
                   </div>
-                  <h2 className="text-white font-bold text-base leading-tight">Kenya Agri Market</h2>
-                  <p className="text-white/60 text-xs mt-0.5">Prices, weather & investment insights</p>
+                  <span className="flex items-center gap-1.5 bg-green-500/20 border border-green-400/30 px-2.5 py-1 rounded-full flex-shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-green-300 text-[10px] font-bold">Live</span>
+                  </span>
                 </div>
-                <span className="flex items-center gap-1.5 bg-green-500/20 border border-green-400/30 px-2.5 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-green-300 text-[10px] font-bold">Live</span>
-                </span>
+                <div className="grid grid-cols-3 gap-2 pt-3 border-t border-white/10">
+                  {[
+                    { label: "Stories Today", val: newsLoading ? "—" : String((newsItems ?? []).length) },
+                    { label: "Sources", val: "12+" },
+                    { label: "Updated", val: "Now" },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="text-center">
+                      <p className="text-white font-bold text-sm">{val}</p>
+                      <p className="text-white/50 text-[9px] mt-0.5">{label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
+            </div>
+
+            {/* Category filter strip */}
+            <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
+              {["All", "Markets", "Weather", "Policy", "Returns"].map((cat) => (
+                <button key={cat}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all active:scale-95 ${
+                    cat === "All" ? "bg-primary text-white border-primary shadow-sm" : "bg-card border-border text-muted-foreground"
+                  }`}>
+                  {cat}
+                </button>
+              ))}
             </div>
 
             {newsLoading

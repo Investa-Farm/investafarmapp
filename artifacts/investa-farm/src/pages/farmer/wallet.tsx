@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
-import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, Loader2, CheckCircle2, ExternalLink, ChevronDown } from "lucide-react";
+import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, Loader2, CheckCircle2, ExternalLink, ChevronDown, CreditCard, Copy, Check } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -106,6 +106,24 @@ export default function FarmerWallet() {
 
   const { currency, setCurrency, formatAmount } = useCurrency();
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
+  const [stellarCopied, setStellarCopied] = useState(false);
+
+  const { data: stellarAcct } = useQuery<{ accountNumber: string } | null>({
+    queryKey: ["stellar-account"],
+    queryFn: async () => {
+      const r = await fetch("/api/stellar/account", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    staleTime: 300_000,
+  });
+
+  const handleCopyStellar = async () => {
+    if (!stellarAcct?.accountNumber) return;
+    await navigator.clipboard.writeText(stellarAcct.accountNumber).catch(() => {});
+    setStellarCopied(true);
+    setTimeout(() => setStellarCopied(false), 2000);
+  };
 
   const balance = parseFloat(data?.wallet.balance ?? "0");
   const txs = data?.transactions ?? [];
@@ -253,6 +271,39 @@ export default function FarmerWallet() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Stellar / Investa Account Number */}
+        <div className="mt-3 rounded-2xl overflow-hidden relative shadow-lg"
+          style={{ background: "linear-gradient(135deg, #0a1f11 0%, #0f2d1a 50%, #0a1f11 100%)" }}>
+          <div className="absolute top-0 right-0 w-28 h-28 rounded-full bg-green-500/5 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-20 h-20 rounded-full bg-green-400/5 translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+          <div className="relative p-4">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-green-500/20 flex items-center justify-center">
+                  <CreditCard size={13} className="text-green-400" />
+                </div>
+                <span className="text-white/60 text-[10px] font-semibold uppercase tracking-widest">Stellar Account</span>
+              </div>
+              <span className="text-[9px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full border border-green-500/20">Active</span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              {stellarAcct?.accountNumber ? (
+                <>
+                  <p className="text-white font-mono text-xs tracking-wider truncate flex-1">{stellarAcct.accountNumber}</p>
+                  <button onClick={handleCopyStellar}
+                    className="flex-shrink-0 flex items-center gap-1.5 bg-white/10 border border-white/10 rounded-xl px-2.5 py-1.5 transition-all active:scale-95">
+                    {stellarCopied ? <Check size={11} className="text-green-400" /> : <Copy size={11} className="text-white/70" />}
+                    <span className="text-white/70 text-[10px] font-semibold">{stellarCopied ? "Copied!" : "Copy"}</span>
+                  </button>
+                </>
+              ) : (
+                <p className="text-white/30 text-xs font-mono tracking-wider">Loading account…</p>
+              )}
+            </div>
+            <p className="text-white/25 text-[9px] mt-1.5">Secure · Stellar blockchain · Farm earnings</p>
+          </div>
+        </div>
 
         {/* Withdraw only (farmer) */}
         <button onClick={() => { setModal("withdraw"); setAmount(""); }}
