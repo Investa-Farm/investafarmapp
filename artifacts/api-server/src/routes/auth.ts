@@ -1,8 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
-import { createHmac, timingSafeEqual } from "crypto";
-import { db, usersTable, otpCodesTable, passwordResetTokensTable } from "@workspace/db";
-import { randomBytes } from "crypto";
+import { createHmac, timingSafeEqual, randomBytes } from "crypto";
+import { db, usersTable, otpCodesTable, passwordResetTokensTable, walletsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { LoginBody } from "@workspace/api-zod";
@@ -91,7 +90,6 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const token = signToken(user.id);
 
   // Create wallet for every new user
-  const { walletsTable } = await import("@workspace/db");
   const [existingWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, user.id));
   if (!existingWallet) {
     await db.insert(walletsTable).values({ userId: user.id, balance: "0", currency: "KES" });
