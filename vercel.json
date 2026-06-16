@@ -1,7 +1,7 @@
 {
   "version": 2,
   "buildCommand": "pnpm install && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/investa-farm run build",
-  "outputDirectory": "artifacts/investa-farm/dist",
+  "outputDirectory": "artifacts/investa-farm/dist/public",
   "installCommand": "pnpm install",
   "framework": null,
   "rewrites": [
