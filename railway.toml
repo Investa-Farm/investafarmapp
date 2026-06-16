@@ -1,10 +1,10 @@
 [build]
 builder = "nixpacks"
-buildCommand = "pnpm install && pnpm --filter @workspace/api-server run build"
+buildCommand = "pnpm install && pnpm --filter @workspace/db run push && BASE_PATH=/ pnpm --filter @workspace/investa-farm run build && pnpm --filter @workspace/api-server run build"
 
 [deploy]
-startCommand = "node artifacts/api-server/dist/index.cjs"
-healthcheckPath = "/api/market/summary"
+startCommand = "node --enable-source-maps artifacts/api-server/dist/index.mjs"
+healthcheckPath = "/api/market/movers"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
@@ -12,3 +12,4 @@ restartPolicyMaxRetries = 5
 [environment]
 PORT = "8080"
 NODE_ENV = "production"
+BASE_PATH = "/"

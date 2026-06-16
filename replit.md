@@ -56,13 +56,20 @@ A farm investment PWA where farmers raise capital by listing farm shares (like a
 
 ## Deploying to Production
 
-### Option A — Railway (Recommended, full stack in one place)
+### Railway (Single deployment — frontend + backend on one service)
 
+The `railway.toml` is pre-configured. Railway will:
+- Build the React frontend → `artifacts/investa-farm/dist/public`
+- Build the API server → `artifacts/api-server/dist/index.mjs`
+- Push the DB schema automatically during build
+- Serve both from the same process on port 8080
+
+**Steps:**
 1. Push your code to GitHub
 2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo
-3. Railway auto-detects `railway.toml` — set these environment variables in the Railway dashboard:
+3. In Railway dashboard → **Variables**, add:
    ```
-   DATABASE_URL=<your PostgreSQL URL>
+   DATABASE_URL=<from Railway PostgreSQL plugin>
    SESSION_SECRET=<long random string>
    GOOGLE_SMTP_USER=mosesochiengopiyo@gmail.com
    GOOGLE_SMTP_PASS=<gmail app password>
@@ -71,36 +78,19 @@ A farm investment PWA where farmers raise capital by listing farm shares (like a
    PAYSTACK_SECRET_KEY=sk_live_...
    PAYSTACK_PUBLIC_KEY=pk_live_...
    GROQ_API_KEY=...
-   PORT=8080
-   NODE_ENV=production
+   VAPID_PUBLIC_KEY=BL36T426aOm-MLB77gGSDBvvsvAg679MLHt-dpmJ-SSNls6hqQA9AguxAhIwWmqbrPHsKnqQz8D9kVQaD5qZwfc
+   VAPID_PRIVATE_KEY=W4d_A-f1wGaBtbH8nzrPGfCxTCqYkHo5AJxsJG0ssLU
+   STELLAR_ISSUER_SECRET_KEY=<your Stellar issuer secret>
+   ALLOWED_ORIGINS=https://your-app.railway.app
    ```
-4. Add a PostgreSQL plugin in Railway (auto-sets DATABASE_URL)
-5. Your API will be live at `https://your-app.railway.app`
+4. Add a **PostgreSQL** plugin in Railway → it auto-sets `DATABASE_URL`
+5. Deploy → the whole app (UI + API) is live at `https://your-app.railway.app`
 
-### Option B — Vercel (Frontend) + Railway (Backend)
-
-**Backend on Railway** (same as Option A steps 2-5 above)
-
-**Frontend on Vercel:**
-1. Go to [vercel.com](https://vercel.com) → New Project → Import GitHub repo
-2. Vercel auto-detects root `vercel.json` which builds ONLY the frontend (no backend).
-3. In the Vercel dashboard → Settings → Environment Variables, add:
-   ```
-   VITE_API_URL=https://YOUR-RAILWAY-URL.railway.app
-   NODE_ENV=production
-   ```
-   (`PORT` and `BASE_PATH` default to `3000` and `/` automatically — no need to set them)
-4. Deploy → frontend live at `https://your-app.vercel.app`
-
-**Vercel project settings (if overriding manually):**
-- Root Directory: _(leave blank — vercel.json handles it)_
-- Build Command: `pnpm install && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/investa-farm run build`
-- Output Directory: `artifacts/investa-farm/dist`
-
-### Notes
-- See `.env.example` for all required environment variables
-- Run `pnpm --filter @workspace/db run push` on first deploy to create DB tables
-- Demo seed runs automatically on server start
+**Notes:**
+- Do NOT set `VITE_API_URL` — frontend and backend share the same origin on Railway
+- `PORT`, `NODE_ENV`, and `BASE_PATH` are already set in `railway.toml`
+- DB schema push happens automatically during the Railway build step
+- Demo seed runs automatically on first server start
 - Gmail App Password: myaccount.google.com → Security → 2-Step Verification → App Passwords
 
 ## User preferences
