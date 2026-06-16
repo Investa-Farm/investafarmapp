@@ -36,11 +36,22 @@ function UploadPopup({
 
   const startCamera = useCallback(async () => {
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      const constraints: MediaStreamConstraints = {
+        video: {
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+        audio: false,
+      };
+      const s = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(s);
       if (videoRef.current) {
         videoRef.current.srcObject = s;
-        videoRef.current.onloadedmetadata = () => setCameraReady(true);
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(() => {});
+          setCameraReady(true);
+        };
       }
     } catch {
       setCameraReady(false);
@@ -138,11 +149,27 @@ function UploadPopup({
                 </>
               ) : stream ? (
                 <>
-                  <div className="relative rounded-2xl overflow-hidden bg-black">
-                    <video ref={videoRef} autoPlay playsInline muted className="w-full aspect-video object-cover" />
+                  <div className="relative rounded-2xl overflow-hidden" style={{ background: "#111" }}>
+                    {!cameraReady && (
+                      <div className="absolute inset-0 flex items-center justify-center z-10 bg-zinc-900">
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 size={24} className="text-white/70 animate-spin" />
+                          <p className="text-white/50 text-xs">Starting camera…</p>
+                        </div>
+                      </div>
+                    )}
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full object-cover"
+                      style={{ transform: "scaleX(-1)", minHeight: 220, display: "block" }}
+                    />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-28 h-36 rounded-[50%] border-2 border-white/60" />
+                      <div className="w-28 h-36 rounded-[50%] border-2 border-white/70" style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.35)" }} />
                     </div>
+                    <p className="absolute bottom-2 w-full text-center text-white/70 text-[10px]">Position your face in the oval</p>
                   </div>
                   <canvas ref={canvasRef} className="hidden" />
                   <button onClick={captureSelfie}

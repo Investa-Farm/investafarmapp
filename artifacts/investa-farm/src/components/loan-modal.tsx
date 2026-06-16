@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, DollarSign, CheckCircle2, Loader2, Clock, FileText, QrCode, Copy, Check } from "lucide-react";
+import { X, DollarSign, CheckCircle2, Loader2, Clock, FileText, QrCode, Copy, Check, AlertCircle, ShieldAlert } from "lucide-react";
 import { getToken, formatKES } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RepayModal } from "@/components/repay-modal";
@@ -63,7 +63,10 @@ export function LoanModal({ open, onClose }: LoanModalProps) {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
-      if (!r.ok) throw new Error("Failed");
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.message ?? d.error ?? "Submission failed. Please try again.");
+      }
       return r.json();
     },
     onSuccess: () => {
@@ -206,6 +209,21 @@ export function LoanModal({ open, onClose }: LoanModalProps) {
                         <div><p className="text-muted-foreground">Interest (8%)</p><p className="font-bold">{formatKES((parseFloat(amount) || 0) * 0.08)}</p></div>
                         <div><p className="text-muted-foreground">Total Owed</p><p className="font-bold">{formatKES((parseFloat(amount) || 0) * 1.08)}</p></div>
                         <div><p className="text-muted-foreground">Monthly (est.)</p><p className="font-bold">{formatKES(monthlyRepayment)}</p></div>
+                      </div>
+                    )}
+
+                    {apply.isError && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                        <AlertCircle size={15} className="text-red-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-red-700 text-xs font-semibold">{(apply.error as Error).message}</p>
+                          {(apply.error as Error).message?.includes("KYC") && (
+                            <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+                              <ShieldAlert size={11} className="flex-shrink-0" />
+                              Go to <strong>Dashboard → KYC Docs</strong> to upload and verify your documents first.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
 

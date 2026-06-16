@@ -174,15 +174,21 @@ router.get("/loans/applications", async (req, res): Promise<void> => {
   res.json(apps.map(a => formatLoan(a)));
 });
 
+const DEMO_FARMER_EMAILS = new Set([
+  "john.farmer@investafarm.com",
+  "demo.farmer@investafarm.com",
+]);
+
 router.post("/loans/apply", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  // KYC gate — must have at least 1 approved doc
+  // KYC gate — must have at least 1 approved doc (waived for demo accounts)
   const kycDocs = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.userId, user.id));
   const approvedKyc = kycDocs.filter(d => d.status === "approved");
-  if (approvedKyc.length === 0) {
-    res.status(403).json({ error: "KYC_REQUIRED", message: "Complete KYC verification before applying for a loan." });
+  const isDemoFarmer = DEMO_FARMER_EMAILS.has(user.email.toLowerCase());
+  if (approvedKyc.length === 0 && !isDemoFarmer) {
+    res.status(403).json({ error: "KYC_REQUIRED", message: "Please complete KYC verification before applying. Upload your ID and farm documents from your dashboard." });
     return;
   }
 

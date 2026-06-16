@@ -9,7 +9,6 @@ import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { FARMER_HERO_IMAGE } from "@/lib/crops";
 import { KycModal } from "@/components/kyc-modal";
 import { LoanModal } from "@/components/loan-modal";
-import { CoachMark, type CoachStep } from "@/components/coach-mark";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { AppTour } from "@/components/app-tour";
@@ -87,11 +86,6 @@ export default function FarmerDashboard() {
   const farmHealth = dashboard?.growthPercent != null ? Math.round(75 + dashboard.growthPercent * 0.2) : null;
   const farmerShare = dashboard ? Math.round(dashboard.farmValue * 0.55) : 0;
 
-  const FARMER_STEPS: CoachStep[] = [
-    { target: "[data-testid='nav-my-farm']", title: "Welcome, Farmer!", body: "This is your farm command centre. Check crop health, funding progress, and earnings here.", position: "top" },
-    { target: "[data-testid='nav-my-farm']", title: "My Farm Profile", body: "View how your farm looks to investors and manage your public listing.", position: "top" },
-    { target: "[data-testid='nav-market']", title: "Buyer Market", body: "Browse buyer offers and manage contracts for your produce.", position: "top" },
-  ];
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="farmer-dashboard">
@@ -378,7 +372,6 @@ export default function FarmerDashboard() {
       <BottomNav role="farmer" />
       <KycModal open={kycOpen} onClose={() => setKycOpen(false)} onVerified={() => { setKycOpen(false); setLoanOpen(true); }} />
       <LoanModal open={loanOpen} onClose={() => setLoanOpen(false)} />
-      <CoachMark steps={FARMER_STEPS} storageKey="farmer_onboarding_v2" />
       <NotificationPrompt storageKey="farmer_notif_v1" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <AppTour role="farmer" />

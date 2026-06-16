@@ -273,7 +273,7 @@ export default function FarmDetail() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
         <div className="absolute top-12 left-4 right-4 flex items-center justify-between">
-          <button data-testid="button-back" onClick={() => setLocation("/market")}
+          <button data-testid="button-back" onClick={() => window.history.back()}
             className="w-9 h-9 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
             <ArrowLeft size={18} className="text-white" />
           </button>
