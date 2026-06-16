@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useGetMyFarms, useListPrimaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, isDemoAccount, getToken } from "@/lib/auth";
-import { Bell, Filter, TrendingUp, Star, MessageCircle, CheckCircle2, Clock, ChevronRight, ChevronDown, MapPin, Award, FileText, DollarSign, Package, Leaf, ShieldCheck } from "lucide-react";
+import { Bell, Filter, TrendingUp, Star, MessageCircle, CheckCircle2, Clock, ChevronRight, ChevronDown, MapPin, Award, FileText, DollarSign, Package, Leaf, ShieldCheck, Plus, X, Sprout, Calendar, Maximize2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
@@ -73,15 +73,50 @@ const ACTIVE_CONTRACTS = [
   },
 ];
 
+const CROP_OPTIONS = [
+  "Maize", "Tomatoes", "Coffee", "Tea", "Avocado", "Wheat", "Potatoes",
+  "French Beans", "Sorghum", "Sunflower", "Cassava", "Sugarcane", "Millet",
+];
+
+const KENYA_COUNTIES = [
+  "Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa",
+  "Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi",
+  "Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos",
+  "Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi",
+  "Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya",
+  "Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana",
+  "Uasin Gishu","Vihiga","Wajir","West Pokot",
+];
+
 const demandData = Array.from({ length: 12 }, (_, i) => ({
   month: i, value: 60 + Math.sin(i * 0.5) * 15 + i * 2,
 }));
+
+interface ProposalForm {
+  cropType: string;
+  acreage: string;
+  location: string;
+  plantingDate: string;
+  expectedYield: string;
+  description: string;
+}
 
 export default function FarmerMarket() {
   const [tab, setTab] = useState<"offers" | "contracts" | "inputs">("offers");
   const [selectedOffer, setSelectedOffer] = useState<(typeof BUYER_OFFERS)[0] | null>(null);
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
   const [connectToast, setConnectToast] = useState<string | null>(null);
+  const [showProposalForm, setShowProposalForm] = useState(false);
+  const [proposalSuccess, setProposalSuccess] = useState<string | null>(null);
+  const [form, setForm] = useState<ProposalForm>({
+    cropType: "",
+    acreage: "",
+    location: "",
+    plantingDate: "",
+    expectedYield: "",
+    description: "",
+  });
+
   const { data: farms, isLoading } = useGetMyFarms();
   const { data: listings } = useListPrimaryMarket();
   const isDemo = isDemoAccount();
@@ -114,17 +149,64 @@ export default function FarmerMarket() {
     },
   });
 
+  const proposalMutation = useMutation({
+    mutationFn: async (payload: ProposalForm) => {
+      const r = await fetch("/api/farmer/market/crop-proposal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          cropType: payload.cropType,
+          acreage: parseFloat(payload.acreage),
+          location: payload.location,
+          plantingDate: payload.plantingDate || undefined,
+          expectedYield: payload.expectedYield ? parseFloat(payload.expectedYield) : undefined,
+          description: payload.description || undefined,
+        }),
+      });
+      if (!r.ok) {
+        const err = await r.json();
+        throw new Error(err.error ?? "Failed to submit proposal");
+      }
+      return r.json();
+    },
+    onSuccess: (data: { message?: string }) => {
+      setShowProposalForm(false);
+      setProposalSuccess(data.message ?? "Crop proposal submitted successfully!");
+      setForm({ cropType: "", acreage: "", location: "", plantingDate: "", expectedYield: "", description: "" });
+      setTimeout(() => setProposalSuccess(null), 5000);
+    },
+  });
+
+  const handleSubmitProposal = () => {
+    if (!form.cropType || !form.acreage || !form.location) return;
+    proposalMutation.mutate(form);
+  };
+
   const realBuyers = buyersData?.buyers ?? [];
   const maxPrice = Math.max(...BUYER_OFFERS.map(o => o.price), ...realBuyers.map(b => b.price), 1);
 
+  const inputClass = "w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all";
+  const labelClass = "text-xs font-semibold text-foreground mb-1.5 flex items-center gap-1.5";
+
   return (
     <div className="app-shell pb-20 page-enter" data-testid="farmer-market">
-      {connectToast && (
-        <div className="fixed top-4 left-4 right-4 z-50 bg-green-600 text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2">
-          <CheckCircle2 size={16} className="flex-shrink-0" />
-          {connectToast}
-        </div>
-      )}
+      {/* Toast notifications */}
+      <AnimatePresence>
+        {connectToast && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 left-4 right-4 z-50 bg-green-600 text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2">
+            <CheckCircle2 size={16} className="flex-shrink-0" />
+            {connectToast}
+          </motion.div>
+        )}
+        {proposalSuccess && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 left-4 right-4 z-50 bg-primary text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2">
+            <Sprout size={16} className="flex-shrink-0" />
+            {proposalSuccess}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="hero-header pt-12 pb-5 px-5">
         <div className="flex items-center justify-between mb-3">
@@ -197,6 +279,19 @@ export default function FarmerMarket() {
               </div>
             </div>
           </div>
+
+          {/* Propose a Crop CTA Banner */}
+          <button onClick={() => setShowProposalForm(true)}
+            className="w-full rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 flex items-center gap-4 active:scale-[0.98] transition-transform">
+            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
+              <Plus size={22} className="text-white" />
+            </div>
+            <div className="text-left">
+              <p className="text-foreground font-bold text-sm">Submit a Crop Proposal</p>
+              <p className="text-muted-foreground text-[11px] mt-0.5">List your acreage &amp; location to attract investors</p>
+            </div>
+            <ChevronRight size={18} className="text-primary ml-auto flex-shrink-0" />
+          </button>
 
           {isDemo ? (
             <>
@@ -481,7 +576,6 @@ export default function FarmerMarket() {
                     </div>
                   </div>
 
-                  {/* Crops served */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {provider.crops.map(crop => (
                       <span key={crop} className="text-[9px] bg-green-50 text-green-700 border border-green-100 font-semibold px-2 py-0.5 rounded-full">
@@ -490,7 +584,6 @@ export default function FarmerMarket() {
                     ))}
                   </div>
 
-                  {/* Investa member discount */}
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2 mb-3">
                     <Leaf size={12} className="text-amber-600 flex-shrink-0" />
                     <p className="text-amber-700 text-[10px] font-semibold leading-tight">{provider.discount}</p>
@@ -525,7 +618,6 @@ export default function FarmerMarket() {
             </div>
           </div>
 
-          {/* Contracts — demo only */}
           {isDemo ? (
             ACTIVE_CONTRACTS.map(contract => (
               <div key={contract.id} className="bg-card rounded-2xl border border-border overflow-hidden">
@@ -539,7 +631,6 @@ export default function FarmerMarket() {
                     <span className="bg-green-100 text-green-700 text-[9px] font-bold px-2.5 py-1 rounded-full">{contract.status}</span>
                   </div>
 
-                  {/* Progress steps */}
                   <div className="space-y-2 mb-4">
                     {contract.progress.map((step, i) => {
                       const done = i <= contract.currentStep;
@@ -556,7 +647,6 @@ export default function FarmerMarket() {
                     })}
                   </div>
 
-                  {/* Revenue */}
                   <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-3 mb-3">
                     <p className="text-green-700 text-xs font-semibold mb-1">Expected Revenue</p>
                     <p className="text-green-700 font-bold text-2xl">{formatKES(contract.expectedRevenue)}</p>
@@ -576,7 +666,6 @@ export default function FarmerMarket() {
                     </div>
                   </div>
 
-                  {/* Expand/collapse contract details */}
                   <button
                     onClick={() => setExpandedContractId(expandedContractId === contract.id ? null : contract.id)}
                     className="w-full bg-primary text-white font-semibold py-2.5 rounded-xl text-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
@@ -624,7 +713,6 @@ export default function FarmerMarket() {
               </div>
             ))
           ) : (
-            /* New accounts — empty state */
             <>
               {isLoading
                 ? Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)
@@ -709,6 +797,209 @@ export default function FarmerMarket() {
           </div>
         </div>
       )}
+
+      {/* ── Crop Proposal Bottom Sheet ── */}
+      <AnimatePresence>
+        {showProposalForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center"
+            onClick={() => setShowProposalForm(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="w-full max-w-[430px] bg-background rounded-t-3xl overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Handle bar */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+                    <Sprout size={18} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-base text-foreground">New Crop Proposal</p>
+                    <p className="text-muted-foreground text-[10px]">Submit for investor funding review</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowProposalForm(false)}
+                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center active:scale-90 transition-transform">
+                  <X size={16} className="text-muted-foreground" />
+                </button>
+              </div>
+
+              {/* Scrollable form body */}
+              <div className="overflow-y-auto max-h-[70vh] px-5 py-4 space-y-4 pb-6">
+
+                {/* Crop Type */}
+                <div>
+                  <label className={labelClass}>
+                    <Sprout size={12} className="text-primary" />
+                    Crop Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.cropType}
+                    onChange={e => setForm(f => ({ ...f, cropType: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">Select crop…</option>
+                    {CROP_OPTIONS.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Acreage */}
+                <div>
+                  <label className={labelClass}>
+                    <Maximize2 size={12} className="text-primary" />
+                    Acreage (acres) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    placeholder="e.g. 5"
+                    value={form.acreage}
+                    onChange={e => setForm(f => ({ ...f, acreage: e.target.value }))}
+                    className={inputClass}
+                  />
+                  {form.acreage && parseFloat(form.acreage) > 0 && (
+                    <p className="text-[10px] text-primary font-semibold mt-1.5 ml-1">
+                      Estimated capital needed: {formatKES(parseFloat(form.acreage) * 15000)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label className={labelClass}>
+                    <MapPin size={12} className="text-primary" />
+                    County / Location <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.location}
+                    onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">Select county…</option>
+                    {KENYA_COUNTIES.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Planting Date */}
+                <div>
+                  <label className={labelClass}>
+                    <Calendar size={12} className="text-primary" />
+                    Planting Date
+                  </label>
+                  <input
+                    type="date"
+                    value={form.plantingDate}
+                    min={new Date().toISOString().split("T")[0]}
+                    onChange={e => setForm(f => ({ ...f, plantingDate: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+
+                {/* Expected Yield */}
+                <div>
+                  <label className={labelClass}>
+                    <TrendingUp size={12} className="text-primary" />
+                    Expected Yield (tons)
+                  </label>
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    placeholder="e.g. 12.5"
+                    value={form.expectedYield}
+                    onChange={e => setForm(f => ({ ...f, expectedYield: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className={labelClass}>
+                    <FileText size={12} className="text-primary" />
+                    Additional Details
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe your farm, soil type, irrigation setup, or anything investors should know…"
+                    value={form.description}
+                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                    className={`${inputClass} resize-none`}
+                  />
+                </div>
+
+                {/* Estimated breakdown */}
+                {form.cropType && form.acreage && parseFloat(form.acreage) > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+                    <p className="text-green-800 text-xs font-bold mb-2.5">📊 Estimated Breakdown</p>
+                    <div className="space-y-2">
+                      {[
+                        { label: "Capital Required", val: formatKES(parseFloat(form.acreage) * 15000) },
+                        { label: "Total Shares", val: `${Math.ceil(parseFloat(form.acreage) * 15000 / 100).toLocaleString()} shares @ KES 100` },
+                        { label: "Your Revenue Share", val: "55% of harvest" },
+                        { label: "Review Timeline", val: "2–5 business days" },
+                      ].map(({ label, val }) => (
+                        <div key={label} className="flex justify-between text-[11px]">
+                          <span className="text-green-700">{label}</span>
+                          <span className="text-green-900 font-semibold">{val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Error */}
+                {proposalMutation.isError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                    <p className="text-red-700 text-xs font-medium">{(proposalMutation.error as Error).message}</p>
+                  </div>
+                )}
+
+                {/* Submit */}
+                <button
+                  onClick={handleSubmitProposal}
+                  disabled={!form.cropType || !form.acreage || !form.location || proposalMutation.isPending}
+                  className="w-full bg-primary text-white font-bold py-4 rounded-2xl text-sm active:scale-[0.98] transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {proposalMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Submitting…
+                    </>
+                  ) : (
+                    <>
+                      <Sprout size={16} />
+                      Submit Crop Proposal
+                    </>
+                  )}
+                </button>
+
+                <p className="text-muted-foreground text-[10px] text-center leading-relaxed">
+                  Your proposal will be reviewed by our team and listed for investor funding within 2–5 business days.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BottomNav role="farmer" />
     </div>
