@@ -14,7 +14,7 @@ BASE_PATH = "/"
 VAPID_PUBLIC_KEY = "BL36T426aOm-MLB77gGSDBvvsvAg679MLHt-dpmJ-SSNls6hqQA9AguxAhIwWmqbrPHsKnqQz8D9kVQaD5qZwfc"
 VAPID_PRIVATE_KEY = "W4d_A-f1wGaBtbH8nzrPGfCxTCqYkHo5AJxsJG0ssLU"
 STELLAR_ISSUER_PUBLIC_KEY = "GDCTQTPZKLTNAXD6LM6AH3IZSJEV6BFB34XQCS4SHTLBN4YWKBIXK3ZJ"
-ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://1633d9ff-7927-48f1-a3de-955db2691d85-00-s7fiprajz0m4.kirk.replit.dev"
+ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://a0a6cdae-807f-4180-8f93-caa65ac88202-00-aiprqwj12eqw.picard.replit.dev"
 
 [workflows]
 runButton = "Project"
