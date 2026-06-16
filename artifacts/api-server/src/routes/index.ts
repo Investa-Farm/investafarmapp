@@ -20,6 +20,9 @@ import aiRouter from "./ai";
 import portfolioManagerRouter from "./portfolio-manager";
 import reinvestmentRouter from "./reinvestment";
 import investorFeedRouter from "./investor-feed";
+import ordersRouter from "./orders";
+import watchlistRouter from "./watchlist";
+import stellarRouter from "./stellar";
 
 const router: IRouter = Router();
 
@@ -44,5 +47,8 @@ router.use(aiRouter);
 router.use(portfolioManagerRouter);
 router.use(reinvestmentRouter);
 router.use(investorFeedRouter);
+router.use(ordersRouter);
+router.use(watchlistRouter);
+router.use(stellarRouter);
 
 export default router;

@@ -11,6 +11,7 @@ export const usersTable = pgTable("users", {
   name: text("name").notNull(),
   role: userRoleEnum("role").notNull(),
   emailVerified: boolean("email_verified").default(false).notNull(),
+  accountNumber: text("account_number").unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

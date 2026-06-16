@@ -2,14 +2,14 @@ import { useState } from "react";
 import { useListSecondaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, RefreshCcw, ChevronRight, BellRing, ShoppingBag } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, RefreshCcw, ChevronRight, BellRing, ShoppingBag, BookOpen, Plus, Minus, ChevronDown, ChevronUp, BarChart2 } from "lucide-react";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
 import { getCropImage } from "@/lib/crops";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRiskLevel, RiskBadge } from "@/components/risk-badge";
 import { AiSectionBot } from "@/components/ai-section-bot";
@@ -109,7 +109,7 @@ export default function SecondaryMarket() {
   const [investOpen, setInvestOpen] = useState(false);
   const [cancelListing, setCancelListing] = useState<Listing | null>(null);
   const [alertListing, setAlertListing] = useState<Listing | null>(null);
-  const [tab, setTab] = useState<"market" | "mine">("market");
+  const [tab, setTab] = useState<"market" | "mine" | "orders">("market");
   const [cropFilter, setCropFilter] = useState<string>("all");
   const [expandedCrop, setExpandedCrop] = useState<string | null>(null);
   const token = getToken();
@@ -127,6 +127,64 @@ export default function SecondaryMarket() {
     e.preventDefault(); e.stopPropagation();
     setSelectedListing(listing); setInvestOpen(true);
   };
+
+  // Order book state
+  const [orderFarmId, setOrderFarmId] = useState<number | "">("");
+  const [orderSide, setOrderSide] = useState<"buy" | "sell">("buy");
+  const [orderPrice, setOrderPrice] = useState("");
+  const [orderQty, setOrderQty] = useState("");
+  const [orderSuccess, setOrderSuccess] = useState(false);
+
+  const { data: myOrders = [], refetch: refetchOrders } = useQuery<any[]>({
+    queryKey: ["my-orders"],
+    queryFn: async () => {
+      const r = await fetch("/api/orders/mine", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: tab === "orders",
+    staleTime: 15_000,
+  });
+
+  const { data: orderBookDepth } = useQuery<{ buys: { price: number; quantity: number }[]; sells: { price: number; quantity: number }[] }>({
+    queryKey: ["orderbook", orderFarmId],
+    queryFn: async () => {
+      const r = await fetch(`/api/orders/book/${orderFarmId}`);
+      return r.json();
+    },
+    enabled: !!orderFarmId,
+    refetchInterval: 15_000,
+  });
+
+  const placeOrder = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ farmId: orderFarmId, side: orderSide, limitPrice: orderPrice, quantity: orderQty }),
+      });
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    },
+    onSuccess: () => {
+      setOrderSuccess(true);
+      setOrderPrice(""); setOrderQty("");
+      refetchOrders();
+      qc.invalidateQueries({ queryKey: ["orderbook", orderFarmId] });
+      setTimeout(() => setOrderSuccess(false), 3000);
+    },
+  });
+
+  const cancelOrder = useMutation({
+    mutationFn: async (orderId: number) => {
+      const r = await fetch(`/api/orders/${orderId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    },
+    onSuccess: () => refetchOrders(),
+  });
+
+  const allFarms = listings ? [...new Map((listings as Listing[]).map(l => [l.farmId, { id: l.farmId, name: l.farmName, price: l.pricePerShare }])).values()] : [];
 
   const activeMyListings = myListings.filter(l => l.isActive !== false);
   const inactiveMyListings = myListings.filter(l => l.isActive === false);
@@ -187,17 +245,21 @@ export default function SecondaryMarket() {
 
       {/* Tabs */}
       <div className="px-4 pt-3 pb-0">
-        <div className="flex bg-gray-100 rounded-2xl p-1">
+        <div className="flex bg-gray-100 rounded-2xl p-1 gap-0.5">
           <button onClick={() => setTab("market")}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${tab === "market" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"}`}>
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === "market" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"}`}>
             All Listings
           </button>
+          <button onClick={() => setTab("orders")}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${tab === "orders" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"}`}>
+            <BookOpen size={11} /> Order Book
+          </button>
           <button onClick={() => setTab("mine")}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${tab === "mine" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"}`}>
-            <Tag size={13} />
-            My Listings
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${tab === "mine" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"}`}>
+            <Tag size={11} />
+            Mine
             {activeMyListings.length > 0 && (
-              <span className="bg-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+              <span className="bg-primary text-white text-[9px] font-bold px-1 py-0.5 rounded-full">
                 {activeMyListings.length}
               </span>
             )}
@@ -206,7 +268,7 @@ export default function SecondaryMarket() {
       </div>
 
       <AnimatePresence mode="wait">
-        {tab === "market" ? (
+        {tab === "market" && (
           <motion.div key="market" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-3 pb-4 space-y-1">
             {/* Crop filter + info */}
             {!isLoading && (listings?.length ?? 0) > 0 && (
@@ -362,7 +424,8 @@ export default function SecondaryMarket() {
             })}
             </div>
           </motion.div>
-        ) : (
+        )}
+        {tab === "mine" && (
           <motion.div key="mine" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="px-4 pt-3 space-y-3">
             {myLoading ? (
               Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
@@ -444,6 +507,186 @@ export default function SecondaryMarket() {
                 )}
               </>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── ORDER BOOK TAB ── */}
+      <AnimatePresence mode="wait">
+        {tab === "orders" && (
+          <motion.div key="orders" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-3 pb-4 space-y-3 px-4">
+
+            {/* Farm selector */}
+            <div>
+              <label className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider block mb-1.5">Select Farm</label>
+              <select
+                value={orderFarmId}
+                onChange={e => setOrderFarmId(Number(e.target.value) || "")}
+                className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="">— Choose a farm —</option>
+                {allFarms.map(f => (
+                  <option key={f.id} value={f.id}>{f.name} · {formatKES(f.price)}/share</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Order book depth */}
+            {orderFarmId && (
+              <div className="bg-card rounded-2xl border border-border overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                  <p className="font-semibold text-sm flex items-center gap-1.5"><BarChart2 size={14} className="text-primary" /> Market Depth</p>
+                  <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Live</span>
+                </div>
+                {/* Sell orders (asks) — top */}
+                <div className="px-4 pt-2 pb-1">
+                  <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Asks (Sell Orders)</p>
+                  {(!orderBookDepth?.sells || orderBookDepth.sells.length === 0) ? (
+                    <p className="text-muted-foreground text-xs py-2 text-center">No sell orders</p>
+                  ) : (
+                    orderBookDepth.sells.slice(0, 5).map((level, i) => {
+                      const maxQty = Math.max(...orderBookDepth.sells.map(s => s.quantity));
+                      const pct = (level.quantity / maxQty) * 100;
+                      return (
+                        <div key={i} className="relative flex items-center justify-between py-1 text-xs">
+                          <div className="absolute inset-y-0 right-0 bg-red-50 rounded-sm" style={{ width: `${pct}%` }} />
+                          <span className="relative font-bold text-red-600">{formatKES(level.price)}</span>
+                          <span className="relative text-muted-foreground">{level.quantity.toFixed(2)} shares</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                {/* Spread indicator */}
+                {orderBookDepth?.buys?.length && orderBookDepth?.sells?.length ? (
+                  <div className="mx-4 py-1.5 border-y border-border flex items-center justify-center gap-2">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Spread {formatKES(Math.abs((orderBookDepth.sells[0]?.price ?? 0) - (orderBookDepth.buys[0]?.price ?? 0)))}
+                    </span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                ) : <div className="border-t border-border my-1" />}
+                {/* Buy orders (bids) — bottom */}
+                <div className="px-4 pt-1 pb-2">
+                  <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Bids (Buy Orders)</p>
+                  {(!orderBookDepth?.buys || orderBookDepth.buys.length === 0) ? (
+                    <p className="text-muted-foreground text-xs py-2 text-center">No buy orders</p>
+                  ) : (
+                    orderBookDepth.buys.slice(0, 5).map((level, i) => {
+                      const maxQty = Math.max(...orderBookDepth.buys.map(b => b.quantity));
+                      const pct = (level.quantity / maxQty) * 100;
+                      return (
+                        <div key={i} className="relative flex items-center justify-between py-1 text-xs">
+                          <div className="absolute inset-y-0 left-0 bg-green-50 rounded-sm" style={{ width: `${pct}%` }} />
+                          <span className="relative font-bold text-green-600">{formatKES(level.price)}</span>
+                          <span className="relative text-muted-foreground">{level.quantity.toFixed(2)} shares</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Place limit order */}
+            <div className="bg-card rounded-2xl border border-border p-4">
+              <p className="font-semibold text-sm mb-3 flex items-center gap-1.5"><Plus size={14} className="text-primary" /> Place Limit Order</p>
+              {orderSuccess && (
+                <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 flex items-center gap-2 mb-3">
+                  <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
+                  <p className="text-green-700 text-xs font-semibold">Order placed! Matching engine will fill it automatically.</p>
+                </div>
+              )}
+              {/* Side toggle */}
+              <div className="flex bg-muted rounded-xl p-0.5 mb-3">
+                <button onClick={() => setOrderSide("buy")}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${orderSide === "buy" ? "bg-green-600 text-white shadow-sm" : "text-muted-foreground"}`}>
+                  <ChevronUp size={12} /> Buy
+                </button>
+                <button onClick={() => setOrderSide("sell")}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${orderSide === "sell" ? "bg-red-500 text-white shadow-sm" : "text-muted-foreground"}`}>
+                  <ChevronDown size={12} /> Sell
+                </button>
+              </div>
+              <div className="space-y-2.5">
+                <div>
+                  <label className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block mb-1">Limit Price (KES)</label>
+                  <input type="number" value={orderPrice} onChange={e => setOrderPrice(e.target.value)} placeholder="e.g. 28.50"
+                    className="w-full bg-muted/40 border border-border rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block mb-1">Quantity (shares)</label>
+                  <input type="number" value={orderQty} onChange={e => setOrderQty(e.target.value)} placeholder="e.g. 10"
+                    className="w-full bg-muted/40 border border-border rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                </div>
+                {orderPrice && orderQty && (
+                  <div className="bg-muted/40 rounded-xl px-3 py-2 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Order total</span>
+                    <span className="text-sm font-bold text-foreground">{formatKES(Number(orderPrice) * Number(orderQty))}</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => placeOrder.mutate()}
+                  disabled={!orderFarmId || !orderPrice || !orderQty || placeOrder.isPending}
+                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40 ${orderSide === "buy" ? "bg-green-600 text-white" : "bg-red-500 text-white"}`}
+                >
+                  {placeOrder.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
+                  {orderSide === "buy" ? "Place Buy Order" : "Place Sell Order"}
+                </button>
+              </div>
+            </div>
+
+            {/* My open orders */}
+            <div>
+              <p className="font-semibold text-sm mb-2 px-1">My Orders</p>
+              {myOrders.length === 0 ? (
+                <div className="bg-muted/30 rounded-2xl border border-border p-5 text-center">
+                  <BookOpen size={24} className="text-muted-foreground mx-auto mb-2" />
+                  <p className="text-foreground text-sm font-medium">No orders yet</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">Place a limit order above to start trading</p>
+                </div>
+              ) : myOrders.map((order: any) => (
+                <div key={order.id} className="bg-card border border-border rounded-2xl p-3.5 mb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${order.side === "buy" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                          {order.side.toUpperCase()}
+                        </span>
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                          order.status === "filled" ? "bg-blue-100 text-blue-700" :
+                          order.status === "cancelled" ? "bg-gray-100 text-gray-500" :
+                          order.status === "partially_filled" ? "bg-amber-100 text-amber-700" :
+                          "bg-primary/10 text-primary"
+                        }`}>{order.status.replace("_", " ")}</span>
+                      </div>
+                      <p className="text-foreground font-semibold text-sm">{order.farmName ?? `Farm #${order.farmId}`}</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">
+                        {order.filledQuantity > 0 ? `${order.filledQuantity}/${order.quantity}` : order.quantity} shares · {formatKES(order.limitPrice)}/share
+                      </p>
+                    </div>
+                    {(order.status === "open" || order.status === "partially_filled") && (
+                      <button
+                        onClick={() => cancelOrder.mutate(order.id)}
+                        disabled={cancelOrder.isPending}
+                        className="text-red-500 text-xs font-semibold flex items-center gap-1 border border-red-200 rounded-lg px-2 py-1 active:scale-95"
+                      >
+                        <XCircle size={11} /> Cancel
+                      </button>
+                    )}
+                  </div>
+                  {order.status === "partially_filled" && (
+                    <div className="mt-2">
+                      <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-400 rounded-full" style={{ width: `${(order.filledQuantity / order.quantity) * 100}%` }} />
+                      </div>
+                      <p className="text-[9px] text-muted-foreground mt-0.5">{((order.filledQuantity / order.quantity) * 100).toFixed(0)}% filled</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

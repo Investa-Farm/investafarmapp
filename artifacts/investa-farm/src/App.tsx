@@ -2,6 +2,8 @@ import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wo
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "sonner";
+import { PriceAlertWatcher } from "@/components/price-alert-watcher";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getToken, getStoredUser } from "@/lib/auth";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
@@ -323,6 +325,8 @@ function App() {
             <Router />
           </WouterRouter>
           <Toaster />
+          <SonnerToaster position="top-center" richColors={false} />
+          <PriceAlertWatcher />
         </TooltipProvider>
       </CurrencyProvider>
     </QueryClientProvider>

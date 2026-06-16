@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable } from "@workspace/db";
-import { eq, inArray, lt, and, lte } from "drizzle-orm";
+import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable, orderBookTable, watchlistTable } from "@workspace/db";
+import { eq, inArray, lt, and, lte, asc } from "drizzle-orm";
 import { sendOpportunityDigest, sendPriceAlertEmail, sendVerificationReminderEmail } from "./lib/email";
 import { notifyMany, notifyUser } from "./lib/push";
 
@@ -9,11 +9,15 @@ export function startScheduler(): void {
   cron.schedule("0 18 * * 5", () => runOpportunityDigest("Friday evening"), { timezone: "Africa/Nairobi" });
   cron.schedule("*/5 * * * *", () => runPriceSimulation(), { timezone: "Africa/Nairobi" });
   cron.schedule("*/5 * * * *", () => runPriceAlertCheck(), { timezone: "Africa/Nairobi" });
+  cron.schedule("*/5 * * * *", () => runWatchlistPriceAlerts(), { timezone: "Africa/Nairobi" });
+  cron.schedule("*/2 * * * *", () => runOrderMatching(), { timezone: "Africa/Nairobi" });
   cron.schedule("0 10 * * *", () => runVerificationReminders(), { timezone: "Africa/Nairobi" });
   cron.schedule("0 2 * * *", () => runDividendPayouts(), { timezone: "Africa/Nairobi" });
 
   console.log("[scheduler] Weekly digest: Mon 8am & Fri 6pm EAT");
   console.log("[scheduler] Price simulation & alerts: every 5 minutes");
+  console.log("[scheduler] Watchlist price alerts: every 5 minutes");
+  console.log("[scheduler] Order matching engine: every 2 minutes");
   console.log("[scheduler] Verification reminders: daily 10am EAT");
   console.log("[scheduler] Dividend payouts: daily 2am EAT");
 }
@@ -294,6 +298,125 @@ async function runDividendPayouts(): Promise<void> {
     }
   } catch (e) {
     console.error("[scheduler] Dividend payout run error:", e);
+  }
+}
+
+// ─── Watchlist Price Alert (>5% daily move) ───────────────────────────────────
+const watchlistAlertHistory = new Map<number, { price: number; lastAlertedAt: number }>();
+
+async function runWatchlistPriceAlerts(): Promise<void> {
+  try {
+    const farms = await db.select().from(farmsTable);
+    const now = Date.now();
+
+    for (const farm of farms) {
+      const currentPrice = parseFloat(
+        (farm as any).currentPrice?.toString() ?? (farm as any).sharePrice?.toString() ?? "100"
+      );
+      const prev = watchlistAlertHistory.get(farm.id);
+      if (!prev) { watchlistAlertHistory.set(farm.id, { price: currentPrice, lastAlertedAt: 0 }); continue; }
+
+      const changePct = ((currentPrice - prev.price) / prev.price) * 100;
+      if (Math.abs(changePct) >= 5 && now - prev.lastAlertedAt > 60 * 60 * 1000) {
+        // Find users watching this farm
+        const watchers = await db
+          .select({ userId: watchlistTable.userId })
+          .from(watchlistTable)
+          .where(eq(watchlistTable.farmId, farm.id));
+
+        const watcherIds = watchers.map(w => w.userId);
+        if (watcherIds.length > 0) {
+          const direction = changePct > 0 ? "📈" : "📉";
+          await notifyMany(
+            watcherIds,
+            "price_alert",
+            `${direction} Watchlist Alert: ${(farm as any).name}`,
+            `Price moved ${changePct > 0 ? "+" : ""}${changePct.toFixed(1)}% → KES ${Math.round(currentPrice).toLocaleString()}. Tap to view.`,
+            `/market/${farm.id}`
+          ).catch(() => {});
+          console.log(`[scheduler] Watchlist alert: ${(farm as any).name} ${changePct.toFixed(1)}% — notified ${watcherIds.length} watchers`);
+        }
+        watchlistAlertHistory.set(farm.id, { price: currentPrice, lastAlertedAt: now });
+      } else {
+        watchlistAlertHistory.set(farm.id, { price: currentPrice, lastAlertedAt: prev.lastAlertedAt });
+      }
+    }
+  } catch (e) {
+    console.warn("[scheduler] Watchlist price alert error:", (e as Error)?.message);
+  }
+}
+
+// ─── Order Matching Engine ─────────────────────────────────────────────────────
+async function runOrderMatching(): Promise<void> {
+  try {
+    const farms = await db.select({ id: farmsTable.id, name: farmsTable.name }).from(farmsTable);
+
+    for (const farm of farms) {
+      // Get all open buy and sell orders for this farm, price-time priority
+      const buys = await db.select().from(orderBookTable)
+        .where(and(eq(orderBookTable.farmId, farm.id), eq(orderBookTable.side, "buy"), eq(orderBookTable.status, "open")))
+        .orderBy(asc(orderBookTable.limitPrice)); // highest buy first (we'll sort descending below)
+      const sells = await db.select().from(orderBookTable)
+        .where(and(eq(orderBookTable.farmId, farm.id), eq(orderBookTable.side, "sell"), eq(orderBookTable.status, "open")))
+        .orderBy(asc(orderBookTable.limitPrice), asc(orderBookTable.createdAt)); // lowest sell price first
+
+      const sortedBuys = [...buys].sort((a, b) => Number(b.limitPrice) - Number(a.limitPrice));
+
+      for (const sell of sells) {
+        let sellRemaining = Number(sell.quantity) - Number(sell.filledQuantity);
+        if (sellRemaining <= 0) continue;
+
+        for (const buy of sortedBuys) {
+          if (buy.investorId === sell.investorId) continue; // can't match with yourself
+          const buyRemaining = Number(buy.quantity) - Number(buy.filledQuantity);
+          if (buyRemaining <= 0) continue;
+          if (Number(buy.limitPrice) < Number(sell.limitPrice)) break; // no more matches possible
+
+          // Match!
+          const fillQty = Math.min(sellRemaining, buyRemaining);
+          const fillPrice = Number(sell.limitPrice); // seller's price is execution price
+
+          const newBuyFilled = Number(buy.filledQuantity) + fillQty;
+          const newSellFilled = Number(sell.filledQuantity) + fillQty;
+          const buyComplete = newBuyFilled >= Number(buy.quantity) * 0.999;
+          const sellComplete = newSellFilled >= Number(sell.quantity) * 0.999;
+          const now = new Date();
+
+          await db.update(orderBookTable).set({
+            filledQuantity: String(newBuyFilled),
+            status: buyComplete ? "filled" : "partially_filled",
+            updatedAt: now,
+            filledAt: buyComplete ? now : undefined,
+          }).where(eq(orderBookTable.id, buy.id));
+
+          await db.update(orderBookTable).set({
+            filledQuantity: String(newSellFilled),
+            status: sellComplete ? "filled" : "partially_filled",
+            updatedAt: now,
+            filledAt: sellComplete ? now : undefined,
+          }).where(eq(orderBookTable.id, sell.id));
+
+          // Notify both parties
+          notifyUser(buy.investorId, "order_filled",
+            "✅ Buy Order Filled",
+            `${fillQty.toFixed(2)} shares of ${farm.name} @ KES ${fillPrice.toLocaleString()}`,
+            "/market/secondary"
+          ).catch(() => {});
+
+          notifyUser(sell.investorId, "order_filled",
+            "✅ Sell Order Filled",
+            `${fillQty.toFixed(2)} shares of ${farm.name} @ KES ${fillPrice.toLocaleString()}`,
+            "/market/secondary"
+          ).catch(() => {});
+
+          sellRemaining -= fillQty;
+          console.log(`[matcher] ${farm.name}: ${fillQty.toFixed(2)} shares matched @ KES ${fillPrice}`);
+          if (sellRemaining <= 0) break;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[scheduler] Order matching error:", (e as Error)?.message);
   }
 }
 

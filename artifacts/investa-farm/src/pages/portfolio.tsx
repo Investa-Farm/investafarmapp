@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useGetPortfolio, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getStoredUser, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen, Star, Plus, RefreshCw, Bell } from "lucide-react";
+import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen, Star, Plus, RefreshCw, Bell, CreditCard } from "lucide-react";
 import { PortfolioWizard } from "@/components/portfolio-wizard";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -98,6 +98,25 @@ export default function Portfolio() {
     },
     staleTime: 120_000,
   });
+
+  const [acctCopied, setAcctCopied] = useState(false);
+
+  const { data: stellarAcct } = useQuery<{ accountNumber: string }>({
+    queryKey: ["stellar-account"],
+    queryFn: async () => {
+      const r = await fetch("/api/stellar/account", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    staleTime: 300_000,
+  });
+
+  const handleCopyAcct = async () => {
+    if (!stellarAcct?.accountNumber) return;
+    await navigator.clipboard.writeText(stellarAcct.accountNumber).catch(() => {});
+    setAcctCopied(true);
+    setTimeout(() => setAcctCopied(false), 2000);
+  };
 
   const brokerLink = `https://investafarm.co.ke/broker/${user?.id ?? ""}`;
   const handleCopyLink = async () => {
@@ -277,6 +296,40 @@ export default function Portfolio() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Investa Account Number Card ── */}
+      <div className="mx-4 mt-3">
+        <div className="bg-gradient-to-br from-[#0a1f11] via-[#0f2d1a] to-[#0a1f11] rounded-2xl p-4 shadow-lg overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-green-500/5 -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-20 h-20 rounded-full bg-green-400/5 translate-y-1/2 -translate-x-1/2" />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-green-500/20 flex items-center justify-center">
+                  <CreditCard size={14} className="text-green-400" />
+                </div>
+                <span className="text-white/60 text-[10px] font-semibold uppercase tracking-widest">Investa Account</span>
+              </div>
+              <span className="text-[9px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full border border-green-500/20">Active</span>
+            </div>
+            <div className="flex items-center justify-between">
+              {stellarAcct?.accountNumber ? (
+                <>
+                  <p className="text-white font-bold text-lg tracking-widest font-mono">{stellarAcct.accountNumber}</p>
+                  <button onClick={handleCopyAcct}
+                    className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl px-3 py-1.5 transition-all active:scale-95">
+                    {acctCopied ? <Check size={12} className="text-green-400" /> : <Copy size={12} className="text-white/70" />}
+                    <span className="text-white/80 text-[10px] font-semibold">{acctCopied ? "Copied!" : "Copy"}</span>
+                  </button>
+                </>
+              ) : (
+                <p className="text-white/40 text-sm font-mono tracking-widest">Loading...</p>
+              )}
+            </div>
+            <p className="text-white/30 text-[9px] mt-2">Secure · AES-256 encrypted · Custodial</p>
+          </div>
+        </div>
       </div>
 
       {/* Return info banner */}

@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "bash"]
+modules = ["nodejs-20", "web", "bash", "postgresql-16"]
 [agent]
 expertMode = true
 stack = "BEST_EFFORT_FALLBACK"
@@ -13,6 +13,7 @@ packages = ["nano"]
 BASE_PATH = "/"
 VAPID_PUBLIC_KEY = "BL36T426aOm-MLB77gGSDBvvsvAg679MLHt-dpmJ-SSNls6hqQA9AguxAhIwWmqbrPHsKnqQz8D9kVQaD5qZwfc"
 VAPID_PRIVATE_KEY = "W4d_A-f1wGaBtbH8nzrPGfCxTCqYkHo5AJxsJG0ssLU"
+STELLAR_ISSUER_PUBLIC_KEY = "GDCTQTPZKLTNAXD6LM6AH3IZSJEV6BFB34XQCS4SHTLBN4YWKBIXK3ZJ"
 
 [workflows]
 runButton = "Project"
@@ -61,6 +62,10 @@ externalPort = 80
 [[ports]]
 localPort = 8080
 externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
 
 [[ports]]
 localPort = 19899

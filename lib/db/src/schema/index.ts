@@ -19,3 +19,6 @@ export * from "./investor_portfolio_subscriptions";
 export * from "./portfolio_fees";
 export * from "./reinvestment_rules";
 export * from "./dividends";
+export * from "./order_book";
+export * from "./watchlist";
+export * from "./stellar_accounts";
