@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, farmsTable, investmentsTable, farmUpdatesTable, marketListingsTable, usersTable } from "@workspace/db";
+import { db, farmsTable, investmentsTable, farmUpdatesTable, marketListingsTable, usersTable, notificationsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { CreateFarmUpdateBody } from "@workspace/api-zod";
 import { getCurrentUser } from "./auth";
@@ -204,6 +204,129 @@ router.post("/farmer/updates", async (req, res): Promise<void> => {
     imageUrl: update.imageUrl ?? undefined,
     hoursAgo: 0,
     createdAt: update.createdAt.toISOString(),
+  });
+});
+
+const BUYER_CATALOG: Record<string, Array<{ name: string; price: number; priceUnit: string; quantity: number; location: string; region: string; duration: string; rating: number; contracts: number; onTime: number; color: string; bestPrice?: boolean }>> = {
+  tomatoes:  [
+    { name: "Green Harvest Ltd.", price: 450, priceUnit: "Ton", quantity: 50, location: "Nairobi", region: "Central", duration: "60 Days", rating: 4.9, contracts: 1248, onTime: 99, color: "#0B6B3A", bestPrice: true },
+    { name: "FreshLink Traders",  price: 435, priceUnit: "Ton", quantity: 80, location: "Kisumu",  region: "Nyanza",   duration: "45 Days", rating: 4.7, contracts: 876,  onTime: 97, color: "#1a6b4a" },
+    { name: "Agri Export Co.",    price: 470, priceUnit: "Ton", quantity: 120,location: "Mombasa", region: "Coast",     duration: "90 Days", rating: 4.8, contracts: 2100, onTime: 98, color: "#22A45D" },
+  ],
+  maize: [
+    { name: "Nakuru Grain Traders",  price: 380, priceUnit: "Ton", quantity: 200, location: "Nakuru",  region: "Rift Valley", duration: "30 Days", rating: 4.6, contracts: 540, onTime: 95, color: "#c97f2b", bestPrice: true },
+    { name: "Unga Holdings Ltd.",    price: 365, priceUnit: "Ton", quantity: 500, location: "Nairobi", region: "Central",     duration: "60 Days", rating: 4.8, contracts: 3200,onTime: 98, color: "#a0522d" },
+    { name: "Eldoret Grain Millers", price: 370, priceUnit: "Ton", quantity: 300, location: "Eldoret", region: "North Rift",  duration: "45 Days", rating: 4.5, contracts: 890, onTime: 93, color: "#b8860b" },
+  ],
+  avocado: [
+    { name: "Highlands Export Ltd.", price: 520, priceUnit: "Ton", quantity: 60,  location: "Eldoret",  region: "North Rift", duration: "60 Days", rating: 4.9, contracts: 312,  onTime: 98, color: "#1d6b3a", bestPrice: true },
+    { name: "Kakuzi Fresh",          price: 490, priceUnit: "Ton", quantity: 100, location: "Murang'a", region: "Central",    duration: "45 Days", rating: 4.7, contracts: 780,  onTime: 96, color: "#2e7d32" },
+  ],
+  coffee: [
+    { name: "Kenya Coffee Traders",  price: 850, priceUnit: "Kg",  quantity: 10,  location: "Nairobi", region: "Central",   duration: "30 Days", rating: 4.9, contracts: 2100, onTime: 99, color: "#4e342e", bestPrice: true },
+    { name: "Dorman's Coffee",       price: 820, priceUnit: "Kg",  quantity: 20,  location: "Nairobi", region: "Central",   duration: "60 Days", rating: 4.8, contracts: 1560, onTime: 97, color: "#6d4c41" },
+  ],
+  tea: [
+    { name: "KTDA (Kenya Tea)",      price: 32,  priceUnit: "Kg",  quantity: 5000, location: "Nairobi",  region: "Central",  duration: "90 Days", rating: 4.9, contracts: 5400, onTime: 99, color: "#2d6a4f", bestPrice: true },
+    { name: "Williamson Tea Kenya",  price: 30,  priceUnit: "Kg",  quantity: 3000, location: "Kericho",  region: "Rift Valley",duration: "30 Days",rating: 4.7, contracts: 980,  onTime: 96, color: "#1b5e20" },
+  ],
+  wheat: [
+    { name: "Grain Bulk Handlers",   price: 45,  priceUnit: "Kg",  quantity: 1000, location: "Nakuru",  region: "Rift Valley", duration: "30 Days", rating: 4.6, contracts: 340, onTime: 94, color: "#f9a825", bestPrice: true },
+    { name: "Kenya Unga Ltd.",        price: 43,  priceUnit: "Kg",  quantity: 2000, location: "Nairobi", region: "Central",     duration: "60 Days", rating: 4.8, contracts: 870, onTime: 97, color: "#e65100" },
+  ],
+  potatoes: [
+    { name: "Meru Fresh Connect",    price: 290, priceUnit: "Ton", quantity: 40,  location: "Meru",    region: "Mt Kenya",    duration: "21 Days", rating: 4.5, contracts: 183, onTime: 94, color: "#795548", bestPrice: true },
+    { name: "Nairobi Wholesale Mkt", price: 270, priceUnit: "Ton", quantity: 100, location: "Nairobi", region: "Central",     duration: "14 Days", rating: 4.3, contracts: 560, onTime: 91, color: "#8d6e63" },
+  ],
+};
+
+router.get("/farmer/market/buyers", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const farms = await db.select().from(farmsTable).where(eq(farmsTable.farmerId, user.id));
+  const cropTypes = [...new Set(farms.map(f => f.cropType.toLowerCase().split(" ")[0]!))];
+
+  const buyers: Array<{ id: number; cropType: string } & typeof BUYER_CATALOG[string][number]> = [];
+  let idCounter = 1;
+
+  for (const crop of cropTypes) {
+    const catalog = BUYER_CATALOG[crop];
+    if (catalog) {
+      for (const buyer of catalog) {
+        buyers.push({ id: idCounter++, cropType: crop, ...buyer });
+      }
+    }
+  }
+
+  if (buyers.length === 0) {
+    const fallbackCrops = ["maize", "tomatoes"];
+    for (const crop of fallbackCrops) {
+      const catalog = BUYER_CATALOG[crop] ?? [];
+      for (const buyer of catalog.slice(0, 1)) {
+        buyers.push({ id: idCounter++, cropType: crop, ...buyer });
+      }
+    }
+  }
+
+  res.json({ buyers, hasFarms: farms.length > 0 });
+});
+
+router.post("/farmer/market/connect", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { buyerName, cropType, quantity } = req.body as { buyerName?: string; cropType?: string; quantity?: number };
+  if (!buyerName) { res.status(400).json({ error: "buyerName required" }); return; }
+
+  await db.insert(notificationsTable).values({
+    userId: user.id,
+    type: "buyer_connect",
+    title: "Buyer Connection Request Sent",
+    body: `Your connection request to ${buyerName} for ${cropType ?? "your crop"} (${quantity ?? "?"} tons) has been submitted. They will contact you within 24 hours.`,
+    isRead: 0,
+  }).catch(() => {});
+
+  res.json({ success: true, message: `Connection request sent to ${buyerName}. They will reach out within 24 hours.` });
+});
+
+router.post("/farmer/market/crop-proposal", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user || user.role !== "farmer") { res.status(403).json({ error: "Farmers only" }); return; }
+
+  const { cropType, acreage, expectedYield, plantingDate, location, description } = req.body as {
+    cropType?: string; acreage?: number; expectedYield?: number;
+    plantingDate?: string; location?: string; description?: string;
+  };
+
+  if (!cropType || !acreage || !location) {
+    res.status(400).json({ error: "cropType, acreage, and location are required" });
+    return;
+  }
+
+  const loanAmount = (acreage ?? 1) * 15000;
+  const totalShares = Math.ceil(loanAmount / 100);
+
+  const [farm] = await db.insert(farmsTable).values({
+    farmerId: user.id,
+    name: `${user.name}'s ${cropType} Farm`,
+    cropType,
+    location,
+    loanAmount: String(loanAmount),
+    totalShares,
+    sharePrice: "100",
+    sharesAvailable: totalShares,
+    currentPrice: "100",
+    status: "pending",
+    description: description ?? `Proposed ${cropType} crop on ${acreage} acres. Expected yield: ${expectedYield ?? "TBD"} tons. Planting: ${plantingDate ?? "Next season"}.`,
+    changePercent: "0",
+    tradeCount: 0,
+  }).returning();
+
+  res.status(201).json({
+    id: farm!.id,
+    message: `Crop proposal for ${cropType} submitted successfully. It will be reviewed and listed for investor funding.`,
+    farm: farm,
   });
 });
 

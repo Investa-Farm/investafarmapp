@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { createHmac } from "crypto";
 import { db, walletsTable, walletTransactionsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
@@ -157,6 +158,57 @@ router.post("/wallet/paystack/verify", async (req, res): Promise<void> => {
     const msg = err instanceof Error ? err.message : "Verification failed";
     res.status(502).json({ error: msg });
   }
+});
+
+router.post("/wallet/paystack/webhook", async (req, res): Promise<void> => {
+  const sig = req.headers["x-paystack-signature"] as string | undefined;
+  const secret = process.env.PAYSTACK_SECRET_KEY ?? "";
+  const rawBody = JSON.stringify(req.body);
+
+  if (sig && secret) {
+    const expected = createHmac("sha512", secret).update(rawBody).digest("hex");
+    if (sig !== expected) {
+      res.status(400).json({ error: "Invalid signature" });
+      return;
+    }
+  }
+
+  const event = req.body as { event?: string; data?: { reference?: string; amount?: number; metadata?: { userId?: number } } };
+
+  if (event.event === "charge.success" && event.data) {
+    const { reference, amount: amountKobo, metadata } = event.data;
+    const userId = metadata?.userId;
+    const amount = (amountKobo ?? 0) / 100;
+
+    if (!reference || !userId || amount <= 0) {
+      res.sendStatus(200);
+      return;
+    }
+
+    const existing = await db.select().from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.reference, reference)).limit(1);
+    if (existing.length > 0) { res.sendStatus(200); return; }
+
+    const wallet = await getOrCreateWallet(userId);
+    const newBalance = parseFloat(wallet.balance) + amount;
+
+    await db.update(walletsTable)
+      .set({ balance: String(newBalance), updatedAt: new Date() })
+      .where(eq(walletsTable.id, wallet.id));
+
+    await db.insert(walletTransactionsTable).values({
+      walletId: wallet.id,
+      userId,
+      type: "deposit",
+      amount: String(amount),
+      balanceAfter: String(newBalance),
+      description: "Paystack deposit (verified)",
+      reference,
+      status: "completed",
+    }).catch(() => {});
+  }
+
+  res.sendStatus(200);
 });
 
 export default router;

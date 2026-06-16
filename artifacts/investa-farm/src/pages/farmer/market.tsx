@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useGetMyFarms, useListPrimaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES, isDemoAccount } from "@/lib/auth";
+import { formatKES, isDemoAccount, getToken } from "@/lib/auth";
 import { Bell, Filter, TrendingUp, Star, MessageCircle, CheckCircle2, Clock, ChevronRight, ChevronDown, MapPin, Award, FileText, DollarSign, Package, Leaf, ShieldCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
@@ -80,14 +81,50 @@ export default function FarmerMarket() {
   const [tab, setTab] = useState<"offers" | "contracts" | "inputs">("offers");
   const [selectedOffer, setSelectedOffer] = useState<(typeof BUYER_OFFERS)[0] | null>(null);
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
+  const [connectToast, setConnectToast] = useState<string | null>(null);
   const { data: farms, isLoading } = useGetMyFarms();
   const { data: listings } = useListPrimaryMarket();
   const isDemo = isDemoAccount();
+  const token = getToken();
 
-  const maxPrice = Math.max(...BUYER_OFFERS.map(o => o.price));
+  const { data: buyersData, isLoading: buyersLoading } = useQuery<{ buyers: Array<{ id: number; name: string; price: number; priceUnit: string; quantity: number; location: string; region: string; duration: string; rating: number; contracts: number; onTime: number; color: string; bestPrice?: boolean; cropType: string }> ; hasFarms: boolean } | null>({
+    queryKey: ["farmer-buyers"],
+    queryFn: async () => {
+      if (!token) return null;
+      const r = await fetch("/api/farmer/market/buyers", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    enabled: !isDemo && !!token,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: async (buyer: { name: string; cropType: string; quantity: number }) => {
+      const r = await fetch("/api/farmer/market/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ buyerName: buyer.name, cropType: buyer.cropType, quantity: buyer.quantity }),
+      });
+      return r.json();
+    },
+    onSuccess: (data: { message?: string }) => {
+      setConnectToast(data.message ?? "Connection request sent!");
+      setTimeout(() => setConnectToast(null), 4000);
+    },
+  });
+
+  const realBuyers = buyersData?.buyers ?? [];
+  const maxPrice = Math.max(...BUYER_OFFERS.map(o => o.price), ...realBuyers.map(b => b.price), 1);
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="farmer-market">
+      {connectToast && (
+        <div className="fixed top-4 left-4 right-4 z-50 bg-green-600 text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2">
+          <CheckCircle2 size={16} className="flex-shrink-0" />
+          {connectToast}
+        </div>
+      )}
 
       <div className="hero-header pt-12 pb-5 px-5">
         <div className="flex items-center justify-between mb-3">
@@ -259,10 +296,84 @@ export default function FarmerMarket() {
               </div>
             </>
           ) : (
-            <div className="bg-muted/50 rounded-2xl border border-border p-8 text-center">
-              <TrendingUp size={28} className="text-muted-foreground mx-auto mb-3" />
-              <p className="text-foreground font-semibold text-sm">No buyer offers yet</p>
-              <p className="text-muted-foreground text-xs mt-1">Buyer offers will appear here as your farm gets listed and grows. Complete KYC and apply for funding to get started.</p>
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold text-sm">Live Buyer Offers</h2>
+                <span className="flex items-center gap-1 text-green-500 text-[10px] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Live
+                </span>
+              </div>
+              {buyersLoading ? (
+                <div className="space-y-3">
+                  {[1, 2].map(i => <div key={i} className="bg-card rounded-2xl border border-border h-32 animate-pulse" />)}
+                </div>
+              ) : realBuyers.length === 0 ? (
+                <div className="bg-muted/50 rounded-2xl border border-border p-8 text-center">
+                  <TrendingUp size={28} className="text-muted-foreground mx-auto mb-3" />
+                  <p className="text-foreground font-semibold text-sm">No buyer offers yet</p>
+                  <p className="text-muted-foreground text-xs mt-1">Complete KYC, add your farm, and apply for funding to see matched buyers here.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {realBuyers.map(offer => (
+                    <div key={offer.id} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                              style={{ background: offer.color }}>
+                              {offer.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-foreground font-semibold text-sm">{offer.name}</p>
+                                <CheckCircle2 size={12} className="text-green-500" />
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Star size={10} className="text-amber-400 fill-amber-400" />
+                                <span className="text-muted-foreground text-[10px]">{offer.rating} · {offer.contracts.toLocaleString()} contracts</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {offer.bestPrice && (
+                              <span className="inline-block bg-amber-500 text-white text-[8px] font-bold px-2 py-0.5 rounded-full mb-1">BEST PRICE</span>
+                            )}
+                            <p className="text-primary font-bold text-lg">KES {offer.price}/{offer.priceUnit}</p>
+                            <div className="w-full bg-muted h-1 rounded-full mt-1">
+                              <div className="h-1 bg-primary rounded-full" style={{ width: `${(offer.price / maxPrice) * 100}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mb-3">
+                          {[
+                            { label: "Quantity", val: `${offer.quantity} Tons` },
+                            { label: "Location", val: offer.location },
+                            { label: "Duration", val: offer.duration },
+                          ].map(({ label, val }) => (
+                            <div key={label} className="bg-muted/50 rounded-xl p-2 text-center">
+                              <p className="text-muted-foreground text-[8px]">{label}</p>
+                              <p className="text-foreground text-[10px] font-semibold mt-0.5">{val}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => connectMutation.mutate({ name: offer.name, cropType: offer.cropType, quantity: offer.quantity })}
+                            disabled={connectMutation.isPending}
+                            className="flex-1 bg-primary text-white font-semibold py-2.5 rounded-xl text-xs active:scale-95 transition-transform disabled:opacity-60">
+                            {connectMutation.isPending ? "Sending…" : "Connect with Buyer"}
+                          </button>
+                          <button className="w-10 h-10 rounded-xl border border-border flex items-center justify-center active:scale-95 transition-transform flex-shrink-0">
+                            <MessageCircle size={15} className="text-muted-foreground" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

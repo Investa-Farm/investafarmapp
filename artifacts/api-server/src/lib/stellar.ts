@@ -60,4 +60,38 @@ export async function getInvestorPublicKey(userId: number): Promise<string | nul
 }
 
 export const ISSUER_PUBLIC_KEY = process.env["STELLAR_ISSUER_PUBLIC_KEY"] ?? "";
+export const ISSUER_SECRET_KEY = process.env["STELLAR_ISSUER_SECRET_KEY"] ?? "";
 export const NETWORK_PASSPHRASE = StellarSdk.Networks.TESTNET;
+
+export function getIssuerKeypair(): StellarSdk.Keypair | null {
+  if (!ISSUER_SECRET_KEY) return null;
+  try {
+    return StellarSdk.Keypair.fromSecret(ISSUER_SECRET_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function fundUserAccount(userPublicKey: string): Promise<boolean> {
+  const issuer = getIssuerKeypair();
+  if (!issuer) return false;
+  try {
+    const server = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org");
+    const issuerAccount = await server.loadAccount(issuer.publicKey());
+    const tx = new StellarSdk.TransactionBuilder(issuerAccount, {
+      fee: StellarSdk.BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(StellarSdk.Operation.createAccount({
+        destination: userPublicKey,
+        startingBalance: "1",
+      }))
+      .setTimeout(30)
+      .build();
+    tx.sign(issuer);
+    await server.submitTransaction(tx);
+    return true;
+  } catch {
+    return false;
+  }
+}

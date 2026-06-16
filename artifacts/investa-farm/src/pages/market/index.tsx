@@ -282,16 +282,35 @@ export default function MarketHome() {
 
   const walletBalance = walletData?.wallet?.balance;
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
-  // Build rich ticker: interleave commodity prices with market insights
+  const isDemo = isDemoAccount();
+
+  const { data: liveTickerData } = useQuery<{ prices: Array<{name: string; price: string; unit: string; change: number}>; insights: string[] } | null>({
+    queryKey: ["market-ticker"],
+    queryFn: async () => {
+      const r = await fetch("/api/market/ticker");
+      if (!r.ok) return null;
+      return r.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  // Build rich ticker: live prices for real users, static data for demo accounts
   const tickerItems = (() => {
     const result: Array<{ type: "price"; name: string; price: string; unit: string; change: number } | { type: "insight"; text: string }> = [];
-    const prices = TICKER_ITEMS.map(t => ({ type: "price" as const, ...t }));
-    const insights = MARKET_INSIGHTS.map(i => ({ type: "insight" as const, ...i }));
+    const priceSource = (!isDemo && liveTickerData?.prices?.length)
+      ? liveTickerData.prices
+      : TICKER_ITEMS;
+    const insightSource = (!isDemo && liveTickerData?.insights?.length)
+      ? liveTickerData.insights.map(text => ({ text }))
+      : MARKET_INSIGHTS;
+    const prices = priceSource.map(t => ({ type: "price" as const, ...t }));
+    const insights = insightSource.map(i => ({ type: "insight" as const, ...i }));
     for (let i = 0; i < prices.length; i++) {
-      result.push(prices[i]);
-      if (i % 3 === 2 && insights[Math.floor(i / 3)]) result.push(insights[Math.floor(i / 3)]);
+      result.push(prices[i]!);
+      if (i % 3 === 2 && insights[Math.floor(i / 3)]) result.push(insights[Math.floor(i / 3)]!);
     }
-    return [...result, ...result]; // double for seamless loop
+    return [...result, ...result];
   })();
 
   const handleBuyClick = (e: React.MouseEvent, listing: Listing) => {

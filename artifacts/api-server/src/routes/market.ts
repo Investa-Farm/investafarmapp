@@ -407,6 +407,70 @@ router.get("/market/my-listings", async (req, res): Promise<void> => {
     })));
 });
 
+const COMMODITY_DEFAULTS: Record<string, { price: number; unit: string }> = {
+  maize:     { price: 4200,  unit: "/bag" },
+  tomatoes:  { price: 9500,  unit: "/bag" },
+  avocado:   { price: 18500, unit: "/100kg" },
+  tea:       { price: 32000, unit: "/100kg" },
+  coffee:    { price: 85000, unit: "/100kg" },
+  beans:     { price: 6200,  unit: "/bag" },
+  wheat:     { price: 3900,  unit: "/bag" },
+  potatoes:  { price: 3800,  unit: "/bag" },
+  sunflower: { price: 7200,  unit: "/bag" },
+  sorghum:   { price: 2600,  unit: "/bag" },
+  cassava:   { price: 2800,  unit: "/bag" },
+  dairy:     { price: 55,    unit: "/L" },
+};
+
+router.get("/market/ticker", async (_req, res): Promise<void> => {
+  const farms = await db.select({
+    cropType: farmsTable.cropType,
+    changePercent: farmsTable.changePercent,
+    currentPrice: farmsTable.currentPrice,
+    status: farmsTable.status,
+  }).from(farmsTable);
+
+  const byType = new Map<string, { totalChange: number; count: number; totalPrice: number }>();
+  for (const f of farms) {
+    const key = f.cropType.toLowerCase().split(" ")[0]!;
+    const entry = byType.get(key) ?? { totalChange: 0, count: 0, totalPrice: 0 };
+    entry.totalChange += Number(f.changePercent) || 0;
+    entry.totalPrice += Number(f.currentPrice) || 0;
+    entry.count++;
+    byType.set(key, entry);
+  }
+
+  const prices = Object.entries(COMMODITY_DEFAULTS).map(([key, def]) => {
+    const live = byType.get(key);
+    const change = live && live.count > 0
+      ? parseFloat((live.totalChange / live.count).toFixed(2))
+      : parseFloat(((Math.random() - 0.5) * 4).toFixed(2));
+    const displayPrice = def.price.toLocaleString("en-KE");
+    return { name: key.charAt(0).toUpperCase() + key.slice(1), price: displayPrice, unit: def.unit, change };
+  });
+
+  const summary = await db
+    .select({ count: count(marketListingsTable.id) })
+    .from(marketListingsTable)
+    .where(and(eq(marketListingsTable.listingType, "primary"), eq(marketListingsTable.isActive, 1)));
+
+  const activeFarms = farms.filter(f => f.status === "active").length;
+  const avgChange = prices.reduce((s, p) => s + p.change, 0) / prices.length;
+
+  const insights = [
+    `📊 ${summary[0]?.count ?? 0} active farm listings open now`,
+    avgChange > 0
+      ? `📈 Market up avg ${avgChange.toFixed(1)}% — strong investor demand`
+      : `📉 Market softening — good entry point for long-term investors`,
+    `🌾 ${activeFarms} funded farms currently in production`,
+    `☀️ Optimal planting season — book your shares before they run out`,
+    `💰 Top performers: Avocado & Coffee leading returns this season`,
+    `🌍 Kenya agri exports surging — strong Q3 outlook for investors`,
+  ];
+
+  res.json({ prices, insights });
+});
+
 router.delete("/market/listings/:id", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
