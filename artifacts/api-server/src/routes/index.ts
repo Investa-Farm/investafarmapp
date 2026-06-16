@@ -23,6 +23,7 @@ import investorFeedRouter from "./investor-feed";
 import ordersRouter from "./orders";
 import watchlistRouter from "./watchlist";
 import stellarRouter from "./stellar";
+import uploadRouter from "./upload";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use(investorFeedRouter);
 router.use(ordersRouter);
 router.use(watchlistRouter);
 router.use(stellarRouter);
+router.use(uploadRouter);
 
 export default router;

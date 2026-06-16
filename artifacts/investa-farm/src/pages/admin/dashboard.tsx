@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import {
   Shield, Users, Tractor, DollarSign, TrendingUp, FileText,
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
-  Search, Activity
+  Search, Activity, Sprout, MapPin
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -33,7 +33,7 @@ interface TxRecord {
   description: string | null; status: string; createdAt: string;
 }
 
-type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts";
+type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals";
 
 const TX_EMOJI: Record<string, string> = {
   deposit: "⬇️", withdrawal: "⬆️", investment: "📈", return: "💰", fee: "💳", transfer: "↔️",
@@ -52,6 +52,8 @@ export default function AdminDashboard() {
   const [kycdocs, setKycDocs] = useState<KycDoc[]>([]);
   const [transactions, setTransactions] = useState<TxRecord[]>([]);
   const [farms, setFarms] = useState<any[]>([]);
+  const [proposals, setProposals] = useState<any[]>([]);
+  const [proposalsLoading, setProposalsLoading] = useState(false);
   const [dividends, setDividends] = useState<{ totalPaid: number; count: number; dividends: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -78,6 +80,7 @@ export default function AdminDashboard() {
     if (tab === "transactions") fetchTransactions();
     if (tab === "farms") fetchFarms();
     if (tab === "payouts") fetchPayouts();
+    if (tab === "proposals") fetchProposals();
   }, [tab]);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -132,6 +135,35 @@ export default function AdminDashboard() {
       if (r.ok) setFarms(await r.json());
     } finally {
       setFarmsLoading(false);
+    }
+  };
+
+  const fetchProposals = async () => {
+    setProposalsLoading(true);
+    try {
+      const r = await fetch("/api/admin/farms", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) {
+        const all = await r.json();
+        setProposals(all.filter((f: any) => f.status === "pending"));
+      }
+    } finally {
+      setProposalsLoading(false);
+    }
+  };
+
+  const approveProposal = async (farmId: number, approve: boolean) => {
+    const status = approve ? "active" : "rejected";
+    const r = await fetch(`/api/admin/farms/${farmId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status }),
+    });
+    if (r.ok) {
+      showToast(approve ? "Proposal approved — now live for investors ✓" : "Proposal rejected");
+      fetchProposals();
+      fetchStats();
+    } else {
+      showToast("Action failed", "error");
     }
   };
 
@@ -238,6 +270,7 @@ export default function AdminDashboard() {
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: "Overview", icon: <LayoutGrid size={14} /> },
+    { id: "proposals", label: "Proposals", icon: <Sprout size={14} /> },
     { id: "users", label: "Users", icon: <Users size={14} /> },
     { id: "kyc", label: "KYC", icon: <FileText size={14} /> },
     { id: "transactions", label: "Txns", icon: <Activity size={14} /> },
@@ -575,6 +608,135 @@ export default function AdminDashboard() {
             ))}
           </>
         )}
+        {/* PROPOSALS TAB */}
+        {tab === "proposals" && (
+          <>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-green-700 to-emerald-500 rounded-2xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Sprout size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-base">Crop Proposals</p>
+                    <p className="text-green-200 text-[10px]">Farmer submissions awaiting review</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-bold text-2xl">{proposals.length}</p>
+                  <p className="text-green-200 text-[9px]">Pending</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                {proposals.length} pending proposal{proposals.length !== 1 ? "s" : ""}
+              </p>
+              <button onClick={fetchProposals} className="text-xs text-primary flex items-center gap-1">
+                <RefreshCw size={11} className={proposalsLoading ? "animate-spin" : ""} /> Refresh
+              </button>
+            </div>
+
+            {proposalsLoading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading proposals…</div>
+            ) : proposals.length === 0 ? (
+              <div className="bg-muted/40 rounded-2xl border border-border p-8 text-center">
+                <Sprout size={28} className="text-muted-foreground mx-auto mb-3" />
+                <p className="text-foreground font-semibold text-sm">No pending proposals</p>
+                <p className="text-muted-foreground text-xs mt-1">Farmer crop proposals will appear here for review.</p>
+              </div>
+            ) : (
+              proposals.map((f: any) => (
+                <div key={f.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+                  {/* Proposal header */}
+                  <div className="bg-amber-50 border-b border-amber-100 px-4 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">⏳ PENDING REVIEW</span>
+                    </div>
+                    <p className="text-muted-foreground text-[9px]">{new Date(f.createdAt).toLocaleDateString("en-KE")}</p>
+                  </div>
+
+                  <div className="px-4 py-3.5">
+                    {/* Farmer info */}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary font-bold text-[10px]">{f.farmerName?.charAt(0) ?? "F"}</span>
+                          </div>
+                          <p className="text-foreground font-bold text-sm">{f.farmerName ?? "Unknown Farmer"}</p>
+                        </div>
+                        <p className="text-muted-foreground text-[10px] ml-8.5">{f.farmerEmail}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-primary font-bold text-base">{fmtKES(f.loanAmount)}</p>
+                        <p className="text-muted-foreground text-[9px]">Capital needed</p>
+                      </div>
+                    </div>
+
+                    {/* Crop details grid */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="bg-green-50 rounded-xl p-2.5">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <Sprout size={10} className="text-green-600" />
+                          <p className="text-muted-foreground text-[9px]">Crop</p>
+                        </div>
+                        <p className="text-foreground font-bold text-xs">{f.cropType}</p>
+                      </div>
+                      <div className="bg-blue-50 rounded-xl p-2.5">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <MapPin size={10} className="text-blue-600" />
+                          <p className="text-muted-foreground text-[9px]">Location</p>
+                        </div>
+                        <p className="text-foreground font-bold text-xs truncate">{f.location}</p>
+                      </div>
+                      <div className="bg-purple-50 rounded-xl p-2.5">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <TrendingUp size={10} className="text-purple-600" />
+                          <p className="text-muted-foreground text-[9px]">Total Shares</p>
+                        </div>
+                        <p className="text-foreground font-bold text-xs">{f.totalShares.toLocaleString()}</p>
+                      </div>
+                      <div className="bg-amber-50 rounded-xl p-2.5">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <DollarSign size={10} className="text-amber-600" />
+                          <p className="text-muted-foreground text-[9px]">Share Price</p>
+                        </div>
+                        <p className="text-foreground font-bold text-xs">{fmtKES(f.sharePrice)}</p>
+                      </div>
+                    </div>
+
+                    {/* Farm name */}
+                    <div className="bg-muted/40 rounded-xl px-3 py-2 mb-3">
+                      <p className="text-muted-foreground text-[9px]">Farm Name</p>
+                      <p className="text-foreground text-xs font-semibold">{f.name}</p>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button
+                        onClick={() => approveProposal(f.id, false)}
+                        className="flex-1 border border-red-300 text-red-600 bg-red-50 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+                        <XCircle size={14} /> Reject
+                      </button>
+                      <button
+                        onClick={() => approveProposal(f.id, true)}
+                        className="flex-1 bg-primary text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+                        <CheckCircle2 size={14} /> Approve
+                      </button>
+                    </div>
+                    <p className="text-muted-foreground text-[9px] text-center mt-2">
+                      Approving makes this farm visible to investors on the marketplace
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </>
+        )}
+
         {/* FARMS TAB */}
         {tab === "farms" && (
           <>

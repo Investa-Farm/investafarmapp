@@ -5,9 +5,9 @@ import { formatKES, getToken, getStoredUser, isDemoAccount } from "@/lib/auth";
 import {
   Settings, Bell, Droplets, CloudRain, BarChart3, MapPin, Leaf, Sun, Wheat,
   TrendingUp, CalendarDays, ChevronRight, Maximize2, CheckCircle2, Clock,
-  XCircle, Share2, Users, DollarSign, Activity, ShieldCheck, X
+  XCircle, Share2, Users, DollarSign, Activity, ShieldCheck, X, Camera, Plus, Loader2
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
@@ -118,6 +118,14 @@ export default function FarmProfile() {
   const user = getStoredUser();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [farmSettingsOpen, setFarmSettingsOpen] = useState(false);
+  const [showUpdateForm, setShowUpdateForm] = useState(false);
+  const [updateTitle, setUpdateTitle] = useState("");
+  const [updateDesc, setUpdateDesc] = useState("");
+  const [updateFile, setUpdateFile] = useState<File | null>(null);
+  const [updateFilePreview, setUpdateFilePreview] = useState<string | null>(null);
+  const [updatePosted, setUpdatePosted] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const qc = useQueryClient();
 
   const { data: farms, isLoading } = useGetMyFarms();
   const { data: dashboard } = useGetFarmerDashboard();
@@ -152,6 +160,43 @@ export default function FarmProfile() {
   const currentStageIndex = Math.max(0, CROP_STAGES.findIndex(s => s.key === (dashboard as any)?.growthStage));
   const activeLoan = loans.find((l: any) => ["approved", "submitted", "under_review"].includes(l.status));
   const kycApproved = kycDocs.filter((d: any) => d.status === "approved").length;
+
+  const postUpdateMutation = useMutation({
+    mutationFn: async ({ farmId, title, description, imageUrl }: { farmId: number; title: string; description: string; imageUrl?: string }) => {
+      const r = await fetch("/api/farmer/updates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ farmId, title, description, imageUrl }),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? "Failed to post update"); }
+      return r.json();
+    },
+    onSuccess: () => {
+      setUpdatePosted(true);
+      setShowUpdateForm(false);
+      setUpdateTitle(""); setUpdateDesc(""); setUpdateFile(null); setUpdateFilePreview(null);
+      qc.invalidateQueries({ queryKey: ["my-farms"] });
+      setTimeout(() => setUpdatePosted(false), 4000);
+    },
+    onError: (e: Error) => setUpdateError(e.message),
+  });
+
+  const handlePostUpdate = async () => {
+    if (!currentFarm || !updateTitle.trim() || !updateDesc.trim()) return;
+    setUpdateError(null);
+    try {
+      let imageUrl: string | undefined;
+      if (updateFile) {
+        const form = new FormData();
+        form.append("file", updateFile);
+        const r = await fetch("/api/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+        if (r.ok) { const { url } = await r.json(); imageUrl = url; }
+      }
+      postUpdateMutation.mutate({ farmId: currentFarm.id, title: updateTitle.trim(), description: updateDesc.trim(), imageUrl });
+    } catch (e: any) {
+      setUpdateError(e.message ?? "Upload failed");
+    }
+  };
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "overview",    label: "Overview" },
@@ -446,6 +491,90 @@ export default function FarmProfile() {
         {/* ─── ACTIVITIES TAB ─── */}
         {activeTab === "activities" && (
           <>
+            {/* Update posted toast */}
+            {updatePosted && (
+              <div className="bg-green-600 text-white px-4 py-2.5 rounded-2xl text-sm font-semibold flex items-center gap-2">
+                <CheckCircle2 size={15} /> Update posted — investors will be notified!
+              </div>
+            )}
+
+            {/* Post Field Update card */}
+            {currentFarm && (
+              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Camera size={15} className="text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">Post Field Update</p>
+                      <p className="text-muted-foreground text-[10px]">Notify your investors of farm progress</p>
+                    </div>
+                  </div>
+                  {!showUpdateForm && (
+                    <button onClick={() => setShowUpdateForm(true)}
+                      className="bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 active:scale-95 transition-transform">
+                      <Plus size={11} /> Post Update
+                    </button>
+                  )}
+                </div>
+
+                {showUpdateForm && (
+                  <div className="px-4 py-4 space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-foreground mb-1.5 block">Update Title *</label>
+                      <input value={updateTitle} onChange={e => setUpdateTitle(e.target.value)}
+                        placeholder="e.g. Planting complete — 5 acres done!"
+                        className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-foreground mb-1.5 block">Description *</label>
+                      <textarea value={updateDesc} onChange={e => setUpdateDesc(e.target.value)}
+                        rows={3} placeholder="Describe what's happening on the farm this week…"
+                        className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-foreground mb-1.5 block">Photo (optional)</label>
+                      <label className={`w-full border-2 border-dashed rounded-xl overflow-hidden cursor-pointer transition-colors flex items-center justify-center min-h-[80px] ${updateFilePreview ? "border-green-300 bg-green-50" : "border-border hover:border-primary/50 bg-muted/30"}`}>
+                        <input type="file" className="hidden" accept="image/*"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setUpdateFile(file);
+                            setUpdateFilePreview(URL.createObjectURL(file));
+                          }} />
+                        {updateFilePreview ? (
+                          <img src={updateFilePreview} alt="Preview" className="w-full h-36 object-cover rounded-xl" />
+                        ) : (
+                          <div className="p-4 text-center">
+                            <Camera size={22} className="text-muted-foreground mx-auto mb-1" />
+                            <p className="text-foreground text-xs font-medium">Tap to add photo</p>
+                            <p className="text-muted-foreground text-[10px]">JPG, PNG or WEBP</p>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                    {updateError && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                        <p className="text-red-700 text-xs">{updateError}</p>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <button onClick={() => { setShowUpdateForm(false); setUpdateTitle(""); setUpdateDesc(""); setUpdateFile(null); setUpdateFilePreview(null); setUpdateError(null); }}
+                        className="flex-1 border border-border text-muted-foreground font-semibold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">
+                        Cancel
+                      </button>
+                      <button onClick={handlePostUpdate}
+                        disabled={!updateTitle.trim() || !updateDesc.trim() || postUpdateMutation.isPending}
+                        className="flex-1 bg-primary text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-50">
+                        {postUpdateMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Posting…</> : "Post Update"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* KYC verification */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
               <p className="text-sm font-semibold mb-3 flex items-center gap-2">
