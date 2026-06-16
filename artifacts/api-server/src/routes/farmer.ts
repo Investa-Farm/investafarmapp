@@ -5,6 +5,7 @@ import { CreateFarmUpdateBody } from "@workspace/api-zod";
 import { getCurrentUser } from "./auth";
 import { notifyUser } from "../lib/push";
 import { sendFarmUpdateEmail } from "../lib/email";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -49,10 +50,14 @@ router.get("/farmer/dashboard", async (req, res): Promise<void> => {
 
   const hasFarms = farms.length > 0;
 
+  const avgChangePercent = hasFarms
+    ? farms.reduce((sum, f) => sum + Number(f.changePercent), 0) / farms.length
+    : 0;
+  const weeklyRate = avgChangePercent / 100;
   const priceHistory = hasFarms
     ? Array.from({ length: 7 }, (_, i) => ({
         label: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
-        value: farmValue * (0.94 + i * 0.01),
+        value: Math.round(farmValue * (1 - weeklyRate + (weeklyRate * i) / 6)),
       }))
     : [];
 
@@ -193,7 +198,9 @@ router.post("/farmer/updates", async (req, res): Promise<void> => {
         ).catch(() => {});
       }
     }
-  } catch {}
+  } catch (e) {
+    logger.error({ err: e }, "[FARM_UPDATE] Failed to send notifications");
+  }
 
   res.status(201).json({
     id: update.id,
@@ -328,6 +335,49 @@ router.post("/farmer/market/crop-proposal", async (req, res): Promise<void> => {
     message: `Crop proposal for ${cropType} submitted successfully. It will be reviewed and listed for investor funding.`,
     farm: farm,
   });
+});
+
+const CROP_SEASON_DAYS: Record<string, number> = {
+  maize: 120, tomatoes: 90, coffee: 180, tea: 365, wheat: 120,
+  avocado: 180, potatoes: 90, rice: 150, kale: 60, sunflower: 120, cabbage: 75,
+};
+
+const CROP_MARKET_PRICE_KES: Record<string, number> = {
+  maize: 3800, tomatoes: 4200, coffee: 7800, tea: 3200, wheat: 4500,
+  avocado: 5600, potatoes: 2900, rice: 5200, kale: 2100, sunflower: 3600, cabbage: 2400,
+};
+
+router.get("/farmer/growth/:farmId", async (req, res): Promise<void> => {
+  const farmId = parseInt(req.params.farmId!);
+  if (isNaN(farmId)) { res.status(400).json({ error: "Invalid farm id" }); return; }
+
+  const [farm] = await db.select().from(farmsTable).where(eq(farmsTable.id, farmId));
+  if (!farm) { res.status(404).json({ error: "Farm not found" }); return; }
+
+  const cropKey = farm.cropType.toLowerCase().split(" ")[0]!;
+  const daysTotal = CROP_SEASON_DAYS[cropKey] ?? 120;
+  const ageMs = Date.now() - farm.createdAt.getTime();
+  const daysElapsed = Math.min(daysTotal, Math.max(1, Math.floor(ageMs / 86_400_000)));
+  const progressRatio = daysElapsed / daysTotal;
+
+  let stage: string;
+  if (progressRatio < 0.15)      stage = "planting";
+  else if (progressRatio < 0.35) stage = "vegetative";
+  else if (progressRatio < 0.6)  stage = "flowering";
+  else if (progressRatio < 0.85) stage = "fruiting";
+  else                            stage = "harvest";
+
+  const percent = Math.round(progressRatio * 100);
+  const marketChangePercent = Number(farm.changePercent);
+  const marketPriceKes = CROP_MARKET_PRICE_KES[cropKey] ?? 4000;
+
+  let marketInsight: string;
+  if (marketChangePercent > 3)       marketInsight = `${farm.cropType} prices are surging — ideal harvest window approaching.`;
+  else if (marketChangePercent > 0)  marketInsight = `${farm.cropType} prices are stable with a positive trend.`;
+  else if (marketChangePercent > -3) marketInsight = `${farm.cropType} prices are slightly down — monitor closely.`;
+  else                               marketInsight = `${farm.cropType} market is under pressure. Consider forward contracts.`;
+
+  res.json({ stage, percent, daysElapsed, daysTotal, marketChangePercent, marketPriceKes, marketInsight });
 });
 
 export default router;

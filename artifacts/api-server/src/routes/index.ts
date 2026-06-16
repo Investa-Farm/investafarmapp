@@ -24,6 +24,7 @@ import ordersRouter from "./orders";
 import watchlistRouter from "./watchlist";
 import stellarRouter from "./stellar";
 import uploadRouter from "./upload";
+import agribusinessRouter from "./agribusiness";
 
 const router: IRouter = Router();
 
@@ -52,5 +53,6 @@ router.use(ordersRouter);
 router.use(watchlistRouter);
 router.use(stellarRouter);
 router.use(uploadRouter);
+router.use(agribusinessRouter);
 
 export default router;

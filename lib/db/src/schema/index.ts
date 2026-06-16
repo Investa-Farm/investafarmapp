@@ -22,3 +22,4 @@ export * from "./dividends";
 export * from "./order_book";
 export * from "./watchlist";
 export * from "./stellar_accounts";
+export * from "./voucher_orders";

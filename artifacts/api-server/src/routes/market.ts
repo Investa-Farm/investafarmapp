@@ -117,18 +117,33 @@ router.get("/market/summary", async (_req, res): Promise<void> => {
   const cropCounts: Record<string, number> = {};
   farms.forEach(f => { cropCounts[f.cropType] = (cropCounts[f.cropType] || 0) + 1; });
   const total = farms.length || 1;
+  const cropChanges: Record<string, { total: number; count: number }> = {};
+  farms.forEach(f => {
+    const crop = f.cropType;
+    if (!cropChanges[crop]) cropChanges[crop] = { total: 0, count: 0 };
+    cropChanges[crop]!.total += Number(f.changePercent);
+    cropChanges[crop]!.count += 1;
+  });
+
   const cropBreakdown = Object.entries(cropCounts).map(([crop, count]) => ({
     crop,
     percent: Math.round((count / total) * 100),
-    change: +(Math.random() * 4 - 1).toFixed(2),
+    change: cropChanges[crop]
+      ? parseFloat((cropChanges[crop]!.total / cropChanges[crop]!.count).toFixed(2))
+      : 0,
   }));
+
+  const avgChangePercent = farms.length > 0
+    ? farms.reduce((sum, f) => sum + Number(f.changePercent), 0) / farms.length
+    : 0;
+  const averageReturn = parseFloat(Math.max(0, avgChangePercent).toFixed(1));
 
   res.json({
     totalListings: primaryListings.length + secondaryListings.length,
     primaryListings: primaryListings.length,
     secondaryListings: secondaryListings.length,
     totalVolumeKes: farms.reduce((s, f) => s + Number(f.loanAmount), 0),
-    averageReturn: 8.4,
+    averageReturn,
     topCrop: cropBreakdown.sort((a, b) => b.percent - a.percent)[0]?.crop ?? "Maize",
     cropBreakdown,
   });

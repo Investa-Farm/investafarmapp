@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRight, LogOut, BarChart3, Globe, Phone, Camera, Package, ShoppingCart, Truck, Star, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
-import { clearToken, getStoredUser } from "@/lib/auth";
+import { clearToken, getStoredUser, getToken } from "@/lib/auth";
 
 const API_SNIPPET = `// Investa Farm REST API
 fetch("https://api.investafarm.co.ke/v1/farmers", {
@@ -43,6 +44,7 @@ const ORG_TYPE_IMAGES: Record<string, string> = {
 export default function CooperativeDashboard() {
   const [, setLocation] = useLocation();
   const user = getStoredUser();
+  const token = getToken();
   const [copiedSnippet, setCopiedSnippet] = useState<"rest" | "excel" | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "api" | "farmers" | "orders">("overview");
 
@@ -64,8 +66,31 @@ export default function CooperativeDashboard() {
     ? (["overview", "api", "orders"] as const)
     : (["overview", "api", "farmers"] as const);
 
+  type VoucherOrder = { id: number; status: string; amount: number };
+  const { data: voucherOrders = [] } = useQuery<VoucherOrder[]>({
+    queryKey: ["voucher-orders"],
+    queryFn: async () => {
+      const r = await fetch("/api/agribusiness/voucher-orders", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: isInputProvider && !!token,
+  });
+
+  const activeOrderCount = voucherOrders.filter(o => o.status === "pending").length;
+  const totalVoucherCount = voucherOrders.length;
+  const revenueKes = voucherOrders
+    .filter(o => o.status === "fulfilled")
+    .reduce((s, o) => s + o.amount, 0);
+
   const statsRow = isInputProvider
-    ? [{ val: "—", label: "Active Orders" }, { val: "—", label: "Vouchers" }, { val: "—", label: "Revenue KES" }]
+    ? [
+        { val: String(activeOrderCount), label: "Active Orders" },
+        { val: String(totalVoucherCount), label: "Vouchers" },
+        { val: revenueKes > 0 ? `${(revenueKes / 1000).toFixed(0)}K` : "0", label: "Revenue KES" },
+      ]
     : [{ val: "—", label: "Farmers" }, { val: "—", label: "Active Loans" }, { val: "—", label: "Funded KES" }];
 
   return (
