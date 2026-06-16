@@ -25,43 +25,42 @@ app.use(
     },
   }),
 );
-// Build the allowed-origins list.
-// • ALLOWED_ORIGINS env var: comma-separated list (set on Render/Railway).
-// • Production fallback: mirror any origin back (frontend+backend share the
-//   same domain, so real cross-origin abuse still requires a valid JWT).
-// • Dev fallback: localhost ports used by Vite / the dev workflow.
-const allowedOriginsEnv = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-  : null;
-
+// CORS configuration.
+// Auth is JWT-based, so allowing all origins in production does not weaken
+// security — the token is the credential, not the origin.
+// In development we restrict to known local ports to catch accidental
+// cross-origin calls during development.
 const corsMiddleware = cors({
   origin: (origin, callback) => {
     // No Origin header → same-origin curl/Postman/server-side call → allow.
     if (!origin) return callback(null, true);
 
-    // Explicit list set via env var → honour it exactly.
-    if (allowedOriginsEnv) {
-      return allowedOriginsEnv.includes(origin)
-        ? callback(null, true)
-        : callback(new Error(`CORS blocked: ${origin}`));
-    }
-
-    // Production with no explicit list → echo origin back.
-    // Auth is JWT-based so this doesn't weaken security.
+    // Production → always allow. JWT is the auth mechanism.
     if (process.env.NODE_ENV === "production") {
       return callback(null, true);
     }
 
-    // Development → allow localhost on common Vite / API ports.
+    // Development → allow localhost on common Vite / API ports plus any
+    // Replit dev domain (ALLOWED_ORIGINS can extend this list).
+    const allowedOriginsEnv = process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+      : [];
+
     const devOrigins = [
       "http://localhost:5000",
       "http://localhost:3000",
       "http://localhost:19899",
       "http://localhost:4173",
+      ...allowedOriginsEnv,
     ];
-    return devOrigins.includes(origin)
-      ? callback(null, true)
-      : callback(new Error(`CORS blocked: ${origin}`));
+
+    if (devOrigins.includes(origin)) return callback(null, true);
+
+    // Also allow any *.replit.dev origin in development.
+    if (origin.endsWith(".replit.dev")) return callback(null, true);
+
+    const err = Object.assign(new Error(`CORS blocked: ${origin}`), { status: 403 });
+    return callback(err);
   },
   credentials: true,
 });
