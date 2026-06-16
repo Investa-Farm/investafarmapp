@@ -36,6 +36,19 @@ export default function AgribusinessDashboard() {
   const kycPending = kycDocs.filter((d: any) => d.status === "pending").length;
   const kycApproved = kycDocs.filter((d: any) => d.status === "approved").length;
 
+  const { data: agribizStats } = useQuery<{
+    pendingOrders: number; totalRedeemedKes: number; farmersConnected: number; commissionEarned: number;
+  }>({
+    queryKey: ["agribiz-stats"],
+    queryFn: async () => {
+      const r = await fetch("/api/agribusiness/stats", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { pendingOrders: 0, totalRedeemedKes: 0, farmersConnected: 0, commissionEarned: 0 };
+      return r.json();
+    },
+    staleTime: 60_000,
+    enabled: !!token,
+  });
+
   return (
     <div className="app-shell pb-20 page-enter">
       {/* Header */}
@@ -104,25 +117,35 @@ export default function AgribusinessDashboard() {
             <>
               <div className="bg-card rounded-2xl border border-border p-3.5">
                 <p className="text-muted-foreground text-[10px]">Pending Voucher Orders</p>
-                <p className="text-foreground font-bold text-2xl mt-1">—</p>
-                <p className="text-orange-500 text-[10px] font-medium mt-0.5">Awaiting fulfilment</p>
+                <p className="text-foreground font-bold text-2xl mt-1">
+                  {agribizStats ? String(agribizStats.pendingOrders) : "—"}
+                </p>
+                <p className="text-orange-500 text-[10px] font-medium mt-0.5">
+                  {agribizStats?.pendingOrders === 0 ? "All up to date" : "Awaiting fulfilment"}
+                </p>
               </div>
               <div className="bg-card rounded-2xl border border-border p-3.5">
                 <p className="text-muted-foreground text-[10px]">Total Redeemed</p>
-                <p className="text-foreground font-bold text-2xl mt-1">KES 0</p>
+                <p className="text-foreground font-bold text-xl mt-1">
+                  {agribizStats ? formatKES(agribizStats.totalRedeemedKes) : "—"}
+                </p>
                 <p className="text-muted-foreground text-[10px] mt-0.5">This season</p>
               </div>
             </>
           ) : (
             <>
               <div className="bg-card rounded-2xl border border-border p-3.5">
-                <p className="text-muted-foreground text-[10px]">Farmers Onboarded</p>
-                <p className="text-foreground font-bold text-2xl mt-1">—</p>
-                <p className="text-green-500 text-[10px] font-medium mt-0.5">In your network</p>
+                <p className="text-muted-foreground text-[10px]">Farmers in Network</p>
+                <p className="text-foreground font-bold text-2xl mt-1">
+                  {agribizStats ? String(agribizStats.farmersConnected) : "—"}
+                </p>
+                <p className="text-green-500 text-[10px] font-medium mt-0.5">Unique farmers connected</p>
               </div>
               <div className="bg-card rounded-2xl border border-border p-3.5">
                 <p className="text-muted-foreground text-[10px]">Commission Earned</p>
-                <p className="text-foreground font-bold text-2xl mt-1">KES 0</p>
+                <p className="text-foreground font-bold text-xl mt-1">
+                  {agribizStats ? formatKES(agribizStats.commissionEarned) : "—"}
+                </p>
                 <p className="text-muted-foreground text-[10px] mt-0.5">This season</p>
               </div>
             </>

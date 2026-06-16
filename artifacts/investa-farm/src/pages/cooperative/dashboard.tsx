@@ -79,6 +79,17 @@ export default function CooperativeDashboard() {
     enabled: isInputProvider && !!token,
   });
 
+  const { data: coopStats } = useQuery<{ farmerCount: number; activeLoanCount: number; totalFundedKes: number }>({
+    queryKey: ["cooperative-stats"],
+    queryFn: async () => {
+      const r = await fetch("/api/cooperative/stats", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { farmerCount: 0, activeLoanCount: 0, totalFundedKes: 0 };
+      return r.json();
+    },
+    enabled: !isInputProvider && !!token,
+    staleTime: 120_000,
+  });
+
   const activeOrderCount = voucherOrders.filter(o => o.status === "pending").length;
   const totalVoucherCount = voucherOrders.length;
   const revenueKes = voucherOrders
@@ -91,7 +102,11 @@ export default function CooperativeDashboard() {
         { val: String(totalVoucherCount), label: "Vouchers" },
         { val: revenueKes > 0 ? `${(revenueKes / 1000).toFixed(0)}K` : "0", label: "Revenue KES" },
       ]
-    : [{ val: "—", label: "Farmers" }, { val: "—", label: "Active Loans" }, { val: "—", label: "Funded KES" }];
+    : [
+        { val: coopStats ? String(coopStats.farmerCount) : "—", label: "Farmers" },
+        { val: coopStats ? String(coopStats.activeLoanCount) : "—", label: "Active Loans" },
+        { val: coopStats ? (coopStats.totalFundedKes > 0 ? `${(coopStats.totalFundedKes / 1_000_000).toFixed(1)}M` : "0") : "—", label: "Funded KES" },
+      ];
 
   return (
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-10">

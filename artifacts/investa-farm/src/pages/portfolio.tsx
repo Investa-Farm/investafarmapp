@@ -40,13 +40,11 @@ function buildChartData(totalInvested: number, totalValue: number, period: Perio
     else labels.push(i % 15 === 0 ? d.toLocaleDateString("en-KE", { month: "short", day: "numeric" }) : "");
   }
 
-  const start = totalInvested * 0.88;
+  const start = totalInvested;
   const end = totalValue;
   return labels.map((label, i) => {
-    const t = i / (points - 1);
-    const trend = start + (end - start) * t;
-    const noise = totalInvested * 0.02 * (Math.sin(i * 1.7) * 0.6 + Math.cos(i * 0.9) * 0.4);
-    return { label, value: Math.max(start * 0.85, trend + noise) };
+    const t = i / Math.max(1, points - 1);
+    return { label, value: Math.max(0, start + (end - start) * t) };
   });
 }
 

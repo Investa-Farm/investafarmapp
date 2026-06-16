@@ -1,10 +1,57 @@
 import { Router, type IRouter } from "express";
-import { db, voucherOrdersTable, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { db, voucherOrdersTable, usersTable, loanApplicationsTable } from "@workspace/db";
+import { eq, desc, inArray, count, sql } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+router.get("/agribusiness/stats", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  try {
+    const orders = await db.select().from(voucherOrdersTable)
+      .where(eq(voucherOrdersTable.agribusinessId, user.id));
+
+    const pendingOrders = orders.filter(o => o.status === "pending").length;
+    const totalRedeemedKes = orders
+      .filter(o => o.status === "fulfilled")
+      .reduce((sum, o) => sum + Number(o.amount), 0);
+    const farmersConnected = new Set(orders.map(o => o.farmerId)).size;
+
+    res.json({ pendingOrders, totalRedeemedKes, farmersConnected, commissionEarned: 0 });
+  } catch (e) {
+    logger.error({ err: e }, "[AGRIBUSINESS] Failed to fetch stats");
+    res.status(500).json({ error: "Failed to fetch stats" });
+  }
+});
+
+router.get("/cooperative/stats", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  try {
+    const [fcRow] = await db.select({ farmerCount: count() }).from(usersTable)
+      .where(eq(usersTable.role, "farmer"));
+
+    const [laRow] = await db.select({ activeLoanCount: count() }).from(loanApplicationsTable)
+      .where(inArray(loanApplicationsTable.status, ["submitted", "under_review", "approved", "disbursed"]));
+
+    const [fundRow] = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+      .from(loanApplicationsTable)
+      .where(eq(loanApplicationsTable.status, "disbursed"));
+
+    res.json({
+      farmerCount: Number(fcRow?.farmerCount ?? 0),
+      activeLoanCount: Number(laRow?.activeLoanCount ?? 0),
+      totalFundedKes: Number(fundRow?.total ?? 0),
+    });
+  } catch (e) {
+    logger.error({ err: e }, "[COOPERATIVE] Failed to fetch stats");
+    res.status(500).json({ error: "Failed to fetch stats" });
+  }
+});
 
 router.get("/agribusiness/suppliers", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
