@@ -178,7 +178,7 @@ export default function FarmerDashboard() {
       <div className="px-5 pt-4 space-y-4">
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-card rounded-2xl border border-green-100 p-3.5 shadow-md shadow-green-500/10">
+          <div className="bg-card rounded-2xl border border-border p-3.5 shadow-sm">
             <div className="flex items-center justify-between mb-1">
               <p className="text-muted-foreground text-[10px]">Projected Harvest Revenue</p>
               <TrendingUp size={13} className="text-green-500" />
@@ -186,7 +186,7 @@ export default function FarmerDashboard() {
             <p className="text-foreground font-bold text-lg">{dashboard ? formatKES(dashboard.farmValue) : "—"}</p>
             <p className="text-green-600 text-[10px] font-medium">{dashboard?.weekChangePercent ? `+${dashboard.weekChangePercent}% this week` : "Pending data"}</p>
           </div>
-          <div className="bg-card rounded-2xl border border-green-100 p-3.5 shadow-md shadow-green-500/10">
+          <div className="bg-card rounded-2xl border border-border p-3.5 shadow-sm">
             <div className="flex items-center justify-between mb-1">
               <p className="text-muted-foreground text-[10px]">Harvest In</p>
               <CalendarDays size={13} className="text-primary" />
@@ -203,15 +203,15 @@ export default function FarmerDashboard() {
               </>
             )}
           </div>
-          <div className="bg-card rounded-2xl border border-green-100 p-3.5 shadow-md shadow-green-500/10">
+          <div className="bg-card rounded-2xl border border-border p-3.5 shadow-sm">
             <div className="flex items-center justify-between mb-1">
               <p className="text-muted-foreground text-[10px]">Your Estimated Share</p>
-              <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">55%</span>
+              <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">55%</span>
             </div>
             <p className="text-foreground font-bold text-lg">{dashboard ? formatKES(farmerShare) : "—"}</p>
             <p className="text-muted-foreground text-[10px]">After investor split</p>
           </div>
-          <div className="bg-card rounded-2xl border border-green-100 p-3.5 shadow-md shadow-green-500/10">
+          <div className="bg-card rounded-2xl border border-border p-3.5 shadow-sm">
             <div className="flex items-center justify-between mb-1">
               <p className="text-muted-foreground text-[10px]">Funds Raised</p>
               <Users size={13} className="text-blue-500" />

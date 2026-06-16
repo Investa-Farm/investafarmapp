@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useGetPortfolio, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getStoredUser, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen, Star, Plus, RefreshCw, Bell, CreditCard } from "lucide-react";
+import { TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck, Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen, Star, Plus, RefreshCw, Bell, CreditCard, X, Info } from "lucide-react";
 import { PortfolioWizard } from "@/components/portfolio-wizard";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -74,6 +75,7 @@ export default function Portfolio() {
   const [reinvestOpen, setReinvestOpen] = useState(false);
   const [brokerUnlockOpen, setBrokerUnlockOpen] = useState(false);
   const [brokerUnlockStep, setBrokerUnlockStep] = useState(0);
+  const [statDetail, setStatDetail] = useState<"invested" | "pnl" | "holdings" | null>(null);
   const [, setLocation] = useLocation();
   const token = getToken();
   const user = getStoredUser();
@@ -181,15 +183,17 @@ export default function Portfolio() {
               <span className="text-white/70 text-xs">{formatChange(summary.weekReturnPercent)} this week</span>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3">
-              {[
-                { label: "Invested", val: formatKES(summary.totalInvested) },
-                { label: "Today's P&L", val: formatKES(summary.todayReturn) },
-                { label: "Holdings", val: String(summary.holdings) },
-              ].map(({ label, val }) => (
-                <div key={label} className="bg-white/20 rounded-xl p-2.5 text-center">
+              {([
+                { key: "invested" as const, label: "Invested", val: formatKES(summary.totalInvested) },
+                { key: "pnl" as const, label: "Today's P&L", val: formatKES(summary.todayReturn) },
+                { key: "holdings" as const, label: "Holdings", val: String(summary.holdings) },
+              ]).map(({ key, label, val }) => (
+                <button key={label} onClick={() => setStatDetail(key)}
+                  className="bg-white/20 rounded-xl p-2.5 text-center active:scale-95 transition-transform relative group">
                   <p className="text-white text-xs font-bold truncate">{val}</p>
                   <p className="text-white/60 text-[9px] mt-0.5 truncate">{label}</p>
-                </div>
+                  <Info size={8} className="absolute top-1.5 right-1.5 text-white/40 group-active:text-white/70" />
+                </button>
               ))}
             </div>
           </>
@@ -826,6 +830,88 @@ export default function Portfolio() {
           </div>
         </div>
       )}
+
+      {/* Stat detail bottom sheet */}
+      <AnimatePresence>
+        {statDetail && summary && (() => {
+          const STAT_INFO = {
+            invested: {
+              icon: "💰",
+              title: "Total Invested",
+              val: formatKES(summary.totalInvested),
+              color: "from-emerald-600 to-green-500",
+              description: "The total capital you've deployed across all active farm investments. This is your cost basis — the amount you've put in.",
+              bullets: [
+                `${summary.holdings} active farm ${summary.holdings === 1 ? "position" : "positions"}`,
+                "Covers primary market purchases and secondary trades",
+                "Does not include pending exit requests",
+              ],
+            },
+            pnl: {
+              icon: "📈",
+              title: "Today's P&L",
+              val: formatKES(summary.todayReturn),
+              color: "from-blue-600 to-sky-500",
+              description: "Your profit or loss over the last 24 hours based on price movement across all your farm share holdings.",
+              bullets: [
+                `${formatChange(summary.todayReturnPercent)} change today`,
+                `This week: ${formatChange(summary.weekReturnPercent)}`,
+                "Updates as market prices change",
+              ],
+            },
+            holdings: {
+              icon: "🌾",
+              title: "Active Holdings",
+              val: String(summary.holdings),
+              color: "from-amber-600 to-orange-500",
+              description: "Total number of distinct farm investment positions you currently hold. Each holding represents shares in a specific farm listing.",
+              bullets: [
+                `Portfolio value: ${formatKES(summary.totalValue)}`,
+                `Overall return: ${formatChange(summary.overallGainLossPercent)}`,
+                "Tap any holding to view details or request exit",
+              ],
+            },
+          };
+          const d = STAT_INFO[statDetail];
+          return (
+            <motion.div className="fixed inset-0 z-50 flex items-end"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setStatDetail(null)} />
+              <motion.div className="relative w-full bg-card rounded-t-3xl overflow-hidden shadow-2xl max-w-[430px] mx-auto"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}>
+                <div className={`h-1.5 bg-gradient-to-r ${d.color}`} />
+                <div className="px-5 pt-4 pb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${d.color} flex items-center justify-center shadow-sm`}>
+                        <span className="text-xl">{d.icon}</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-foreground text-base">{d.title}</p>
+                        <p className="font-extrabold text-2xl mt-0 leading-none text-foreground">{d.val}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setStatDetail(null)}
+                      className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                      <X size={14} className="text-muted-foreground" />
+                    </button>
+                  </div>
+                  <p className="text-muted-foreground text-sm leading-relaxed mb-4">{d.description}</p>
+                  <div className="space-y-2">
+                    {d.bullets.map((b, i) => (
+                      <div key={i} className="flex items-center gap-2.5 bg-muted/50 rounded-xl px-3 py-2.5">
+                        <span className={`w-2 h-2 rounded-full bg-gradient-to-br ${d.color} flex-shrink-0`} />
+                        <p className="text-foreground text-xs font-medium">{b}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
 
       <BottomNav role="investor" />
     </div>

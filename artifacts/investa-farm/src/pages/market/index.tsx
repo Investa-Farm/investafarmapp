@@ -480,21 +480,36 @@ export default function MarketHome() {
       <div className="px-4 pt-4 space-y-5">
         {activeSection === "market" && (
           <>
+            {/* Market type links — compact strip above movers */}
+            <div className="grid grid-cols-2 gap-2">
+              <Link href="/market/primary">
+                <div className="rounded-xl overflow-hidden relative h-14 cursor-pointer active:scale-95 transition-transform shadow-md shadow-green-600/15">
+                  <img src={getCropImage("maize")} alt="Primary Market" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-green-800/70 to-green-950/60 flex items-center px-3 gap-2">
+                    <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest bg-white/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">New Issue</span>
+                    <div className="min-w-0">
+                      <p className="text-white font-extrabold text-xs leading-tight">Primary Market</p>
+                      <p className="text-white/70 text-[9px]">Buy direct from farms</p>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+              <Link href="/market/secondary">
+                <div className="rounded-xl overflow-hidden relative h-14 cursor-pointer active:scale-95 transition-transform shadow-md shadow-amber-600/15">
+                  <img src={getCropImage("coffee")} alt="Secondary Market" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-800/85 via-amber-900/70 to-amber-950/60 flex items-center px-3 gap-2">
+                    <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest bg-white/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">Resale</span>
+                    <div className="min-w-0">
+                      <p className="text-white font-extrabold text-xs leading-tight">Secondary Market</p>
+                      <p className="text-white/70 text-[9px]">Trade between investors</p>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </div>
+
             {/* Top Movers / Decliners — combined section */}
             <section>
-              {/* Market shortcut pills */}
-              <div className="flex items-center gap-2 mb-2.5">
-                <Link href="/market/primary">
-                  <span className="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition-transform">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Primary Market
-                  </span>
-                </Link>
-                <Link href="/market/secondary">
-                  <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition-transform">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Secondary Market
-                  </span>
-                </Link>
-              </div>
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex bg-muted rounded-full p-0.5 gap-0.5">
                   <button
@@ -591,33 +606,6 @@ export default function MarketHome() {
               })()}
             </section>
 
-            {/* Market type links — image cards */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <Link href="/market/primary">
-                <div className="rounded-2xl overflow-hidden relative h-24 cursor-pointer active:scale-95 transition-transform shadow-lg shadow-green-600/20">
-                  <img src={getCropImage("maize")} alt="Primary Market" className="absolute inset-0 w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-green-800/70 to-green-950/60 p-3 flex flex-col justify-between">
-                    <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest bg-white/10 self-start px-1.5 py-0.5 rounded-full">New Issue</span>
-                    <div>
-                      <p className="text-white font-extrabold text-sm leading-tight">Primary Market</p>
-                      <p className="text-white/70 text-[10px]">Buy direct from farms</p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-              <Link href="/market/secondary">
-                <div className="rounded-2xl overflow-hidden relative h-24 cursor-pointer active:scale-95 transition-transform shadow-lg shadow-amber-600/20">
-                  <img src={getCropImage("coffee")} alt="Secondary Market" className="absolute inset-0 w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-800/85 via-amber-900/70 to-amber-950/60 p-3 flex flex-col justify-between">
-                    <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest bg-white/10 self-start px-1.5 py-0.5 rounded-full">Resale</span>
-                    <div>
-                      <p className="text-white font-extrabold text-sm leading-tight">Secondary Market</p>
-                      <p className="text-white/70 text-[10px]">Trade between investors</p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            </div>
 
             {/* Featured Listings — 2 visible, climbing animation */}
             <section>

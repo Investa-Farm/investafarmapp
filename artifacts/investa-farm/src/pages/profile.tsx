@@ -267,8 +267,8 @@ export default function Profile() {
         {/* AI Smart Match card */}
         <button
           onClick={() => setMatcherOpen(true)}
-          className="w-full rounded-2xl overflow-hidden border border-violet-300 text-left active:scale-[0.98] transition-transform"
-          style={{ background: "linear-gradient(135deg, #4c1d95 0%, #6d28d9 50%, #7c3aed 100%)" }}
+          className="w-full rounded-2xl overflow-hidden text-left active:scale-[0.98] transition-transform"
+          style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}
         >
           <div className="p-4">
             <div className="flex items-center gap-2.5 mb-3">
@@ -280,21 +280,21 @@ export default function Profile() {
                   AI Smart Match
                   <InlineMicBot section="portfolio" role={user?.role === "farmer" ? "farmer" : "investor"} />
                 </p>
-                <p className="text-violet-200/70 text-[10px]">Tell us your goals · AI finds your best farms</p>
+                <p className="text-green-200/70 text-[10px]">Tell us your goals · AI finds your best farms</p>
               </div>
             </div>
             <div className="bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 mb-3">
-              <p className="text-violet-100 text-xs leading-relaxed">
+              <p className="text-green-100 text-xs leading-relaxed">
                 Our AI analyses risk tolerance, capital, and crop seasons to recommend the perfect farm portfolio for you.
               </p>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex gap-1.5">
                 {["Low Risk", "High Yield", "Seasonal"].map(tag => (
-                  <span key={tag} className="text-[9px] font-bold bg-white/15 text-violet-100 px-2 py-0.5 rounded-full">{tag}</span>
+                  <span key={tag} className="text-[9px] font-bold bg-white/15 text-green-100 px-2 py-0.5 rounded-full">{tag}</span>
                 ))}
               </div>
-              <div className="bg-white text-violet-700 text-[10px] font-extrabold px-3 py-1.5 rounded-full flex-shrink-0">
+              <div className="bg-white text-primary text-[10px] font-extrabold px-3 py-1.5 rounded-full flex-shrink-0">
                 Match Me →
               </div>
             </div>
