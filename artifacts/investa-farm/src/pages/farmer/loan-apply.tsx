@@ -145,7 +145,7 @@ export default function LoanApply() {
   });
 
   const kycApproved = (kycDocs as any[]).filter(d => d.status === "approved").length;
-  const kycOk = kycApproved >= 2;
+  const kycOk = kycApproved >= 1;
 
   const apply = useMutation({
     mutationFn: async (body: object) => {
@@ -277,7 +277,7 @@ export default function LoanApply() {
             <div className="flex-1">
               <p className="text-orange-700 font-semibold text-sm">KYC Required</p>
               <p className="text-orange-600 text-xs mt-0.5">
-                You need at least 2 approved KYC documents (Farm Report + National ID) before applying for funding.
+                You need at least 1 approved KYC document before applying for funding. Upload your National ID or Farm Report to continue.
               </p>
               <button onClick={() => setLocation("/farmer/kyc")} className="mt-2 text-xs font-bold text-orange-700 underline">
                 Upload documents →

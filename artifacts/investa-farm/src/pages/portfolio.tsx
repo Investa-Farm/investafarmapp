@@ -645,6 +645,7 @@ export default function Portfolio() {
                 <p className="text-muted-foreground text-xs mt-1">Browse the market to buy your first farm shares.</p>
               </div>
             )
+            : holdings?.length === 0 ? null
             : (holdings as Holding[])?.map((h) => {
                 const isUp = h.gainLoss >= 0;
                 const isExited = h.status === "exit_requested";
@@ -703,13 +704,19 @@ export default function Portfolio() {
 
                       <div className="flex gap-1.5 flex-wrap">
                         <Link
-                          to={`/market/${h.farmId}`}
+                          href={`/market/exchange/${h.farmId}`}
                           className="py-2 px-2.5 rounded-xl border border-border text-muted-foreground text-xs font-medium active:scale-95 transition-all flex items-center gap-1"
                         >
                           <ExternalLink size={12} /> View Farm
                         </Link>
                         {h.status === "active" && (
                           <>
+                            <Link
+                              href={`/market/exchange/${h.farmId}`}
+                              className="py-2 px-2.5 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1"
+                            >
+                              <TrendingUp size={12} /> Invest More
+                            </Link>
                             <button
                               onClick={() => handleSellClick(h)}
                               className="flex-1 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1"
@@ -730,6 +737,22 @@ export default function Portfolio() {
                 );
               })
         }
+        {/* Browse more farms CTA */}
+        {(holdings as Holding[])?.length > 0 && (
+          <Link href="/market/primary" className="block">
+            <div className="mx-0 rounded-2xl overflow-hidden relative h-14 active:scale-95 transition-transform">
+              <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #052e16, #16a34a)" }} />
+              <div className="relative flex items-center gap-3 px-4 h-full">
+                <TrendingUp size={16} className="text-white flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-white font-bold text-xs">Browse More Farms</p>
+                  <p className="text-white/70 text-[10px]">Explore new investment opportunities</p>
+                </div>
+                <ChevRight size={14} className="text-white/70" />
+              </div>
+            </div>
+          </Link>
+        )}
       </div>
       )}
 

@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { db, usersTable, farmsTable, marketListingsTable, walletsTable, walletTransactionsTable, investmentsTable } from "@workspace/db";
+import { db, usersTable, farmsTable, marketListingsTable, walletsTable, walletTransactionsTable, investmentsTable, kycDocumentsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 const DEMO_USERS = [
@@ -159,6 +159,43 @@ export async function seedDemoUsers(log: (msg: string) => void = console.log) {
 
   await seedFarmsAndListings(createdUsers, log);
   await seedDemoWallets(createdUsers, log);
+  await seedDemoKyc(createdUsers, log);
+}
+
+async function seedDemoKyc(userIds: Record<string, number>, log: (msg: string) => void) {
+  const farmerEmails = [
+    "john.farmer@investafarm.com",
+    "demo.farmer@investafarm.com",
+    "grace.farmer@investafarm.com",
+    "peter.farmer@investafarm.com",
+  ];
+  for (const email of farmerEmails) {
+    const userId = userIds[email];
+    if (!userId) continue;
+    const existing = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.userId, userId));
+    if (existing.length > 0) continue;
+    await db.insert(kycDocumentsTable).values([
+      {
+        userId,
+        docType: "national_id" as const,
+        title: "National ID",
+        fileUrl: "https://placehold.co/400x250/16a34a/white?text=National+ID",
+        status: "approved" as const,
+        notes: "Demo — auto-approved",
+        reviewedAt: new Date(),
+      },
+      {
+        userId,
+        docType: "farm_report" as const,
+        title: "Farm Report",
+        fileUrl: "https://placehold.co/400x250/052e16/white?text=Farm+Report",
+        status: "approved" as const,
+        notes: "Demo — auto-approved",
+        reviewedAt: new Date(),
+      },
+    ]);
+    log(`[seed] KYC approved for ${email}`);
+  }
 }
 
 const DEMO_WALLET_BALANCES: Record<string, number> = {
