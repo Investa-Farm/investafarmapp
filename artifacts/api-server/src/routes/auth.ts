@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
+import { createHmac, timingSafeEqual } from "crypto";
 import { db, usersTable, otpCodesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
@@ -28,13 +29,25 @@ const DEMO_EMAILS = new Set([
   "peter.farmer@investafarm.com",
 ]);
 
+const TOKEN_SECRET = process.env.SESSION_SECRET ?? "dev-secret-change-in-production";
+
 function signToken(userId: number): string {
-  return Buffer.from(JSON.stringify({ userId, iat: Date.now() })).toString("base64");
+  const payload = Buffer.from(JSON.stringify({ userId, iat: Date.now() })).toString("base64url");
+  const sig = createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+  return `${payload}.${sig}`;
 }
 
 export function verifyToken(token: string): number | null {
   try {
-    const decoded = JSON.parse(Buffer.from(token, "base64").toString("utf8"));
+    const dot = token.lastIndexOf(".");
+    if (dot === -1) return null;
+    const payload = token.slice(0, dot);
+    const sig = token.slice(dot + 1);
+    const expected = createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+    const sigBuf = Buffer.from(sig);
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) return null;
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
     return decoded.userId ?? null;
   } catch {
     return null;

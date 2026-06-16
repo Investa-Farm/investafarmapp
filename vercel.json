@@ -1,7 +1,7 @@
 {
   "version": 2,
   "installCommand": "npm install -g pnpm && pnpm install",
-  "buildCommand": "pnpm --filter @workspace/api-zod run build && pnpm --filter @workspace/api-client-react run build && BASE_PATH=/ pnpm --filter @workspace/investa-farm run build",
+  "buildCommand": "bash build-frontend.sh",
   "outputDirectory": "artifacts/investa-farm/dist/public",
   "framework": null,
   "env": {
