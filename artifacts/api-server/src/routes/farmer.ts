@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, farmsTable, investmentsTable, farmUpdatesTable, marketListingsTable, usersTable, notificationsTable } from "@workspace/db";
+import { db, farmsTable, investmentsTable, farmUpdatesTable, marketListingsTable, usersTable, notificationsTable, loanApplicationsTable, voucherOrdersTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { CreateFarmUpdateBody } from "@workspace/api-zod";
 import { getCurrentUser } from "./auth";
@@ -335,6 +335,52 @@ router.post("/farmer/market/crop-proposal", async (req, res): Promise<void> => {
     message: `Crop proposal for ${cropType} submitted successfully. It will be reviewed and listed for investor funding.`,
     farm: farm,
   });
+});
+
+router.post("/farmer/voucher-redeem", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user || user.role !== "farmer") { res.status(403).json({ error: "Farmers only" }); return; }
+
+  const { agribusinessId, voucherCode, loanId, items } = req.body as {
+    agribusinessId: number; voucherCode: string; loanId: number; items: string[];
+  };
+  if (!agribusinessId || !voucherCode || !loanId || !Array.isArray(items) || items.length === 0) {
+    res.status(400).json({ error: "agribusinessId, voucherCode, loanId, and items are required" });
+    return;
+  }
+
+  const [loan] = await db.select().from(loanApplicationsTable)
+    .where(and(eq(loanApplicationsTable.id, loanId), eq(loanApplicationsTable.farmerId, user.id)));
+  if (!loan) { res.status(404).json({ error: "Loan not found" }); return; }
+  if (!["approved", "disbursed"].includes(loan.status)) {
+    res.status(400).json({ error: "Loan has no active voucher" }); return;
+  }
+
+  const [agribiz] = await db.select({ id: usersTable.id, name: usersTable.name })
+    .from(usersTable)
+    .where(and(eq(usersTable.id, agribusinessId), eq(usersTable.role, "agribusiness")));
+  if (!agribiz) { res.status(400).json({ error: "Supplier not found" }); return; }
+
+  try {
+    const [order] = await db.insert(voucherOrdersTable).values({
+      agribusinessId,
+      farmerId: user.id,
+      voucherCode,
+      amount: loan.amount,
+      items: JSON.stringify(items),
+      status: "pending",
+      farmerPhone: user.phone ?? undefined,
+      farmerLocation: user.county ?? undefined,
+    }).returning();
+
+    notifyUser(agribiz.id, "voucher_order", "New Input Order", `Order from ${user.name} — voucher ${voucherCode}`)
+      .catch(e => logger.error({ err: e }, "[VOUCHER_REDEEM] notify failed"));
+
+    res.status(201).json({ id: order!.id, voucherCode, status: "pending", supplierName: agribiz.name });
+  } catch (e) {
+    logger.error({ err: e }, "[VOUCHER_REDEEM] Failed to create order");
+    res.status(500).json({ error: "Failed to place order" });
+  }
 });
 
 const CROP_SEASON_DAYS: Record<string, number> = {

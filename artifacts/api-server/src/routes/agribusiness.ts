@@ -6,6 +6,29 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
+router.get("/agribusiness/suppliers", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  try {
+    const suppliers = await db
+      .select({ id: usersTable.id, name: usersTable.name, county: usersTable.county, phone: usersTable.phone })
+      .from(usersTable)
+      .where(eq(usersTable.role, "agribusiness"));
+
+    res.json(suppliers.map(s => ({
+      id: s.id,
+      name: s.name,
+      county: s.county ?? "Kenya",
+      phone: s.phone ?? undefined,
+      badge: "Input Supplier",
+    })));
+  } catch (e) {
+    logger.error({ err: e }, "[AGRIBUSINESS] Failed to fetch suppliers");
+    res.status(500).json({ error: "Failed to fetch suppliers" });
+  }
+});
+
 router.get("/agribusiness/voucher-orders", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -53,17 +76,12 @@ router.post("/agribusiness/voucher-orders/:id/fulfil", async (req, res): Promise
   if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order id" }); return; }
 
   try {
-    const [order] = await db
-      .select()
-      .from(voucherOrdersTable)
-      .where(eq(voucherOrdersTable.id, orderId));
-
+    const [order] = await db.select().from(voucherOrdersTable).where(eq(voucherOrdersTable.id, orderId));
     if (!order) { res.status(404).json({ error: "Order not found" }); return; }
     if (order.agribusinessId !== user.id) { res.status(403).json({ error: "Not your order" }); return; }
     if (order.status !== "pending") { res.status(400).json({ error: "Order already processed" }); return; }
 
-    await db
-      .update(voucherOrdersTable)
+    await db.update(voucherOrdersTable)
       .set({ status: "fulfilled", updatedAt: new Date() })
       .where(eq(voucherOrdersTable.id, orderId));
 
@@ -87,8 +105,7 @@ router.post("/agribusiness/voucher-orders/:id/cancel", async (req, res): Promise
     if (order.agribusinessId !== user.id) { res.status(403).json({ error: "Not your order" }); return; }
     if (order.status !== "pending") { res.status(400).json({ error: "Order already processed" }); return; }
 
-    await db
-      .update(voucherOrdersTable)
+    await db.update(voucherOrdersTable)
       .set({ status: "cancelled", updatedAt: new Date() })
       .where(eq(voucherOrdersTable.id, orderId));
 

@@ -24,32 +24,94 @@ function getItemsForPurpose(purpose: string) {
   return AGRO_ITEMS.default;
 }
 
-function VoucherOrderModal({ voucher, onClose }: { voucher: any; onClose: () => void }) {
-  const [step, setStep] = useState<"select" | "confirm" | "done">("select");
+function VoucherOrderModal({ voucher, token, onClose }: { voucher: any; token: string; onClose: () => void }) {
+  const [step, setStep] = useState<"select" | "supplier" | "confirm" | "done">("select");
   const [selected, setSelected] = useState<string[]>([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmedSupplierName, setConfirmedSupplierName] = useState<string>("");
   const { items, icon } = getItemsForPurpose(voucher.purpose);
+
+  const { data: suppliers = [], isLoading: suppliersLoading } = useQuery<{ id: number; name: string; county: string; badge: string }[]>({
+    queryKey: ["agribusiness-suppliers"],
+    queryFn: async () => {
+      const r = await fetch("/api/agribusiness/suppliers", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 5 * 60_000,
+    enabled: step === "supplier",
+  });
+
+  const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId);
 
   const toggleItem = (name: string) =>
     setSelected(s => s.includes(name) ? s.filter(x => x !== name) : [...s, name]);
+
+  const handleConfirm = async () => {
+    if (!selectedSupplierId) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/farmer/voucher-redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ agribusinessId: selectedSupplierId, voucherCode: voucher.voucherCode, loanId: voucher.id, items: selected }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(d.error ?? "Failed to place order");
+      }
+      const d = await r.json() as { supplierName: string };
+      setConfirmedSupplierName(d.supplierName ?? selectedSupplier?.name ?? "the supplier");
+      setStep("done");
+    } catch (e: unknown) {
+      setError((e as Error).message ?? "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-end justify-center">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={step !== "done" ? onClose : undefined} />
         <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 28, stiffness: 300 }}
-          className="relative w-full max-w-[430px] bg-card rounded-t-3xl shadow-2xl px-5 pt-5 pb-10">
+          className="relative w-full max-w-[430px] bg-card rounded-t-3xl shadow-2xl px-5 pt-5 pb-10 max-h-[85dvh] overflow-y-auto">
+
+          {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="font-bold text-foreground">Place Input Order</p>
+              <p className="font-bold text-foreground">
+                {step === "select" && "Select Inputs"}
+                {step === "supplier" && "Choose Supplier"}
+                {step === "confirm" && "Confirm Order"}
+                {step === "done" && "Order Placed!"}
+              </p>
               <p className="text-muted-foreground text-xs">Voucher {voucher.voucherCode} · {formatKES(voucher.amount)}</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-              <X size={14} />
-            </button>
+            {step !== "done" && (
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <X size={14} />
+              </button>
+            )}
           </div>
 
+          {/* Step indicator */}
+          {step !== "done" && (
+            <div className="flex items-center gap-1.5 mb-4">
+              {(["select", "supplier", "confirm"] as const).map((s, i) => (
+                <div key={s} className={`h-1 rounded-full flex-1 transition-colors ${
+                  s === step ? "bg-primary" : (["select","supplier","confirm"].indexOf(step) > i ? "bg-primary/40" : "bg-muted")
+                }`} />
+              ))}
+            </div>
+          )}
+
+          {/* Step 1: Select items */}
           {step === "select" && (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground font-medium">Select inputs to order — covered by your voucher:</p>
@@ -66,21 +128,66 @@ function VoucherOrderModal({ voucher, onClose }: { voucher: any; onClose: () => 
                   </div>
                 </button>
               ))}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                <p className="text-amber-700 text-xs leading-relaxed">
-                  📍 Present your voucher code <strong>{voucher.voucherCode}</strong> at a partner agro-dealer to collect your inputs.
-                </p>
-              </div>
               <button
                 disabled={selected.length === 0}
-                onClick={() => setStep("confirm")}
+                onClick={() => setStep("supplier")}
                 className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl text-sm active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                 <ShoppingCart size={16} />
-                Review Order ({selected.length} items)
+                Choose Supplier ({selected.length} item{selected.length !== 1 ? "s" : ""})
               </button>
             </div>
           )}
 
+          {/* Step 2: Pick supplier */}
+          {step === "supplier" && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground font-medium">Select a registered agro-dealer to fulfil this order:</p>
+              {suppliersLoading ? (
+                <div className="space-y-2">
+                  {[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl bg-muted animate-pulse" />)}
+                </div>
+              ) : suppliers.length === 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center space-y-2">
+                  <p className="text-2xl">🏪</p>
+                  <p className="text-amber-800 font-semibold text-sm">No registered suppliers yet</p>
+                  <p className="text-amber-600 text-xs leading-relaxed">
+                    Share Investa Farm with your local agro-dealer and ask them to register as an input supplier.
+                  </p>
+                </div>
+              ) : (
+                suppliers.map(s => (
+                  <button key={s.id} onClick={() => setSelectedSupplierId(s.id)}
+                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all active:scale-[0.98] ${selectedSupplierId === s.id ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+                    <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0 text-lg">🏪</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground font-semibold text-sm truncate">{s.name}</p>
+                      <p className="text-muted-foreground text-xs">{s.county}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{s.badge}</span>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedSupplierId === s.id ? "border-primary bg-primary" : "border-border"}`}>
+                        {selectedSupplierId === s.id && <Check size={9} className="text-white" />}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button onClick={() => setStep("select")}
+                  className="py-3 rounded-xl border border-border text-foreground text-sm font-semibold active:scale-95 transition-transform">
+                  ← Back
+                </button>
+                <button
+                  disabled={!selectedSupplierId || suppliersLoading}
+                  onClick={() => setStep("confirm")}
+                  className="py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 transition-transform disabled:opacity-50">
+                  Review Order →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Confirm */}
           {step === "confirm" && (
             <div className="space-y-3">
               <div className="bg-muted/50 rounded-2xl p-3.5 space-y-2">
@@ -94,29 +201,48 @@ function VoucherOrderModal({ voucher, onClose }: { voucher: any; onClose: () => 
                     </div>
                   );
                 })}
-                <div className="border-t border-border pt-2 flex items-center justify-between">
-                  <span className="text-foreground font-semibold text-sm">Voucher Value</span>
-                  <span className="text-primary font-bold text-sm">{formatKES(voucher.amount)}</span>
+                <div className="border-t border-border pt-2 mt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-foreground font-semibold text-sm">Voucher Value</span>
+                    <span className="text-primary font-bold text-sm">{formatKES(voucher.amount)}</span>
+                  </div>
+                  {selectedSupplier && (
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-muted-foreground text-xs">Supplier</span>
+                      <span className="text-foreground text-xs font-medium">{selectedSupplier.name} · {selectedSupplier.county}</span>
+                    </div>
+                  )}
                 </div>
               </div>
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                  <p className="text-red-700 text-xs">{error}</p>
+                </div>
+              )}
               <div className="bg-green-50 border border-green-200 rounded-xl p-3">
                 <p className="text-green-700 text-xs leading-relaxed">
-                  ✅ Your order is reserved. Show code <strong>{voucher.voucherCode}</strong> at the agro-dealer to collect inputs. No cash required.
+                  Once confirmed, <strong>{selectedSupplier?.name}</strong> will receive your order and prepare your inputs.
+                  Present voucher <strong>{voucher.voucherCode}</strong> on collection — no cash required.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => setStep("select")}
-                  className="py-3 rounded-xl border border-border text-foreground text-sm font-semibold active:scale-95 transition-transform">
-                  ← Edit
+                <button onClick={() => setStep("supplier")} disabled={submitting}
+                  className="py-3 rounded-xl border border-border text-foreground text-sm font-semibold active:scale-95 transition-transform disabled:opacity-50">
+                  ← Back
                 </button>
-                <button onClick={() => setStep("done")}
-                  className="py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 transition-transform flex items-center justify-center gap-1.5">
-                  <CheckCircle2 size={14} /> Confirm Order
+                <button onClick={handleConfirm} disabled={submitting}
+                  className="py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 transition-transform flex items-center justify-center gap-1.5 disabled:opacity-70">
+                  {submitting ? (
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <><CheckCircle2 size={14} /> Confirm Order</>
+                  )}
                 </button>
               </div>
             </div>
           )}
 
+          {/* Done */}
           {step === "done" && (
             <div className="py-6 flex flex-col items-center gap-3 text-center">
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
@@ -124,9 +250,16 @@ function VoucherOrderModal({ voucher, onClose }: { voucher: any; onClose: () => 
               </div>
               <p className="font-bold text-foreground text-lg">Order Placed!</p>
               <p className="text-muted-foreground text-sm max-w-xs">
-                Visit any partner agro-dealer and present voucher code <span className="font-mono font-bold text-foreground">{voucher.voucherCode}</span> to collect your inputs.
+                <strong>{confirmedSupplierName}</strong> has received your order and will prepare your inputs.
+                Show code <span className="font-mono font-bold text-foreground">{voucher.voucherCode}</span> on collection.
               </p>
-              <button onClick={onClose} className="w-full bg-primary text-white font-bold py-3 rounded-xl active:scale-95 transition-all mt-2">Done</button>
+              <div className="w-full bg-muted/50 rounded-xl p-3 text-left space-y-1">
+                <p className="text-xs text-muted-foreground font-medium">What's next?</p>
+                <p className="text-xs text-foreground">1. Wait for the supplier to confirm availability</p>
+                <p className="text-xs text-foreground">2. Visit the supplier's location</p>
+                <p className="text-xs text-foreground">3. Show your voucher code — no cash needed</p>
+              </div>
+              <button onClick={onClose} className="w-full bg-primary text-white font-bold py-3 rounded-xl active:scale-95 transition-all mt-1">Done</button>
             </div>
           )}
         </motion.div>
@@ -223,7 +356,7 @@ function VoucherSection() {
         </div>
       )}
 
-      {orderVoucher && <VoucherOrderModal voucher={orderVoucher} onClose={() => setOrderVoucher(null)} />}
+      {orderVoucher && <VoucherOrderModal voucher={orderVoucher} token={token ?? ""} onClose={() => setOrderVoucher(null)} />}
     </div>
   );
 }
