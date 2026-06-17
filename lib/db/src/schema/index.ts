@@ -25,3 +25,4 @@ export * from "./stellar_accounts";
 export * from "./voucher_orders";
 export * from "./password_reset_tokens";
 export * from "./roi_projections";
+export * from "./sentiment_scores";

@@ -104,30 +104,23 @@ export default function PrimaryMarket() {
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="primary-market">
-      {/* Image-based compact header */}
-      <div className="relative overflow-hidden" style={{ height: 118 }}>
+      {/* Compact header */}
+      <div className="relative overflow-hidden" style={{ height: 80 }}>
         <img src={CROP_IMAGES.maize} alt="Primary Market" className="w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(120deg, rgba(5,46,22,0.88) 0%, rgba(20,83,45,0.75) 55%, rgba(22,163,74,0.40) 100%)" }} />
-        <div className="absolute inset-0 pt-12 px-4 flex flex-col justify-center">
-          <div className="flex items-center gap-2.5 mb-2">
-            <button data-testid="button-back" onClick={() => setLocation("/market")}
-              className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-              <ArrowLeft size={13} className="text-white" />
-            </button>
-            <div>
-              <p className="text-white/70 text-[10px] font-medium uppercase tracking-wider">Buy Direct from Farmers</p>
-              <h1 className="text-white text-base font-bold leading-tight">Primary Market</h1>
-            </div>
+        <div className="absolute inset-0" style={{ background: "linear-gradient(120deg, rgba(5,46,22,0.92) 0%, rgba(20,83,45,0.80) 60%, rgba(22,163,74,0.35) 100%)" }} />
+        <div className="absolute inset-0 pt-10 px-4 flex items-center">
+          <button data-testid="button-back" onClick={() => setLocation("/market")}
+            className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mr-2.5">
+            <ArrowLeft size={13} className="text-white" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-white/70 text-[9px] font-medium uppercase tracking-wider">Buy Direct from Farmers</p>
+            <h1 className="text-white text-sm font-bold leading-tight">Primary Market</h1>
           </div>
-          <div className="flex gap-2 ml-9">
-            <div className="flex items-center gap-1.5 bg-white/15 rounded-lg px-2 py-1">
-              <span className="text-xs">⚡</span>
-              <p className="text-white text-[10px] font-semibold">Mid-Season +10%</p>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/15 rounded-lg px-2 py-1">
-              <span className="text-xs">🌾</span>
-              <p className="text-white text-[10px] font-semibold">Full Season +28%</p>
-            </div>
+          <div className="flex items-center gap-1.5 bg-white/10 rounded-lg px-2 py-1 flex-shrink-0">
+            <span className="text-[10px]">⚡+10%</span>
+            <span className="text-white/40 text-[9px]">·</span>
+            <span className="text-[10px]">🌾+28%</span>
           </div>
         </div>
       </div>

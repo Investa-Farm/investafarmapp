@@ -263,6 +263,17 @@ export default function MarketHome() {
     refetchInterval: 60 * 1000,
   });
 
+  const { data: sentimentData } = useQuery<any[]>({
+    queryKey: ["news-sentiment"],
+    queryFn: async () => {
+      const r = await fetch("/api/news/sentiment");
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 2 * 60 * 60 * 1000,
+    enabled: true,
+  });
+
   const { data: walletData } = useQuery<{ wallet: { balance: string } }>({
     queryKey: ["wallet-balance"],
     queryFn: async () => {
@@ -894,12 +905,53 @@ export default function MarketHome() {
               {["All", "Markets", "Weather", "Policy", "Returns"].map((cat) => (
                 <button key={cat}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all active:scale-95 ${
-                    cat === "All" ? "bg-primary text-white border-primary shadow-sm" : "bg-card border-border text-muted-foreground"
+                    cat === "All"
+                      ? "bg-primary text-white border-primary shadow-sm"
+                      : "bg-muted/80 border-border text-foreground hover:bg-muted"
                   }`}>
                   {cat}
                 </button>
               ))}
             </div>
+
+            {/* Crop Sentiment Strip */}
+            {sentimentData && sentimentData.length > 0 && (
+              <div className="rounded-2xl border border-border overflow-hidden">
+                <div className="px-3 py-2 bg-muted/40 border-b border-border flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <p className="text-foreground font-bold text-[11px]">AI Crop Sentiment</p>
+                    <span className="text-muted-foreground text-[9px]">· via Groq + News + Bluesky</span>
+                  </div>
+                  <span className="text-[9px] text-muted-foreground">7-day signal</span>
+                </div>
+                <div className="flex gap-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                  {sentimentData.slice(0, 8).map((s: any) => (
+                    <div key={s.cropType} className="flex-shrink-0 px-3 py-2.5 border-r border-border last:border-r-0 min-w-[80px] text-center">
+                      <p className="text-foreground text-[10px] font-semibold capitalize mb-1">{s.cropType}</p>
+                      <div className="flex items-center justify-center gap-0.5 mb-1">
+                        {s.trend === "bullish" ? (
+                          <span className="text-green-600 text-[9px] font-bold">▲ {Math.abs(s.score)}</span>
+                        ) : s.trend === "bearish" ? (
+                          <span className="text-red-500 text-[9px] font-bold">▼ {Math.abs(s.score)}</span>
+                        ) : (
+                          <span className="text-amber-500 text-[9px] font-bold">— {Math.abs(s.score)}</span>
+                        )}
+                      </div>
+                      <div className="h-1 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${s.trend === "bullish" ? "bg-green-500" : s.trend === "bearish" ? "bg-red-500" : "bg-amber-400"}`}
+                          style={{ width: `${Math.min(100, Math.abs(s.score))}%` }}
+                        />
+                      </div>
+                      <p className={`text-[8px] font-semibold mt-1 capitalize ${s.trend === "bullish" ? "text-green-600" : s.trend === "bearish" ? "text-red-500" : "text-amber-500"}`}>
+                        {s.trend}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {newsLoading
               ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)

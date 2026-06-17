@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useListSecondaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, RefreshCcw, ChevronRight, BellRing, ShoppingBag, BookOpen, Plus, Minus, ChevronDown, ChevronUp, BarChart2 } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, ChevronRight, BellRing, ShoppingBag, BookOpen, Plus, Minus, ChevronDown, ChevronUp, BarChart2 } from "lucide-react";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { useLocation } from "wouter";
@@ -195,51 +195,37 @@ export default function SecondaryMarket() {
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="secondary-market">
-      {/* Image-based compact header */}
-      <div className="relative overflow-hidden" style={{ height: 130 }}>
+      {/* Compact header */}
+      <div className="relative overflow-hidden" style={{ height: 82 }}>
         <img src={getCropImage("coffee")} alt="Secondary Market" className="w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(120deg, rgba(5,46,22,0.90) 0%, rgba(20,83,45,0.78) 55%, rgba(22,163,74,0.45) 100%)" }} />
-        <div className="absolute inset-0 pt-12 px-4 flex flex-col justify-center gap-2">
-          <div className="flex items-center gap-2.5">
-            <button data-testid="button-back" onClick={() => setLocation("/market")}
-              className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-              <ArrowLeft size={13} className="text-white" />
-            </button>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <p className="text-white/70 text-[10px] font-semibold uppercase tracking-widest">Investor to Investor</p>
-                <span className="flex items-center gap-1 bg-green-400/20 border border-green-400/40 rounded-full px-1.5 py-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse" />
-                  <span className="text-green-100 text-[9px] font-bold tracking-wider">LIVE</span>
-                </span>
-              </div>
-              <h1 className="text-white text-base font-extrabold leading-tight">Secondary Market</h1>
+        <div className="absolute inset-0" style={{ background: "linear-gradient(120deg, rgba(5,46,22,0.92) 0%, rgba(20,83,45,0.80) 60%, rgba(22,163,74,0.35) 100%)" }} />
+        <div className="absolute inset-0 pt-10 px-4 flex items-center gap-2.5">
+          <button data-testid="button-back" onClick={() => setLocation("/market")}
+            className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+            <ArrowLeft size={13} className="text-white" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="text-white/70 text-[9px] font-semibold uppercase tracking-widest">Investor to Investor</p>
+              <span className="flex items-center gap-0.5 bg-green-400/20 border border-green-400/40 rounded-full px-1.5 py-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse" />
+                <span className="text-green-100 text-[8px] font-bold tracking-wider">LIVE</span>
+              </span>
             </div>
+            <h1 className="text-white text-sm font-extrabold leading-tight">Secondary Market</h1>
           </div>
-
-          <div className="grid grid-cols-3 gap-2 ml-9">
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-            <p className="text-white font-extrabold text-lg leading-none">{listings?.length ?? "—"}</p>
-            <p className="text-white/60 text-[9px] mt-1 uppercase tracking-wider">Listings</p>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="text-center">
+              <p className="text-white font-bold text-sm leading-none">{listings?.length ?? "—"}</p>
+              <p className="text-white/50 text-[8px]">listings</p>
+            </div>
+            {totalVolume > 0 && (
+              <div className="bg-white/10 rounded-lg px-2 py-1">
+                <p className="text-green-300 text-[9px] font-bold">{formatKES(totalVolume)}</p>
+                <p className="text-white/40 text-[8px]">volume</p>
+              </div>
+            )}
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-            <p className="text-white font-extrabold text-sm leading-none">⚡ +10%</p>
-            <p className="text-white/60 text-[9px] mt-1 uppercase tracking-wider">Mid-Season</p>
-          </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-            <p className="text-white font-extrabold text-sm leading-none">🌾 +28%</p>
-            <p className="text-white/60 text-[9px] mt-1 uppercase tracking-wider">Full Season</p>
-          </div>
-        </div>
-
-        {totalVolume > 0 && (
-          <div className="relative mt-3 bg-white/8 rounded-xl px-3 py-2 flex items-center gap-2">
-            <RefreshCcw size={10} className="text-green-300 animate-spin" style={{ animationDuration: "3s" }} />
-            <p className="text-white/70 text-[10px]">
-              Total market volume: <span className="text-green-300 font-bold">{formatKES(totalVolume)}</span>
-            </p>
-          </div>
-        )}
         </div>
       </div>
 
