@@ -9,34 +9,87 @@ function from(label: string) {
   return `"${label}" <${process.env.GOOGLE_SMTP_USER ?? ""}>`;
 }
 
-function createTransport() {
-  const user = process.env.GOOGLE_SMTP_USER;
-  const pass = process.env.GOOGLE_SMTP_PASS;
-  if (!user || !pass) {
-    console.warn("[EMAIL] SMTP not configured — set GOOGLE_SMTP_USER and GOOGLE_SMTP_PASS secrets to enable emails");
-    return null;
+// Which port + TLS mode successfully connected last time (cached in memory).
+// Starts as null (unknown) so the first send probes port 587 then 465.
+let _workingConfig: { port: number; secure: boolean } | null = null;
+
+async function probeSmtpConfig(
+  user: string,
+  pass: string
+): Promise<{ port: number; secure: boolean } | null> {
+  // Many cloud platforms (Render, Railway, etc.) block port 465 (SMTPS).
+  // Port 587 (STARTTLS / secure:false + requireTLS:true) usually works better.
+  const candidates: { port: number; secure: boolean }[] = [
+    { port: 587, secure: false },
+    { port: 465, secure: true },
+  ];
+  for (const cfg of candidates) {
+    try {
+      const t = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: cfg.port,
+        secure: cfg.secure,
+        requireTLS: !cfg.secure,
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 10000,
+        greetingTimeout: 8000,
+        socketTimeout: 15000,
+      });
+      await t.verify();
+      t.close();
+      return cfg;
+    } catch {
+      // Try next candidate
+    }
   }
-  // Port 465 + secure:true (direct SSL) is more reliable on cloud hosts like Render/Railway
-  // that may block STARTTLS (port 587). Gmail supports both.
-  const raw = nodemailer.createTransport({
+  return null;
+}
+
+function buildTransport(user: string, pass: string, cfg: { port: number; secure: boolean }) {
+  return nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    port: cfg.port,
+    secure: cfg.secure,
+    requireTLS: !cfg.secure,
     auth: { user, pass },
     tls: { rejectUnauthorized: false },
     connectionTimeout: 15000,
     greetingTimeout: 10000,
-    socketTimeout: 20000,
+    socketTimeout: 30000,
   });
+}
+
+function createTransport() {
+  const user = process.env.GOOGLE_SMTP_USER;
+  const pass = process.env.GOOGLE_SMTP_PASS;
+  if (!user || !pass) {
+    console.warn("[EMAIL] SMTP not configured — set GOOGLE_SMTP_USER and GOOGLE_SMTP_PASS to enable emails");
+    return null;
+  }
 
   return {
-    sendMail: async (opts: Parameters<typeof raw.sendMail>[0]) => {
-      try {
-        return await raw.sendMail(opts);
-      } catch (err: unknown) {
+    sendMail: async (opts: Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0]) => {
+      // Use cached working config, or try to probe one
+      if (!_workingConfig) {
+        _workingConfig = await probeSmtpConfig(user, pass);
+      }
+      if (!_workingConfig) {
         const subject = typeof opts === "object" && opts !== null ? (opts as { subject?: string }).subject ?? "(no subject)" : "(no subject)";
-        console.error("[EMAIL] sendMail failed — subject:", subject, "| error:", err instanceof Error ? `${err.message} (code: ${(err as NodeJS.ErrnoException).code ?? "?"})` : String(err));
-        console.error("[EMAIL] Hint: Verify GOOGLE_SMTP_USER and GOOGLE_SMTP_PASS are set correctly in your deployment environment.");
+        console.warn(`[EMAIL] Skipped "${subject}" — no SMTP port reachable (platform may block outbound SMTP)`);
+        return;
+      }
+      try {
+        const raw = buildTransport(user, pass, _workingConfig);
+        const result = await raw.sendMail(opts);
+        raw.close();
+        return result;
+      } catch (err: unknown) {
+        // Reset cached config so next send re-probes (handles transient failures)
+        _workingConfig = null;
+        const subject = typeof opts === "object" && opts !== null ? (opts as { subject?: string }).subject ?? "(no subject)" : "(no subject)";
+        const msg = err instanceof Error ? `${err.message} (code: ${(err as NodeJS.ErrnoException).code ?? "?"})` : String(err);
+        console.error(`[EMAIL] sendMail failed for "${subject}": ${msg}`);
         throw err;
       }
     },
@@ -47,17 +100,23 @@ export async function testSmtpConnection(): Promise<void> {
   const user = process.env.GOOGLE_SMTP_USER;
   const pass = process.env.GOOGLE_SMTP_PASS;
   if (!user || !pass) {
-    console.warn("[EMAIL] SMTP not configured — emails will be skipped (set GOOGLE_SMTP_USER + GOOGLE_SMTP_PASS to enable)");
+    console.info("[EMAIL] SMTP not configured — emails will be skipped (set GOOGLE_SMTP_USER + GOOGLE_SMTP_PASS to enable)");
     return;
   }
-  try {
-    const t = nodemailer.createTransport({ host: "smtp.gmail.com", port: 465, secure: true, auth: { user, pass }, tls: { rejectUnauthorized: false }, connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 20000 });
-    await t.verify();
-    console.info("[EMAIL] SMTP connection verified OK — emails will be sent");
-  } catch (err: unknown) {
-    console.error("[EMAIL] SMTP connection FAILED at startup:", err instanceof Error ? `${err.message} (code: ${(err as NodeJS.ErrnoException).code ?? "?"})` : String(err));
-    console.error("[EMAIL] Emails will NOT be sent until this is fixed. Check GOOGLE_SMTP_USER, GOOGLE_SMTP_PASS, and Gmail App Password configuration.");
-  }
+  // Run non-blocking so it never delays server startup or shows scary errors
+  (async () => {
+    try {
+      const cfg = await probeSmtpConfig(user, pass);
+      if (cfg) {
+        _workingConfig = cfg;
+        console.info(`[EMAIL] SMTP ready — using smtp.gmail.com:${cfg.port} (${cfg.secure ? "SSL" : "STARTTLS"})`);
+      } else {
+        console.warn("[EMAIL] SMTP probe failed on all ports — emails will be silently skipped. If on Render free plan, outbound SMTP is blocked; upgrade to a paid plan or use an HTTP email API (Resend/SendGrid).");
+      }
+    } catch {
+      // Swallow — already handled inside probeSmtpConfig
+    }
+  })();
 }
 
 // Logo image for email header
