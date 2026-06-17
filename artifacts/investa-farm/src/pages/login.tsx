@@ -17,6 +17,19 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [needsVerify, setNeedsVerify] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState("");
+  const [fieldTouched, setFieldTouched] = useState({ email: false, password: false });
+  const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
+
+  const isEmailValid = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
+  const validateFields = () => {
+    const errs = { email: "", password: "" };
+    if (!email.trim()) errs.email = "Email address is required";
+    else if (!isEmailValid(email)) errs.email = "Enter a valid email address (e.g. you@example.com)";
+    if (!password) errs.password = "Password is required";
+    setFieldErrors(errs);
+    return !errs.email && !errs.password;
+  };
 
   // TOTP 2FA state
   const [totpStep, setTotpStep] = useState(false);
@@ -34,6 +47,8 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFieldTouched({ email: true, password: true });
+    if (!validateFields()) return;
     setError(""); setNeedsVerify(false); setLoading(true);
     try {
       const r = await fetch("/api/auth/login", {
@@ -261,13 +276,25 @@ export default function Login() {
               <label className="text-foreground text-xs font-semibold uppercase tracking-wider">Email</label>
               <input
                 data-testid="input-email"
-                type="email"
+                type="text"
+                inputMode="email"
+                autoComplete="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => {
+                  setEmail(e.target.value);
+                  if (fieldTouched.email) {
+                    const v = e.target.value;
+                    setFieldErrors(fe => ({ ...fe, email: !v.trim() ? "Email address is required" : !isEmailValid(v) ? "Enter a valid email address (e.g. you@example.com)" : "" }));
+                  }
+                }}
+                onBlur={() => {
+                  setFieldTouched(ft => ({ ...ft, email: true }));
+                  setFieldErrors(fe => ({ ...fe, email: !email.trim() ? "Email address is required" : !isEmailValid(email) ? "Enter a valid email address (e.g. you@example.com)" : "" }));
+                }}
                 placeholder="you@example.com"
-                required
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+                className={`w-full bg-muted border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 transition-all ${fieldErrors.email ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-border focus:border-primary focus:ring-primary/15"}`}
               />
+              {fieldErrors.email && <p className="text-red-500 text-[11px] flex items-center gap-1">⚠ {fieldErrors.email}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -276,11 +303,18 @@ export default function Login() {
                 <input
                   data-testid="input-password"
                   type={showPw ? "text" : "password"}
+                  autoComplete="current-password"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={e => {
+                    setPassword(e.target.value);
+                    if (fieldTouched.password) setFieldErrors(fe => ({ ...fe, password: !e.target.value ? "Password is required" : "" }));
+                  }}
+                  onBlur={() => {
+                    setFieldTouched(ft => ({ ...ft, password: true }));
+                    setFieldErrors(fe => ({ ...fe, password: !password ? "Password is required" : "" }));
+                  }}
                   placeholder="••••••••"
-                  required
-                  className="w-full bg-muted border border-border rounded-xl px-4 py-3 pr-12 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+                  className={`w-full bg-muted border rounded-xl px-4 py-3 pr-12 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 transition-all ${fieldErrors.password ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-border focus:border-primary focus:ring-primary/15"}`}
                 />
                 <button
                   type="button"
@@ -291,6 +325,7 @@ export default function Login() {
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {fieldErrors.password && <p className="text-red-500 text-[11px] flex items-center gap-1">⚠ {fieldErrors.password}</p>}
             </div>
 
             <div className="text-right -mt-2">

@@ -16,12 +16,17 @@ function createTransport() {
     console.warn("[EMAIL] SMTP not configured — set GOOGLE_SMTP_USER and GOOGLE_SMTP_PASS secrets to enable emails");
     return null;
   }
+  // Port 465 + secure:true (direct SSL) is more reliable on cloud hosts like Render/Railway
+  // that may block STARTTLS (port 587). Gmail supports both.
   const raw = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
+    port: 465,
+    secure: true,
     auth: { user, pass },
     tls: { rejectUnauthorized: false },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
   });
 
   return {
@@ -46,7 +51,7 @@ export async function testSmtpConnection(): Promise<void> {
     return;
   }
   try {
-    const t = nodemailer.createTransport({ host: "smtp.gmail.com", port: 587, secure: false, auth: { user, pass }, tls: { rejectUnauthorized: false } });
+    const t = nodemailer.createTransport({ host: "smtp.gmail.com", port: 465, secure: true, auth: { user, pass }, tls: { rejectUnauthorized: false }, connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 20000 });
     await t.verify();
     console.info("[EMAIL] SMTP connection verified OK — emails will be sent");
   } catch (err: unknown) {

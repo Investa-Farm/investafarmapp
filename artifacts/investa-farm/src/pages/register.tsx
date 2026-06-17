@@ -4,6 +4,10 @@ import { useRegister } from "@workspace/api-client-react";
 import { setToken, storeUser } from "@/lib/auth";
 import { Loader2, Tractor, BarChart2, Handshake, Package, Eye, EyeOff, Check, X, ArrowLeft } from "lucide-react";
 
+function isEmailValid(v: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+}
+
 type RoleKey = "investor" | "farmer" | "agribusiness";
 type AgribizType = "farmer_connector" | "input_supplier";
 
@@ -38,6 +42,7 @@ export default function Register() {
     setTouched({ name: true, email: true, password: true });
     if (!name.trim()) { setError("Please enter your full name."); return; }
     if (!email.trim()) { setError("Please enter your email address."); return; }
+    if (!isEmailValid(email)) { setError("Please enter a valid email address (e.g. you@example.com)."); return; }
     if (!pwValid) { setError("Password must be 8+ characters with uppercase, lowercase, and a number."); return; }
 
     const finalRole = role === "agribusiness" ? "agribusiness" : role;
@@ -189,14 +194,25 @@ export default function Register() {
               <label className="text-foreground text-xs font-semibold uppercase tracking-wider">Email</label>
               <input
                 data-testid="input-email"
-                type="email"
+                type="text"
+                inputMode="email"
+                autoComplete="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 onBlur={() => setTouched(t => ({ ...t, email: true }))}
                 placeholder="you@example.com"
-                required
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+                className={`w-full bg-muted border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 transition-all ${
+                  touched.email && email && !isEmailValid(email)
+                    ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+                    : touched.email && !email
+                    ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+                    : touched.email && isEmailValid(email)
+                    ? "border-green-400 focus:ring-green-100"
+                    : "border-border focus:border-primary focus:ring-primary/15"
+                }`}
               />
+              {touched.email && !email.trim() && <p className="text-red-500 text-[11px]">⚠ Email address is required</p>}
+              {touched.email && email.trim() && !isEmailValid(email) && <p className="text-red-500 text-[11px]">⚠ Enter a valid email (e.g. you@example.com)</p>}
             </div>
 
             <div className="space-y-1.5">

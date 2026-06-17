@@ -3,7 +3,7 @@ import { useGetMe, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, formatKES, getToken, storeUser, getStoredUser } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, RefreshCw, ArrowUpRight, Smartphone, KeyRound, Lock } from "lucide-react";
+import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, RefreshCw, ArrowUpRight, Smartphone, KeyRound, Lock, Copy, Check as CheckIcon } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { InvestorKycModal } from "@/components/investor-kyc-modal";
@@ -48,6 +48,17 @@ export default function Profile() {
   const [mfaError, setMfaError] = useState("");
   const [mfaLoading, setMfaLoading] = useState(false);
   const [mfaSuccess, setMfaSuccess] = useState("");
+  const [mfaCopied, setMfaCopied] = useState(false);
+  const [mfaShowManual, setMfaShowManual] = useState(false);
+
+  const copySecret = () => {
+    navigator.clipboard.writeText(mfaSecret).then(() => {
+      setMfaCopied(true);
+      setTimeout(() => setMfaCopied(false), 2000);
+    });
+  };
+
+  const formatSecret = (s: string) => s.match(/.{1,4}/g)?.join(" ") ?? s;
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -668,28 +679,58 @@ export default function Profile() {
                 {/* Phase: setup — show QR code + verify */}
                 {mfaPhase === "setup" && (
                   <div className="space-y-4">
-                    <div className="text-center space-y-1">
-                      <p className="font-bold text-sm">Scan with your authenticator app</p>
-                      <p className="text-muted-foreground text-xs">Open Google Authenticator, Authy, or similar and scan the QR code below.</p>
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 space-y-1">
+                      <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <Smartphone size={13} className="text-primary" /> Step 1 — Add to authenticator app
+                      </p>
+                      <p className="text-muted-foreground text-[11px]">Open <strong>Google Authenticator</strong>, <strong>Authy</strong>, or any TOTP app. Tap the <strong>+</strong> button and choose <em>Scan QR code</em> or <em>Enter setup key</em>.</p>
                     </div>
 
                     {mfaQr && (
                       <div className="flex justify-center">
-                        <div className="bg-white p-3 rounded-2xl border border-border shadow-sm inline-block">
-                          <img src={mfaQr} alt="TOTP QR Code" className="w-44 h-44" />
+                        <div className="bg-white p-3 rounded-2xl border-2 border-primary/20 shadow-sm inline-block">
+                          <img src={mfaQr} alt="TOTP QR Code" className="w-48 h-48" />
                         </div>
                       </div>
                     )}
 
                     {mfaSecret && (
-                      <div className="bg-muted rounded-xl px-4 py-3">
-                        <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wide mb-1">Can't scan? Enter manually:</p>
-                        <p className="text-foreground font-mono text-sm tracking-widest break-all select-all">{mfaSecret}</p>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setMfaShowManual(s => !s)}
+                          className="w-full flex items-center justify-between px-3 py-2 bg-muted rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <span className="text-[11px] font-semibold uppercase tracking-wide">Can't scan? Enter key manually</span>
+                          <span className="text-xs">{mfaShowManual ? "▲" : "▼"}</span>
+                        </button>
+                        {mfaShowManual && (
+                          <div className="mt-2 bg-muted rounded-xl px-4 py-3 space-y-2">
+                            <p className="text-muted-foreground text-[10px]">In your authenticator app choose <strong>Enter a setup key</strong>, then type this code exactly:</p>
+                            <div className="flex items-center gap-2">
+                              <p className="flex-1 text-foreground font-mono text-base tracking-widest break-all select-all font-bold">
+                                {formatSecret(mfaSecret)}
+                              </p>
+                              <button type="button" onClick={copySecret}
+                                className="flex-shrink-0 w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center hover:bg-primary/5 transition-colors">
+                                {mfaCopied ? <CheckIcon size={14} className="text-green-600" /> : <Copy size={14} className="text-muted-foreground" />}
+                              </button>
+                            </div>
+                            {mfaCopied && <p className="text-green-600 text-[10px] font-medium">Copied to clipboard!</p>}
+                          </div>
+                        )}
                       </div>
                     )}
 
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 space-y-1">
+                      <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <KeyRound size={13} className="text-primary" /> Step 2 — Enter the 6-digit code
+                      </p>
+                      <p className="text-muted-foreground text-[11px]">After adding the account, your app will show a 6-digit rotating code. Enter it below to confirm setup.</p>
+                    </div>
+
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Enter 6-digit code to confirm</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">6-digit verification code</label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -702,13 +743,13 @@ export default function Profile() {
                     </div>
 
                     <div className="flex gap-3">
-                      <button onClick={() => { setMfaPhase("status"); setMfaQr(""); setMfaSecret(""); setMfaCode(""); setMfaError(""); }}
+                      <button onClick={() => { setMfaPhase("status"); setMfaQr(""); setMfaSecret(""); setMfaCode(""); setMfaError(""); setMfaShowManual(false); }}
                         className="flex-1 border border-border rounded-2xl py-3 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
                         Cancel
                       </button>
                       <button onClick={handleMfaEnable} disabled={mfaLoading || mfaCode.length !== 6}
                         className="flex-1 bg-primary text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50">
-                        {mfaLoading ? <RefreshCw size={14} className="animate-spin" /> : null}
+                        {mfaLoading ? <RefreshCw size={14} className="animate-spin" /> : <Lock size={14} />}
                         {mfaLoading ? "Verifying…" : "Activate 2FA"}
                       </button>
                     </div>

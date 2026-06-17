@@ -1,4 +1,4 @@
-- [TOTP MFA implementation](totp-mfa.md) — otplib+qrcode are CJS-only; must add both to externals in build.mjs AND use createRequire() in the route file; named/default ESM imports both fail at runtime
+- [TOTP MFA implementation](totp-mfa.md) — otplib v13 broke: no `authenticator` singleton; use object payloads `generateSync({secret})`, `verifySync({token,secret},{window:1})`, `generateURI({label,issuer,secret})`; verifySync returns `{valid:bool}` not bool; still CJS-only via createRequire
 - [Cooperative role in DB](cooperative-role.md) — DB schema originally only had "farmer"|"investor"; "cooperative" added to `userRoleEnum` in `lib/db/src/schema/users.ts` and pushed via `pnpm --filter @workspace/db run push`
 - [Orval codegen config](orval-config.md) — Do NOT re-run codegen without checking `mode: "single"` in orval config; output must target `generated/api.ts` (no schemas folder)
 - [Crop image fallback pattern](crop-images.md) — Market pages use `getCropImage(cropType, imageUrl?)` in `artifacts/investa-farm/src/lib/crops.ts`; now uses Pexels photos imported via @assets alias for beans/tomatoes/dairy/poultry/rice/kale/sunflower/cabbage/greenhouse

@@ -4,12 +4,14 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { verifyToken, signToken } from "./auth";
 
-// otplib and qrcode are CJS-only — use createRequire so esbuild doesn't try to tree-shake them
+// otplib v13 is CJS-only — use createRequire so esbuild doesn't try to tree-shake it
+// v13 API: all functions take object payloads, verifySync returns { valid, delta } not boolean
 const _require = createRequire(import.meta.url);
-const authenticator = (_require("otplib") as any).authenticator as {
+const otplib = _require("otplib") as {
   generateSecret(): string;
-  keyuri(accountName: string, issuer: string, secret: string): string;
-  verify(opts: { token: string; secret: string }): boolean;
+  generateSync(payload: { secret: string }): string;
+  verifySync(payload: { token: string; secret: string }, opts?: { window?: number }): { valid: boolean } | null | false;
+  generateURI(payload: { label: string; issuer: string; secret: string }): string;
 };
 const QRCode = _require("qrcode") as { toDataURL(url: string): Promise<string> };
 
@@ -19,6 +21,17 @@ function getAuthUserId(req: Request): number | null {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return null;
   return verifyToken(auth.slice(7));
+}
+
+function totpVerify(token: string, secret: string): boolean {
+  try {
+    const result = otplib.verifySync({ token, secret }, { window: 1 });
+    if (!result) return false;
+    if (typeof result === "object" && "valid" in result) return result.valid === true;
+    return Boolean(result);
+  } catch {
+    return false;
+  }
 }
 
 router.post("/auth/totp/setup", async (req, res): Promise<void> => {
@@ -33,8 +46,8 @@ router.post("/auth/totp/setup", async (req, res): Promise<void> => {
     return;
   }
 
-  const secret = authenticator.generateSecret();
-  const otpauthUrl = authenticator.keyuri(user.email, "Investa Farm", secret);
+  const secret = otplib.generateSecret();
+  const otpauthUrl = otplib.generateURI({ label: user.email, issuer: "Investa Farm", secret });
 
   await db.update(usersTable).set({ totpSecret: secret }).where(eq(usersTable.id, userId));
 
@@ -61,7 +74,7 @@ router.post("/auth/totp/enable", async (req, res): Promise<void> => {
     res.status(400).json({ error: "TOTP already enabled" }); return;
   }
 
-  const isValid = authenticator.verify({ token: code.replace(/\s/g, ""), secret: user.totpSecret });
+  const isValid = totpVerify(code.replace(/\s/g, ""), user.totpSecret);
   if (!isValid) {
     res.status(400).json({ error: "Invalid code. Please check your authenticator app and try again." });
     return;
@@ -88,7 +101,7 @@ router.post("/auth/totp/verify-login", async (req, res): Promise<void> => {
     res.status(400).json({ error: "TOTP not configured for this account" }); return;
   }
 
-  const isValid = authenticator.verify({ token: code.replace(/\s/g, ""), secret: user.totpSecret });
+  const isValid = totpVerify(code.replace(/\s/g, ""), user.totpSecret);
   if (!isValid) {
     res.status(400).json({ error: "Invalid authenticator code. Please try again." }); return;
   }
@@ -115,7 +128,7 @@ router.delete("/auth/totp/disable", async (req, res): Promise<void> => {
     res.status(400).json({ error: "TOTP is not enabled" }); return;
   }
 
-  const isValid = authenticator.verify({ token: code.replace(/\s/g, ""), secret: user.totpSecret });
+  const isValid = totpVerify(code.replace(/\s/g, ""), user.totpSecret);
   if (!isValid) {
     res.status(400).json({ error: "Invalid authenticator code" }); return;
   }
