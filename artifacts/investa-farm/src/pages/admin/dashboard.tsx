@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import {
   Shield, Users, Tractor, DollarSign, TrendingUp, FileText,
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
-  Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2
+  Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2,
+  Settings, Bell, Percent, Coins
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -33,7 +34,16 @@ interface TxRecord {
   description: string | null; status: string; createdAt: string;
 }
 
-type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals";
+type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals" | "settings";
+
+interface PlatformSettings {
+  withdrawalFeePct: number;
+  withdrawalFeeCap: number;
+  primaryPurchaseFeePct: number;
+  secondaryTradeFeePct: number;
+  minInvestmentKES: number;
+  minSharePurchase: number;
+}
 
 const TX_EMOJI: Record<string, string> = {
   deposit: "⬇️", withdrawal: "⬆️", investment: "📈", return: "💰", fee: "💳", transfer: "↔️",
@@ -71,6 +81,12 @@ export default function AdminDashboard() {
   const [showNewPass, setShowNewPass] = useState(false);
   const [addAdminLoading, setAddAdminLoading] = useState(false);
   const [roleEditId, setRoleEditId] = useState<number | null>(null);
+  const [settings, setSettings] = useState<PlatformSettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<PlatformSettings | null>(null);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [broadcast, setBroadcast] = useState({ title: "", body: "" });
+  const [broadcastSending, setBroadcastSending] = useState(false);
 
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
@@ -89,6 +105,7 @@ export default function AdminDashboard() {
     if (tab === "farms") fetchFarms();
     if (tab === "payouts") fetchPayouts();
     if (tab === "proposals") fetchProposals();
+    if (tab === "settings") fetchSettings();
   }, [tab]);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -143,6 +160,65 @@ export default function AdminDashboard() {
       if (r.ok) setFarms(await r.json());
     } finally {
       setFarmsLoading(false);
+    }
+  };
+
+  const fetchSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      const r = await fetch("/api/admin/settings", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) {
+        const data = await r.json();
+        setSettings(data);
+        setSettingsDraft(data);
+      }
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const saveSettings = async () => {
+    if (!settingsDraft) return;
+    setSettingsSaving(true);
+    try {
+      const r = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(settingsDraft),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        setSettings(data.settings);
+        setSettingsDraft(data.settings);
+        showToast("Platform settings saved ✓");
+      } else {
+        showToast(data.error ?? "Save failed", "error");
+      }
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const sendBroadcast = async () => {
+    if (!broadcast.title.trim() || !broadcast.body.trim()) {
+      showToast("Title and message are required", "error"); return;
+    }
+    setBroadcastSending(true);
+    try {
+      const r = await fetch("/api/admin/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(broadcast),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showToast(`📢 Sent to ${data.sent} users ✓`);
+        setBroadcast({ title: "", body: "" });
+      } else {
+        showToast(data.error ?? "Broadcast failed", "error");
+      }
+    } finally {
+      setBroadcastSending(false);
     }
   };
 
@@ -320,6 +396,7 @@ export default function AdminDashboard() {
     { id: "transactions", label: "Txns", icon: <Activity size={14} /> },
     { id: "farms", label: "Farms", icon: <Tractor size={14} /> },
     { id: "payouts", label: "Payouts", icon: <DollarSign size={14} /> },
+    { id: "settings", label: "Settings", icon: <Settings size={14} /> },
   ];
 
   return (
@@ -954,6 +1031,147 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
+          </>
+        )}
+
+        {/* SETTINGS TAB */}
+        {tab === "settings" && (
+          <>
+            {settingsLoading ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">Loading settings…</div>
+            ) : settingsDraft ? (
+              <>
+                {/* Fee Settings */}
+                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border bg-amber-50">
+                    <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                      <Percent size={13} className="text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="text-amber-900 font-bold text-xs">Fee Configuration</p>
+                      <p className="text-amber-600 text-[10px]">Platform fees charged on transactions</p>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {[
+                      { label: "Withdrawal Fee", sub: "% of withdrawal amount", key: "withdrawalFeePct" as const, suffix: "%" },
+                      { label: "Withdrawal Fee Cap", sub: "Maximum fee charged (KES)", key: "withdrawalFeeCap" as const, suffix: "KES" },
+                      { label: "Primary Purchase Fee", sub: "% charged on new share purchases", key: "primaryPurchaseFeePct" as const, suffix: "%" },
+                      { label: "Secondary Trade Fee", sub: "% charged on P2P market trades", key: "secondaryTradeFeePct" as const, suffix: "%" },
+                    ].map(({ label, sub, key, suffix }) => (
+                      <div key={key} className="flex items-center gap-3 px-4 py-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground text-xs font-semibold">{label}</p>
+                          <p className="text-muted-foreground text-[10px]">{sub}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <input
+                            type="number"
+                            min={0}
+                            step={suffix === "%" ? 0.1 : 1}
+                            value={settingsDraft[key]}
+                            onChange={e => setSettingsDraft(d => d ? { ...d, [key]: Number(e.target.value) } : d)}
+                            className="w-20 border border-border rounded-lg px-2 py-1.5 text-xs text-right text-foreground bg-gray-50 focus:outline-none focus:border-primary"
+                          />
+                          <span className="text-muted-foreground text-[10px] w-6">{suffix}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Investment Limits */}
+                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border bg-blue-50">
+                    <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Coins size={13} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-blue-900 font-bold text-xs">Investment Limits</p>
+                      <p className="text-blue-600 text-[10px]">Minimum thresholds for investor participation</p>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {[
+                      { label: "Minimum Investment", sub: "Smallest wallet amount to invest (KES)", key: "minInvestmentKES" as const, suffix: "KES" },
+                      { label: "Minimum Shares", sub: "Fewest shares per purchase", key: "minSharePurchase" as const, suffix: "shares" },
+                    ].map(({ label, sub, key, suffix }) => (
+                      <div key={key} className="flex items-center gap-3 px-4 py-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground text-xs font-semibold">{label}</p>
+                          <p className="text-muted-foreground text-[10px]">{sub}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={settingsDraft[key]}
+                            onChange={e => setSettingsDraft(d => d ? { ...d, [key]: Number(e.target.value) } : d)}
+                            className="w-20 border border-border rounded-lg px-2 py-1.5 text-xs text-right text-foreground bg-gray-50 focus:outline-none focus:border-primary"
+                          />
+                          <span className="text-muted-foreground text-[10px] w-10 leading-tight">{suffix}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={saveSettings}
+                  disabled={settingsSaving}
+                  className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {settingsSaving ? <Loader2 size={15} className="animate-spin" /> : <Settings size={15} />}
+                  {settingsSaving ? "Saving…" : "Save Platform Settings"}
+                </button>
+
+                {/* Broadcast Notifications */}
+                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border bg-purple-50">
+                    <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
+                      <Bell size={13} className="text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-purple-900 font-bold text-xs">Broadcast Notification</p>
+                      <p className="text-purple-600 text-[10px]">Send a message to all users on the platform</p>
+                    </div>
+                  </div>
+                  <div className="px-4 py-4 space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Title</label>
+                      <input
+                        type="text"
+                        value={broadcast.title}
+                        onChange={e => setBroadcast(b => ({ ...b, title: e.target.value }))}
+                        placeholder="e.g. Harvest season is here! 🌾"
+                        className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground bg-gray-50 focus:outline-none focus:border-purple-400 focus:bg-white transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Message</label>
+                      <textarea
+                        value={broadcast.body}
+                        onChange={e => setBroadcast(b => ({ ...b, body: e.target.value }))}
+                        placeholder="Write your message to all users…"
+                        rows={3}
+                        className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground bg-gray-50 focus:outline-none focus:border-purple-400 focus:bg-white transition-colors resize-none"
+                      />
+                    </div>
+                    <button
+                      onClick={sendBroadcast}
+                      disabled={broadcastSending || !broadcast.title.trim() || !broadcast.body.trim()}
+                      className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                    >
+                      {broadcastSending ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
+                      {broadcastSending ? "Sending…" : "Send to All Users"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground text-sm">Failed to load settings</div>
+            )}
           </>
         )}
 

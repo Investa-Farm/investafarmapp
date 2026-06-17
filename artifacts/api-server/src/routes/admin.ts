@@ -4,6 +4,7 @@ import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, i
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail } from "../lib/email";
 import { triggerFarmHarvest } from "../scheduler";
+import { loadSettings, saveSettings, type PlatformSettings } from "../lib/platformSettings";
 
 const router: IRouter = Router();
 
@@ -396,6 +397,53 @@ router.get("/admin/dividends", async (req, res): Promise<void> => {
       createdAt: d.div.createdAt.toISOString(),
     })),
   });
+});
+
+router.get("/admin/settings", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  res.json(loadSettings());
+});
+
+router.put("/admin/settings", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const body = req.body as Partial<PlatformSettings>;
+  const current = loadSettings();
+  const updated: PlatformSettings = {
+    withdrawalFeePct: Number(body.withdrawalFeePct ?? current.withdrawalFeePct),
+    withdrawalFeeCap: Number(body.withdrawalFeeCap ?? current.withdrawalFeeCap),
+    primaryPurchaseFeePct: Number(body.primaryPurchaseFeePct ?? current.primaryPurchaseFeePct),
+    secondaryTradeFeePct: Number(body.secondaryTradeFeePct ?? current.secondaryTradeFeePct),
+    minInvestmentKES: Number(body.minInvestmentKES ?? current.minInvestmentKES),
+    minSharePurchase: Number(body.minSharePurchase ?? current.minSharePurchase),
+  };
+  saveSettings(updated);
+  res.json({ ok: true, settings: updated });
+});
+
+router.post("/admin/broadcast", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const { title, body, type = "platform_announcement" } = req.body as { title: string; body: string; type?: string };
+  if (!title || !body) {
+    res.status(400).json({ error: "title and body are required" });
+    return;
+  }
+  const allUsers = await db.select({ id: usersTable.id }).from(usersTable);
+  if (allUsers.length === 0) {
+    res.json({ ok: true, sent: 0 });
+    return;
+  }
+  await db.insert(notificationsTable).values(
+    allUsers.map(u => ({
+      userId: u.id,
+      type,
+      title,
+      body,
+    }))
+  );
+  res.json({ ok: true, sent: allUsers.length });
 });
 
 export default router;
