@@ -163,4 +163,76 @@ router.post("/agribusiness/voucher-orders/:id/cancel", async (req, res): Promise
   }
 });
 
+router.get("/agribusiness/commissions", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  try {
+    const orders = await db
+      .select({
+        id: voucherOrdersTable.id,
+        amount: voucherOrdersTable.amount,
+        status: voucherOrdersTable.status,
+        createdAt: voucherOrdersTable.createdAt,
+        farmerName: usersTable.name,
+      })
+      .from(voucherOrdersTable)
+      .innerJoin(usersTable, eq(usersTable.id, voucherOrdersTable.farmerId))
+      .where(eq(voucherOrdersTable.agribusinessId, user.id))
+      .orderBy(desc(voucherOrdersTable.createdAt));
+
+    const commissions = orders
+      .filter(o => o.status === "fulfilled")
+      .map(o => ({
+        id: o.id,
+        amount: Math.round(Number(o.amount) * 0.025 * 100) / 100,
+        description: `Commission: ${o.farmerName} order fulfilled`,
+        createdAt: o.createdAt.toISOString(),
+      }));
+
+    res.json(commissions);
+  } catch (e) {
+    logger.error({ err: e }, "[AGRIBUSINESS] Failed to fetch commissions");
+    res.status(500).json({ error: "Failed to fetch commissions" });
+  }
+});
+
+router.get("/agribusiness/my-network", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  try {
+    const referred = await db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        county: usersTable.county,
+        createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.role, "farmer"))
+      .orderBy(desc(usersTable.createdAt))
+      .limit(50);
+
+    const orders = await db.select().from(voucherOrdersTable)
+      .where(eq(voucherOrdersTable.agribusinessId, user.id));
+    const fundedFarmerIds = new Set(
+      orders.filter(o => o.status === "fulfilled").map(o => o.farmerId)
+    );
+
+    const network = referred.map(f => ({
+      id: f.id,
+      name: f.name,
+      county: f.county ?? "Kenya",
+      funded: fundedFarmerIds.has(f.id),
+      status: fundedFarmerIds.has(f.id) ? "Funded" : "Active",
+    }));
+
+    res.json(network);
+  } catch (e) {
+    logger.error({ err: e }, "[AGRIBUSINESS] Failed to fetch network");
+    res.status(500).json({ error: "Failed to fetch network" });
+  }
+});
+
 export default router;

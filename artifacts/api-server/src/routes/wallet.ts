@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { createHmac } from "crypto";
-import { db, walletsTable, walletTransactionsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { db, walletsTable, walletTransactionsTable, escrowWalletsTable } from "@workspace/db";
+import { eq, desc, and, sum, sql } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { initializePayment, verifyTransaction } from "../lib/paystack";
 
@@ -25,6 +25,27 @@ router.get("/wallet", async (req, res): Promise<void> => {
     .orderBy(desc(walletTransactionsTable.createdAt))
     .limit(30);
   res.json({ wallet, transactions });
+});
+
+router.get("/wallet/escrow", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const escrows = await db
+      .select()
+      .from(escrowWalletsTable)
+      .where(eq(escrowWalletsTable.userId, user.id))
+      .orderBy(desc(escrowWalletsTable.createdAt));
+    const heldTotal = escrows
+      .filter(e => e.status === "held")
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const releasedTotal = escrows
+      .filter(e => e.status === "released")
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    res.json({ escrows, heldTotal, releasedTotal });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch escrow" });
+  }
 });
 
 router.post("/wallet/deposit", async (req, res): Promise<void> => {

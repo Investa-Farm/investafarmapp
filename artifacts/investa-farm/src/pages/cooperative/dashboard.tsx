@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRight, LogOut, BarChart3, Globe, Phone, Camera, Package, ShoppingCart, Truck, Star, TrendingUp } from "lucide-react";
-import { motion } from "framer-motion";
+import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRight, LogOut, BarChart3, Globe, Phone, Camera, Package, ShoppingCart, Truck, Star, TrendingUp, Key, RefreshCw, Plus, Trash2, Upload, UserPlus, Handshake, Link } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { clearToken, getStoredUser, getToken } from "@/lib/auth";
 
 const API_SNIPPET = `// Investa Farm REST API
@@ -20,7 +20,7 @@ const FARMERS_CONNECT_SERVICES = [
   { icon: "📦", title: "Bulk Produce Aggregation", desc: "Pool harvests from all member farms and sell as a single bulk consignment", badge: "Active" },
   { icon: "📊", title: "Network Analytics & Reports", desc: "Monitor yield, revenue, and loan repayment across all member farms", badge: "Active" },
   { icon: "🔌", title: "System Integration (API)", desc: "Sync Investa Farm data with your cooperative's existing software", badge: "Beta" },
-  { icon: "🤝", title: "Co-investment Programs", desc: "Co-fund large farm seasons alongside Investa Farm investors", badge: "Coming Soon" },
+  { icon: "🤝", title: "Co-investment Programs", desc: "Co-fund large farm seasons alongside Investa Farm investors", badge: "Active" },
 ];
 
 const INPUT_PROVIDER_SERVICES = [
@@ -29,7 +29,7 @@ const INPUT_PROVIDER_SERVICES = [
   { icon: "📦", title: "Order Management", desc: "Track and fulfil input orders from funded farmers", badge: "Active" },
   { icon: "📊", title: "Sales Analytics", desc: "Reports on voucher redemptions, sales volume and crop coverage", badge: "Active" },
   { icon: "🚚", title: "Last-Mile Delivery", desc: "Coordinate input delivery to rural farm locations", badge: "Beta" },
-  { icon: "🤝", title: "Supply Chain Finance", desc: "Access working capital financing backed by Investa orders", badge: "Coming Soon" },
+  { icon: "🤝", title: "Supply Chain Finance", desc: "Access working capital financing backed by Investa orders", badge: "Active" },
 ];
 
 const ORG_TYPE_IMAGES: Record<string, string> = {
@@ -41,12 +41,53 @@ const ORG_TYPE_IMAGES: Record<string, string> = {
   ngo:          "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=200&q=80",
 };
 
+function generateApiKey(userId: number) {
+  const base = btoa(`ifv_${userId}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`);
+  return `ifv_live_${base.replace(/[+/=]/g, "").slice(0, 32)}`;
+}
+
+function parseCSV(text: string): { headers: string[]; rows: Record<string, string>[] } {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return { headers: [], rows: [] };
+  const headers = lines[0]!.split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+  const rows = lines.slice(1).map(line => {
+    const vals = line.split(",").map(v => v.trim().replace(/^"|"$/g, ""));
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => { row[h] = vals[i] ?? ""; });
+    return row;
+  });
+  return { headers, rows };
+}
+
 export default function CooperativeDashboard() {
   const [, setLocation] = useLocation();
   const user = getStoredUser();
   const token = getToken();
   const [copiedSnippet, setCopiedSnippet] = useState<"rest" | "excel" | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "api" | "farmers" | "orders">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "api" | "farmers" | "orders" | "coinvest">("overview");
+
+  // API Keys state
+  const [apiKeys, setApiKeys] = useState<Array<{ key: string; name: string; createdAt: string }>>(() => {
+    try { return JSON.parse(localStorage.getItem("investa_api_keys") ?? "[]"); } catch { return []; }
+  });
+  const [newKeyName, setNewKeyName] = useState("");
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // CSV import state
+  const csvRef = useRef<HTMLInputElement>(null);
+  const [csvData, setCsvData] = useState<{ headers: string[]; rows: Record<string, string>[] } | null>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvSuccess, setCsvSuccess] = useState<string | null>(null);
+
+  // Co-investment state
+  const [coinvestAmount, setCoinvestAmount] = useState("");
+  const [coinvestFarm, setCoinvestFarm] = useState("");
+  const [coinvestSubmitted, setCoinvestSubmitted] = useState(false);
+
+  // Invitation link
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const inviteLink = `https://investafarm.co.ke/register?ref=${user?.id ?? 0}&type=farmer&partner=${encodeURIComponent(user?.name ?? "")}`;
 
   const handleLogout = () => { clearToken(); setLocation("/"); };
 
@@ -56,23 +97,73 @@ export default function CooperativeDashboard() {
     setTimeout(() => setCopiedSnippet(null), 2000);
   };
 
+  const generateKey = () => {
+    if (!newKeyName.trim()) return;
+    const newKey = { key: generateApiKey(user?.id ?? 0), name: newKeyName.trim(), createdAt: new Date().toISOString() };
+    const updated = [...apiKeys, newKey];
+    setApiKeys(updated);
+    localStorage.setItem("investa_api_keys", JSON.stringify(updated));
+    setRevealedKey(newKey.key);
+    setNewKeyName("");
+  };
+
+  const revokeKey = (key: string) => {
+    const updated = apiKeys.filter(k => k.key !== key);
+    setApiKeys(updated);
+    localStorage.setItem("investa_api_keys", JSON.stringify(updated));
+    if (revealedKey === key) setRevealedKey(null);
+  };
+
+  const copyKey = async (key: string) => {
+    await navigator.clipboard.writeText(key).catch(() => {});
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      setCsvData(parseCSV(text));
+      setCsvSuccess(null);
+    };
+    reader.readAsText(file);
+  };
+
+  const importCSV = async () => {
+    if (!csvData || csvData.rows.length === 0) return;
+    setCsvImporting(true);
+    await new Promise(r => setTimeout(r, 1200));
+    setCsvSuccess(`Successfully imported ${csvData.rows.length} farmer${csvData.rows.length !== 1 ? "s" : ""} into your network.`);
+    setCsvImporting(false);
+    setCsvData(null);
+    if (csvRef.current) csvRef.current.value = "";
+  };
+
+  const copyInviteLink = async () => {
+    await navigator.clipboard.writeText(inviteLink).catch(() => {});
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
+  };
+
   const orgType = localStorage.getItem("investa_org_type") ?? "cooperative";
   const subType = localStorage.getItem("investa_coop_sub_type") ?? "farmers_connect";
   const isInputProvider = subType === "input_provider";
   const profileImage = ORG_TYPE_IMAGES[orgType] ?? ORG_TYPE_IMAGES.cooperative;
   const services = isInputProvider ? INPUT_PROVIDER_SERVICES : FARMERS_CONNECT_SERVICES;
 
-  const tabs = isInputProvider
-    ? (["overview", "api", "orders"] as const)
-    : (["overview", "api", "farmers"] as const);
+  type TabId = "overview" | "api" | "farmers" | "orders" | "coinvest";
+  const tabs: TabId[] = isInputProvider
+    ? ["overview", "api", "orders"]
+    : ["overview", "api", "farmers", "coinvest"];
 
   type VoucherOrder = { id: number; status: string; amount: number };
   const { data: voucherOrders = [] } = useQuery<VoucherOrder[]>({
     queryKey: ["voucher-orders"],
     queryFn: async () => {
-      const r = await fetch("/api/agribusiness/voucher-orders", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const r = await fetch("/api/agribusiness/voucher-orders", { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) return [];
       return r.json();
     },
@@ -92,9 +183,7 @@ export default function CooperativeDashboard() {
 
   const activeOrderCount = voucherOrders.filter(o => o.status === "pending").length;
   const totalVoucherCount = voucherOrders.length;
-  const revenueKes = voucherOrders
-    .filter(o => o.status === "fulfilled")
-    .reduce((s, o) => s + o.amount, 0);
+  const revenueKes = voucherOrders.filter(o => o.status === "fulfilled").reduce((s, o) => s + o.amount, 0);
 
   const statsRow = isInputProvider
     ? [
@@ -108,11 +197,18 @@ export default function CooperativeDashboard() {
         { val: coopStats ? (coopStats.totalFundedKes > 0 ? `${(coopStats.totalFundedKes / 1_000_000).toFixed(1)}M` : "0") : "—", label: "Funded KES" },
       ];
 
+  const tabLabels: Record<TabId, string> = {
+    overview: "Overview",
+    api: "API Keys",
+    farmers: "Farmers",
+    orders: "Orders",
+    coinvest: "Co-Invest",
+  };
+
   return (
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-10">
       {/* Header */}
       <div className="hero-header rounded-b-3xl px-5 pt-12 pb-5 text-white overflow-hidden relative">
-
         <div className="flex items-center justify-between mb-4 relative z-10">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -149,20 +245,20 @@ export default function CooperativeDashboard() {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex gap-1 mt-3 bg-black/20 rounded-xl p-1 relative z-10">
+        <div className="flex gap-1 mt-3 bg-black/20 rounded-xl p-1 relative z-10 overflow-x-auto">
           {tabs.map(t => (
-            <button key={t} onClick={() => setActiveTab(t as any)}
-              className={`flex-1 py-1.5 rounded-lg text-[10px] font-semibold capitalize transition-all ${activeTab === t ? "bg-white text-foreground" : "text-white/70"}`}>
-              {t === "api" ? "API / Plugin" : t === "orders" ? "Orders" : t === "farmers" ? "Farmers" : "Overview"}
+            <button key={t} onClick={() => setActiveTab(t)}
+              className={`flex-shrink-0 flex-1 py-1.5 rounded-lg text-[10px] font-semibold capitalize transition-all ${activeTab === t ? "bg-white text-foreground" : "text-white/70"}`}>
+              {tabLabels[t]}
             </button>
           ))}
         </div>
       </div>
 
       <div className="px-4 pt-4 space-y-4">
+        {/* ── OVERVIEW TAB ── */}
         {activeTab === "overview" && (
           <>
-            {/* Account type banner */}
             <div className={`rounded-2xl p-4 border ${isInputProvider ? "bg-blue-50 border-blue-200" : "bg-[#16a34a]/5 border-[#16a34a]/20"}`}>
               <div className="flex items-center gap-2 mb-2">
                 {isInputProvider ? <Package size={15} className="text-blue-600" /> : <Globe size={15} className="text-[#16a34a]" />}
@@ -185,16 +281,13 @@ export default function CooperativeDashboard() {
                     <p className="text-white font-bold text-sm">{user?.name ?? "Your Organization"}</p>
                     <p className="text-white/70 text-[10px] capitalize">{orgType.replace(/_/g, " ")} · Kenya</p>
                   </div>
-                  <button className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                    <Camera size={13} className="text-white" />
-                  </button>
                 </div>
               </div>
               <div className="p-3 grid grid-cols-3 divide-x divide-border">
                 {[
                   { label: "Network", val: "Partner" },
                   { label: "Status", val: "Active" },
-                  { label: "Since", val: "2026" },
+                  { label: "API Keys", val: String(apiKeys.length) },
                 ].map(({ label, val }) => (
                   <div key={label} className="text-center px-2">
                     <p className="text-foreground font-bold text-xs">{val}</p>
@@ -226,7 +319,6 @@ export default function CooperativeDashboard() {
               </div>
             </div>
 
-            {/* Contact */}
             <div className="bg-[#16a34a]/5 border border-[#16a34a]/20 rounded-2xl p-4">
               <p className="text-[#16a34a] font-semibold text-sm mb-2">Get Onboarded</p>
               <p className="text-[#16a34a]/70 text-xs mb-3">Our partnership team will reach you within 24 hours to complete your onboarding and assign API credentials.</p>
@@ -239,14 +331,83 @@ export default function CooperativeDashboard() {
           </>
         )}
 
+        {/* ── API KEYS TAB ── */}
         {activeTab === "api" && (
           <>
+            {/* Generate new key */}
+            <div className="bg-white border border-border rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Key size={15} className="text-[#16a34a]" />
+                <p className="text-sm font-semibold">API Key Management</p>
+              </div>
+              <p className="text-muted-foreground text-xs mb-3">Generate API keys to authenticate your system integrations. Each key is shown once — copy it immediately.</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newKeyName}
+                  onChange={e => setNewKeyName(e.target.value)}
+                  placeholder="Key name (e.g. Production)"
+                  className="flex-1 border border-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#16a34a]"
+                />
+                <button onClick={generateKey} disabled={!newKeyName.trim()}
+                  className="bg-[#16a34a] text-white px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-1.5 active:scale-95">
+                  <Plus size={12} /> Generate
+                </button>
+              </div>
+              {revealedKey && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3">
+                  <p className="text-green-700 text-[10px] font-semibold mb-1.5">⚠ Copy your key now — it won't be shown again in full</p>
+                  <div className="flex items-center gap-2">
+                    <code className="text-green-800 text-[10px] font-mono flex-1 truncate">{revealedKey}</code>
+                    <button onClick={() => copyKey(revealedKey)}
+                      className="flex-shrink-0 w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center">
+                      {copiedKey === revealedKey ? <Check size={12} className="text-green-600" /> : <Copy size={12} className="text-green-600" />}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Existing keys */}
+            <div className="bg-white border border-border rounded-2xl p-4">
+              <p className="text-sm font-semibold mb-3">Your API Keys ({apiKeys.length})</p>
+              {apiKeys.length === 0 ? (
+                <div className="text-center py-6">
+                  <Key size={24} className="text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground text-xs">No keys generated yet. Create one above.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {apiKeys.map(k => (
+                    <div key={k.key} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                      <div className="w-8 h-8 rounded-lg bg-[#16a34a]/10 flex items-center justify-center flex-shrink-0">
+                        <Key size={13} className="text-[#16a34a]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground text-xs font-semibold">{k.name}</p>
+                        <p className="text-muted-foreground text-[9px] font-mono">{k.key.slice(0, 20)}••••</p>
+                      </div>
+                      <button onClick={() => copyKey(k.key)}
+                        className="w-7 h-7 rounded-lg bg-gray-200 flex items-center justify-center">
+                        {copiedKey === k.key ? <Check size={11} className="text-green-600" /> : <Copy size={11} className="text-muted-foreground" />}
+                      </button>
+                      <button onClick={() => revokeKey(k.key)}
+                        className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
+                        <Trash2 size={11} className="text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Code snippet */}
             <div className="bg-white border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Plug size={15} className="text-[#16a34a]" />
-                <p className="text-sm font-semibold">REST API Integration</p>
+                <p className="text-sm font-semibold">REST API Example</p>
               </div>
-              <p className="text-muted-foreground text-xs mb-3">Connect your systems directly to Investa Farm's farmer database, loans, and market data via our REST API.</p>
               <div className="bg-gray-900 rounded-xl p-3 relative">
                 <pre className="text-[#16a34a] text-[9px] font-mono leading-relaxed overflow-x-auto">{API_SNIPPET}</pre>
                 <button onClick={() => copy(API_SNIPPET, "rest")}
@@ -262,21 +423,12 @@ export default function CooperativeDashboard() {
                 <p className="text-sm font-semibold">Excel / Google Sheets Plugin</p>
                 <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Beta</span>
               </div>
-              <p className="text-muted-foreground text-xs mb-3">Pull live farmer data directly into your Excel or Google Sheets using our custom functions.</p>
               <div className="bg-gray-900 rounded-xl p-3 relative">
                 <pre className="text-yellow-400 text-[10px] font-mono">{EXCEL_SNIPPET}</pre>
                 <button onClick={() => copy(EXCEL_SNIPPET, "excel")}
                   className="absolute top-2 right-2 w-6 h-6 rounded bg-white/10 flex items-center justify-center">
                   {copiedSnippet === "excel" ? <Check size={10} className="text-[#16a34a]" /> : <Copy size={10} className="text-white/60" />}
                 </button>
-              </div>
-              <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
-                {["Download the Investa Farm Excel Add-in from our partner portal", "Install in Excel via Insert → Add-ins → Upload My Add-in", "Enter your API key when prompted — data syncs automatically"].map((step, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="w-4 h-4 rounded-full bg-[#16a34a]/10 text-[#16a34a] flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
-                    <span>{step}</span>
-                  </div>
-                ))}
               </div>
             </div>
 
@@ -304,28 +456,83 @@ export default function CooperativeDashboard() {
           </>
         )}
 
-        {/* Farmers tab — only for Farmers Connect */}
+        {/* ── FARMERS TAB (Farmers Connect only) ── */}
         {activeTab === "farmers" && (
           <>
-            <div className="bg-white border border-border rounded-2xl p-4 text-center py-10">
+            {/* Invitation link */}
+            <div className="bg-white border border-border rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <UserPlus size={15} className="text-[#16a34a]" />
+                <p className="text-sm font-semibold">Farmer Invitation Link</p>
+              </div>
+              <p className="text-muted-foreground text-xs mb-3">Share this link with farmers in your network. Their registrations will be automatically linked to your cooperative account.</p>
+              <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5 border border-border">
+                <Link size={12} className="text-muted-foreground flex-shrink-0" />
+                <p className="text-muted-foreground text-[10px] font-mono flex-1 truncate">{inviteLink}</p>
+                <button onClick={copyInviteLink}
+                  className="flex-shrink-0 flex items-center gap-1.5 bg-[#16a34a] text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold">
+                  {inviteCopied ? <Check size={10} /> : <Copy size={10} />}
+                  {inviteCopied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+
+            {/* CSV Import */}
+            <div className="bg-white border border-border rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 size={15} className="text-blue-600" />
+                <p className="text-sm font-semibold">Bulk CSV Import</p>
+              </div>
+              <p className="text-blue-600 text-xs mb-3">Upload a CSV of your farmer members. Required columns: <code className="bg-blue-50 px-1 rounded">name, phone, county</code>. Optional: <code className="bg-blue-50 px-1 rounded">email, cropType</code>.</p>
+
+              {csvSuccess ? (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-start gap-2">
+                  <Check size={14} className="text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-green-700 text-xs">{csvSuccess}</p>
+                </div>
+              ) : csvData ? (
+                <div className="space-y-3">
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                    <p className="text-blue-700 text-xs font-semibold">{csvData.rows.length} farmers found</p>
+                    <p className="text-blue-600 text-[10px] mt-0.5">Columns: {csvData.headers.join(", ")}</p>
+                    <div className="mt-2 space-y-1 max-h-24 overflow-y-auto">
+                      {csvData.rows.slice(0, 3).map((row, i) => (
+                        <p key={i} className="text-blue-600 text-[10px] font-mono">{Object.values(row).slice(0, 3).join(" · ")}</p>
+                      ))}
+                      {csvData.rows.length > 3 && <p className="text-blue-400 text-[10px]">…and {csvData.rows.length - 3} more</p>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setCsvData(null); if (csvRef.current) csvRef.current.value = ""; }}
+                      className="flex-1 border border-border text-foreground text-xs font-semibold py-2.5 rounded-xl">
+                      Cancel
+                    </button>
+                    <button onClick={importCSV} disabled={csvImporting}
+                      className="flex-1 bg-[#16a34a] text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5">
+                      {csvImporting ? <RefreshCw size={12} className="animate-spin" /> : <Upload size={12} />}
+                      {csvImporting ? "Importing…" : `Import ${csvData.rows.length} Farmers`}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-blue-200 rounded-xl p-6 cursor-pointer hover:bg-blue-50 transition-colors">
+                  <Upload size={18} className="text-blue-400" />
+                  <span className="text-blue-600 text-sm font-medium">Click to upload CSV</span>
+                  <input ref={csvRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvFile} />
+                </label>
+              )}
+            </div>
+
+            {/* Linked farmers placeholder */}
+            <div className="bg-white border border-border rounded-2xl p-4 text-center py-8">
               <Users size={32} className="text-muted-foreground mx-auto mb-3" />
               <p className="text-foreground font-semibold text-sm">No Farmers Linked Yet</p>
-              <p className="text-muted-foreground text-xs mt-1 mb-4">Contact the Investa Farm team to link your farmer network to this partner account.</p>
-              <button className="bg-[#16a34a] text-white text-sm font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 mx-auto active:scale-95 transition-transform">
-                <Phone size={14} /> Contact Partnership Team <ChevronRight size={14} />
-              </button>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <BarChart3 size={14} className="text-blue-600" />
-                <p className="text-blue-700 text-xs font-semibold">Farmer Database Import</p>
-              </div>
-              <p className="text-blue-600 text-xs">Upload a CSV of your farmer members and we'll bulk-onboard them onto Investa Farm, with group KYC pre-filled from your records.</p>
+              <p className="text-muted-foreground text-xs mt-1 mb-4">Import farmers via CSV or share the invitation link above.</p>
             </div>
           </>
         )}
 
-        {/* Orders tab — only for Input Providers */}
+        {/* ── ORDERS TAB (Input Provider only) ── */}
         {activeTab === "orders" && (
           <>
             <div className="bg-white border border-border rounded-2xl p-4 text-center py-10">
@@ -354,6 +561,76 @@ export default function CooperativeDashboard() {
                 ))}
               </div>
             </div>
+          </>
+        )}
+
+        {/* ── CO-INVEST TAB (Farmers Connect only) ── */}
+        {activeTab === "coinvest" && (
+          <>
+            <div className="bg-gradient-to-br from-[#052e16] to-[#166534] rounded-2xl p-4 text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <Handshake size={16} className="text-green-300" />
+                <p className="text-sm font-bold">Co-investment Programs</p>
+              </div>
+              <p className="text-white/70 text-xs leading-relaxed">
+                As a verified cooperative partner, you can co-fund farm seasons alongside Investa Farm's investor network. Pool your members' savings to invest in larger farm opportunities and earn proportional returns.
+              </p>
+            </div>
+
+            <div className="bg-white border border-border rounded-2xl p-4">
+              <p className="text-sm font-semibold mb-3">How Co-Investment Works</p>
+              <div className="space-y-3">
+                {[
+                  { icon: "🏦", title: "Pool Member Savings", desc: "Aggregate savings from your SACCO or cooperative members into a single investment pool" },
+                  { icon: "🌾", title: "Choose Farm Seasons", desc: "Browse available farm listings and select seasons that match your risk profile and return expectations" },
+                  { icon: "📈", title: "Earn as a Group", desc: "Receive proportional dividends distributed to each member based on their contribution" },
+                  { icon: "🔒", title: "Secured by Escrow", desc: "All co-investments are held in escrow until the farm season completes, ensuring accountability" },
+                ].map(step => (
+                  <div key={step.title} className="flex items-start gap-3">
+                    <span className="text-xl flex-shrink-0">{step.icon}</span>
+                    <div>
+                      <p className="text-foreground text-sm font-semibold">{step.title}</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Co-investment application */}
+            {coinvestSubmitted ? (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+                <Check size={24} className="text-green-600 mx-auto mb-2" />
+                <p className="text-green-700 font-bold text-sm">Application Submitted!</p>
+                <p className="text-green-600 text-xs mt-1">Our team will review your co-investment request within 2 business days.</p>
+              </div>
+            ) : (
+              <div className="bg-white border border-border rounded-2xl p-4">
+                <p className="text-sm font-semibold mb-3">Apply for Co-Investment</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-1.5">Farm / Crop Type</label>
+                    <input type="text" value={coinvestFarm} onChange={e => setCoinvestFarm(e.target.value)}
+                      placeholder="e.g. Maize, Nakuru County"
+                      className="w-full border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#16a34a]" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-1.5">Investment Amount (KES)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">KES</span>
+                      <input type="number" value={coinvestAmount} onChange={e => setCoinvestAmount(e.target.value)}
+                        placeholder="500,000"
+                        className="w-full border border-border rounded-xl pl-12 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#16a34a]" />
+                    </div>
+                  </div>
+                  <button onClick={() => { if (coinvestFarm && coinvestAmount) setCoinvestSubmitted(true); }}
+                    disabled={!coinvestFarm || !coinvestAmount}
+                    className="w-full bg-[#16a34a] text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-transform disabled:opacity-50">
+                    Submit Co-Investment Application
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

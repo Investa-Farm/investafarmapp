@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, farmsTable, marketListingsTable, usersTable, investmentsTable, transactionsTable, notificationsTable, walletsTable, walletTransactionsTable, loanApplicationsTable, transactionFeesTable } from "@workspace/db";
+import { db, farmsTable, marketListingsTable, usersTable, investmentsTable, transactionsTable, notificationsTable, walletsTable, walletTransactionsTable, loanApplicationsTable, transactionFeesTable, escrowWalletsTable } from "@workspace/db";
 import { eq, and, desc, asc, count } from "drizzle-orm";
 import {
   BuySharesBody,
@@ -327,6 +327,18 @@ router.post("/market/buy", async (req, res): Promise<void> => {
     exitType,
     status: "completed",
   }).returning();
+
+  // Create escrow entry for primary market investments
+  if (isPrimary) {
+    await db.insert(escrowWalletsTable).values({
+      userId: user.id,
+      farmId: listing.farmId,
+      amount: String(totalAmount),
+      status: "held",
+      description: `${quantity} share${quantity > 1 ? "s" : ""} in ${farm?.name ?? "farm"} — primary market`,
+      releaseAt: exitDate,
+    }).catch(() => {});
+  }
 
   // Notify investor (in-app + push)
   notifyUser(

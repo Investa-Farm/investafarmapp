@@ -65,6 +65,16 @@ export default function InvestorWallet() {
     staleTime: 300_000,
   });
 
+  const { data: escrowData } = useQuery<{ heldTotal: number; releasedTotal: number; escrows: Array<{ id: number; farmId: number | null; amount: string; status: string; description: string | null; releaseAt: string | null; createdAt: string }> }>({
+    queryKey: ["wallet-escrow"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet/escrow", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { heldTotal: 0, releasedTotal: 0, escrows: [] };
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
+
   const handleCopyStellar = async () => {
     if (!stellarAcct?.accountNumber) return;
     await navigator.clipboard.writeText(stellarAcct.accountNumber).catch(() => {});
@@ -284,6 +294,20 @@ export default function InvestorWallet() {
             <p className="text-white/25 text-[9px] mt-1.5">Secure · Stellar blockchain · Custodial</p>
           </div>
         </div>
+
+        {/* Escrow balance strip */}
+        {(escrowData?.heldTotal ?? 0) > 0 && (
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <span className="text-lg">🔒</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-amber-800 text-xs font-semibold">Funds in Escrow</p>
+              <p className="text-amber-600 text-[10px]">{escrowData!.escrows.filter(e => e.status === "held").length} active farm investment{escrowData!.escrows.filter(e => e.status === "held").length !== 1 ? "s" : ""} · secured until exit date</p>
+            </div>
+            <p className="text-amber-800 font-bold text-sm flex-shrink-0">{formatAmount(escrowData!.heldTotal)}</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 mt-3">
           <button onClick={() => { setModal("paystack"); setAmount(""); }}

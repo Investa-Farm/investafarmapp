@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, farmsTable, investmentsTable, transactionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, farmsTable, investmentsTable, transactionsTable, walletTransactionsTable } from "@workspace/db";
+import { eq, and, gte, desc, asc } from "drizzle-orm";
 import { RequestExitBody } from "@workspace/api-zod";
 import { getCurrentUser } from "./auth";
 
@@ -78,20 +78,55 @@ router.get("/portfolio/summary", async (req, res): Promise<void> => {
 
   const overallGainLoss = totalValue - totalInvested;
   const overallGainLossPercent = totalInvested > 0 ? (overallGainLoss / totalInvested) * 100 : 0;
-  const todayReturn = totalValue * 0.0044;
-  const todayReturnPercent = 0.44;
 
-  const priceHistory = Array.from({ length: 7 }, (_, i) => ({
-    label: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
-    value: totalInvested * (0.95 + i * 0.01 + Math.random() * 0.02),
-  }));
+  // Real todayReturn: sum of wallet "return" transactions today
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayTxs = await db
+    .select()
+    .from(walletTransactionsTable)
+    .where(and(
+      eq(walletTransactionsTable.userId, user.id),
+      eq(walletTransactionsTable.type, "return"),
+      gte(walletTransactionsTable.createdAt, todayStart),
+    ));
+  const todayReturn = todayTxs.reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const todayReturnPercent = totalInvested > 0 ? (todayReturn / totalInvested) * 100 : 0;
+
+  // Real 7-day price history from wallet transaction balance snapshots
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const recentTxs = await db
+    .select()
+    .from(walletTransactionsTable)
+    .where(and(
+      eq(walletTransactionsTable.userId, user.id),
+      gte(walletTransactionsTable.createdAt, weekAgo),
+    ))
+    .orderBy(asc(walletTransactionsTable.createdAt));
+
+  const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  let prevValue = totalInvested;
+  const priceHistory = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000);
+    const dayKey = d.toDateString();
+    const dayTxs = recentTxs.filter(tx => new Date(tx.createdAt).toDateString() === dayKey);
+    const lastTx = dayTxs[dayTxs.length - 1];
+    const val = lastTx ? Number(lastTx.balanceAfter) : prevValue;
+    prevValue = val;
+    const dow = d.getDay();
+    return { label: dayLabels[dow === 0 ? 6 : dow - 1], value: val };
+  });
+
+  const firstVal = priceHistory.find(p => p.value > 0)?.value ?? totalInvested;
+  const lastVal = priceHistory[priceHistory.length - 1].value;
+  const weekReturnPercent = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0;
 
   res.json({
     totalValue,
     totalInvested,
     todayReturn,
     todayReturnPercent,
-    weekReturnPercent: 6.2,
+    weekReturnPercent: Number(weekReturnPercent.toFixed(2)),
     overallGainLoss,
     overallGainLossPercent,
     holdings: holdings.length,
@@ -118,46 +153,11 @@ router.post("/portfolio/exit", async (req, res): Promise<void> => {
   }
   const days = exitType === "wide_season" ? 45 : 180;
   const exitDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-  const [farm] = await db.select().from(farmsTable).where(eq(farmsTable.id, investment.farmId));
-  const estimatedReturn = Number(farm?.currentPrice ?? investment.purchasePrice) * investment.quantity * 1.08;
-
-  await db.update(investmentsTable).set({ exitType, exitDate, status: "exit_requested" }).where(eq(investmentsTable.id, holdingId));
-
-  res.json({
-    id: Date.now(),
-    holdingId,
-    exitType,
-    exitDate: exitDate.toISOString(),
-    estimatedReturn,
-    status: "pending",
-  });
-});
-
-router.get("/transactions", async (req, res): Promise<void> => {
-  const user = await getCurrentUser(req);
-  if (!user) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const txs = await db
-    .select({ tx: transactionsTable, farm: farmsTable })
-    .from(transactionsTable)
-    .leftJoin(farmsTable, eq(transactionsTable.farmId, farmsTable.id))
-    .where(eq(transactionsTable.userId, user.id));
-
-  res.json(txs.map(({ tx, farm }) => ({
-    id: tx.id,
-    type: tx.type,
-    farmId: tx.farmId,
-    farmName: farm?.name ?? "Farm",
-    cropType: farm?.cropType ?? "Crop",
-    quantity: tx.quantity,
-    pricePerShare: Number(tx.pricePerShare),
-    totalAmount: Number(tx.totalAmount),
-    exitType: tx.exitType ?? undefined,
-    status: tx.status,
-    createdAt: tx.createdAt.toISOString(),
-  })));
+  await db
+    .update(investmentsTable)
+    .set({ exitType, exitDate, status: "exit_requested" })
+    .where(eq(investmentsTable.id, holdingId));
+  res.json({ success: true, exitDate: exitDate.toISOString(), exitType });
 });
 
 export default router;

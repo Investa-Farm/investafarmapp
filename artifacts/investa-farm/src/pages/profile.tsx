@@ -65,6 +65,17 @@ export default function Profile() {
 
   const { currency, setCurrency, formatAmount } = useCurrency();
 
+  const { data: stellarAcct } = useQuery<{ accountNumber: string } | null>({
+    queryKey: ["stellar-account"],
+    queryFn: async () => {
+      const r = await fetch("/api/stellar/account", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    staleTime: 300_000,
+    enabled: !!token && (user?.role === "investor" || (stored as any)?.role === "investor"),
+  });
+
   const { data: walletData, refetch: refetchWallet, isLoading: walletLoading } = useQuery<{ wallet: { balance: string } }>({
     queryKey: ["wallet-balance-profile"],
     queryFn: async () => {
@@ -171,7 +182,7 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Wallet balance */}
+          {/* Wallet balance + account number */}
           <div className="flex-shrink-0 text-right">
             <p className="text-white/60 text-[9px] uppercase tracking-wider">Wallet</p>
             {walletLoading
@@ -180,6 +191,9 @@ export default function Profile() {
             <button onClick={() => refetchWallet()} className="mt-0.5 text-white/50 text-[9px] flex items-center gap-0.5 ml-auto">
               <RefreshCw size={8} /> Refresh
             </button>
+            {stellarAcct?.accountNumber && (
+              <p className="text-white/40 text-[8px] font-mono mt-1 tracking-wider">{stellarAcct.accountNumber}</p>
+            )}
           </div>
         </div>
 
