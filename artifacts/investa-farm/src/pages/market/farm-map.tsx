@@ -75,8 +75,8 @@ function resolveCoords(location: string): [number, number] {
   for (const [key, coords] of Object.entries(LOCATION_COORDS)) {
     if (l.includes(key)) return coords;
   }
-  // Fallback: random scatter around Kenya center
-  return [-1.0 + (Math.random() - 0.5) * 3, 37.0 + (Math.random() - 0.5) * 3];
+  // Fallback: centre of Kenya (Nairobi area) — no random scatter
+  return [-1.2921, 36.8219];
 }
 
 function makeIcon(color: string, active = false): L.DivIcon {

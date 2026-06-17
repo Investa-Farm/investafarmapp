@@ -151,13 +151,25 @@ export default function AgribusinessDashboard() {
       <div className="px-4 pt-3 pb-2 flex gap-2 overflow-x-auto border-b border-border sticky top-0 bg-background z-10">
         {(isInputSupplier
           ? [["home","Home"],["catalogue","Catalogue"],["commissions","Earnings"]] as const
-          : [["home","Home"],["referral","Referral"],["network","Network"],["commissions","Commissions"]] as const
+          : [["home","Home"],["referral","Referral"],["commissions","Commissions"]] as const
         ).map(([id, label]) => (
           <button key={id} onClick={() => setActiveSection(id as any)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeSection === id ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>
             {label}
           </button>
         ))}
+        {!isInputSupplier && (
+          <Link href="/agribusiness/network">
+            <button className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all bg-muted text-muted-foreground">
+              Network
+            </button>
+          </Link>
+        )}
+        <Link href="/agribusiness/profile">
+          <button className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all bg-muted text-muted-foreground">
+            Profile
+          </button>
+        </Link>
       </div>
 
       <div className="px-5 pt-4 space-y-4">
@@ -282,17 +294,18 @@ export default function AgribusinessDashboard() {
                     </div>
                     <ChevronRight size={16} className="text-muted-foreground" />
                   </button>
-                  <button onClick={() => setActiveSection("network")}
-                    className="w-full flex items-center gap-3 bg-card rounded-2xl border border-border p-4 cursor-pointer active:scale-98 transition-transform text-left">
-                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <Users size={20} className="text-blue-600" />
+                  <Link href="/agribusiness/network">
+                    <div className="flex items-center gap-3 bg-card rounded-2xl border border-border p-4 cursor-pointer active:scale-98 transition-transform">
+                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <Users size={20} className="text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">My Farmer Network</p>
+                        <p className="text-muted-foreground text-xs">{myNetwork.length} farmer{myNetwork.length !== 1 ? "s" : ""} onboarded</p>
+                      </div>
+                      <ChevronRight size={16} className="text-muted-foreground" />
                     </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">My Farmer Network</p>
-                      <p className="text-muted-foreground text-xs">{myNetwork.length} farmer{myNetwork.length !== 1 ? "s" : ""} onboarded</p>
-                    </div>
-                    <ChevronRight size={16} className="text-muted-foreground" />
-                  </button>
+                  </Link>
                   <button onClick={() => setActiveSection("commissions")}
                     className="w-full flex items-center gap-3 bg-card rounded-2xl border border-border p-4 cursor-pointer active:scale-98 transition-transform text-left">
                     <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">

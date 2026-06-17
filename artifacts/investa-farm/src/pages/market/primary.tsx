@@ -60,20 +60,22 @@ function getCategoryForCrop(cropType: string): Exclude<CategoryKey, "all"> {
   return "stable";
 }
 
-function getTargetRoi(cropType: string, id: number): number {
+function getTargetRoi(cropType: string, changePercent: number): number {
   const crop = (cropType ?? "").toLowerCase();
   const isExport   = CATEGORY_CROPS.export.some(c => crop.includes(c));
   const isGrowth   = CATEGORY_CROPS.growth.some(c => crop.includes(c));
   const isBalanced = CATEGORY_CROPS.balanced.some(c => crop.includes(c));
   const base = isExport ? 20 : isGrowth ? 22 : isBalanced ? 14 : 10;
-  return base + (id % 7);
+  const boost = Math.max(-4, Math.min(8, Math.round(changePercent * 0.4)));
+  return Math.max(4, base + boost);
 }
 
-function generateSeasonHistory(basePrice: number) {
+function generateSeasonHistory(basePrice: number, changePercent: number) {
   const months = ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
+  const annualisedTrend = changePercent / 100;
   return months.map((month, i) => ({
     month,
-    value: Math.round(basePrice * (0.85 + (i / 8) * 0.3)),
+    value: Math.round(basePrice * (0.88 + (i / 8) * 0.25 + annualisedTrend * (i / 8))),
   }));
 }
 
@@ -169,11 +171,11 @@ export default function PrimaryMarket() {
             : (filteredListings as any[]).map((listing) => {
                 const isUp = listing.changePercent >= 0;
                 const risk = getRiskLevel(listing.cropType, listing.changePercent);
-                const targetRoi = getTargetRoi(listing.cropType, listing.id);
+                const targetRoi = getTargetRoi(listing.cropType, listing.changePercent);
                 const imgSrc = getCropImage(listing.cropType, listing.imageUrl ?? undefined);
                 const isExpanded = expandedId === listing.id;
                 const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
-                const seasonHistory = generateSeasonHistory(listing.pricePerShare);
+                const seasonHistory = generateSeasonHistory(listing.pricePerShare, listing.changePercent);
 
                 return (
                   <div key={listing.id} data-testid={`primary-listing-${listing.id}`}

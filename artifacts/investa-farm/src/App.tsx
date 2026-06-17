@@ -48,6 +48,9 @@ import CooperativeDashboard from "@/pages/cooperative/dashboard";
 
 import AgribusinessDashboard from "@/pages/agribusiness/dashboard";
 import AgribusinessOrders from "@/pages/agribusiness/orders";
+import AgribusinessNetwork from "@/pages/agribusiness/network";
+import AgribusinessProfile from "@/pages/agribusiness/profile";
+import FundManagerDashboard from "@/pages/market/fund-dashboard";
 
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -210,8 +213,15 @@ function Router() {
       </Route>
 
       {/* Investor routes */}
+      <Route path="/market/fund">
+        <AuthGuard role="investor"><FundManagerDashboard /></AuthGuard>
+      </Route>
       <Route path="/market">
-        <AuthGuard role="investor"><MarketHome /></AuthGuard>
+        <AuthGuard role="investor">
+          {localStorage.getItem("investa_investor_type") === "fund_manager"
+            ? <Redirect to="/market/fund" />
+            : <MarketHome />}
+        </AuthGuard>
       </Route>
       <Route path="/market/primary">
         <AuthGuard role="investor"><PrimaryMarket /></AuthGuard>
@@ -301,10 +311,10 @@ function Router() {
         <AuthGuard role="agribusiness"><AgribusinessOrders /></AuthGuard>
       </Route>
       <Route path="/agribusiness/network">
-        <AuthGuard role="agribusiness"><AgribusinessDashboard /></AuthGuard>
+        <AuthGuard role="agribusiness"><AgribusinessNetwork /></AuthGuard>
       </Route>
       <Route path="/agribusiness/profile">
-        <AuthGuard role="agribusiness"><AgribusinessDashboard /></AuthGuard>
+        <AuthGuard role="agribusiness"><AgribusinessProfile /></AuthGuard>
       </Route>
       <Route path="/agribusiness/kyc">
         <AuthGuard role="agribusiness"><AgribusinessDashboard /></AuthGuard>
