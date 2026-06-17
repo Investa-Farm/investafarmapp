@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BarChart2, Briefcase, Activity, User, Home, ShoppingCart, Wheat, DollarSign, MoreHorizontal, Handshake, Package } from "lucide-react";
+import { BarChart2, Briefcase, Activity, User, Home, ShoppingCart, DollarSign, MoreHorizontal, Handshake, Package, Newspaper } from "lucide-react";
 
 interface NavItem { label: string; path: string; icon: React.ElementType; }
 
@@ -12,7 +12,7 @@ const investorNav: NavItem[] = [
 
 const farmerNav: NavItem[] = [
   { label: "Home",     path: "/farmer",              icon: Home        },
-  { label: "My Farm",  path: "/farmer/farm-profile", icon: Wheat       },
+  { label: "News",     path: "/farmer/news",         icon: Newspaper   },
   { label: "Market",   path: "/farmer/market",       icon: ShoppingCart },
   { label: "Earnings", path: "/farmer/operations",   icon: DollarSign  },
   { label: "More",     path: "/farmer/profile",      icon: MoreHorizontal },

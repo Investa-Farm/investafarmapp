@@ -28,6 +28,7 @@ import agribusinessRouter from "./agribusiness";
 import rainfallRouter from "./rainfall";
 import portfolioRoiRouter from "./portfolio-roi";
 import totpRouter from "./totp";
+import transactionsRouter from "./transactions";
 
 const router: IRouter = Router();
 
@@ -60,5 +61,6 @@ router.use(agribusinessRouter);
 router.use(rainfallRouter);
 router.use(portfolioRoiRouter);
 router.use(totpRouter);
+router.use(transactionsRouter);
 
 export default router;

@@ -34,6 +34,7 @@ import InvestorWallet from "@/pages/wallet";
 import FarmerDashboard from "@/pages/farmer/dashboard";
 import FarmerOperations from "@/pages/farmer/operations";
 import FarmerMarket from "@/pages/farmer/market";
+import FarmerNews from "@/pages/farmer/news";
 import FarmProfile from "@/pages/farmer/farm-profile";
 import FarmerUpdates from "@/pages/farmer/updates";
 import GroupSetup from "@/pages/farmer/group-setup";
@@ -275,6 +276,9 @@ function Router() {
       </Route>
       <Route path="/farmer/market">
         <AuthGuard role="farmer"><FarmerMarket /></AuthGuard>
+      </Route>
+      <Route path="/farmer/news">
+        <AuthGuard role="farmer"><FarmerNews /></AuthGuard>
       </Route>
       <Route path="/farmer/farm-profile">
         <AuthGuard role="farmer"><FarmProfile /></AuthGuard>

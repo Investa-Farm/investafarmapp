@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2 } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import {
   useGetTopMovers,
@@ -171,6 +171,69 @@ export default function MarketHome() {
     qc.invalidateQueries({ queryKey: ["market-summary"] });
     setTimeout(() => setRefreshing(false), 1500);
   };
+
+  const fetchInsight = async (crop: typeof WATCHLIST_CROPS[0]) => {
+    setInsightCrop(crop);
+    setInsightOpen(true);
+    setInsightText("");
+    setInsightLoading(true);
+    try {
+      const r = await fetch("/api/ai/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          section: `Watchlist — ${crop.name}`,
+          context: `Why should a Kenyan investor watch ${crop.name} for the ${crop.season} season? Expected return: ${crop.expectedReturn}. Market demand: ${crop.demand}. Active farms: ${crop.farms}. Planting starts: ${crop.plantingStart}. Estimated harvest: ${crop.harvestEst}. Price change: ${crop.change > 0 ? "+" : ""}${crop.change}%. Provide a concise 3-paragraph investment thesis covering: (1) market fundamentals and current demand, (2) seasonal risk factors including weather and price volatility, (3) realistic return potential for Kenyan investors in 2026.`,
+        }),
+      });
+      const d = await r.json();
+      setInsightText(d.explanation ?? d.text ?? "Unable to generate insight at this time.");
+    } catch {
+      setInsightText("Unable to load AI insight. Please check your connection and try again.");
+    } finally {
+      setInsightLoading(false);
+    }
+  };
+
+  const handleCommitFunds = async () => {
+    if (!commitCrop || !commitInput || Number(commitInput) <= 0) return;
+    const amt = Number(commitInput);
+    const balance = walletData?.wallet ? Number(walletData.wallet.balance) : 0;
+    if (amt > balance) {
+      setCommitOpen(false);
+      setWalletOpen(true);
+      return;
+    }
+    setCommitLoading(true);
+    try {
+      const r = await fetch("/api/watchlist/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ cropName: commitCrop.name, cropSeason: commitCrop.season, amount: amt }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        if (d.balance !== undefined) {
+          setCommitOpen(false);
+          setWalletOpen(true);
+        }
+        return;
+      }
+      const updated = { ...committed, [commitCrop.id]: amt };
+      setCommitted(updated);
+      localStorage.setItem("investa_watchlist_commits", JSON.stringify(updated));
+      qc.invalidateQueries({ queryKey: ["wallet-balance"] });
+      setCommitOpen(false);
+    } catch {
+      // fallback to localStorage-only if API unavailable
+      const updated = { ...committed, [commitCrop.id]: amt };
+      setCommitted(updated);
+      localStorage.setItem("investa_watchlist_commits", JSON.stringify(updated));
+      setCommitOpen(false);
+    } finally {
+      setCommitLoading(false);
+    }
+  };
   const { data: movers, isLoading: moversLoading } = useGetTopMovers();
   const { data: listings, isLoading: listingsLoading } = useListPrimaryMarket();
   const { data: decliners, isLoading: declinersLoading } = useQuery<any[]>({
@@ -212,6 +275,11 @@ export default function MarketHome() {
   const [statModal, setStatModal] = useState<"turnover" | "return" | "listings" | null>(null);
   const [calcListing, setCalcListing] = useState<any>(null);
   const [alertListing, setAlertListing] = useState<any>(null);
+  const [insightOpen, setInsightOpen] = useState(false);
+  const [insightCrop, setInsightCrop] = useState<typeof WATCHLIST_CROPS[0] | null>(null);
+  const [insightText, setInsightText] = useState("");
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [commitLoading, setCommitLoading] = useState(false);
   const token = getToken();
   const { formatAmount } = useCurrency();
 
@@ -1132,35 +1200,43 @@ export default function MarketHome() {
                   </div>
 
                   {/* Actions */}
-                  <div className="p-3 flex gap-2">
-                    <button
-                      onClick={() => {
-                        setWatchlisted(s => {
-                          const n = new Set(s);
-                          n.has(crop.id) ? n.delete(crop.id) : n.add(crop.id);
-                          try { localStorage.setItem("investa_watchlist", JSON.stringify([...n])); } catch {}
-                          return n;
-                        });
-                      }}
-                      className={`flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${isWatchlisted ? "bg-primary border-primary text-white" : "border-border text-foreground"}`}>
-                      <BookmarkPlus size={13} />
-                      {isWatchlisted ? "Watching" : "Watch"}
-                    </button>
-                    {committed[crop.id] ? (
+                  <div className="p-3 space-y-2">
+                    <div className="flex gap-2">
                       <button
-                        onClick={() => { setCommitCrop(crop); setCommitInput(String(committed[crop.id])); setCommitOpen(true); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 text-white text-xs font-semibold py-2.5 rounded-xl active:scale-95 transition-transform">
-                        <CheckCircle2 size={13} />
-                        {formatKES(committed[crop.id])} committed
+                        onClick={() => {
+                          setWatchlisted(s => {
+                            const n = new Set(s);
+                            n.has(crop.id) ? n.delete(crop.id) : n.add(crop.id);
+                            try { localStorage.setItem("investa_watchlist", JSON.stringify([...n])); } catch {}
+                            return n;
+                          });
+                        }}
+                        className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${isWatchlisted ? "bg-primary border-primary text-white" : "border-border text-foreground"}`}>
+                        <BookmarkPlus size={13} />
+                        {isWatchlisted ? "Watching" : "Watch"}
                       </button>
-                    ) : (
                       <button
-                        onClick={() => { setCommitCrop(crop); setCommitInput(""); setCommitOpen(true); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 bg-foreground text-background text-xs font-semibold py-2.5 rounded-xl active:scale-95 transition-transform">
-                        <DollarSign size={13} />
-                        Commit Funds
+                        onClick={() => fetchInsight(crop)}
+                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold transition-all active:scale-95">
+                        <Lightbulb size={13} />
+                        Why?
                       </button>
-                    )}
+                      {committed[crop.id] ? (
+                        <button
+                          onClick={() => { setCommitCrop(crop); setCommitInput(String(committed[crop.id])); setCommitOpen(true); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 text-white text-xs font-semibold py-2.5 rounded-xl active:scale-95 transition-transform">
+                          <CheckCircle2 size={13} />
+                          {formatKES(committed[crop.id])}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => { setCommitCrop(crop); setCommitInput(""); setCommitOpen(true); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-foreground text-background text-xs font-semibold py-2.5 rounded-xl active:scale-95 transition-transform">
+                          <DollarSign size={13} />
+                          Commit
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -1244,28 +1320,16 @@ export default function MarketHome() {
                 </div>
               )}
               <button
-                disabled={!commitInput || Number(commitInput) <= 0}
-                onClick={() => {
-                  const amt = Number(commitInput);
-                  const balance = walletData?.wallet ? Number(walletData.wallet.balance) : Infinity;
-                  if (amt > 0 && amt > balance) {
-                    setCommitOpen(false);
-                    setWalletOpen(true);
-                    return;
-                  }
-                  if (amt > 0) {
-                    const updated = { ...committed, [commitCrop.id]: amt };
-                    setCommitted(updated);
-                    localStorage.setItem("investa_watchlist_commits", JSON.stringify(updated));
-                  }
-                  setCommitOpen(false);
-                }}
-                className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-[0.98] transition-all disabled:opacity-50"
+                disabled={!commitInput || Number(commitInput) <= 0 || commitLoading}
+                onClick={handleCommitFunds}
+                className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 style={{ background: "linear-gradient(135deg, #052e16, #16a34a)" }}
               >
-                {commitInput && Number(commitInput) > 0 && walletData?.wallet && Number(commitInput) > Number(walletData.wallet.balance)
-                  ? "Top Up Wallet →"
-                  : `${committed[commitCrop.id] ? "Update Commitment" : "Commit Funds"}${commitInput && Number(commitInput) > 0 ? ` · ${formatKES(Number(commitInput))}` : ""}`
+                {commitLoading
+                  ? <><Loader2 size={16} className="animate-spin" /> Processing…</>
+                  : commitInput && Number(commitInput) > 0 && walletData?.wallet && Number(commitInput) > Number(walletData.wallet.balance)
+                    ? "Top Up Wallet →"
+                    : `${committed[commitCrop.id] ? "Update Commitment" : "Reserve · Deduct from Wallet"}${commitInput && Number(commitInput) > 0 ? ` · ${formatKES(Number(commitInput))}` : ""}`
                 }
               </button>
               {committed[commitCrop.id] && (
@@ -1281,6 +1345,71 @@ export default function MarketHome() {
                   Remove commitment
                 </button>
               )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* AI Crop Insight Bottom Sheet */}
+      <AnimatePresence>
+        {insightOpen && insightCrop && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm" onClick={() => setInsightOpen(false)} />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed bottom-0 inset-x-0 z-[60] max-w-[430px] mx-auto bg-card rounded-t-3xl shadow-xl px-5 pt-5 pb-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <Lightbulb size={16} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground text-sm">AI Investment Insight</p>
+                    <p className="text-muted-foreground text-[11px]">{insightCrop.name} · {insightCrop.season}</p>
+                  </div>
+                </div>
+                <button onClick={() => setInsightOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center active:scale-90 transition-transform">
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex-1 bg-muted rounded-xl px-3 py-2 flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground font-medium">Expected ROI</span>
+                  <span className="text-primary font-extrabold text-sm">{insightCrop.expectedReturn}</span>
+                </div>
+                <div className="flex-1 bg-muted rounded-xl px-3 py-2 flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground font-medium">Demand</span>
+                  <span className={`font-bold text-xs ${insightCrop.demandColor.split(" ")[0]}`}>{insightCrop.demand}</span>
+                </div>
+                <div className="flex-1 bg-muted rounded-xl px-3 py-2 flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground font-medium">Farms</span>
+                  <span className="text-foreground font-bold text-xs">{insightCrop.farms}</span>
+                </div>
+              </div>
+
+              <div className="bg-amber-50/60 border border-amber-200/60 rounded-2xl p-4 min-h-[120px] flex items-start">
+                {insightLoading
+                  ? (
+                    <div className="flex items-center gap-3 w-full py-4">
+                      <Loader2 size={20} className="animate-spin text-amber-500 flex-shrink-0" />
+                      <div className="space-y-2 flex-1">
+                        <div className="h-3 bg-amber-200/60 rounded-full animate-pulse w-full" />
+                        <div className="h-3 bg-amber-200/60 rounded-full animate-pulse w-4/5" />
+                        <div className="h-3 bg-amber-200/60 rounded-full animate-pulse w-3/4" />
+                      </div>
+                    </div>
+                  )
+                  : (
+                    <p className="text-amber-900 text-xs leading-relaxed whitespace-pre-line">{insightText}</p>
+                  )
+                }
+              </div>
+
+              <p className="text-center text-muted-foreground/50 text-[9px] mt-3">
+                AI-generated insight · Not financial advice · Do your own research
+              </p>
             </motion.div>
           </>
         )}

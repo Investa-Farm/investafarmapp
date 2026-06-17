@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation, Link, useSearch } from "wouter";
 import { setToken, storeUser } from "@/lib/auth";
 import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck, Smartphone, ArrowLeft, RefreshCw } from "lucide-react";
@@ -35,6 +35,7 @@ export default function Login() {
   const [totpStep, setTotpStep] = useState(false);
   const [totpCode, setTotpCode] = useState(["", "", "", "", "", ""]);
   const [tempToken, setTempToken] = useState("");
+  const [trustDevice, setTrustDevice] = useState(false);
   const totpInputs = useRef<(HTMLInputElement | null)[]>([]);
 
   const navigateByRole = (role: string) => {
@@ -107,6 +108,31 @@ export default function Login() {
     totpInputs.current[Math.min(text.length, 5)]?.focus();
   };
 
+  // Auto-verify trusted device when TOTP screen appears — skip 2FA entirely if device token valid
+  useEffect(() => {
+    if (!totpStep || !email || !tempToken) return;
+    const key = `investa_device_trust_${email.toLowerCase().trim()}`;
+    const stored = localStorage.getItem(key);
+    if (!stored) return;
+    try {
+      const { deviceToken } = JSON.parse(stored);
+      if (!deviceToken) return;
+      fetch("/api/auth/totp/verify-device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tempToken, deviceToken }),
+      }).then(r => r.json()).then(d => {
+        if (d.token && d.user) {
+          setToken(d.token);
+          storeUser(d.user);
+          navigateByRole(d.user.role);
+        } else {
+          localStorage.removeItem(key);
+        }
+      }).catch(() => {});
+    } catch {}
+  }, [totpStep]);
+
   const handleTotpSubmit = async () => {
     const code = totpCode.join("");
     if (code.length !== 6) { setError("Enter the 6-digit code from your authenticator app"); return; }
@@ -121,6 +147,20 @@ export default function Login() {
       if (!r.ok) throw new Error(d.error ?? "Invalid code");
       setToken(d.token);
       storeUser(d.user);
+      // Store device trust token if user requested it
+      if (trustDevice) {
+        try {
+          const tr = await fetch("/api/auth/totp/trust-device", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${d.token}` },
+          });
+          const td = await tr.json();
+          if (td.deviceToken) {
+            const key = `investa_device_trust_${email.toLowerCase().trim()}`;
+            localStorage.setItem(key, JSON.stringify({ deviceToken: td.deviceToken, until: td.until }));
+          }
+        } catch {} // non-critical — proceed regardless
+      }
       navigateByRole(d.user?.role);
     } catch (err) {
       setError((err as Error).message);
@@ -194,6 +234,20 @@ export default function Login() {
               ))}
             </div>
 
+            {/* Trust this device */}
+            <label htmlFor="trust-device" className="flex items-center gap-2.5 cursor-pointer select-none py-0.5">
+              <input
+                id="trust-device"
+                type="checkbox"
+                checked={trustDevice}
+                onChange={e => setTrustDevice(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 accent-primary cursor-pointer flex-shrink-0"
+              />
+              <span className="text-muted-foreground text-xs leading-tight">
+                Remember this device for <span className="text-foreground font-medium">30 days</span> — skip 2FA on next sign in
+              </span>
+            </label>
+
             <button
               onClick={handleTotpSubmit}
               disabled={loading || totpCode.join("").length !== 6}
@@ -205,7 +259,7 @@ export default function Login() {
           </div>
 
           <button
-            onClick={() => { setTotpStep(false); setTotpCode(["", "", "", "", "", ""]); setError(""); }}
+            onClick={() => { setTotpStep(false); setTotpCode(["", "", "", "", "", ""]); setError(""); setTrustDevice(false); }}
             className="w-full text-muted-foreground text-sm flex items-center justify-center gap-1.5 hover:text-foreground transition-colors"
           >
             <ArrowLeft size={14} /> Back to sign in
