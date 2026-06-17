@@ -18,6 +18,7 @@ ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://59a5d283-
 MEDIASTACK_API_KEY = "1e30a1be82fd6cba322d03044bfa057d"
 GNEWS_API_KEY = "f315af117cadae7bef4c9f1d4373a9bf"
 RESEND_API_KEY = "re_pZwfxHVC_GZ2k7rxUg8eZgy6hPvGTjVqE"
+RESEND_FROM_EMAIL = "Investa Farm <mosesochiengopiyo@gmail.com>"
 
 [workflows]
 runButton = "Project"
