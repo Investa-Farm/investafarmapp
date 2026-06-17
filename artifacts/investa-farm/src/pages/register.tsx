@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useRegister } from "@workspace/api-client-react";
 import { setToken, storeUser } from "@/lib/auth";
-import { Loader2, Tractor, BarChart2, Handshake, Package, Eye, EyeOff, Check, X } from "lucide-react";
+import { Loader2, Tractor, BarChart2, Handshake, Package, Eye, EyeOff, Check, X, ArrowLeft } from "lucide-react";
 
 type RoleKey = "investor" | "farmer" | "agribusiness";
 type AgribizType = "farmer_connector" | "input_supplier";
@@ -91,7 +91,15 @@ export default function Register() {
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-white flex flex-col pb-10" data-testid="register-page">
       <div className="h-1.5 bg-gradient-to-r from-primary to-green-400 w-full" />
 
-      <div className="pt-12 pb-5 px-8 text-center space-y-3">
+      <div className="px-5 pt-4">
+        <Link href="/">
+          <button className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors active:scale-95">
+            <ArrowLeft size={15} /> Back to home
+          </button>
+        </Link>
+      </div>
+
+      <div className="pt-6 pb-5 px-8 text-center space-y-3">
         <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto shadow-lg shadow-primary/25">
           <svg viewBox="0 0 40 40" fill="none" className="w-9 h-9">
             <path d="M20 6C12.268 6 6 12.268 6 20s6.268 14 14 14 14-6.268 14-14S27.732 6 20 6z" fill="white" fillOpacity="0.2"/>

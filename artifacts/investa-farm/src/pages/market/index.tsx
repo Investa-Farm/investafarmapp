@@ -868,35 +868,20 @@ export default function MarketHome() {
         {activeSection === "news" && (
           <section className="space-y-3">
             {/* News header */}
-            <div className="rounded-2xl overflow-hidden shadow-lg" style={{ background: "linear-gradient(135deg,#052e16,#166534,#16a34a)" }}>
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Newspaper size={14} className="text-green-300" />
-                      <span className="text-green-300 text-[10px] font-bold uppercase tracking-widest">Agriculture News</span>
-                    </div>
-                    <h2 className="text-white font-bold text-base leading-tight">Kenya Agri Market</h2>
-                    <p className="text-white/60 text-xs mt-0.5">Prices, weather &amp; investment insights</p>
-                  </div>
-                  <span className="flex items-center gap-1.5 bg-green-500/20 border border-green-400/30 px-2.5 py-1 rounded-full flex-shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-green-300 text-[10px] font-bold">Live</span>
-                  </span>
+            <div className="bg-card rounded-2xl border border-border px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Newspaper size={15} className="text-primary" />
                 </div>
-                <div className="grid grid-cols-3 gap-2 pt-3 border-t border-white/10">
-                  {[
-                    { label: "Stories Today", val: newsLoading ? "—" : String((newsItems ?? []).length) },
-                    { label: "Sources", val: "12+" },
-                    { label: "Updated", val: "Now" },
-                  ].map(({ label, val }) => (
-                    <div key={label} className="text-center">
-                      <p className="text-white font-bold text-sm">{val}</p>
-                      <p className="text-white/50 text-[9px] mt-0.5">{label}</p>
-                    </div>
-                  ))}
+                <div>
+                  <h2 className="text-foreground font-bold text-sm leading-tight">Agriculture News</h2>
+                  <p className="text-muted-foreground text-[10px]">Kenya farm &amp; market updates</p>
                 </div>
               </div>
+              <span className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-green-600 text-[10px] font-bold">Live</span>
+              </span>
             </div>
 
             {/* Category filter strip */}
@@ -953,119 +938,113 @@ export default function MarketHome() {
             )}
 
             {newsLoading
-              ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)
-              : (newsItems ?? []).map((item: any, idx: number) => {
-                  const isExpanded = expandedNews === item.id;
-                  const isFeatured = idx === 0;
-
-                  if (isFeatured) {
-                    return (
-                      <div key={item.id} className="rounded-2xl overflow-hidden border border-primary/20 shadow-md shadow-green-500/8">
-                        <div className="relative h-48">
-                          <img src={getNewsImage(item)} alt={item.title} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                          <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent" />
-                          <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                            <span className="bg-primary text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Featured</span>
-                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
+              ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
+              : (() => {
+                  const items = newsItems ?? [];
+                  if (items.length === 0) return (
+                    <div className="bg-card rounded-2xl border border-border p-8 text-center">
+                      <Newspaper size={28} className="text-muted-foreground mx-auto mb-2" />
+                      <p className="text-muted-foreground text-sm">No stories yet — check back soon</p>
+                    </div>
+                  );
+                  const [top, ...rest] = items;
+                  const topExpanded = expandedNews === top.id;
+                  return (
+                    <>
+                      {/* Top story — editorial hero */}
+                      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+                        <div className="relative h-44">
+                          <img src={getNewsImage(top)} alt={top.title} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+                          <div className="absolute bottom-3 left-3">
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${top.tagColor || "bg-green-100 text-green-700"}`}>{top.tag}</span>
                           </div>
-                          <div className="absolute top-3 right-3"><NewsAiBot item={item} /></div>
-                          <div className="absolute bottom-0 left-0 right-0 p-4">
-                            <p className="text-white font-bold text-base leading-snug drop-shadow-sm line-clamp-2">{item.title}</p>
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <span className="text-white/60 text-[10px] flex items-center gap-1"><Clock size={9} />{item.time}</span>
-                              <span className="text-white/40 text-[10px]">·</span>
-                              <span className="text-white/60 text-[10px] font-medium">{item.source}</span>
-                            </div>
-                          </div>
+                          <div className="absolute top-3 right-3"><NewsAiBot item={top} /></div>
                         </div>
-                        <button className="w-full text-left bg-card px-4 py-3 active:bg-muted/40 transition-colors"
-                          onClick={() => setExpandedNews(isExpanded ? null : item.id)}>
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-muted-foreground text-xs leading-relaxed line-clamp-2 flex-1">{item.summary}</p>
-                            <ChevronDown size={14} className={`text-muted-foreground mt-0.5 flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                        <button className="w-full text-left px-4 pt-3 pb-3 active:bg-muted/30 transition-colors"
+                          onClick={() => setExpandedNews(topExpanded ? null : top.id)}>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <span className="text-primary text-[10px] font-bold">{top.source}</span>
+                            <span className="text-muted-foreground/40 text-[10px]">·</span>
+                            <span className="text-muted-foreground text-[10px] flex items-center gap-0.5"><Clock size={8} />{top.time}</span>
+                            <ChevronDown size={13} className={`text-muted-foreground ml-auto transition-transform ${topExpanded ? "rotate-180" : ""}`} />
                           </div>
+                          <p className="text-foreground font-bold text-[14px] leading-snug">{top.title}</p>
+                          <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed line-clamp-2">{top.summary}</p>
                         </button>
                         <AnimatePresence>
-                          {isExpanded && (
+                          {topExpanded && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden bg-card">
-                              <div className="px-4 pb-4 pt-0 border-t border-border space-y-3">
-                                <p className="text-muted-foreground text-sm leading-relaxed pt-3">{item.summary}</p>
+                              <div className="px-4 pb-4 border-t border-border space-y-3 pt-3">
+                                <p className="text-muted-foreground text-sm leading-relaxed">{top.summary}</p>
                                 <div className="flex items-center gap-2">
-                                  {item.url && item.url !== "#" && (
-                                    <button onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
+                                  {top.url && top.url !== "#" && (
+                                    <button onClick={() => window.open(top.url, "_blank", "noopener,noreferrer")}
                                       className="inline-flex items-center gap-1.5 bg-primary text-white text-xs font-semibold px-3 py-2 rounded-xl active:scale-95 transition-transform">
                                       Read full story <ExternalLink size={11} />
                                     </button>
                                   )}
                                   <span className="flex-1" />
-                                  <NewsAiBot item={item} />
+                                  <NewsAiBot item={top} />
                                 </div>
                               </div>
                             </motion.div>
                           )}
                         </AnimatePresence>
                       </div>
-                    );
-                  }
 
-                  return (
-                    <div key={item.id} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all">
-                      <button className="w-full text-left active:bg-muted/30 transition-colors"
-                        onClick={() => setExpandedNews(isExpanded ? null : item.id)}>
-                        <div className="flex gap-0 items-stretch">
-                          {/* Left image column with overlay */}
-                          <div className="relative w-28 flex-shrink-0">
-                            <img src={getNewsImage(item)} alt={item.title} className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
-                            <div className="absolute inset-y-0 left-0 w-0.5 bg-primary/60" />
-                          </div>
-                          <div className="flex-1 p-3 flex flex-col justify-between min-h-[80px]">
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-1.5">
-                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
-                                <span className="text-muted-foreground text-[9px] flex items-center gap-0.5"><Clock size={8} />{item.time}</span>
+                      {/* Remaining stories — newspaper list */}
+                      {rest.length > 0 && (
+                        <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+                          {rest.map((item: any) => {
+                            const isExpanded = expandedNews === item.id;
+                            return (
+                              <div key={item.id}>
+                                <button className="w-full text-left px-3.5 py-3 active:bg-muted/20 transition-colors flex gap-3 items-start"
+                                  onClick={() => setExpandedNews(isExpanded ? null : item.id)}>
+                                  <div className="flex-1 min-w-0 pt-0.5">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <span className="text-primary text-[9px] font-bold truncate max-w-[90px]">{item.source}</span>
+                                      <span className="text-muted-foreground/40 text-[9px]">·</span>
+                                      <span className="text-muted-foreground text-[9px] flex items-center gap-0.5 flex-shrink-0"><Clock size={7} />{item.time}</span>
+                                      <span className={`ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
+                                    </div>
+                                    <p className="text-foreground font-semibold text-[12px] leading-snug line-clamp-2">{item.title}</p>
+                                  </div>
+                                  <div className="w-16 h-14 rounded-xl overflow-hidden flex-shrink-0 mt-0.5">
+                                    <img src={getNewsImage(item)} alt="" className="w-full h-full object-cover" />
+                                  </div>
+                                </button>
+                                <AnimatePresence>
+                                  {isExpanded && (
+                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+                                      <div className="px-3.5 pb-3.5 pt-3 border-t border-border space-y-2.5">
+                                        <p className="text-muted-foreground text-sm leading-relaxed">{item.summary}</p>
+                                        <div className="flex items-center gap-2">
+                                          {item.url && item.url !== "#" && (
+                                            <button onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
+                                              className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
+                                              Read full story <ExternalLink size={11} />
+                                            </button>
+                                          )}
+                                          <span className="flex-1" />
+                                          <NewsAiBot item={item} />
+                                        </div>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
                               </div>
-                              <p className="text-foreground font-semibold text-[12px] leading-snug line-clamp-2">{item.title}</p>
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="text-muted-foreground/80 text-[10px] font-medium bg-muted/60 px-1.5 py-0.5 rounded-md">{item.source}</span>
-                              <ChevronDown size={13} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                            </div>
-                          </div>
+                            );
+                          })}
                         </div>
-                      </button>
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-                            <div className="px-3.5 pb-3.5 pt-3 border-t border-border space-y-3">
-                              <p className="text-muted-foreground text-sm leading-relaxed">{item.summary}</p>
-                              <div className="flex items-center gap-2">
-                                {item.url && item.url !== "#" && (
-                                  <button onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
-                                    className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
-                                    Read full story <ExternalLink size={11} />
-                                  </button>
-                                )}
-                                <span className="flex-1" />
-                                <NewsAiBot item={item} />
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
+                      )}
+                    </>
                   );
-                })}
-            <div className="bg-primary/5 border border-primary/15 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Newspaper size={16} className="text-primary" />
-              </div>
-              <div>
-                <p className="text-foreground font-semibold text-xs">Kenya Agri-Market News</p>
-                <p className="text-muted-foreground text-[10px] mt-0.5">AI-sourced · refreshed every hour</p>
-              </div>
-            </div>
+                })()}
+            <p className="text-center text-muted-foreground/60 text-[10px] pb-1">
+              AI-sourced from multiple news feeds · updated every hour
+            </p>
           </section>
         )}
 
