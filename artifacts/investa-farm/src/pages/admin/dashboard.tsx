@@ -4,7 +4,7 @@ import {
   Shield, Users, Tractor, DollarSign, TrendingUp, FileText,
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
   Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2,
-  Settings, Bell, Percent, Coins
+  Settings, Bell, Percent, Coins, MoreHorizontal, ChevronRight, BarChart3
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -88,6 +88,7 @@ export default function AdminDashboard() {
   const [broadcast, setBroadcast] = useState({ title: "", body: "" });
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [clearDbLoading, setClearDbLoading] = useState(false);
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
 
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
@@ -389,16 +390,20 @@ export default function AdminDashboard() {
 
   const fmtKES = (n: number) => `KES ${n.toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 
-  const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "overview", label: "Overview", icon: <LayoutGrid size={14} /> },
-    { id: "proposals", label: "Proposals", icon: <Sprout size={14} /> },
-    { id: "users", label: "Users", icon: <Users size={14} /> },
-    { id: "kyc", label: "KYC", icon: <FileText size={14} /> },
-    { id: "transactions", label: "Txns", icon: <Activity size={14} /> },
-    { id: "farms", label: "Farms", icon: <Tractor size={14} /> },
-    { id: "payouts", label: "Payouts", icon: <DollarSign size={14} /> },
-    { id: "settings", label: "Settings", icon: <Settings size={14} /> },
+  const PRIMARY_TABS: { id: Tab; label: string; icon: React.ReactNode; color: string; bg: string; badge?: number }[] = [
+    { id: "overview",  label: "Overview",  icon: <BarChart3 size={18} />,  color: "text-indigo-600",  bg: "bg-indigo-50" },
+    { id: "kyc",       label: "KYC",       icon: <FileText size={18} />,   color: "text-amber-600",   bg: "bg-amber-50",  badge: stats?.pendingKyc },
+    { id: "users",     label: "Users",     icon: <Users size={18} />,      color: "text-blue-600",    bg: "bg-blue-50" },
+    { id: "proposals", label: "Proposals", icon: <Sprout size={18} />,     color: "text-green-600",   bg: "bg-green-50",  badge: proposals.length },
   ];
+  const SECONDARY_TABS: { id: Tab; label: string; icon: React.ReactNode; color: string; bg: string; badge?: number }[] = [
+    { id: "transactions", label: "Transactions", icon: <Activity size={18} />,   color: "text-purple-600",  bg: "bg-purple-50" },
+    { id: "farms",        label: "Farms",        icon: <Tractor size={18} />,    color: "text-teal-600",    bg: "bg-teal-50" },
+    { id: "payouts",      label: "Payouts",      icon: <DollarSign size={18} />, color: "text-orange-600",  bg: "bg-orange-50" },
+    { id: "settings",     label: "Settings",     icon: <Settings size={18} />,   color: "text-gray-600",    bg: "bg-gray-100" },
+  ];
+  const ALL_TABS = [...PRIMARY_TABS, ...SECONDARY_TABS];
+  const activeTabMeta = ALL_TABS.find(t => t.id === tab);
 
   return (
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-10">
@@ -446,14 +451,70 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Tab bar */}
-      <div className="flex bg-white border-b border-border sticky top-0 z-10">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 flex items-center justify-center gap-1 py-3 text-[11px] font-semibold transition-colors ${tab === t.id ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}>
-            {t.icon}{t.label}
+      {/* Tab bar — 4 primary + More */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
+        <div className="flex items-stretch">
+          {PRIMARY_TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => { setTab(t.id); setShowMoreSheet(false); }}
+              className={`flex-1 flex flex-col items-center gap-1 py-3 transition-all relative ${tab === t.id ? "text-primary" : "text-muted-foreground"}`}
+            >
+              <div className={`relative w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${tab === t.id ? `${t.bg} ${t.color}` : "bg-gray-50 text-gray-400"}`}>
+                {t.icon}
+                {t.badge != null && t.badge > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {t.badge > 9 ? "9+" : t.badge}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[10px] font-semibold leading-none ${tab === t.id ? t.color : "text-gray-400"}`}>{t.label}</span>
+              {tab === t.id && <div className="absolute bottom-0 inset-x-2 h-0.5 bg-primary rounded-full" />}
+            </button>
+          ))}
+          {/* More button */}
+          <button
+            onClick={() => setShowMoreSheet(s => !s)}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 transition-all relative ${SECONDARY_TABS.some(t => t.id === tab) ? "text-primary" : "text-muted-foreground"}`}
+          >
+            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${SECONDARY_TABS.some(t => t.id === tab) ? "bg-primary/10 text-primary" : "bg-gray-50 text-gray-400"}`}>
+              <MoreHorizontal size={18} />
+            </div>
+            <span className={`text-[10px] font-semibold leading-none ${SECONDARY_TABS.some(t => t.id === tab) ? "text-primary" : "text-gray-400"}`}>More</span>
           </button>
-        ))}
+        </div>
+
+        {/* Secondary tabs dropdown */}
+        {showMoreSheet && (
+          <div className="border-t border-gray-100 bg-gray-50 px-3 py-3 grid grid-cols-4 gap-2">
+            {SECONDARY_TABS.map(t => (
+              <button
+                key={t.id}
+                onClick={() => { setTab(t.id); setShowMoreSheet(false); }}
+                className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl transition-all ${tab === t.id ? `${t.bg} ring-2 ring-offset-1 ring-primary/30` : "bg-white border border-gray-100"}`}
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${tab === t.id ? t.color : "text-gray-400"}`}>
+                  {t.icon}
+                </div>
+                <span className={`text-[10px] font-semibold leading-none ${tab === t.id ? t.color : "text-gray-500"}`}>{t.label}</span>
+                {t.badge != null && t.badge > 0 && (
+                  <span className="text-[9px] font-bold text-red-500">{t.badge} pending</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Active tab label strip */}
+        {activeTabMeta && (
+          <div className={`flex items-center gap-2 px-4 py-1.5 border-t border-gray-100 ${activeTabMeta.bg}`}>
+            <span className={`${activeTabMeta.color}`}>{activeTabMeta.icon && <span className="text-sm">{activeTabMeta.icon}</span>}</span>
+            <p className={`text-xs font-bold ${activeTabMeta.color}`}>{activeTabMeta.label}</p>
+            {activeTabMeta.badge != null && activeTabMeta.badge > 0 && (
+              <span className="ml-auto text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">{activeTabMeta.badge} pending</span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="px-4 pt-4 space-y-4">
@@ -562,6 +623,25 @@ export default function AdminDashboard() {
         {/* USERS TAB */}
         {tab === "users" && (
           <>
+            {/* Header */}
+            <div className="bg-gradient-to-br from-blue-700 to-indigo-600 rounded-2xl p-4 mb-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Users size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-base">All Users</p>
+                    <p className="text-blue-200 text-[10px]">Manage accounts, roles & KYC</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-bold text-2xl">{users.length}</p>
+                  <p className="text-blue-200 text-[9px]">Registered</p>
+                </div>
+              </div>
+            </div>
+
             {/* Add Admin Banner */}
             <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl p-3.5 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -678,9 +758,28 @@ export default function AdminDashboard() {
         {/* KYC DOCS TAB */}
         {tab === "kyc" && (
           <>
+            {/* Header */}
+            <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <FileText size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-base">KYC Documents</p>
+                    <p className="text-amber-100 text-[10px]">Identity & document verification</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-bold text-2xl">{kycdocs.filter(d => d.status === "pending").length}</p>
+                  <p className="text-amber-100 text-[9px]">Pending</p>
+                </div>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                {kycdocs.filter(d => d.status === "pending").length} pending documents
+                {kycdocs.length} total documents
               </p>
               <button onClick={fetchKyc} className="text-xs text-primary flex items-center gap-1">
                 <RefreshCw size={11} className={kycLoading ? "animate-spin" : ""} /> Refresh
@@ -737,6 +836,25 @@ export default function AdminDashboard() {
         {/* TRANSACTIONS TAB */}
         {tab === "transactions" && (
           <>
+            {/* Header */}
+            <div className="bg-gradient-to-br from-purple-700 to-violet-600 rounded-2xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Activity size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-base">Transactions</p>
+                    <p className="text-purple-200 text-[10px]">Platform-wide money movement</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-bold text-2xl">{transactions.length}</p>
+                  <p className="text-purple-200 text-[9px]">Recent</p>
+                </div>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 {transactions.length} recent transactions
@@ -906,6 +1024,25 @@ export default function AdminDashboard() {
         {/* FARMS TAB */}
         {tab === "farms" && (
           <>
+            {/* Header */}
+            <div className="bg-gradient-to-br from-teal-700 to-emerald-600 rounded-2xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Tractor size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-base">Farm Registry</p>
+                    <p className="text-teal-200 text-[10px]">All farms, status & harvest control</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-bold text-2xl">{farms.length}</p>
+                  <p className="text-teal-200 text-[9px]">Total Farms</p>
+                </div>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 {farms.length} total farms
@@ -983,6 +1120,25 @@ export default function AdminDashboard() {
         {/* PAYOUTS TAB */}
         {tab === "payouts" && (
           <>
+            {/* Header */}
+            <div className="bg-gradient-to-br from-orange-600 to-amber-500 rounded-2xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <DollarSign size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-base">Dividend Payouts</p>
+                    <p className="text-orange-100 text-[10px]">Harvest returns paid to investors</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-bold text-lg leading-tight">{dividends ? fmtKES(dividends.totalPaid) : "—"}</p>
+                  <p className="text-orange-100 text-[9px]">Total Paid</p>
+                </div>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Dividend History
