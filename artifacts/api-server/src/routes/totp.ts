@@ -4,10 +4,13 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { verifyToken, signToken } from "./auth";
 
-// otplib v13 is CJS-only — use createRequire so esbuild doesn't try to tree-shake it
-// v13 API: all functions take object payloads, verifySync returns { valid, delta } not boolean
-const _require = createRequire(import.meta.url);
-const otplib = _require("otplib") as {
+// otplib v13 is CJS-only — use the globalThis.require injected by the ESM banner so CJS
+// resolution works correctly in the deployed compiled bundle. Fall back to a fresh
+// createRequire only when the banner hasn't run (e.g. local ts-node execution).
+const _require = ((globalThis as any).require ?? createRequire(import.meta.url)) as NodeRequire;
+const _rawOtplib = _require("otplib");
+// Some bundler/Node combinations wrap the module under .default
+const otplib = (_rawOtplib?.default ?? _rawOtplib) as {
   generateSecret(): string;
   generateSync(payload: { secret: string }): string;
   verifySync(payload: { token: string; secret: string }, opts?: { window?: number }): { valid: boolean } | null | false;

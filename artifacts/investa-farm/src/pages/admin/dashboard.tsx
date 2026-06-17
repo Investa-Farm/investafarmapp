@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import {
   Shield, Users, Tractor, DollarSign, TrendingUp, FileText,
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
-  Search, Activity, Sprout, MapPin
+  Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -66,7 +66,15 @@ export default function AdminDashboard() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-  const token = getToken();
+  const [addAdminOpen, setAddAdminOpen] = useState(false);
+  const [newAdmin, setNewAdmin] = useState({ name: "", email: "", password: "" });
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [addAdminLoading, setAddAdminLoading] = useState(false);
+  const [roleEditId, setRoleEditId] = useState<number | null>(null);
+
+  // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
+  const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
+  const token = adminSessionToken || getToken();
 
   useEffect(() => {
     const auth = sessionStorage.getItem("admin_auth");
@@ -243,8 +251,44 @@ export default function AdminDashboard() {
     }
   };
 
+  const addAdmin = async () => {
+    if (!newAdmin.name || !newAdmin.email || !newAdmin.password) {
+      showToast("All fields are required", "error"); return;
+    }
+    setAddAdminLoading(true);
+    try {
+      const r = await fetch("/api/admin/create-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newAdmin),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showToast(`✅ Admin created: ${newAdmin.email}`);
+        setNewAdmin({ name: "", email: "", password: "" });
+        setAddAdminOpen(false);
+        fetchUsers();
+      } else {
+        showToast(data.error ?? "Failed to create admin", "error");
+      }
+    } finally {
+      setAddAdminLoading(false);
+    }
+  };
+
+  const changeUserRole = async (userId: number, role: string) => {
+    const r = await fetch(`/api/admin/users/${userId}/role`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ role }),
+    });
+    if (r.ok) { showToast(`Role changed to ${role} ✓`); setRoleEditId(null); fetchUsers(); }
+    else showToast("Role change failed", "error");
+  };
+
   const handleLogout = () => {
     sessionStorage.removeItem("admin_auth");
+    sessionStorage.removeItem("admin_token");
     setLocation("/");
   };
 
@@ -440,6 +484,23 @@ export default function AdminDashboard() {
         {/* USERS TAB */}
         {tab === "users" && (
           <>
+            {/* Add Admin Banner */}
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl p-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
+                  <Shield size={14} className="text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-indigo-900 font-semibold text-xs">Admin Accounts</p>
+                  <p className="text-indigo-600 text-[10px]">Grant dashboard access to team members</p>
+                </div>
+              </div>
+              <button onClick={() => setAddAdminOpen(true)}
+                className="flex items-center gap-1.5 bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl active:scale-95 transition-transform">
+                <UserPlus size={12} /> Add Admin
+              </button>
+            </div>
+
             <div className="space-y-2">
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -451,7 +512,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div className="flex gap-1.5 overflow-x-auto pb-1">
-                {["all", "farmer", "investor", "cooperative"].map(r => (
+                {["all", "admin", "farmer", "investor", "cooperative"].map(r => (
                   <button key={r} onClick={() => setRoleFilter(r)}
                     className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${roleFilter === r ? "bg-primary text-white" : "bg-white border border-border text-muted-foreground"}`}>
                     {r === "all" ? "All" : r.charAt(0).toUpperCase() + r.slice(1)}
@@ -470,12 +531,15 @@ export default function AdminDashboard() {
             ) : filteredUsers.map((u) => (
               <div key={u.id} className="bg-card border border-border rounded-2xl overflow-hidden">
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-primary font-bold text-sm">{u.name.charAt(0).toUpperCase()}</span>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${u.role === "admin" ? "bg-indigo-100" : "bg-primary/10"}`}>
+                    {u.role === "admin"
+                      ? <Shield size={16} className="text-indigo-600" />
+                      : <span className="text-primary font-bold text-sm">{u.name.charAt(0).toUpperCase()}</span>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-foreground text-sm font-semibold truncate">{u.name}</p>
+                      {u.role === "admin" && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">ADMIN</span>}
                       {kycBadge(u.kycStatus)}
                     </div>
                     <p className="text-muted-foreground text-[11px] truncate">{u.email}</p>
@@ -483,13 +547,30 @@ export default function AdminDashboard() {
                       {u.role} · {u.kycDocCount} doc{u.kycDocCount !== 1 ? "s" : ""} · {new Date(u.createdAt).toLocaleDateString("en-KE")}
                     </p>
                   </div>
+                  {/* Role change */}
+                  <div className="relative flex-shrink-0">
+                    <button onClick={() => setRoleEditId(roleEditId === u.id ? null : u.id)}
+                      className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg bg-muted border border-border text-muted-foreground">
+                      Role <ChevronDown size={10} />
+                    </button>
+                    {roleEditId === u.id && (
+                      <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-xl shadow-lg py-1 min-w-[130px]">
+                        {["farmer", "investor", "cooperative", "agribusiness", "admin"].map(r => (
+                          <button key={r} onClick={() => changeUserRole(u.id, r)}
+                            className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-muted transition-colors ${u.role === r ? "text-primary font-semibold" : "text-foreground"}`}>
+                            {u.role === r ? "✓ " : ""}{r.charAt(0).toUpperCase() + r.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {u.kycStatus !== "approved" && (
+                {u.role !== "admin" && u.kycStatus !== "approved" && (
                   <div className="border-t border-border px-4 py-2.5 flex gap-2">
                     <button onClick={() => approveUser(u.id, true)} disabled={actionLoading === u.id}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
                       <CheckCircle2 size={13} />
-                      {actionLoading === u.id ? "Processing…" : "Approve Account"}
+                      {actionLoading === u.id ? "Processing…" : "Approve KYC"}
                     </button>
                     <button onClick={() => approveUser(u.id, false)} disabled={actionLoading === u.id}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
@@ -497,10 +578,17 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 )}
-                {u.kycStatus === "approved" && (
+                {u.role !== "admin" && u.kycStatus === "approved" && (
                   <div className="border-t border-border px-4 py-2 bg-green-50/50">
                     <p className="text-green-600 text-[11px] font-medium flex items-center gap-1">
                       <CheckCircle2 size={11} /> Account fully approved
+                    </p>
+                  </div>
+                )}
+                {u.role === "admin" && (
+                  <div className="border-t border-border px-4 py-2 bg-indigo-50/50">
+                    <p className="text-indigo-600 text-[11px] font-medium flex items-center gap-1">
+                      <Shield size={11} /> Full admin access — can log in to this dashboard
                     </p>
                   </div>
                 )}
@@ -870,6 +958,61 @@ export default function AdminDashboard() {
         )}
 
       </div>
+
+      {/* Add Admin Modal */}
+      {addAdminOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setAddAdminOpen(false)} />
+          <div className="relative bg-white rounded-t-3xl w-full max-w-[430px] px-6 pt-5 pb-10 shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="text-foreground font-bold text-base flex items-center gap-2">
+                  <UserPlus size={16} className="text-indigo-600" /> Add Admin Account
+                </p>
+                <p className="text-muted-foreground text-xs mt-0.5">New admin can log in at /admin with the password you set</p>
+              </div>
+              <button onClick={() => setAddAdminOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="space-y-3.5">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Full Name</label>
+                <input type="text" value={newAdmin.name} onChange={e => setNewAdmin(p => ({ ...p, name: e.target.value }))}
+                  placeholder="e.g. Sarah Odhiambo"
+                  className="w-full border border-border rounded-xl px-3.5 py-3 text-sm text-foreground bg-gray-50 focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Email Address</label>
+                <input type="email" value={newAdmin.email} onChange={e => setNewAdmin(p => ({ ...p, email: e.target.value }))}
+                  placeholder="sarah@investafarm.com"
+                  className="w-full border border-border rounded-xl px-3.5 py-3 text-sm text-foreground bg-gray-50 focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Password (min 8 chars)</label>
+                <div className="relative">
+                  <input type={showNewPass ? "text" : "password"} value={newAdmin.password}
+                    onChange={e => setNewAdmin(p => ({ ...p, password: e.target.value }))}
+                    placeholder="Secure password"
+                    className="w-full border border-border rounded-xl px-3.5 pr-11 py-3 text-sm text-foreground bg-gray-50 focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors" />
+                  <button type="button" onClick={() => setShowNewPass(s => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground p-1">
+                    {showNewPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-3.5 py-2.5">
+                <p className="text-indigo-800 text-[11px] font-medium">ℹ️ The new admin will log in at <strong>/admin</strong> using their email and this password. They'll have full dashboard access including KYC, farms, users, and payouts.</p>
+              </div>
+              <button onClick={addAdmin} disabled={addAdminLoading}
+                className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+                {addAdminLoading ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
+                {addAdminLoading ? "Creating…" : "Create Admin Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,9 @@ import { motion } from "framer-motion";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
+  const [mode, setMode] = useState<"master" | "email">("master");
   const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,10 +16,13 @@ export default function AdminLogin() {
     e.preventDefault();
     setLoading(true); setError("");
     try {
+      const body = mode === "master"
+        ? { password: code }
+        : { email, password: code };
       const r = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: code }),
+        body: JSON.stringify(body),
       });
       const data = await r.json();
       if (r.ok) {
@@ -25,7 +30,7 @@ export default function AdminLogin() {
         sessionStorage.setItem("admin_token", data.token);
         setLocation("/admin/dashboard");
       } else {
-        setError(data.error ?? "Invalid admin code.");
+        setError(data.error ?? "Invalid credentials.");
       }
     } catch {
       setError("Connection error. Please try again.");
@@ -52,16 +57,38 @@ export default function AdminLogin() {
       </div>
 
       <div className="flex-1 bg-white rounded-t-3xl px-6 pt-8 pb-12 shadow-2xl">
-        <form onSubmit={handleLogin} className="space-y-5">
+        {/* Mode toggle */}
+        <div className="flex rounded-xl bg-gray-100 p-1 mb-5">
+          <button type="button" onClick={() => setMode("master")}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${mode === "master" ? "bg-white shadow text-foreground" : "text-muted-foreground"}`}>
+            Master Password
+          </button>
+          <button type="button" onClick={() => setMode("email")}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${mode === "email" ? "bg-white shadow text-foreground" : "text-muted-foreground"}`}>
+            Admin Email Login
+          </button>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">{error}</div>
           )}
+          {mode === "email" && (
+            <div className="space-y-1.5">
+              <label className="text-foreground/60 text-xs font-semibold uppercase tracking-wider">Admin Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="admin@investafarm.com" required
+                className="w-full border border-border rounded-xl px-4 py-3 text-foreground bg-gray-50 text-sm focus:outline-none focus:border-green-500 focus:bg-white transition-colors" />
+            </div>
+          )}
           <div className="space-y-1.5">
-            <label className="text-foreground/60 text-xs font-semibold uppercase tracking-wider">Admin Access Code</label>
+            <label className="text-foreground/60 text-xs font-semibold uppercase tracking-wider">
+              {mode === "master" ? "Master Access Code" : "Password"}
+            </label>
             <div className="relative">
               <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input type={show ? "text" : "password"} value={code} onChange={e => setCode(e.target.value)}
-                placeholder="Enter admin code" required
+                placeholder={mode === "master" ? "Enter master access code" : "Enter your password"} required
                 className="w-full border border-border rounded-xl pl-10 pr-12 py-3 text-foreground bg-gray-50 text-sm focus:outline-none focus:border-green-500 focus:bg-white transition-colors" />
               <button type="button" onClick={() => setShow(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground p-1">
                 {show ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -73,7 +100,9 @@ export default function AdminLogin() {
             {loading && <Loader2 size={16} className="animate-spin" />}
             {loading ? "Authenticating…" : "Access Dashboard"}
           </button>
-          <p className="text-center text-muted-foreground text-xs">Contact your Investa Farm system administrator for access.</p>
+          <p className="text-center text-muted-foreground text-xs">
+            {mode === "master" ? "Use the platform master password · or switch to Admin Email Login above" : "Contact your Investa Farm system administrator for access."}
+          </p>
         </form>
       </div>
     </div>

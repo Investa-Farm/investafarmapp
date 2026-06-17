@@ -848,9 +848,9 @@ export default function Portfolio() {
 
       {/* Stock Broker Unlock Popup */}
       {brokerUnlockOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => { setBrokerUnlockOpen(false); localStorage.setItem("investa_broker_unlocked", "true"); }} />
-          <div className="relative bg-white rounded-t-3xl w-full max-w-[430px] overflow-hidden">
+          <div className="relative bg-white rounded-t-3xl w-full max-w-[430px] overflow-y-auto max-h-[92vh]">
             {/* Step indicators */}
             <div className="flex gap-1.5 justify-center pt-5 pb-2">
               {[0, 1, 2].map(s => (
