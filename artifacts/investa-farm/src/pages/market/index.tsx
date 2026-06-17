@@ -425,18 +425,17 @@ export default function MarketHome() {
 
         {/* Market stats inline strip */}
         {summary && (
-          <div className="flex items-stretch gap-2 mb-3">
+          <div className="flex items-center gap-0 mb-3 bg-muted/40 rounded-xl overflow-hidden border border-border">
             {(["turnover", "return", "listings"] as const).map((key, i) => {
               const d = STAT_DETAILS[key];
               return (
-                <button key={key} onClick={() => setStatModal(key)}
-                  className="flex-1 flex items-center gap-2 bg-card rounded-xl px-2.5 py-2 border border-border shadow-sm active:scale-95 transition-transform hover:border-primary/20 group">
-                  <span className="text-base leading-none">{d.icon}</span>
-                  <div className="min-w-0 text-left">
-                    <p className={`font-extrabold text-xs leading-tight ${key === "return" ? "text-green-600" : "text-foreground"}`}>{d.val}</p>
+                <div key={key} className={`flex-1 flex items-center gap-2 px-3 py-2 ${i < 2 ? "border-r border-border" : ""}`}>
+                  <span className="text-base leading-none flex-shrink-0">{d.icon}</span>
+                  <div className="min-w-0">
+                    <p className={`font-extrabold text-xs leading-tight truncate ${key === "return" ? "text-green-600" : "text-foreground"}`}>{d.val}</p>
                     <p className="text-muted-foreground text-[9px] leading-tight">{key === "turnover" ? "Turnover" : key === "return" ? "Avg Return" : "Listings"}</p>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -1011,23 +1010,27 @@ export default function MarketHome() {
                   }
 
                   return (
-                    <div key={item.id} className="bg-card rounded-2xl border border-border overflow-hidden">
+                    <div key={item.id} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all">
                       <button className="w-full text-left active:bg-muted/30 transition-colors"
                         onClick={() => setExpandedNews(isExpanded ? null : item.id)}>
                         <div className="flex gap-0 items-stretch">
-                          <div className="relative w-24 flex-shrink-0">
+                          {/* Left image column with overlay */}
+                          <div className="relative w-28 flex-shrink-0">
                             <img src={getNewsImage(item)} alt={item.title} className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/10" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
+                            <div className="absolute inset-y-0 left-0 w-0.5 bg-primary/60" />
                           </div>
-                          <div className="flex-1 p-3">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
-                              <span className="text-muted-foreground text-[9px] flex items-center gap-0.5"><Clock size={8} />{item.time}</span>
+                          <div className="flex-1 p-3 flex flex-col justify-between min-h-[80px]">
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
+                                <span className="text-muted-foreground text-[9px] flex items-center gap-0.5"><Clock size={8} />{item.time}</span>
+                              </div>
+                              <p className="text-foreground font-semibold text-[12px] leading-snug line-clamp-2">{item.title}</p>
                             </div>
-                            <p className="text-foreground font-semibold text-xs leading-snug line-clamp-2">{item.title}</p>
-                            <div className="flex items-center justify-between mt-1.5">
-                              <span className="text-muted-foreground/70 text-[9px] font-medium">{item.source}</span>
-                              <ChevronDown size={12} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-muted-foreground/80 text-[10px] font-medium bg-muted/60 px-1.5 py-0.5 rounded-md">{item.source}</span>
+                              <ChevronDown size={13} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                             </div>
                           </div>
                         </div>
@@ -1184,11 +1187,11 @@ export default function MarketHome() {
               );
             })}
 
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-start gap-3">
+            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-start gap-3">
               <span className="text-xl flex-shrink-0">💡</span>
               <div>
-                <p className="text-green-800 font-semibold text-xs mb-1">Early Investor Advantage</p>
-                <p className="text-green-700 text-xs leading-relaxed">
+                <p className="text-foreground font-semibold text-xs mb-1">Early Investor Advantage</p>
+                <p className="text-muted-foreground text-xs leading-relaxed">
                   Investing at planting stage locks in better share prices before demand rises. Committed funds are reserved — no charges until the listing goes live.
                 </p>
               </div>

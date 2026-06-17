@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGetPortfolio, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
@@ -20,11 +20,90 @@ import { PortfolioHealthAI } from "@/components/portfolio-health-ai";
 import { getCropImage } from "@/lib/crops";
 import { ReinvestmentSettings } from "@/components/reinvestment-settings";
 
+function useCountUp(target: number, duration = 900) {
+  const [current, setCurrent] = useState(0);
+  const rafRef = useRef<number>(0);
+  useEffect(() => {
+    const start = performance.now();
+    const from = current;
+    const run = (now: number) => {
+      const p = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setCurrent(from + (target - from) * ease);
+      if (p < 1) rafRef.current = requestAnimationFrame(run);
+    };
+    rafRef.current = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [target]);
+  return current;
+}
+
 type Holding = {
   id: number; farmId: number; farmName: string; cropType: string; location: string;
   quantity: number; purchasePrice: number; currentPrice: number; totalValue: number;
   gainLoss: number; gainLossPercent: number; exitType: string; imageUrl?: string; status: string;
 };
+
+type Summary = {
+  totalValue: number; totalInvested: number; holdings: number;
+  todayReturn: number; todayReturnPercent: number; weekReturnPercent: number;
+  overallGainLossPercent: number;
+};
+
+function AnimatedKES({ value, className }: { value: number; className?: string }) {
+  const animated = useCountUp(value);
+  const formatted = formatKES(animated);
+  return <span className={className}>{formatted}</span>;
+}
+
+function PortfolioHeroStats({ summary, onStatDetail }: { summary: Summary; onStatDetail: (k: "invested" | "pnl" | "holdings") => void }) {
+  const isUp = summary.todayReturn >= 0;
+
+  return (
+    <>
+      <p className="text-white/70 text-sm mt-1">Portfolio Value</p>
+      <motion.p
+        key={summary.totalValue}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-white text-3xl font-bold mt-0.5"
+      >
+        <AnimatedKES value={summary.totalValue} />
+      </motion.p>
+      <div className="flex items-center gap-3 mt-1.5">
+        <div className="flex items-center gap-1">
+          {isUp ? <TrendingUp size={12} className="text-green-300" /> : <TrendingDown size={12} className="text-red-300" />}
+          <span className={`text-xs font-semibold ${isUp ? "text-green-300" : "text-red-300"}`}>{formatChange(summary.todayReturnPercent)} today</span>
+        </div>
+        <span className="text-white/30">|</span>
+        <span className="text-white/70 text-xs">{formatChange(summary.weekReturnPercent)} this week</span>
+      </div>
+
+      {/* Plain-text stat row — no cards */}
+      <div className="flex items-center mt-3 divide-x divide-white/20">
+        {([
+          { key: "invested" as const, label: "Invested", value: summary.totalInvested, isKES: true, color: "text-white" },
+          { key: "pnl" as const, label: "P&L", value: summary.todayReturn, isKES: true, color: summary.todayReturn >= 0 ? "text-green-300" : "text-red-300" },
+          { key: "holdings" as const, label: "Holdings", value: summary.holdings, isKES: false, color: "text-white" },
+        ]).map(({ key, label, value, isKES, color }) => (
+          <button
+            key={key}
+            onClick={() => onStatDetail(key)}
+            className="flex-1 text-center px-2 active:opacity-60 transition-opacity group"
+          >
+            <p className={`font-bold text-sm leading-tight truncate ${color}`}>
+              {isKES ? <AnimatedKES value={value} /> : <>{value}</>}
+            </p>
+            <p className="text-white/50 text-[9px] mt-0.5 flex items-center justify-center gap-0.5">
+              {label}
+              <Info size={7} className="opacity-50 group-active:opacity-100" />
+            </p>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
 
 type Period = "1W" | "1M" | "3M";
 
@@ -184,32 +263,7 @@ export default function Portfolio() {
           </button>
         </div>
         {summary ? (
-          <>
-            <p className="text-white/70 text-sm mt-1">Portfolio Value</p>
-            <p className="text-white text-3xl font-bold mt-0.5">{formatKES(summary.totalValue)}</p>
-            <div className="flex items-center gap-3 mt-1.5">
-              <div className="flex items-center gap-1">
-                <TrendingUp size={12} className="text-white/80" />
-                <span className="text-white/80 text-xs font-semibold">{formatChange(summary.todayReturnPercent)} today</span>
-              </div>
-              <span className="text-white/30">|</span>
-              <span className="text-white/70 text-xs">{formatChange(summary.weekReturnPercent)} this week</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2 mt-3">
-              {([
-                { key: "invested" as const, label: "Invested", val: formatKES(summary.totalInvested) },
-                { key: "pnl" as const, label: "Today's P&L", val: formatKES(summary.todayReturn) },
-                { key: "holdings" as const, label: "Holdings", val: String(summary.holdings) },
-              ]).map(({ key, label, val }) => (
-                <button key={label} onClick={() => setStatDetail(key)}
-                  className="bg-white/20 rounded-xl p-2.5 text-center active:scale-95 transition-transform relative group">
-                  <p className="text-white text-xs font-bold truncate">{val}</p>
-                  <p className="text-white/60 text-[9px] mt-0.5 truncate">{label}</p>
-                  <Info size={8} className="absolute top-1.5 right-1.5 text-white/40 group-active:text-white/70" />
-                </button>
-              ))}
-            </div>
-          </>
+          <PortfolioHeroStats summary={summary} onStatDetail={setStatDetail} />
         ) : (
           <Skeleton className="h-24 mt-2 rounded-2xl bg-white/20" />
         )}

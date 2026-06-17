@@ -195,57 +195,66 @@ export default function SecondaryMarket() {
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="secondary-market">
-      {/* Compact header */}
-      <div className="relative overflow-hidden" style={{ height: 82 }}>
-        <img src={getCropImage("coffee")} alt="Secondary Market" className="w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(120deg, rgba(5,46,22,0.92) 0%, rgba(20,83,45,0.80) 60%, rgba(22,163,74,0.35) 100%)" }} />
-        <div className="absolute inset-0 pt-10 px-4 flex items-center gap-2.5">
+      {/* Neon dark header */}
+      <div className="relative overflow-hidden pt-10 pb-4 px-4" style={{ background: "linear-gradient(135deg, #020a14 0%, #06131f 60%, #0a1f12 100%)" }}>
+        {/* Neon glow blobs */}
+        <div className="absolute top-4 right-8 w-24 h-24 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: "radial-gradient(circle, #22d3ee, transparent)" }} />
+        <div className="absolute bottom-0 left-12 w-20 h-16 rounded-full opacity-15 blur-2xl pointer-events-none" style={{ background: "radial-gradient(circle, #a855f7, transparent)" }} />
+
+        <div className="flex items-center gap-2.5">
           <button data-testid="button-back" onClick={() => setLocation("/market")}
-            className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-            <ArrowLeft size={13} className="text-white" />
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.25)" }}>
+            <ArrowLeft size={14} className="text-cyan-300" />
           </button>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="text-white/70 text-[9px] font-semibold uppercase tracking-widest">Investor to Investor</p>
-              <span className="flex items-center gap-0.5 bg-green-400/20 border border-green-400/40 rounded-full px-1.5 py-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse" />
-                <span className="text-green-100 text-[8px] font-bold tracking-wider">LIVE</span>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-cyan-400/70 text-[9px] font-bold uppercase tracking-widest">P2P · Investor to Investor</span>
+              <span className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5" style={{ background: "rgba(34,211,238,0.15)", border: "1px solid rgba(34,211,238,0.3)" }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="text-cyan-300 text-[8px] font-bold tracking-wider">LIVE</span>
               </span>
             </div>
-            <h1 className="text-white text-sm font-extrabold leading-tight">Secondary Market</h1>
+            <h1 className="text-white text-base font-extrabold leading-tight tracking-tight">Secondary Market</h1>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="text-center">
+            <div className="rounded-xl px-2.5 py-1.5 text-right" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}>
               <p className="text-white font-bold text-sm leading-none">{listings?.length ?? "—"}</p>
-              <p className="text-white/50 text-[8px]">listings</p>
+              <p className="text-white/40 text-[8px]">listings</p>
             </div>
             {totalVolume > 0 && (
-              <div className="bg-white/10 rounded-lg px-2 py-1">
-                <p className="text-green-300 text-[9px] font-bold">{formatKES(totalVolume)}</p>
-                <p className="text-white/40 text-[8px]">volume</p>
+              <div className="rounded-xl px-2.5 py-1.5 text-right" style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.3)" }}>
+                <p className="text-purple-300 text-[9px] font-bold leading-none">{formatKES(totalVolume)}</p>
+                <p className="text-white/30 text-[8px]">volume</p>
               </div>
             )}
           </div>
         </div>
+
+        {/* Neon bottom edge */}
+        <div className="absolute bottom-0 inset-x-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(34,211,238,0.4), rgba(168,85,247,0.4), transparent)" }} />
       </div>
 
       {/* Tabs */}
       <div className="px-4 pt-3 pb-0">
-        <div className="flex bg-gray-100 rounded-2xl p-1 gap-0.5">
+        <div className="flex rounded-2xl p-1 gap-0.5" style={{ background: "#0d1117", border: "1px solid rgba(34,211,238,0.15)" }}>
           <button onClick={() => setTab("market")}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === "market" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"}`}>
+            className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
+            style={tab === "market" ? { background: "rgba(34,211,238,0.15)", color: "#67e8f9", boxShadow: "0 0 12px rgba(34,211,238,0.15)" } : { color: "rgba(255,255,255,0.4)" }}>
             All Listings
           </button>
           <button onClick={() => setTab("orders")}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${tab === "orders" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"}`}>
+            className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1"
+            style={tab === "orders" ? { background: "rgba(168,85,247,0.15)", color: "#c4b5fd", boxShadow: "0 0 12px rgba(168,85,247,0.15)" } : { color: "rgba(255,255,255,0.4)" }}>
             <BookOpen size={11} /> Order Book
           </button>
           <button onClick={() => setTab("mine")}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${tab === "mine" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"}`}>
+            className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1"
+            style={tab === "mine" ? { background: "rgba(34,197,94,0.15)", color: "#86efac", boxShadow: "0 0 12px rgba(34,197,94,0.15)" } : { color: "rgba(255,255,255,0.4)" }}>
             <Tag size={11} />
             Mine
             {activeMyListings.length > 0 && (
-              <span className="bg-primary text-white text-[9px] font-bold px-1 py-0.5 rounded-full">
+              <span className="text-[9px] font-bold px-1 py-0.5 rounded-full ml-0.5" style={{ background: "rgba(34,197,94,0.3)", color: "#86efac" }}>
                 {activeMyListings.length}
               </span>
             )}
@@ -504,11 +513,12 @@ export default function SecondaryMarket() {
 
             {/* Farm selector */}
             <div>
-              <label className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider block mb-1.5">Select Farm</label>
+              <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "rgba(34,211,238,0.7)" }}>Select Farm</label>
               <select
                 value={orderFarmId}
                 onChange={e => setOrderFarmId(Number(e.target.value) || "")}
-                className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none"
+                style={{ background: "#0d1117", border: "1px solid rgba(34,211,238,0.2)", color: "white" }}
               >
                 <option value="">— Choose a farm —</option>
                 {allFarms.map(f => (
@@ -517,105 +527,111 @@ export default function SecondaryMarket() {
               </select>
             </div>
 
-            {/* Order book depth */}
+            {/* Order book depth — neon dark */}
             {orderFarmId && (
-              <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                  <p className="font-semibold text-sm flex items-center gap-1.5"><BarChart2 size={14} className="text-primary" /> Market Depth</p>
-                  <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Live</span>
+              <div className="rounded-2xl overflow-hidden" style={{ background: "#080e14", border: "1px solid rgba(34,211,238,0.2)" }}>
+                <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid rgba(34,211,238,0.12)" }}>
+                  <p className="font-semibold text-sm flex items-center gap-1.5" style={{ color: "#67e8f9" }}><BarChart2 size={14} /> Market Depth</p>
+                  <span className="flex items-center gap-1 text-[9px] font-bold" style={{ color: "rgba(34,211,238,0.6)" }}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" /> LIVE
+                  </span>
                 </div>
-                {/* Sell orders (asks) — top */}
+                {/* Asks */}
                 <div className="px-4 pt-2 pb-1">
-                  <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Asks (Sell Orders)</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: "rgba(239,68,68,0.7)" }}>Asks · Sell Orders</p>
                   {(!orderBookDepth?.sells || orderBookDepth.sells.length === 0) ? (
-                    <p className="text-muted-foreground text-xs py-2 text-center">No sell orders</p>
-                  ) : (
-                    orderBookDepth.sells.slice(0, 5).map((level, i) => {
-                      const maxQty = Math.max(...orderBookDepth.sells.map(s => s.quantity));
-                      const pct = (level.quantity / maxQty) * 100;
-                      return (
-                        <div key={i} className="relative flex items-center justify-between py-1 text-xs">
-                          <div className="absolute inset-y-0 right-0 bg-red-50 rounded-sm" style={{ width: `${pct}%` }} />
-                          <span className="relative font-bold text-red-600">{formatKES(level.price)}</span>
-                          <span className="relative text-muted-foreground">{level.quantity.toFixed(2)} shares</span>
-                        </div>
-                      );
-                    })
-                  )}
+                    <p className="text-center text-xs py-2" style={{ color: "rgba(255,255,255,0.3)" }}>No sell orders</p>
+                  ) : orderBookDepth.sells.slice(0, 5).map((level, i) => {
+                    const maxQty = Math.max(...orderBookDepth.sells.map(s => s.quantity));
+                    const pct = (level.quantity / maxQty) * 100;
+                    return (
+                      <div key={i} className="relative flex items-center justify-between py-1 text-xs">
+                        <div className="absolute inset-y-0 right-0 rounded-sm" style={{ width: `${pct}%`, background: "rgba(239,68,68,0.08)" }} />
+                        <span className="relative font-bold" style={{ color: "#f87171" }}>{formatKES(level.price)}</span>
+                        <span className="relative" style={{ color: "rgba(255,255,255,0.4)" }}>{level.quantity.toFixed(2)} sh</span>
+                      </div>
+                    );
+                  })}
                 </div>
-                {/* Spread indicator */}
+                {/* Spread */}
                 {orderBookDepth?.buys?.length && orderBookDepth?.sells?.length ? (
-                  <div className="mx-4 py-1.5 border-y border-border flex items-center justify-center gap-2">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <div className="mx-4 py-1.5 flex items-center justify-center gap-2" style={{ borderTop: "1px solid rgba(34,211,238,0.1)", borderBottom: "1px solid rgba(34,211,238,0.1)" }}>
+                    <div className="h-px flex-1" style={{ background: "rgba(34,211,238,0.15)" }} />
+                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "#67e8f9" }}>
                       Spread {formatKES(Math.abs((orderBookDepth.sells[0]?.price ?? 0) - (orderBookDepth.buys[0]?.price ?? 0)))}
                     </span>
-                    <div className="h-px flex-1 bg-border" />
+                    <div className="h-px flex-1" style={{ background: "rgba(34,211,238,0.15)" }} />
                   </div>
-                ) : <div className="border-t border-border my-1" />}
-                {/* Buy orders (bids) — bottom */}
+                ) : <div className="my-1" style={{ borderTop: "1px solid rgba(34,211,238,0.1)" }} />}
+                {/* Bids */}
                 <div className="px-4 pt-1 pb-2">
-                  <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Bids (Buy Orders)</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: "rgba(34,197,94,0.7)" }}>Bids · Buy Orders</p>
                   {(!orderBookDepth?.buys || orderBookDepth.buys.length === 0) ? (
-                    <p className="text-muted-foreground text-xs py-2 text-center">No buy orders</p>
-                  ) : (
-                    orderBookDepth.buys.slice(0, 5).map((level, i) => {
-                      const maxQty = Math.max(...orderBookDepth.buys.map(b => b.quantity));
-                      const pct = (level.quantity / maxQty) * 100;
-                      return (
-                        <div key={i} className="relative flex items-center justify-between py-1 text-xs">
-                          <div className="absolute inset-y-0 left-0 bg-green-50 rounded-sm" style={{ width: `${pct}%` }} />
-                          <span className="relative font-bold text-green-600">{formatKES(level.price)}</span>
-                          <span className="relative text-muted-foreground">{level.quantity.toFixed(2)} shares</span>
-                        </div>
-                      );
-                    })
-                  )}
+                    <p className="text-center text-xs py-2" style={{ color: "rgba(255,255,255,0.3)" }}>No buy orders</p>
+                  ) : orderBookDepth.buys.slice(0, 5).map((level, i) => {
+                    const maxQty = Math.max(...orderBookDepth.buys.map(b => b.quantity));
+                    const pct = (level.quantity / maxQty) * 100;
+                    return (
+                      <div key={i} className="relative flex items-center justify-between py-1 text-xs">
+                        <div className="absolute inset-y-0 left-0 rounded-sm" style={{ width: `${pct}%`, background: "rgba(34,197,94,0.08)" }} />
+                        <span className="relative font-bold" style={{ color: "#86efac" }}>{formatKES(level.price)}</span>
+                        <span className="relative" style={{ color: "rgba(255,255,255,0.4)" }}>{level.quantity.toFixed(2)} sh</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Place limit order */}
-            <div className="bg-card rounded-2xl border border-border p-4">
-              <p className="font-semibold text-sm mb-3 flex items-center gap-1.5"><Plus size={14} className="text-primary" /> Place Limit Order</p>
+            {/* Place limit order — neon dark */}
+            <div className="rounded-2xl p-4" style={{ background: "#080e14", border: "1px solid rgba(168,85,247,0.25)" }}>
+              <p className="font-semibold text-sm mb-3 flex items-center gap-1.5" style={{ color: "#c4b5fd" }}><Plus size={14} /> Place Limit Order</p>
               {orderSuccess && (
-                <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 flex items-center gap-2 mb-3">
-                  <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
-                  <p className="text-green-700 text-xs font-semibold">Order placed! Matching engine will fill it automatically.</p>
+                <div className="rounded-xl px-3 py-2 flex items-center gap-2 mb-3" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>
+                  <CheckCircle2 size={14} className="text-green-400 flex-shrink-0" />
+                  <p className="text-xs font-semibold" style={{ color: "#86efac" }}>Order placed! Matching engine will fill it automatically.</p>
                 </div>
               )}
               {/* Side toggle */}
-              <div className="flex bg-muted rounded-xl p-0.5 mb-3">
+              <div className="flex rounded-xl p-0.5 mb-3 gap-0.5" style={{ background: "rgba(255,255,255,0.05)" }}>
                 <button onClick={() => setOrderSide("buy")}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${orderSide === "buy" ? "bg-green-600 text-white shadow-sm" : "text-muted-foreground"}`}>
+                  className="flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  style={orderSide === "buy" ? { background: "rgba(34,197,94,0.2)", color: "#86efac", boxShadow: "0 0 16px rgba(34,197,94,0.2)" } : { color: "rgba(255,255,255,0.35)" }}>
                   <ChevronUp size={12} /> Buy
                 </button>
                 <button onClick={() => setOrderSide("sell")}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${orderSide === "sell" ? "bg-red-500 text-white shadow-sm" : "text-muted-foreground"}`}>
+                  className="flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  style={orderSide === "sell" ? { background: "rgba(239,68,68,0.2)", color: "#f87171", boxShadow: "0 0 16px rgba(239,68,68,0.15)" } : { color: "rgba(255,255,255,0.35)" }}>
                   <ChevronDown size={12} /> Sell
                 </button>
               </div>
               <div className="space-y-2.5">
                 <div>
-                  <label className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block mb-1">Limit Price (KES)</label>
+                  <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: "rgba(168,85,247,0.7)" }}>Limit Price (KES)</label>
                   <input type="number" value={orderPrice} onChange={e => setOrderPrice(e.target.value)} placeholder="e.g. 28.50"
-                    className="w-full bg-muted/40 border border-border rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    className="w-full rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(168,85,247,0.25)", color: "white" }} />
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block mb-1">Quantity (shares)</label>
+                  <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: "rgba(168,85,247,0.7)" }}>Quantity (shares)</label>
                   <input type="number" value={orderQty} onChange={e => setOrderQty(e.target.value)} placeholder="e.g. 10"
-                    className="w-full bg-muted/40 border border-border rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    className="w-full rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(168,85,247,0.25)", color: "white" }} />
                 </div>
                 {orderPrice && orderQty && (
-                  <div className="bg-muted/40 rounded-xl px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Order total</span>
-                    <span className="text-sm font-bold text-foreground">{formatKES(Number(orderPrice) * Number(orderQty))}</span>
+                  <div className="rounded-xl px-3 py-2 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Order total</span>
+                    <span className="text-sm font-bold text-white">{formatKES(Number(orderPrice) * Number(orderQty))}</span>
                   </div>
                 )}
                 <button
                   onClick={() => placeOrder.mutate()}
                   disabled={!orderFarmId || !orderPrice || !orderQty || placeOrder.isPending}
-                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40 ${orderSide === "buy" ? "bg-green-600 text-white" : "bg-red-500 text-white"}`}
+                  className="w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40"
+                  style={orderSide === "buy"
+                    ? { background: "linear-gradient(135deg,rgba(34,197,94,0.3),rgba(34,197,94,0.15))", color: "#86efac", border: "1px solid rgba(34,197,94,0.4)", boxShadow: "0 0 20px rgba(34,197,94,0.15)" }
+                    : { background: "linear-gradient(135deg,rgba(239,68,68,0.3),rgba(239,68,68,0.15))", color: "#f87171", border: "1px solid rgba(239,68,68,0.4)", boxShadow: "0 0 20px rgba(239,68,68,0.15)" }
+                  }
                 >
                   {placeOrder.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
                   {orderSide === "buy" ? "Place Buy Order" : "Place Sell Order"}
@@ -625,27 +641,29 @@ export default function SecondaryMarket() {
 
             {/* My open orders */}
             <div>
-              <p className="font-semibold text-sm mb-2 px-1">My Orders</p>
+              <p className="font-semibold text-sm mb-2 px-1 text-foreground">My Orders</p>
               {myOrders.length === 0 ? (
-                <div className="bg-muted/30 rounded-2xl border border-border p-5 text-center">
-                  <BookOpen size={24} className="text-muted-foreground mx-auto mb-2" />
-                  <p className="text-foreground text-sm font-medium">No orders yet</p>
-                  <p className="text-muted-foreground text-xs mt-0.5">Place a limit order above to start trading</p>
+                <div className="rounded-2xl p-5 text-center" style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <BookOpen size={24} className="text-cyan-400/50 mx-auto mb-2" />
+                  <p className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.6)" }}>No orders yet</p>
+                  <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>Place a limit order above to start trading</p>
                 </div>
               ) : myOrders.map((order: any) => (
-                <div key={order.id} className="bg-card border border-border rounded-2xl p-3.5 mb-2">
+                <div key={order.id} className="rounded-2xl p-3.5 mb-2" style={{ background: "#0d1117", border: "1px solid rgba(34,211,238,0.12)" }}>
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-1.5 mb-1">
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${order.side === "buy" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                          style={order.side === "buy" ? { background: "rgba(34,197,94,0.15)", color: "#86efac" } : { background: "rgba(239,68,68,0.15)", color: "#f87171" }}>
                           {order.side.toUpperCase()}
                         </span>
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                          order.status === "filled" ? "bg-blue-100 text-blue-700" :
-                          order.status === "cancelled" ? "bg-gray-100 text-gray-500" :
-                          order.status === "partially_filled" ? "bg-amber-100 text-amber-700" :
-                          "bg-primary/10 text-primary"
-                        }`}>{order.status.replace("_", " ")}</span>
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                          style={
+                            order.status === "filled" ? { background: "rgba(34,211,238,0.15)", color: "#67e8f9" } :
+                            order.status === "cancelled" ? { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" } :
+                            order.status === "partially_filled" ? { background: "rgba(251,191,36,0.15)", color: "#fcd34d" } :
+                            { background: "rgba(168,85,247,0.15)", color: "#c4b5fd" }
+                          }>{order.status.replace("_", " ")}</span>
                       </div>
                       <p className="text-foreground font-semibold text-sm">{order.farmName ?? `Farm #${order.farmId}`}</p>
                       <p className="text-muted-foreground text-xs mt-0.5">
