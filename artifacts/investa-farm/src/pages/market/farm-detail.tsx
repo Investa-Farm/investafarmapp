@@ -241,6 +241,17 @@ export default function FarmDetail() {
     },
   });
 
+  const { data: rainfallData } = useQuery<any>({
+    queryKey: ["farm-rainfall", farmId],
+    enabled: !!farmId && activeTab === "growth",
+    staleTime: 60 * 60 * 1000,
+    queryFn: async () => {
+      const r = await fetch(`/api/farms/${farmId}/rainfall`);
+      if (!r.ok) return null;
+      return r.json();
+    },
+  });
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const listing = (primaryListings as any[])?.find((l: any) => l.farmId === farmId);
   const isUp = (farm?.changePercent ?? 0) >= 0;
@@ -553,6 +564,57 @@ export default function FarmDetail() {
                 </div>
 
                 <WeatherNdvi lat={mapLat} lng={mapLng} cropType={farm.cropType} stage={growth.stage} />
+
+                {/* ── Rainfall Impact Card ── */}
+                {rainfallData && (() => {
+                  const riskColors: Record<string, { bg: string; border: string; text: string; badge: string }> = {
+                    green:  { bg: "from-green-50 to-emerald-50",  border: "border-green-200",  text: "text-green-800",  badge: "bg-green-100 text-green-700"  },
+                    yellow: { bg: "from-amber-50 to-yellow-50",   border: "border-amber-200",  text: "text-amber-800",  badge: "bg-amber-100 text-amber-700"  },
+                    red:    { bg: "from-red-50 to-rose-50",       border: "border-red-200",    text: "text-red-800",    badge: "bg-red-100 text-red-700"      },
+                  };
+                  const c = riskColors[rainfallData.riskColor] ?? riskColors["green"]!;
+                  const statusEmoji = rainfallData.riskColor === "green" ? "🌧️" : rainfallData.riskColor === "yellow" ? "⚠️" : "🚨";
+                  const yieldAdj = rainfallData.yieldAdjustmentPercent ?? 0;
+                  return (
+                    <div className={`bg-gradient-to-r ${c.bg} border ${c.border} rounded-2xl p-4`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <p className={`text-sm font-bold ${c.text} flex items-center gap-2`}>
+                          <CloudRain size={15} /> Rainfall Impact
+                        </p>
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${c.badge}`}>
+                          {statusEmoji} {rainfallData.riskLevel === "optimal" ? "Optimal" : rainfallData.riskLevel === "low" ? "Low Rainfall" : rainfallData.riskLevel === "drought" ? "Drought Risk" : "Excess / Flood"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        <div className="bg-white/70 rounded-xl p-2 text-center">
+                          <p className="text-muted-foreground text-[9px]">Season Total</p>
+                          <p className="text-foreground font-bold text-xs">{rainfallData.seasonalTotalMm}mm</p>
+                        </div>
+                        <div className="bg-white/70 rounded-xl p-2 text-center">
+                          <p className="text-muted-foreground text-[9px]">Optimal Range</p>
+                          <p className="text-foreground font-bold text-xs">{rainfallData.optimalRangeMin}–{rainfallData.optimalRangeMax}mm</p>
+                        </div>
+                        <div className="bg-white/70 rounded-xl p-2 text-center">
+                          <p className="text-muted-foreground text-[9px]">Yield Adj.</p>
+                          <p className={`font-bold text-xs ${yieldAdj >= 0 ? "text-green-600" : "text-red-500"}`}>{yieldAdj >= 0 ? "+" : ""}{yieldAdj}%</p>
+                        </div>
+                      </div>
+                      <p className={`text-[10px] ${c.text} mb-2 leading-relaxed`}>{rainfallData.riskLabel}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {rainfallData.criticalDrought && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">🌵 Critical Drought</span>
+                        )}
+                        {rainfallData.floodRisk && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">🌊 Flood Risk</span>
+                        )}
+                        {rainfallData.extremeDays > 3 && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">⚡ {rainfallData.extremeDays} heavy rain days</span>
+                        )}
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/80 text-muted-foreground">AI Factor: {rainfallData.rainfallFactor}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="bg-card rounded-2xl border border-border p-4">
                   <p className="text-sm font-semibold mb-3">Growth Timeline</p>

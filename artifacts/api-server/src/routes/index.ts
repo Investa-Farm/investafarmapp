@@ -25,6 +25,8 @@ import watchlistRouter from "./watchlist";
 import stellarRouter from "./stellar";
 import uploadRouter from "./upload";
 import agribusinessRouter from "./agribusiness";
+import rainfallRouter from "./rainfall";
+import portfolioRoiRouter from "./portfolio-roi";
 
 const router: IRouter = Router();
 
@@ -54,5 +56,7 @@ router.use(watchlistRouter);
 router.use(stellarRouter);
 router.use(uploadRouter);
 router.use(agribusinessRouter);
+router.use(rainfallRouter);
+router.use(portfolioRoiRouter);
 
 export default router;

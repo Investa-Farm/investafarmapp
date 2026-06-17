@@ -101,6 +101,21 @@ export default function Portfolio() {
 
   const [acctCopied, setAcctCopied] = useState(false);
 
+  const { data: roiData } = useQuery<any[]>({
+    queryKey: ["portfolio-roi"],
+    enabled: activeTab === "holdings",
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const r = await fetch("/api/portfolio/roi", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+  });
+
+  const roiByInvestmentId = new Map<number, any>(
+    (roiData ?? []).map((r: any) => [r.investmentId, r])
+  );
+
   const { data: stellarAcct } = useQuery<{ accountNumber: string }>({
     queryKey: ["stellar-account"],
     queryFn: async () => {
@@ -654,6 +669,9 @@ export default function Portfolio() {
                 const fullPayout = invested * 1.22;
                 const farmImg = getCropImage(h.cropType, h.imageUrl);
 
+                const roi = roiByInvestmentId.get(h.id);
+                const hasRoi = !!roi;
+
                 return (
                   <div key={h.id} data-testid={`holding-${h.id}`} className="bg-card rounded-2xl border border-border overflow-hidden">
                     <div className="relative h-20">
@@ -668,6 +686,11 @@ export default function Portfolio() {
                       {isExited && (
                         <div className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                           Exit Pending
+                        </div>
+                      )}
+                      {hasRoi && roi.rainfall && roi.rainfall.riskColor !== "green" && (
+                        <div className={`absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full ${roi.rainfall.riskColor === "red" ? "bg-red-500 text-white" : "bg-amber-400 text-amber-900"}`}>
+                          {roi.rainfall.riskColor === "red" ? "🚨 Weather Risk" : "⚠️ Low Rain"}
                         </div>
                       )}
                     </div>
@@ -688,19 +711,52 @@ export default function Portfolio() {
                         </div>
                       </div>
 
-                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-2.5">
-                        <p className="text-green-700 text-[10px] font-semibold mb-1.5">Estimated Payout on Exit</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <p className="text-muted-foreground text-[9px]">⚡ Mid-Season (+10%)</p>
-                            <p className="text-orange-600 font-bold text-xs">{formatKES(midPayout)}</p>
+                      {/* AI-Computed ROI Projections */}
+                      {hasRoi ? (
+                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-2.5 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-green-700 text-[10px] font-semibold">AI ROI Projections</p>
+                            {roi.rainfallFactor < 1.0 && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">
+                                🌧️ RF×{roi.rainfallFactor}
+                              </span>
+                            )}
                           </div>
-                          <div>
-                            <p className="text-muted-foreground text-[9px]">🌾 Full Season (+22%)</p>
-                            <p className="text-green-600 font-bold text-xs">{formatKES(fullPayout)}</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-white/80 rounded-lg p-2">
+                              <p className="text-muted-foreground text-[9px]">⚡ Mid-Season Exit</p>
+                              <p className="text-orange-600 font-bold text-xs">{formatKES(roi.midSeason.saleProceeds)}</p>
+                              <p className="text-orange-500 text-[9px] font-semibold">{roi.midSeason.roiPercent >= 0 ? "+" : ""}{roi.midSeason.roiPercent.toFixed(1)}% · {roi.midSeason.annualizedPercent.toFixed(0)}% ann.</p>
+                              <p className="text-muted-foreground text-[8px]">{roi.midSeason.daysHeld}d held · sell @ {formatKES(roi.midSeason.pSell)}/sh</p>
+                            </div>
+                            <div className="bg-white/80 rounded-lg p-2">
+                              <p className="text-muted-foreground text-[9px]">🌾 Full Season Exit</p>
+                              <p className="text-green-600 font-bold text-xs">{formatKES(roi.fullSeason.projectedPayout)}</p>
+                              <p className="text-green-600 text-[9px] font-semibold">{roi.fullSeason.roiPercent >= 0 ? "+" : ""}{roi.fullSeason.roiPercent.toFixed(1)}% · {roi.fullSeason.annualizedPercent.toFixed(0)}% ann.</p>
+                              <p className="text-muted-foreground text-[8px]">{roi.fullSeason.daysToHarvest}d to harvest</p>
+                            </div>
+                          </div>
+                          {roi.recommendation !== "neutral" && (
+                            <div className={`text-[10px] font-semibold px-2.5 py-1.5 rounded-lg ${roi.recommendation === "hold" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
+                              {roi.recommendation === "hold" ? "💡 Consider Holding" : "💡 Consider Selling"} — {roi.recommendationLabel.split("—")[1]?.trim() ?? ""}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-2.5">
+                          <p className="text-green-700 text-[10px] font-semibold mb-1.5">Estimated Payout on Exit</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <p className="text-muted-foreground text-[9px]">⚡ Mid-Season (+10%)</p>
+                              <p className="text-orange-600 font-bold text-xs">{formatKES(midPayout)}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground text-[9px]">🌾 Full Season (+22%)</p>
+                              <p className="text-green-600 font-bold text-xs">{formatKES(fullPayout)}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="flex gap-1.5 flex-wrap">
                         <Link

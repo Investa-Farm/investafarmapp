@@ -1,0 +1,912 @@
+ ROI calculations for the two exit strategies, factoring in every variable we’ve discussed—entry price, revenue share, risk, rainfall, NDVI, fees, and secondary market dynamics.
+
+1. The Two Exit Strategies Compared
+Aspect	Full Season Exit (Hold to Harvest)	Mid‑Season Exit (30–60 Days)
+Duration	6–9 months (180–270 days)	30–60 days
+Payout Source	Harvest revenue dividend (
+α
+×
+R
+actual
+α×R 
+actual
+​
+ )	Secondary market sale price (
+P
+sell
+P 
+sell
+​
+ )
+Risk	Full exposure to crop failure, price crash, pests	Exposed to sentiment/NDVI shifts, but avoids end‑season wipeouts
+Upside	Captures full harvest value	Limited to market’s current view of future harvest
+Liquidity	Zero (locked until harvest)	High (exit anytime)
+2. Input Variables Common to Both Scenarios
+Variable	Description	Source / Formula
+K
+K	Capital needed by farmer	Fixed at launch
+N
+N	Total shares issued	
+N
+=
+K
+/
+P
+0
+N=K/P 
+0
+​
+ 
+P
+0
+P 
+0
+​
+ 	Primary share price	
+P
+0
+=
+K
+/
+N
+P 
+0
+​
+ =K/N (e.g., $10)
+α
+α	Investor revenue share	10–30%, set by AI at launch
+q
+q	Quantity of shares bought	Investor choice (e.g., 50 shares)
+F
+entry
+F 
+entry
+​
+ 	Primary purchase fee	1.5% of total investment
+F
+trade
+F 
+trade
+​
+ 	Secondary trading fee	0.5% of trade value
+F
+withdraw
+F 
+withdraw
+​
+ 	Withdrawal fee	0.5% (capped at $2)
+3. ROI Calculation – Full Season Exit (Hold to Harvest)
+3.1 Cost Basis (Entry)
+Cost
+=
+q
+×
+P
+0
++
+(
+q
+×
+P
+0
+×
+0.015
+)
+Cost=q×P 
+0
+​
+ +(q×P 
+0
+​
+ ×0.015)
+Or simply:
+
+Cost
+=
+q
+×
+P
+0
+×
+1.015
+Cost=q×P 
+0
+​
+ ×1.015
+3.2 Harvest Payout
+At harvest, the investor receives:
+
+Payout
+=
+q
+×
+α
+×
+R
+actual
+N
+Payout=q× 
+N
+α×R 
+actual
+​
+ 
+​
+ 
+Where:
+
+R
+actual
+R 
+actual
+​
+  is the real harvest revenue (not the forecast).
+
+This depends on actual yield (affected by rainfall, NDVI) and actual commodity price.
+
+3.3 Realized ROI (Full Season)
+ROI
+full
+=
+Payout
+Cost
+−
+1
+ROI 
+full
+​
+ = 
+Cost
+Payout
+​
+ −1
+3.4 Annualized ROI (Full Season)
+Annualized ROI
+full
+=
+(
+1
++
+ROI
+full
+)
+365
+T
+−
+1
+Annualized ROI 
+full
+​
+ =(1+ROI 
+full
+​
+ ) 
+T
+365
+​
+ 
+ −1
+Where 
+T
+T = days from planting to harvest (e.g., 240 days).
+
+Example:
+
+P
+0
+=
+$
+10
+P 
+0
+​
+ =$10, 
+q
+=
+100
+q=100 shares → Cost = 
+1000
+×
+1.015
+=
+$
+1
+,
+015
+1000×1.015=$1,015
+
+α
+=
+0.20
+α=0.20, 
+N
+=
+1
+,
+500
+N=1,500, 
+R
+actual
+=
+$
+120
+,
+000
+R 
+actual
+​
+ =$120,000
+
+Dividend per share = 
+(
+0.20
+×
+120
+,
+000
+)
+/
+1
+,
+500
+=
+$
+16
+(0.20×120,000)/1,500=$16
+
+Payout = 
+100
+×
+$
+16
+=
+$
+1
+,
+600
+100×$16=$1,600
+
+ROI = 
+1600
+/
+1015
+−
+1
+=
+57.6
+%
+1600/1015−1=57.6%
+
+Annualized (if 
+T
+=
+240
+T=240 days) = 
+(
+1.576
+)
+365
+/
+240
+−
+1
+=
+(
+1.576
+)
+1.52
+−
+1
+=
+97.6
+%
+(1.576) 
+365/240
+ −1=(1.576) 
+1.52
+ −1=97.6% annually
+
+4. ROI Calculation – Mid‑Season Exit (30–60 Days)
+4.1 Cost Basis (Entry) – Same as above
+Cost
+=
+q
+×
+P
+0
+×
+1.015
+Cost=q×P 
+0
+​
+ ×1.015
+4.2 Sale Proceeds (Secondary Market)
+At mid‑season (day 
+t
+t, where 
+t
+=
+30
+t=30–
+60
+60 days), the investor sells all 
+q
+q shares on the secondary market.
+
+Sale Proceeds
+=
+q
+×
+P
+sell
+(
+t
+)
+×
+(
+1
+−
+0.005
+)
+Sale Proceeds=q×P 
+sell
+​
+ (t)×(1−0.005)
+Where:
+
+P
+sell
+(
+t
+)
+P 
+sell
+​
+ (t) is the seller’s price from our secondary market formula:
+
+P
+sell
+(
+t
+)
+=
+α
+R
+^
+(
+t
+)
+N
+(
+1
++
+r
+f
+)
+(
+T
+−
+t
+)
+/
+365
+×
+(
+1
+−
+λ
+(
+t
+)
+)
+×
+(
+1
++
+β
+⋅
+imbalance
+)
+×
+(
+1
+−
+δ
+)
+P 
+sell
+​
+ (t)= 
+N(1+r 
+f
+​
+ ) 
+(T−t)/365
+ 
+α 
+R
+^
+ (t)
+​
+ ×(1−λ(t))×(1+β⋅imbalance)×(1−δ)
+R
+^
+(
+t
+)
+R
+^
+ (t) = AI‑updated revenue forecast at time 
+t
+t (incorporating rainfall, NDVI changes).
+
+λ
+(
+t
+)
+λ(t) = updated risk discount based on new risk score.
+
+The 
+0.005
+0.005 is the secondary trading fee (0.5%).
+
+4.3 Realized ROI (Mid‑Season)
+ROI
+mid
+=
+Sale Proceeds
+Cost
+−
+1
+ROI 
+mid
+​
+ = 
+Cost
+Sale Proceeds
+​
+ −1
+4.4 Annualized ROI (Mid‑Season)
+Annualized ROI
+mid
+=
+(
+1
++
+ROI
+mid
+)
+365
+t
+−
+1
+Annualized ROI 
+mid
+​
+ =(1+ROI 
+mid
+​
+ ) 
+t
+365
+​
+ 
+ −1
+Where 
+t
+t = days held (e.g., 45).
+
+Example (Mid‑Season Exit at Day 45):
+
+Same cost basis: $1,015.
+
+At day 45, NDVI dropped due to mild drought. AI updates:
+
+R
+^
+(
+45
+)
+=
+$
+85
+,
+000
+R
+^
+ (45)=$85,000 (was $120,000)
+
+Risk score drops from 7 → 5
+
+λ
+(
+45
+)
+=
+0.25
+λ(45)=0.25
+
+T
+−
+t
+=
+195
+T−t=195 days left
+
+d
+=
+(
+1
+−
+0.25
+)
+/
+(
+1.10
+)
+195
+/
+365
+=
+0.75
+/
+1.051
+=
+0.713
+d=(1−0.25)/(1.10) 
+195/365
+ =0.75/1.051=0.713
+
+Fair value before imbalance = 
+(
+0.20
+×
+85
+,
+000
+)
+/
+(
+1
+,
+500
+)
+×
+0.713
+=
+11.33
+×
+0.713
+=
+$
+8.08
+(0.20×85,000)/(1,500)×0.713=11.33×0.713=$8.08
+
+Assume imbalance factor = 1.0 (neutral), liquidity discount = 0.02 → 
+P
+sell
+=
+8.08
+×
+0.98
+=
+$
+7.92
+P 
+sell
+​
+ =8.08×0.98=$7.92
+
+Sale proceeds = 
+100
+×
+7.92
+×
+(
+1
+−
+0.005
+)
+=
+792
+×
+0.995
+=
+$
+788.04
+100×7.92×(1−0.005)=792×0.995=$788.04
+
+ROI = 
+788.04
+/
+1015
+−
+1
+=
+−
+22.4
+%
+788.04/1015−1=−22.4%
+
+Annualized = 
+(
+0.776
+)
+365
+/
+45
+−
+1
+=
+(
+0.776
+)
+8.11
+−
+1
+=
+−
+90.7
+%
+(0.776) 
+365/45
+ −1=(0.776) 
+8.11
+ −1=−90.7% (huge negative annualized, reflecting that holding would have been disastrous)
+
+Counter‑Example (Positive Mid‑Season Exit):
+
+If rain is abundant and NDVI soars, 
+R
+^
+(
+45
+)
+=
+$
+150
+,
+000
+R
+^
+ (45)=$150,000, risk score improves to 9.
+
+P
+sell
+=
+higher
+P 
+sell
+​
+ =higher → sale proceeds might be $1,400 → ROI = 38% in 45 days → annualized = 
+(
+1.38
+)
+8.11
+−
+1
+=
+1
+,
+380
+%
+(1.38) 
+8.11
+ −1=1,380% (massive, because you captured a great early signal).
+
+5. How All Factors Affect ROI in Both Scenarios
+Factor	Effect on Full‑Season ROI (Hold to Harvest)	Effect on Mid‑Season ROI (Sell at 30–60 Days)	Explanation
+Primary Entry Price (
+P
+0
+P 
+0
+​
+ )	Higher cost → lower ROI	Higher cost → lower ROI	Both start from the same base.
+Investor Share (
+α
+α)	Higher 
+α
+α → higher dividend	Higher 
+α
+α → higher expected future dividend, lifting secondary price	
+α
+α directly multiplies the payout.
+Actual Harvest Revenue (
+R
+actual
+R 
+actual
+​
+ )	Massive direct impact – determines final payout	Indirect – 
+R
+^
+(
+t
+)
+R
+^
+ (t) updates daily; secondary price reflects this	If 
+R
+actual
+R 
+actual
+​
+  drops 50%, full ROI halves. Mid‑season exit captures the drop immediately.
+Rainfall / Drought	Direct hit on yield → lower 
+R
+actual
+R 
+actual
+​
+ 	Immediate drop in NDVI → 
+R
+^
+(
+t
+)
+R
+^
+ (t) drops → 
+P
+sell
+P 
+sell
+​
+  drops	Mid‑season exit allows you to sell before the full loss materialises.
+Excess Rain / Flooding	Yield drop (especially at tasseling/harvest)	NDVI may spike then drop; price becomes volatile	Mid‑season traders can exploit the volatility.
+Risk Score (
+S
+S)	Affects 
+λ
+λ in initial pricing, but actual risk materialises later	Direct – 
+λ
+(
+t
+)
+λ(t) changes daily, affecting 
+P
+sell
+P 
+sell
+​
+  daily	A worsening risk score immediately lowers secondary price.
+Commodity Price Crash	Lower 
+R
+actual
+R 
+actual
+​
+  at harvest	
+R
+^
+(
+t
+)
+R
+^
+ (t) updated with price forecasts; secondary price drops	Mid‑season exit captures the price drop immediately.
+Time Discount (
+r
+f
+r 
+f
+​
+ )	Minor – reduces present value of future payout	Direct – as 
+t
+t increases (closer to harvest), time discount shrinks, raising price	Mid‑season price naturally rises as harvest approaches (if no other changes).
+Secondary Market Liquidity (
+δ
+δ)	Not applicable (no secondary sale)	Direct – higher liquidity discount → lower sale proceeds	Thin market penalises sellers.
+Order Book Imbalance	Not applicable	Direct – more buyers than sellers → higher 
+P
+sell
+P 
+sell
+​
+ 	Sentiment matters for early exit.
+Entry Fee (1.5%)	Increases cost base	Increases cost base	Always a drag on returns.
+Exit Fee (0.5%)	None (no secondary sale)	Direct – reduces sale proceeds	Only hits mid‑season sellers.
+Withdrawal Fee	Applies if investor cashes out after harvest	Applies if investor cashes out after sale	Identical impact on net cash received.
+6. The ROI Trade‑Off: Which Strategy Wins?
+Condition	Better Strategy
+Normal weather, stable prices	Full Season – captures full 
+α
+×
+R
+actual
+α×R 
+actual
+​
+ ; secondary price just tracks fair value, no extra upside
+Improving conditions (rain picks up, prices rise)	Mid‑Season Exit (if held short) – the secondary price rallies fast as 
+R
+^
+(
+t
+)
+R
+^
+ (t) increases, annualised ROI explodes
+Deteriorating conditions (drought forecast)	Mid‑Season Exit – lock in losses early before the farm defaults
+High liquidity / low fees	Mid‑Season Trading – can repeatedly capture small gains
+Low liquidity / high fees	Full Season – trading costs eat mid‑season profits
+Investor needs cash urgently	Mid‑Season Exit – only way to get liquidity before harvest
+Investor has long‑term conviction	Full Season – ignore short‑term noise
+7. The No‑Arbitrage Relationship Between the Two
+In an efficient market, the expected annualised ROI of holding to harvest should equal the expected annualised ROI of selling mid‑season (after accounting for risk and fees). If they diverge, arbitrage exists.
+
+Arbitrage Condition:
+
+(
+1
++
+Expected ROI
+full
+)
+365
+T
+≈
+(
+1
++
+Expected ROI
+mid
+)
+365
+t
+×
+Risk Premium
+(1+Expected ROI 
+full
+​
+ ) 
+T
+365
+​
+ 
+ ≈(1+Expected ROI 
+mid
+​
+ ) 
+t
+365
+​
+ 
+ ×Risk Premium
+What the AI does:
+
+The AI’s fair value 
+P
+fair
+(
+t
+)
+P 
+fair
+​
+ (t) is specifically designed to make this equation hold given current information.
+
+If 
+P
+sell
+(
+t
+)
+P 
+sell
+​
+ (t) is below fair value, the mid‑season ROI becomes higher than the full‑season ROI (annualised). That signals a BUY opportunity (or HOLD).
+
+If 
+P
+sell
+(
+t
+)
+P 
+sell
+​
+ (t) is above fair value, the mid‑season ROI is lower – that signals a SELL opportunity.
+
+This is exactly what your No‑Arbitrage AI Check (from earlier) monitors.

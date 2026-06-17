@@ -209,13 +209,45 @@ async function fetchRssNews(): Promise<NewsItem[] | null> {
   return null;
 }
 
+async function fetchMediastackNews(): Promise<NewsItem[] | null> {
+  const apiKey = process.env["MEDIASTACK_API_KEY"];
+  if (!apiKey) return null;
+  try {
+    const url = `http://api.mediastack.com/v1/news?access_key=${apiKey}&countries=ke&categories=general,business&keywords=agriculture,farming,maize,coffee,avocado&sort=published_desc&limit=8`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const json = await res.json() as { data?: Array<{ title: string; description: string; source: string; url: string; published_at: string; image?: string }> };
+    if (!json.data?.length) return null;
+    return json.data.map((item, i) => {
+      const { tag, tagColor } = guessTag(item.title ?? "");
+      const imageKey = guessImageKey(item.title ?? "", item.description ?? "");
+      return {
+        id: i + 1,
+        title: item.title ?? "",
+        source: item.source ?? "News",
+        summary: (item.description ?? item.title ?? "").slice(0, 200),
+        tag, tagColor,
+        time: timeAgo(item.published_at ?? ""),
+        imageKey,
+        url: item.url ?? "#",
+        pubDate: item.published_at,
+      } as NewsItem;
+    }).filter(it => it.title.length > 10);
+  } catch {
+    return null;
+  }
+}
+
 router.get("/news", async (_req, res): Promise<void> => {
   if (cache && Date.now() - cache.cachedAt < CACHE_TTL) {
     res.json(cache.items);
     return;
   }
-  const rssNews = await fetchRssNews();
-  const items = rssNews ?? STATIC_NEWS;
+  const msNews = await fetchMediastackNews();
+  const items = msNews ?? await fetchRssNews() ?? STATIC_NEWS;
   cache = { items, cachedAt: Date.now() };
   res.json(items);
 });

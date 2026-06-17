@@ -1,8 +1,10 @@
 import cron from "node-cron";
-import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable, orderBookTable, watchlistTable } from "@workspace/db";
+import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable, orderBookTable, watchlistTable, roiProjectionsTable } from "@workspace/db";
 import { eq, inArray, lt, and, lte, asc } from "drizzle-orm";
 import { sendOpportunityDigest, sendPriceAlertEmail, sendVerificationReminderEmail } from "./lib/email";
 import { notifyMany, notifyUser } from "./lib/push";
+import { getRainfallData, getKenyaCoords, checkRainfallAlerts } from "./lib/rainfall";
+import { computeROI, type HoldingROIInput } from "./lib/roi";
 
 export function startScheduler(): void {
   cron.schedule("0 8 * * 1", () => runOpportunityDigest("Monday morning"), { timezone: "Africa/Nairobi" });
@@ -13,6 +15,8 @@ export function startScheduler(): void {
   cron.schedule("*/2 * * * *", () => runOrderMatching(), { timezone: "Africa/Nairobi" });
   cron.schedule("0 10 * * *", () => runVerificationReminders(), { timezone: "Africa/Nairobi" });
   cron.schedule("0 2 * * *", () => runDividendPayouts(), { timezone: "Africa/Nairobi" });
+  cron.schedule("0 6 * * *", () => runRainfallAlerts(), { timezone: "Africa/Nairobi" });
+  cron.schedule("30 1 * * *", () => runDailyRoiSnapshots(), { timezone: "Africa/Nairobi" });
 
   console.log("[scheduler] Weekly digest: Mon 8am & Fri 6pm EAT");
   console.log("[scheduler] Price simulation & alerts: every 5 minutes");
@@ -20,6 +24,8 @@ export function startScheduler(): void {
   console.log("[scheduler] Order matching engine: every 2 minutes");
   console.log("[scheduler] Verification reminders: daily 10am EAT");
   console.log("[scheduler] Dividend payouts: daily 2am EAT");
+  console.log("[scheduler] Rainfall alerts: daily 6am EAT");
+  console.log("[scheduler] ROI snapshots: daily 1:30am EAT");
 }
 
 async function runOpportunityDigest(label: string): Promise<void> {
@@ -417,6 +423,132 @@ async function runOrderMatching(): Promise<void> {
     }
   } catch (e) {
     console.warn("[scheduler] Order matching error:", (e as Error)?.message);
+  }
+}
+
+// ─── Rainfall Alert Scheduler ─────────────────────────────────────────────────
+async function runRainfallAlerts(): Promise<void> {
+  try {
+    const farms = await db.select().from(farmsTable);
+    const farmsMeta = farms.map(f => ({
+      id: f.id,
+      name: f.name ?? "",
+      cropType: f.cropType ?? "maize",
+      location: f.location ?? "",
+    }));
+
+    const alerts = await checkRainfallAlerts(farmsMeta);
+
+    for (const { farmId, farmName, rainfallData: rain } of alerts) {
+      // Find investors holding this farm
+      const holdings = await db.select({ investorId: investmentsTable.investorId })
+        .from(investmentsTable)
+        .where(and(eq(investmentsTable.farmId, farmId), eq(investmentsTable.status, "active")));
+
+      const investorIds = [...new Set(holdings.map(h => h.investorId))];
+      if (investorIds.length === 0) continue;
+
+      const emoji  = rain.riskLevel === "drought" ? "🌵" : "🌊";
+      const title  = `${emoji} Weather Risk: ${farmName}`;
+      const body   = rain.criticalDrought
+        ? `⚠️ Critical drought — ${rain.seasonalTotalMm}mm vs ${rain.optimalRangeMin}mm minimum. Yield impact: ${rain.yieldAdjustmentPercent}%`
+        : rain.floodRisk
+          ? `⚠️ Flood risk — ${rain.seasonalTotalMm}mm (excess). Yield impact: ${rain.yieldAdjustmentPercent}%`
+          : `${rain.riskLabel}. Yield adjustment: ${rain.yieldAdjustmentPercent}%`;
+
+      await notifyMany(investorIds, "price_alert", title, body, `/market/${farmId}`).catch(() => {});
+      console.log(`[rainfall-alert] ${farmName}: ${rain.riskLevel} — notified ${investorIds.length} investors`);
+    }
+  } catch (e) {
+    console.warn("[scheduler] Rainfall alert error:", (e as Error)?.message);
+  }
+}
+
+// ─── Daily ROI Snapshot Scheduler ─────────────────────────────────────────────
+async function runDailyRoiSnapshots(): Promise<void> {
+  try {
+    const today = new Date().toISOString().split("T")[0]!;
+    const investments = await db.select().from(investmentsTable)
+      .where(eq(investmentsTable.status, "active"));
+
+    if (investments.length === 0) return;
+
+    const farmIds  = [...new Set(investments.map(i => i.farmId))];
+    const farms    = await db.select().from(farmsTable).where(inArray(farmsTable.id, farmIds));
+    const listings = await db.select().from(marketListingsTable)
+      .where(and(inArray(marketListingsTable.farmId, farmIds), eq(marketListingsTable.listingType, "primary")));
+
+    const farmMap    = new Map(farms.map(f => [f.id, f]));
+    const listingMap = new Map(listings.map(l => [l.farmId, l]));
+
+    let snapped = 0;
+    for (const inv of investments) {
+      try {
+        const farm    = farmMap.get(inv.farmId);
+        const listing = listingMap.get(inv.farmId);
+        if (!farm) continue;
+
+        const N         = farm.totalShares;
+        const soldShares = Math.max(0, N - (listing?.sharesAvailable ?? N));
+        const sellSide   = listing?.sharesAvailable ?? 0;
+        const imbalance  = 1 + 0.20 * ((soldShares - sellSide) / Math.max(N, 1));
+
+        let rainfallFactor = 1.0;
+        try {
+          const [lat, lng] = getKenyaCoords(farm.location ?? "");
+          const rain = await getRainfallData(lat, lng, farm.cropType ?? "maize");
+          rainfallFactor = rain.rainfallFactor;
+        } catch { /* use default */ }
+
+        const input: HoldingROIInput = {
+          farmId:          farm.id,
+          farmName:        farm.name ?? "",
+          cropType:        farm.cropType ?? "maize",
+          totalShares:     farm.totalShares,
+          sharesAvailable: listing?.sharesAvailable ?? farm.sharesAvailable,
+          loanAmount:      Number(farm.loanAmount),
+          sharePrice:      Number(farm.sharePrice),
+          currentPrice:    Number((farm as any).currentPrice ?? farm.sharePrice),
+          purchasePrice:   Number(inv.purchasePrice),
+          quantity:        Number(inv.quantity),
+          farmCreatedAt:   new Date(farm.createdAt),
+          rainfallFactor,
+          marketImbalance: imbalance,
+        };
+
+        const proj = computeROI(input);
+
+        // Upsert today's snapshot (unique index handles dedup)
+        await db.insert(roiProjectionsTable).values({
+          investmentId:         inv.id,
+          snapshotDate:         today,
+          fullSeasonRoi:        String(proj.fullSeason.roi),
+          fullSeasonAnnualized: String(proj.fullSeason.annualizedRoi),
+          fullSeasonPayout:     String(proj.fullSeason.projectedPayout),
+          midSeasonRoi:         String(proj.midSeason.roi),
+          midSeasonAnnualized:  String(proj.midSeason.annualizedRoi),
+          midSeasonPSell:       String(proj.midSeason.pSell),
+          rainfallFactor:       String(rainfallFactor),
+          recommendation:       proj.recommendation,
+        }).onConflictDoUpdate({
+          target: [roiProjectionsTable.investmentId, roiProjectionsTable.snapshotDate],
+          set: {
+            fullSeasonRoi:        String(proj.fullSeason.roi),
+            fullSeasonAnnualized: String(proj.fullSeason.annualizedRoi),
+            fullSeasonPayout:     String(proj.fullSeason.projectedPayout),
+            midSeasonRoi:         String(proj.midSeason.roi),
+            midSeasonAnnualized:  String(proj.midSeason.annualizedRoi),
+            midSeasonPSell:       String(proj.midSeason.pSell),
+            rainfallFactor:       String(rainfallFactor),
+            recommendation:       proj.recommendation,
+          },
+        });
+        snapped++;
+      } catch { /* skip this investment */ }
+    }
+    console.log(`[scheduler] ROI snapshots saved for ${snapped}/${investments.length} investments`);
+  } catch (e) {
+    console.warn("[scheduler] ROI snapshot error:", (e as Error)?.message);
   }
 }
 
