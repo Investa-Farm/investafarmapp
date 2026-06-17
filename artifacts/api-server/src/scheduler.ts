@@ -5,6 +5,7 @@ import { sendOpportunityDigest, sendPriceAlertEmail, sendVerificationReminderEma
 import { notifyMany, notifyUser } from "./lib/push";
 import { getRainfallData, getKenyaCoords, checkRainfallAlerts } from "./lib/rainfall";
 import { computeROI, type HoldingROIInput } from "./lib/roi";
+import { loadSettings } from "./lib/platformSettings";
 
 export function startScheduler(): void {
   cron.schedule("0 8 * * 1", () => runOpportunityDigest("Monday morning"), { timezone: "Africa/Nairobi" });
@@ -174,6 +175,8 @@ async function runPriceSimulation(): Promise<void> {
 
 async function runPriceAlertCheck(): Promise<void> {
   try {
+    const settings = loadSettings();
+    const threshold = settings.priceAlertThresholdPct ?? 5;
     const farms = await db.select().from(farmsTable);
     const now = Date.now();
     for (const farm of farms) {
@@ -184,7 +187,7 @@ async function runPriceAlertCheck(): Promise<void> {
       if (!prev) { priceHistory.set(farm.id, { price: currentPrice, lastAlertedAt: 0 }); continue; }
 
       const changePct = ((currentPrice - prev.price) / prev.price) * 100;
-      if (Math.abs(changePct) >= 5 && now - prev.lastAlertedAt > 30 * 60 * 1000) {
+      if (Math.abs(changePct) >= threshold && now - prev.lastAlertedAt > 30 * 60 * 1000) {
         const investments = await db
           .select({ investorId: investmentsTable.investorId })
           .from(investmentsTable)

@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { z } from "zod";
 import { sendFundingApplicationEmail } from "../lib/email";
+import { notifyUser } from "../lib/push";
 
 const router: IRouter = Router();
 
@@ -237,6 +238,15 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
     aiScore: aiResult.score,
     aiSummary: aiResult.summary,
   }).catch(() => {/* non-critical */});
+
+  // Push + in-app: farm listing approved
+  notifyUser(
+    user.id,
+    "loan_approved",
+    "✅ Farm Listing Approved!",
+    `${resolvedFarmName} (KES ${amount.toLocaleString()}) is now live on the marketplace for investors. AI Score: ${aiResult.score}/100.`,
+    "/farmer/farm-profile"
+  ).catch(() => {});
 
   res.status(201).json({ ...formatLoan(app, resolvedCrop), newFarmId, aiScore: aiResult.score });
 });

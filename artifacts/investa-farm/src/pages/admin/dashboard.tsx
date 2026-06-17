@@ -43,6 +43,7 @@ interface PlatformSettings {
   secondaryTradeFeePct: number;
   minInvestmentKES: number;
   minSharePurchase: number;
+  priceAlertThresholdPct: number;
 }
 
 const TX_EMOJI: Record<string, string> = {
@@ -1252,6 +1253,7 @@ export default function AdminDashboard() {
                     {[
                       { label: "Minimum Investment", sub: "Smallest wallet amount to invest (KES)", key: "minInvestmentKES" as const, suffix: "KES" },
                       { label: "Minimum Shares", sub: "Fewest shares per purchase", key: "minSharePurchase" as const, suffix: "shares" },
+                      { label: "Price Alert Threshold", sub: "Send push alert when holding moves by this % (default 5%)", key: "priceAlertThresholdPct" as const, suffix: "%" },
                     ].map(({ label, sub, key, suffix }) => (
                       <div key={key} className="flex items-center gap-3 px-4 py-3">
                         <div className="flex-1 min-w-0">

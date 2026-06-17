@@ -3,6 +3,7 @@ import { eq, desc, notInArray } from "drizzle-orm";
 import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail } from "../lib/email";
+import { sendPushToUser, createInAppNotification } from "../lib/push";
 import { triggerFarmHarvest } from "../scheduler";
 import { loadSettings, saveSettings, type PlatformSettings } from "../lib/platformSettings";
 
@@ -237,15 +238,21 @@ router.patch("/admin/users/:id/approve", async (req, res): Promise<void> => {
       .where(eq(kycDocumentsTable.userId, id));
   }
 
+  const notifTitle = approved ? "🎉 Account Approved!" : "⚠️ KYC Update Required";
+  const notifBody = approved
+    ? "Your account has been verified by our compliance team. You now have full access to invest in farm shares."
+    : "Your KYC documents need to be re-uploaded. Please ensure all documents are clear and valid.";
+
   // Create in-app notification
   await db.insert(notificationsTable).values({
     userId: id,
     type: approved ? "kyc_approved" : "kyc_rejected",
-    title: approved ? "🎉 Account Approved!" : "KYC Update Required",
-    body: approved
-      ? "Your account has been verified by our compliance team. You now have full access to invest in farm shares."
-      : "Your KYC documents need to be re-uploaded. Please ensure all documents are clear and valid.",
+    title: notifTitle,
+    body: notifBody,
   });
+
+  // Mobile push notification
+  sendPushToUser(id, { title: notifTitle, body: notifBody, type: approved ? "kyc_approved" : "kyc_rejected", url: approved ? "/portfolio" : "/farmer/kyc" }).catch(() => {});
 
   // Send email notification
   if (approved) {
@@ -284,16 +291,21 @@ router.patch("/admin/kyc/:id/approve", async (req, res): Promise<void> => {
     // Check if all user docs are now approved → send approval email
     const allDocs = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.userId, doc.userId));
     const allApproved = allDocs.every(d => (d.id === id ? status : d.status) === "approved");
-    if (allApproved && status === "approved") {
+    if (status === "approved" || status === "rejected") {
       const [user] = await db.select().from(usersTable).where(eq(usersTable.id, doc.userId));
       if (user) {
-        sendKycApprovedEmail(user.email, user.name).catch(() => {});
-        await db.insert(notificationsTable).values({
-          userId: user.id,
-          type: "kyc_approved",
-          title: "🎉 Account Approved!",
-          body: "All your KYC documents have been verified. You can now invest in farm shares.",
-        });
+        if (allApproved && status === "approved") {
+          const title = "🎉 KYC Fully Approved!";
+          const body = "All your documents have been verified. You now have full access to Investa Farm.";
+          sendKycApprovedEmail(user.email, user.name).catch(() => {});
+          await db.insert(notificationsTable).values({ userId: user.id, type: "kyc_approved", title, body });
+          sendPushToUser(user.id, { title, body, type: "kyc_approved", url: "/portfolio" }).catch(() => {});
+        } else if (status === "rejected") {
+          const title = "⚠️ Document Rejected";
+          const body = `One of your KYC documents was rejected. Please re-upload a clearer version.`;
+          await db.insert(notificationsTable).values({ userId: user.id, type: "kyc_rejected", title, body });
+          sendPushToUser(user.id, { title, body, type: "kyc_rejected", url: "/farmer/kyc" }).catch(() => {});
+        }
       }
     }
   }

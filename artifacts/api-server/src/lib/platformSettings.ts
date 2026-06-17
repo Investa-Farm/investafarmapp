@@ -12,6 +12,7 @@ export interface PlatformSettings {
   secondaryTradeFeePct: number;
   minInvestmentKES: number;
   minSharePurchase: number;
+  priceAlertThresholdPct: number;
 }
 
 const DEFAULTS: PlatformSettings = {
@@ -21,6 +22,7 @@ const DEFAULTS: PlatformSettings = {
   secondaryTradeFeePct: 1.5,
   minInvestmentKES: 500,
   minSharePurchase: 1,
+  priceAlertThresholdPct: 5,
 };
 
 export function loadSettings(): PlatformSettings {

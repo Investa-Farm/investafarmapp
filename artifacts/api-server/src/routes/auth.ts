@@ -220,9 +220,10 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       return;
     }
   }
-  // TOTP 2FA: skip for demo accounts; for real users with TOTP enabled, block login with contact support message
+  // TOTP 2FA: skip for demo accounts; for real users with TOTP enabled, issue a temp token and prompt 2FA
   if (user.totpEnabled && user.totpSecret && !DEMO_EMAILS.has(email)) {
-    res.status(401).json({ error: "Login failed. Please contact support to resolve your account access.", totpBlocked: true });
+    const tempToken = signToken(user.id);
+    res.json({ totpRequired: true, tempToken, email: user.email });
     return;
   }
   const token = signToken(user.id);

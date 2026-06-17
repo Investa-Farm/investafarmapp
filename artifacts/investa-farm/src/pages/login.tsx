@@ -66,8 +66,9 @@ export default function Login() {
         setNeedsVerify(true);
         return;
       }
-      if (d.totpBlocked || d.totpRequired) {
-        setError(d.error ?? "Login failed. Please contact support to resolve your account access.");
+      if (d.totpRequired) {
+        setTempToken(d.tempToken ?? "");
+        setTotpStep(true);
         return;
       }
       if (!r.ok) {
