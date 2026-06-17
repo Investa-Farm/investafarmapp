@@ -1,0 +1,100 @@
+2026-06-17T08:02:10.714278745Z ==> Building frontend...
+2026-06-17T08:02:11.146902303Z
+2026-06-17T08:02:11.146936454Z > @workspace/investa-farm@0.0.0 build /opt/render/project/src/artifacts/investa-farm
+2026-06-17T08:02:11.146941054Z > vite build --config vite.config.ts
+2026-06-17T08:02:11.146943884Z
+2026-06-17T08:02:11.462639224Z vite v7.3.2 building client environment for production...
+2026-06-17T08:02:11.532317222Z transforming...
+2026-06-17T08:02:12.113962198Z src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+2026-06-17T08:02:18.08874729Z ✓ 2887 modules transformed.
+2026-06-17T08:02:18.948658467Z rendering chunks...
+2026-06-17T08:02:18.971437022Z computing gzip size...
+2026-06-17T08:02:19.019621932Z dist/public/index.html                                                                          2.00 kB │ gzip:   0.70 kB
+2026-06-17T08:02:19.019644363Z dist/public/assets/Investa_8_-removebg-preview_(1)_1778315943098-BmSq2aH2.png                  44.82 kB
+2026-06-17T08:02:19.019655283Z dist/public/assets/onboard-finance_1778315943102-cP0Jy9rb.png                                  85.38 kB
+2026-06-17T08:02:19.019704934Z dist/public/assets/pexels-mnannapaneni-6187904_1781331189493-Cmxvbdl-.jpg                     105.96 kB
+2026-06-17T08:02:19.019719434Z dist/public/assets/pexels-elizabeth-tamara-27565957-19239403_1781331189489-L555hkf5.jpg       119.31 kB
+2026-06-17T08:02:19.019812016Z dist/public/assets/pexels-aedrian-10653885_1778315943103-CTMDTJyZ.jpg                         127.55 kB
+2026-06-17T08:02:19.019817957Z dist/public/assets/pexels-nc-farm-bureau-mark-27083566_1778315943106-BWzNkBRI.jpg             133.56 kB
+2026-06-17T08:02:19.019828217Z dist/public/assets/IMG_8004_1781255323883-BbLp2iQe.jpeg                                       155.20 kB
+2026-06-17T08:02:19.019897678Z dist/public/assets/IMG_8005_1781255323884-wzNq0dUm.jpeg                                       171.37 kB
+2026-06-17T08:02:19.019938919Z dist/public/assets/IMG_8010_1781245320473-D6wcyKsD.jpeg                                       179.08 kB
+2026-06-17T08:02:19.020077973Z dist/public/assets/pexels-victor-chijioke-350220031-36846173_1778315943114-Bx2kQIdc.jpg       197.76 kB
+2026-06-17T08:02:19.020087333Z dist/public/assets/pexels-lisa-yakurim-40702902-13076945_1781331189490-CHjtZbZ-.jpg           208.93 kB
+2026-06-17T08:02:19.020119183Z dist/public/assets/pexels-gamerxtc-17064389_1781331189491-CWVf8dd8.jpg                        209.16 kB
+2026-06-17T08:02:19.020164384Z dist/public/assets/IMG_8011_1781250413855-scwthIpS.jpeg                                       214.57 kB
+2026-06-17T08:02:19.020176165Z dist/public/assets/IMG_8016_1781250402404-CE_ChS-u.jpeg                                       223.94 kB
+2026-06-17T08:02:19.020237816Z dist/public/assets/onboard-farmer_1778315943101-BaZRfohH.png                                  235.77 kB
+2026-06-17T08:02:19.020254346Z dist/public/assets/pexels-ana-vieira-1110685065-33068285_1781331189485-DLd6Mwhe.jpg           237.52 kB
+2026-06-17T08:02:19.020304778Z dist/public/assets/pexels-karola-g-4750271_1781331189487-DLUra0WB.jpg                         243.22 kB
+2026-06-17T08:02:19.020323848Z dist/public/assets/pexels-christian-hembert-1081250355-35553039_1778315943103-DouMvOTC.jpg    243.51 kB
+2026-06-17T08:02:19.020339368Z dist/public/assets/pexels-livier-garcia-645743-1459331_1778315943105-o7wLivs4.jpg             262.01 kB
+2026-06-17T08:02:19.020383869Z dist/public/assets/IMG_8017_1781250392113-kn8YJHQY.jpeg                                       263.87 kB
+2026-06-17T08:02:19.02040332Z dist/public/assets/pexels-carina-chowanek-297993717-13340333_1781331189492-DkOOeru0.jpg       267.66 kB
+2026-06-17T08:02:19.02041773Z dist/public/assets/pexels-quang-nguyen-vinh-222549-14776851_1781331189486-PIczZFTH.jpg        271.68 kB
+2026-06-17T08:02:19.020477791Z dist/public/assets/pexels-safari-consoler-3290243-10963690_1778315943106-DTwUzXv9.jpg         381.04 kB
+2026-06-17T08:02:19.020511062Z dist/public/assets/pexels-markus-winkler-1430818-2862150_1781331189488-jcZVlWG0.jpg           630.40 kB
+2026-06-17T08:02:19.020520602Z dist/public/assets/IMG_8007_1781255323886-kdcjzXEB.jpeg                                       695.58 kB
+2026-06-17T08:02:19.020580104Z dist/public/assets/index-Bdc8nUNv.css                                                         188.78 kB │ gzip:  31.49 kB
+2026-06-17T08:02:19.020584834Z dist/public/assets/index-By8xEGDw.js                                                        1,906.50 kB │ gzip: 497.62 kB
+2026-06-17T08:02:19.020657226Z
+2026-06-17T08:02:19.020662215Z (!) Some chunks are larger than 500 kB after minification. Consider:
+2026-06-17T08:02:19.020665606Z - Using dynamic import() to code-split the application
+2026-06-17T08:02:19.020668866Z - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+2026-06-17T08:02:19.020671406Z - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+2026-06-17T08:02:19.021109025Z ✓ built in 7.53s
+2026-06-17T08:02:19.127784234Z ==> Building API server...
+2026-06-17T08:02:19.56843665Z
+2026-06-17T08:02:19.568464041Z > @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+2026-06-17T08:02:19.568468731Z > node ./build.mjs
+2026-06-17T08:02:19.568472161Z
+2026-06-17T08:02:20.523773575Z
+2026-06-17T08:02:20.523803906Z   dist/index.mjs                       4.9mb ⚠️
+2026-06-17T08:02:20.523808826Z   dist/pino-worker.mjs               153.4kb
+2026-06-17T08:02:20.523812596Z   dist/pino-file.mjs                 142.1kb
+2026-06-17T08:02:20.523816167Z   dist/pino-pretty.mjs               114.6kb
+2026-06-17T08:02:20.523819717Z   dist/thread-stream-worker.mjs        7.3kb
+2026-06-17T08:02:20.523823567Z   dist/index.mjs.map                   8.5mb
+2026-06-17T08:02:20.523827127Z   dist/pino-worker.mjs.map           256.9kb
+2026-06-17T08:02:20.523830707Z   dist/pino-file.mjs.map             229.0kb
+2026-06-17T08:02:20.523864298Z   dist/pino-pretty.mjs.map           203.9kb
+2026-06-17T08:02:20.523868618Z   dist/thread-stream-worker.mjs.map   12.0kb
+2026-06-17T08:02:20.523872108Z
+2026-06-17T08:02:20.523876198Z ⚡ Done in 886ms
+2026-06-17T08:02:20.540722232Z ==> Build complete!
+2026-06-17T08:02:26.281546283Z ==> Uploading build...
+2026-06-17T08:02:40.681248333Z ==> Uploaded in 9.0s. Compression took 5.4s
+2026-06-17T08:02:40.749149351Z ==> Build successful 🎉
+2026-06-17T08:02:42.917515578Z ==> Deploying...
+2026-06-17T08:03:14.47835848Z ==> Running 'node --enable-source-maps artifacts/api-server/dist/index.mjs'
+2026-06-17T08:03:18.874243134Z {"level":30,"time":1781683398873,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-848fc85778-jfrjm","port":10000,"msg":"Server listening"}
+2026-06-17T08:03:18.875364385Z [web-push] VAPID keys generated (set these as env vars for persistence):
+2026-06-17T08:03:18.875835044Z   VAPID_PUBLIC_KEY=BL62414re0WUp8DqIcMr-8RXMcA_OStqSci1jCGWjGOGJ8TEMI2-xUj8rdSi1121pRs2EwMVzyrEXPyAAzDip_8
+2026-06-17T08:03:18.875843174Z   VAPID_PRIVATE_KEY=IRU67gFqALi4HraSxbwbl1q0pD47g99lO56L50vMhkc
+2026-06-17T08:03:18.972161018Z (node:71) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+2026-06-17T08:03:19.031228796Z In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-06-17T08:03:19.031237576Z
+2026-06-17T08:03:19.031240856Z To prepare for this change:
+2026-06-17T08:03:19.031243507Z - If you want the current behavior, explicitly use 'sslmode=verify-full'
+2026-06-17T08:03:19.031245537Z - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+2026-06-17T08:03:19.031247447Z
+2026-06-17T08:03:19.031250057Z See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+2026-06-17T08:03:19.031252107Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-06-17T08:03:19.471031474Z {"level":30,"time":1781683399393,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-848fc85778-jfrjm","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":200},"responseTime":14,"msg":"request completed"}
+2026-06-17T08:03:24.085143374Z [scheduler] Weekly digest: Mon 8am & Fri 6pm EAT
+2026-06-17T08:03:24.085171005Z [scheduler] Price simulation & alerts: every 5 minutes
+2026-06-17T08:03:24.085187266Z [scheduler] Watchlist price alerts: every 5 minutes
+2026-06-17T08:03:24.085193806Z [scheduler] Order matching engine: every 2 minutes
+2026-06-17T08:03:24.085199666Z [scheduler] Verification reminders: daily 10am EAT
+2026-06-17T08:03:24.085203836Z [scheduler] Dividend payouts: daily 2am EAT
+2026-06-17T08:03:24.085208746Z [scheduler] Rainfall alerts: daily 6am EAT
+2026-06-17T08:03:24.08542428Z [scheduler] ROI snapshots: daily 1:30am EAT
+2026-06-17T08:03:24.315445355Z {"level":30,"time":1781683404315,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-848fc85778-jfrjm","req":{"id":2,"method":"GET","url":"/"},"res":{"statusCode":200},"responseTime":4,"msg":"request completed"}
+2026-06-17T08:03:24.395157234Z ==> Your service is live 🎉
+2026-06-17T08:03:24.473617398Z ==>
+2026-06-17T08:03:24.476571986Z ==> ///////////////////////////////////////////////////////////
+2026-06-17T08:03:24.479549034Z ==>
+2026-06-17T08:03:24.482674196Z ==> Available at your primary URL https://app.investafarm.com + 1 more domain
+2026-06-17T08:03:24.486205557Z ==>
+2026-06-17T08:03:24.489058363Z ==> ///////////////////////////////////////////////////////////
+2026-06-17T08:03:41.254883158Z {"level":30,"time":1781683421254,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-848fc85778-jfrjm","req":{"id":3,"method":"GET","url":"/api/notifications"},"res":{"statusCode":304},"responseTime":487,"msg":"request completed"}

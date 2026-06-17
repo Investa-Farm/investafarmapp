@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation, Link, useSearch } from "wouter";
 import { setToken, storeUser } from "@/lib/auth";
-import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck, Smartphone, ArrowLeft, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Login() {
@@ -17,6 +17,20 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [needsVerify, setNeedsVerify] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState("");
+
+  // TOTP 2FA state
+  const [totpStep, setTotpStep] = useState(false);
+  const [totpCode, setTotpCode] = useState(["", "", "", "", "", ""]);
+  const [tempToken, setTempToken] = useState("");
+  const totpInputs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const navigateByRole = (role: string) => {
+    if (role === "farmer") setLocation("/farmer");
+    else if (role === "cooperative") setLocation("/cooperative/dashboard");
+    else if (role === "agribusiness") setLocation("/agribusiness");
+    else if (role === "admin") setLocation("/admin");
+    else setLocation("/market");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,19 +50,65 @@ export default function Login() {
         setNeedsVerify(true);
         return;
       }
+      if (d.totpRequired) {
+        setTempToken(d.tempToken);
+        setTotpStep(true);
+        return;
+      }
       if (!r.ok) {
         setError(d.error ?? "Invalid email or password.");
         return;
       }
       setToken(d.token);
       storeUser(d.user);
-      const role = d.user?.role;
-      if (role === "farmer") setLocation("/farmer");
-      else if (role === "cooperative") setLocation("/cooperative/dashboard");
-      else if (role === "agribusiness") setLocation("/agribusiness");
-      else setLocation("/market");
+      navigateByRole(d.user?.role);
     } catch {
       setError("Connection error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTotpChange = (i: number, v: string) => {
+    const digit = v.replace(/\D/g, "").slice(-1);
+    const next = [...totpCode];
+    next[i] = digit;
+    setTotpCode(next);
+    if (digit && i < 5) totpInputs.current[i + 1]?.focus();
+  };
+
+  const handleTotpKeyDown = (i: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !totpCode[i] && i > 0) {
+      totpInputs.current[i - 1]?.focus();
+    }
+  };
+
+  const handleTotpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const next = [...totpCode];
+    text.split("").forEach((d, i) => { next[i] = d; });
+    setTotpCode(next);
+    totpInputs.current[Math.min(text.length, 5)]?.focus();
+  };
+
+  const handleTotpSubmit = async () => {
+    const code = totpCode.join("");
+    if (code.length !== 6) { setError("Enter the 6-digit code from your authenticator app"); return; }
+    setLoading(true); setError("");
+    try {
+      const r = await fetch("/api/auth/totp/verify-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, tempToken }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Invalid code");
+      setToken(d.token);
+      storeUser(d.user);
+      navigateByRole(d.user?.role);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -83,9 +143,69 @@ export default function Login() {
     );
   }
 
+  if (totpStep) {
+    return (
+      <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-background flex flex-col items-center justify-center px-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full space-y-6">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
+              <Smartphone size={30} className="text-primary" />
+            </div>
+            <h2 className="text-foreground font-bold text-2xl">Two-Factor Auth</h2>
+            <p className="text-muted-foreground text-sm mt-1">Enter the 6-digit code from your authenticator app</p>
+          </div>
+
+          <div className="bg-card rounded-3xl border border-border p-6 space-y-5 shadow-sm">
+            {error && (
+              <div className="bg-destructive/8 border border-destructive/20 rounded-xl px-4 py-3 text-sm text-destructive text-center">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-center">
+              {totpCode.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={el => { totpInputs.current[i] = el; }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={e => handleTotpChange(i, e.target.value)}
+                  onKeyDown={e => handleTotpKeyDown(i, e)}
+                  onPaste={handleTotpPaste}
+                  className="w-11 h-14 text-center text-foreground font-bold text-xl bg-muted border border-border rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={handleTotpSubmit}
+              disabled={loading || totpCode.join("").length !== 6}
+              className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+              {loading ? "Verifying…" : "Verify & Sign In"}
+            </button>
+          </div>
+
+          <button
+            onClick={() => { setTotpStep(false); setTotpCode(["", "", "", "", "", ""]); setError(""); }}
+            className="w-full text-muted-foreground text-sm flex items-center justify-center gap-1.5 hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={14} /> Back to sign in
+          </button>
+
+          <p className="text-center text-muted-foreground/60 text-xs">
+            Open your authenticator app (Google Authenticator, Authy, etc.) to find the code for Investa Farm.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-white flex flex-col" data-testid="login-page">
-      {/* Green top accent bar */}
       <div className="h-1.5 bg-gradient-to-r from-primary to-green-400 w-full" />
 
       <div className="pt-14 pb-8 px-8 text-center space-y-4">

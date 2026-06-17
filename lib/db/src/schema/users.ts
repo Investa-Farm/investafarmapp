@@ -12,6 +12,8 @@ export const usersTable = pgTable("users", {
   role: userRoleEnum("role").notNull(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   accountNumber: text("account_number").unique(),
+  totpSecret: text("totp_secret"),
+  totpEnabled: boolean("totp_enabled").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

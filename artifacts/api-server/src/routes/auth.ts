@@ -31,7 +31,7 @@ const DEMO_EMAILS = new Set([
 
 const TOKEN_SECRET = process.env.SESSION_SECRET ?? "dev-secret-change-in-production";
 
-function signToken(userId: number): string {
+export function signToken(userId: number): string {
   const payload = Buffer.from(JSON.stringify({ userId, iat: Date.now() })).toString("base64url");
   const sig = createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
   return `${payload}.${sig}`;
@@ -219,6 +219,12 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       });
       return;
     }
+  }
+  // TOTP 2FA: if user has TOTP enabled, require authenticator code before issuing full token
+  if (user.totpEnabled && user.totpSecret) {
+    const tempToken = signToken(user.id);
+    res.json({ totpRequired: true, tempToken });
+    return;
   }
   const token = signToken(user.id);
   res.json({

@@ -195,66 +195,64 @@ export default function SecondaryMarket() {
 
   return (
     <div className="app-shell pb-20 page-enter" data-testid="secondary-market">
-      {/* Neon dark header */}
-      <div className="relative overflow-hidden pt-10 pb-4 px-4" style={{ background: "linear-gradient(135deg, #020a14 0%, #06131f 60%, #0a1f12 100%)" }}>
-        {/* Neon glow blobs */}
-        <div className="absolute top-4 right-8 w-24 h-24 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: "radial-gradient(circle, #22d3ee, transparent)" }} />
-        <div className="absolute bottom-0 left-12 w-20 h-16 rounded-full opacity-15 blur-2xl pointer-events-none" style={{ background: "radial-gradient(circle, #a855f7, transparent)" }} />
+      {/* Grass-green header */}
+      <div className="relative overflow-hidden pt-10 pb-4 px-4"
+        style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
+        <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-15 blur-3xl pointer-events-none"
+          style={{ background: "radial-gradient(circle, #22c55e, transparent)" }} />
+        <div className="absolute bottom-0 left-0 w-24 h-20 rounded-full opacity-10 blur-2xl pointer-events-none"
+          style={{ background: "radial-gradient(circle, #bbf7d0, transparent)" }} />
 
         <div className="flex items-center gap-2.5">
           <button data-testid="button-back" onClick={() => setLocation("/market")}
-            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.25)" }}>
-            <ArrowLeft size={14} className="text-cyan-300" />
+            className="w-8 h-8 rounded-full bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform">
+            <ArrowLeft size={14} className="text-white" />
           </button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-cyan-400/70 text-[9px] font-bold uppercase tracking-widest">P2P · Investor to Investor</span>
-              <span className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5" style={{ background: "rgba(34,211,238,0.15)", border: "1px solid rgba(34,211,238,0.3)" }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                <span className="text-cyan-300 text-[8px] font-bold tracking-wider">LIVE</span>
+              <span className="text-green-300/80 text-[9px] font-bold uppercase tracking-widest">P2P · Investor to Investor</span>
+              <span className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 bg-green-500/20 border border-green-400/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-green-300 text-[8px] font-bold tracking-wider">LIVE</span>
               </span>
             </div>
             <h1 className="text-white text-base font-extrabold leading-tight tracking-tight">Secondary Market</h1>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="rounded-xl px-2.5 py-1.5 text-right" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}>
+            <div className="rounded-xl px-2.5 py-1.5 text-right bg-white/10 border border-white/15">
               <p className="text-white font-bold text-sm leading-none">{listings?.length ?? "—"}</p>
-              <p className="text-white/40 text-[8px]">listings</p>
+              <p className="text-white/50 text-[8px]">listings</p>
             </div>
             {totalVolume > 0 && (
-              <div className="rounded-xl px-2.5 py-1.5 text-right" style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.3)" }}>
-                <p className="text-purple-300 text-[9px] font-bold leading-none">{formatKES(totalVolume)}</p>
-                <p className="text-white/30 text-[8px]">volume</p>
+              <div className="rounded-xl px-2.5 py-1.5 text-right bg-green-500/20 border border-green-400/30">
+                <p className="text-green-200 text-[9px] font-bold leading-none">{formatKES(totalVolume)}</p>
+                <p className="text-white/40 text-[8px]">volume</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Neon bottom edge */}
-        <div className="absolute bottom-0 inset-x-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(34,211,238,0.4), rgba(168,85,247,0.4), transparent)" }} />
+        <div className="absolute bottom-0 inset-x-0 h-px"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(134,239,172,0.5), transparent)" }} />
       </div>
 
       {/* Tabs */}
       <div className="px-4 pt-3 pb-0">
-        <div className="flex rounded-2xl p-1 gap-0.5" style={{ background: "#0d1117", border: "1px solid rgba(34,211,238,0.15)" }}>
+        <div className="flex rounded-2xl p-1 gap-0.5 bg-muted border border-border">
           <button onClick={() => setTab("market")}
-            className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
-            style={tab === "market" ? { background: "rgba(34,211,238,0.15)", color: "#67e8f9", boxShadow: "0 0 12px rgba(34,211,238,0.15)" } : { color: "rgba(255,255,255,0.4)" }}>
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === "market" ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
             All Listings
           </button>
           <button onClick={() => setTab("orders")}
-            className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1"
-            style={tab === "orders" ? { background: "rgba(168,85,247,0.15)", color: "#c4b5fd", boxShadow: "0 0 12px rgba(168,85,247,0.15)" } : { color: "rgba(255,255,255,0.4)" }}>
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${tab === "orders" ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
             <BookOpen size={11} /> Order Book
           </button>
           <button onClick={() => setTab("mine")}
-            className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1"
-            style={tab === "mine" ? { background: "rgba(34,197,94,0.15)", color: "#86efac", boxShadow: "0 0 12px rgba(34,197,94,0.15)" } : { color: "rgba(255,255,255,0.4)" }}>
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${tab === "mine" ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
             <Tag size={11} />
             Mine
             {activeMyListings.length > 0 && (
-              <span className="text-[9px] font-bold px-1 py-0.5 rounded-full ml-0.5" style={{ background: "rgba(34,197,94,0.3)", color: "#86efac" }}>
+              <span className={`text-[9px] font-bold px-1 py-0.5 rounded-full ml-0.5 ${tab === "mine" ? "bg-white/20 text-white" : "bg-primary/15 text-primary"}`}>
                 {activeMyListings.length}
               </span>
             )}

@@ -57,8 +57,9 @@ function extractAllXmlTags(xml: string, tag: string): string[] {
 }
 
 function stripHtml(html: string): string {
-  // First pass: strip actual HTML tags
-  let s = html.replace(/<[^>]+>/g, "");
+  if (!html) return "";
+  // First pass: strip HTML tags (including multiline/dotall with [\s\S])
+  let s = html.replace(/<[\s\S]*?>/g, "");
   // Decode HTML entities (Google News RSS encodes HTML inside description)
   s = s
     .replace(/&amp;/g, "&")
@@ -68,9 +69,14 @@ function stripHtml(html: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, " ")
-    .replace(/&#\d+;/g, "");
-  // Second pass: strip any tags exposed after entity decoding
-  s = s.replace(/<[^>]+>/g, "");
+    .replace(/&#\d+;/g, "")
+    .replace(/&#x[0-9a-fA-F]+;/g, "");
+  // Second pass: strip any tags revealed after entity decoding
+  s = s.replace(/<[\s\S]*?>/g, "");
+  // Remove any partial/unclosed tag at end of string (e.g., truncated <a href=...)
+  s = s.replace(/<[^>]*$/, "");
+  // Strip CDATA markers if any leaked through
+  s = s.replace(/<!\[CDATA\[|\]\]>/g, "");
   return s.replace(/\s+/g, " ").trim();
 }
 
@@ -391,12 +397,14 @@ function buildFallbackSentiment(articles: NewsItem[]): SentimentResult[] {
 }
 
 const STATIC_NEWS: NewsItem[] = [
-  { id: 1, title: "Kenya Avocado Exports Hit Record High in Q2 2026", source: "Business Daily Africa", summary: "Kenya's avocado exports reached 150,000 metric tonnes in Q2 2026, driven by surging demand from European and Asian markets. Prices rose 12% year-on-year.", tag: "Exports", tagColor: "bg-green-100 text-green-700", time: "2h ago", imageKey: "avocado", url: "https://businessdailyafrica.com" },
-  { id: 2, title: "Maize Prices Rise 8% Across East Africa as Rains Delay", source: "The Standard", summary: "Erratic long rains in the Rift Valley have pushed maize prices up 8% this week. Analysts expect further gains before the July harvest.", tag: "Market", tagColor: "bg-orange-100 text-orange-700", time: "5h ago", imageKey: "maize", url: "https://standardmedia.co.ke" },
-  { id: 3, title: "Smallholder Farmers Access New Low-Interest Financing", source: "Daily Nation", summary: "A new financing initiative is providing KSh 500M in low-interest loans to smallholder farmers across 10 counties.", tag: "Finance", tagColor: "bg-blue-100 text-blue-700", time: "1d ago", imageKey: "wheat", url: "https://nation.africa" },
-  { id: 4, title: "Coffee Farmers in Mt. Kenya See 22% Revenue Boost", source: "Reuters Africa", summary: "Improved processing practices and fair-trade premiums have lifted coffee farmer incomes by an average of 22% in Kirinyaga and Murang'a counties.", tag: "Returns", tagColor: "bg-purple-100 text-purple-700", time: "1d ago", imageKey: "coffee", url: "https://reuters.com" },
-  { id: 5, title: "Government Waives Import Duty on Fertilizers for 2026/27 Season", source: "KBC", summary: "The Cabinet Secretary for Agriculture announced a full waiver on fertilizer import duty, expected to reduce input costs for farmers by up to 30%.", tag: "Policy", tagColor: "bg-red-100 text-red-700", time: "2d ago", imageKey: "sunflower", url: "https://kbc.co.ke" },
-  { id: 6, title: "Tea Auction Prices at Mombasa Hit 5-Year High", source: "Bloomberg Africa", summary: "Average tea prices at the Mombasa Tea Auction climbed to $2.89/kg this week — the highest in five years — as global supply tightens.", tag: "Market", tagColor: "bg-orange-100 text-orange-700", time: "3d ago", imageKey: "tea", url: "https://bloomberg.com" },
+  { id: 1, title: "Kenya Avocado Exports Surpass 160,000 MT in June 2026", source: "Business Daily Africa", summary: "Kenya's avocado exports surpassed 160,000 metric tonnes in June 2026, the highest monthly total on record. Hass variety commands KES 280/kg at Nairobi packing houses as EU and Gulf demand accelerates.", tag: "Exports", tagColor: "bg-green-100 text-green-700", time: "1h ago", imageKey: "avocado", url: "https://businessdailyafrica.com" },
+  { id: 2, title: "Maize Prices Surge 11% Ahead of July Harvest Window", source: "The Standard", summary: "Spot maize prices at the Eldoret grain market hit KES 5,200 per 90kg bag this week — up 11% from May — as erratic long rains delay Rift Valley harvests by three to four weeks.", tag: "Market", tagColor: "bg-orange-100 text-orange-700", time: "3h ago", imageKey: "maize", url: "https://standardmedia.co.ke" },
+  { id: 3, title: "AFA Unlocks KSh 2B Subsidised Fertiliser for June-July Season", source: "Daily Nation", summary: "The Agriculture and Food Authority has released 2 billion shillings in subsidised DAP and CAN fertiliser for the current planting season, targeting 1.2 million smallholder farmers in 22 counties.", tag: "Policy", tagColor: "bg-red-100 text-red-700", time: "6h ago", imageKey: "wheat", url: "https://nation.africa" },
+  { id: 4, title: "Coffee Co-ops in Kirinyaga Post 26% Higher Payout for 2025/26 Crop", source: "Reuters Africa", summary: "Kirinyaga and Murang'a coffee cooperatives have declared a 26% higher cherry payout for the 2025/26 season, reflecting strong New York C contract prices above $2.40/lb and improved dry-mill efficiency.", tag: "Returns", tagColor: "bg-purple-100 text-purple-700", time: "8h ago", imageKey: "coffee", url: "https://reuters.com" },
+  { id: 5, title: "Mombasa Tea Auction Hits KES 310/kg — Highest Since 2019", source: "Bloomberg Africa", summary: "The weekly Mombasa Tea Auction average climbed to KES 310 per kilo this week, the strongest price since Q3 2019. Buyers from Pakistan and Russia drove competitive bidding across all quality grades.", tag: "Market", tagColor: "bg-orange-100 text-orange-700", time: "10h ago", imageKey: "tea", url: "https://bloomberg.com" },
+  { id: 6, title: "Rift Valley Tomato Glut Drives 30% Price Drop at Wholesale", source: "KBC", summary: "Bumper tomato harvest from Nakuru and Naivasha has pushed wholesale prices down 30% to KES 1,800 per 18kg crate. NCPB advises farmers to explore value-addition through paste and canning to protect incomes.", tag: "Market", tagColor: "bg-orange-100 text-orange-700", time: "12h ago", imageKey: "tomatoes", url: "https://kbc.co.ke" },
+  { id: 7, title: "Investa Farm Investors Earn Average 18.4% Return in H1 2026", source: "Investa Farm Report", summary: "Investa Farm portfolio data for H1 2026 shows investors earned an average annualised return of 18.4%, led by avocado (24%), coffee (21%), and dairy (19%) holdings. Secondary market trading volumes doubled.", tag: "Returns", tagColor: "bg-purple-100 text-purple-700", time: "1d ago", imageKey: "dairy", url: "#" },
+  { id: 8, title: "Kenya Receives La Niña Advisory — Above-Normal Rains Expected in Highlands", source: "KMD Weather", summary: "The Kenya Meteorological Department has issued an advisory predicting above-normal rainfall in the central and western highlands through August 2026, benefiting tea, pyrethrum, and potato farmers.", tag: "Weather", tagColor: "bg-sky-100 text-sky-700", time: "1d ago", imageKey: "kale", url: "https://meteo.go.ke" },
 ];
 
 // ─── Persist sentiment scores ─────────────────────────────────────────────────

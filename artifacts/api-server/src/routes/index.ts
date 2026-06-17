@@ -27,6 +27,7 @@ import uploadRouter from "./upload";
 import agribusinessRouter from "./agribusiness";
 import rainfallRouter from "./rainfall";
 import portfolioRoiRouter from "./portfolio-roi";
+import totpRouter from "./totp";
 
 const router: IRouter = Router();
 
@@ -58,5 +59,6 @@ router.use(uploadRouter);
 router.use(agribusinessRouter);
 router.use(rainfallRouter);
 router.use(portfolioRoiRouter);
+router.use(totpRouter);
 
 export default router;

@@ -3,7 +3,7 @@ import { useGetMe, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, formatKES, getToken, storeUser, getStoredUser } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, RefreshCw, ArrowUpRight } from "lucide-react";
+import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, RefreshCw, ArrowUpRight, Smartphone, KeyRound, Lock } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { InvestorKycModal } from "@/components/investor-kyc-modal";
@@ -39,6 +39,16 @@ export default function Profile() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
 
+  // MFA / TOTP state
+  const [mfaOpen, setMfaOpen] = useState(false);
+  const [mfaPhase, setMfaPhase] = useState<"status" | "setup" | "disable">("status");
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaQr, setMfaQr] = useState("");
+  const [mfaSecret, setMfaSecret] = useState("");
+  const [mfaError, setMfaError] = useState("");
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaSuccess, setMfaSuccess] = useState("");
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -57,6 +67,17 @@ export default function Profile() {
       const r = await fetch("/api/kyc/status", { headers: { Authorization: `Bearer ${token}` } });
       return r.json();
     },
+  });
+
+  const { data: totpStatus, refetch: refetchTotpStatus } = useQuery<{ totpEnabled: boolean }>({
+    queryKey: ["totp-status"],
+    queryFn: async () => {
+      const r = await fetch("/api/auth/totp/status", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { totpEnabled: false };
+      return r.json();
+    },
+    enabled: !!token,
+    staleTime: 30_000,
   });
 
   const investorType = localStorage.getItem("investa_investor_type") ?? "individual";
@@ -122,6 +143,73 @@ export default function Profile() {
     setSettingsSaving(false);
   };
 
+  const handleMfaSetup = async () => {
+    setMfaError(""); setMfaLoading(true);
+    try {
+      const r = await fetch("/api/auth/totp/setup", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Setup failed");
+      setMfaQr(d.qrCode);
+      setMfaSecret(d.secret);
+      setMfaPhase("setup");
+    } catch (err) {
+      setMfaError((err as Error).message);
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleMfaEnable = async () => {
+    if (mfaCode.replace(/\s/g, "").length !== 6) { setMfaError("Enter the 6-digit code from your app"); return; }
+    setMfaError(""); setMfaLoading(true);
+    try {
+      const r = await fetch("/api/auth/totp/enable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: mfaCode.replace(/\s/g, "") }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Verification failed");
+      setMfaSuccess("Two-factor authentication enabled!");
+      setMfaPhase("status");
+      setMfaCode("");
+      setMfaQr("");
+      setMfaSecret("");
+      refetchTotpStatus();
+      setTimeout(() => setMfaSuccess(""), 3000);
+    } catch (err) {
+      setMfaError((err as Error).message);
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleMfaDisable = async () => {
+    if (mfaCode.replace(/\s/g, "").length !== 6) { setMfaError("Enter your current authenticator code"); return; }
+    setMfaError(""); setMfaLoading(true);
+    try {
+      const r = await fetch("/api/auth/totp/disable", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: mfaCode.replace(/\s/g, "") }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Disable failed");
+      setMfaSuccess("Two-factor authentication disabled.");
+      setMfaPhase("status");
+      setMfaCode("");
+      refetchTotpStatus();
+      setTimeout(() => setMfaSuccess(""), 3000);
+    } catch (err) {
+      setMfaError((err as Error).message);
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
   const menuItems = [
     {
       icon: Shield, label: "KYC Verification",
@@ -131,6 +219,13 @@ export default function Profile() {
       badgeLabel: kycStatus?.isVerified ? "Verified" : "Pending",
     },
     { icon: Settings, label: "Account Settings", sublabel: "Name, password", action: () => { setSettingsName(user?.name ?? stored?.name ?? ""); setSettingsOpen(true); }, badge: null, badgeLabel: null },
+    {
+      icon: Smartphone, label: "Two-Factor Auth",
+      sublabel: totpStatus?.totpEnabled ? "Authenticator app active" : "Add extra login security",
+      action: () => { setMfaPhase("status"); setMfaError(""); setMfaCode(""); setMfaOpen(true); },
+      badge: totpStatus?.totpEnabled ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground",
+      badgeLabel: totpStatus?.totpEnabled ? "ON" : "OFF",
+    },
     { icon: HelpCircle, label: "Help & FAQs", sublabel: "Answers & support", action: () => setLocation("/faq"), badge: null, badgeLabel: null },
   ];
 
@@ -489,6 +584,176 @@ export default function Profile() {
       </AnimatePresence>
 
       <AiMatchmaker open={matcherOpen} onClose={() => setMatcherOpen(false)} />
+
+      {/* ── MFA / TOTP Bottom Sheet ── */}
+      <AnimatePresence>
+        {mfaOpen && (
+          <motion.div className="fixed inset-0 z-[60] flex items-end justify-center"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMfaOpen(false)} />
+            <motion.div className="relative w-full max-w-[430px] bg-background rounded-t-3xl pb-10 shadow-2xl overflow-hidden"
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}>
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Smartphone size={15} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">Two-Factor Authentication</p>
+                    <p className="text-muted-foreground text-[10px]">Authenticator app (TOTP)</p>
+                  </div>
+                </div>
+                <button onClick={() => setMfaOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <X size={15} className="text-muted-foreground" />
+                </button>
+              </div>
+
+              <div className="px-5 py-4 space-y-4 max-h-[75vh] overflow-y-auto">
+                {mfaSuccess && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-2 text-green-700 text-sm font-medium">
+                    <CheckCircle2 size={16} /> {mfaSuccess}
+                  </div>
+                )}
+                {mfaError && (
+                  <div className="bg-destructive/8 border border-destructive/20 rounded-xl px-4 py-3 text-sm text-destructive">
+                    {mfaError}
+                  </div>
+                )}
+
+                {/* Phase: status */}
+                {mfaPhase === "status" && (
+                  <div className="space-y-4">
+                    <div className={`rounded-2xl border p-4 flex items-center gap-3 ${totpStatus?.totpEnabled ? "bg-green-50 border-green-200" : "bg-muted border-border"}`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${totpStatus?.totpEnabled ? "bg-green-100" : "bg-background border border-border"}`}>
+                        {totpStatus?.totpEnabled ? <Lock size={18} className="text-green-600" /> : <KeyRound size={18} className="text-muted-foreground" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-bold text-sm ${totpStatus?.totpEnabled ? "text-green-700" : "text-foreground"}`}>
+                          {totpStatus?.totpEnabled ? "2FA is Enabled" : "2FA is Disabled"}
+                        </p>
+                        <p className={`text-xs mt-0.5 ${totpStatus?.totpEnabled ? "text-green-600/80" : "text-muted-foreground"}`}>
+                          {totpStatus?.totpEnabled ? "Your account is protected with an authenticator app." : "Add an extra layer of security to your account."}
+                        </p>
+                      </div>
+                    </div>
+
+                    {!totpStatus?.totpEnabled ? (
+                      <>
+                        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3.5 space-y-1.5">
+                          <p className="text-xs font-semibold text-foreground">How it works</p>
+                          <ul className="space-y-1 text-xs text-muted-foreground">
+                            <li>• Install Google Authenticator, Authy, or similar</li>
+                            <li>• Scan the QR code we provide</li>
+                            <li>• Enter the 6-digit code at each sign-in</li>
+                          </ul>
+                        </div>
+                        <button onClick={handleMfaSetup} disabled={mfaLoading}
+                          className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-60">
+                          {mfaLoading ? <RefreshCw size={15} className="animate-spin" /> : <Smartphone size={15} />}
+                          {mfaLoading ? "Generating…" : "Set Up Authenticator"}
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => { setMfaPhase("disable"); setMfaCode(""); setMfaError(""); }}
+                        className="w-full border border-destructive/40 text-destructive font-semibold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all text-sm hover:bg-destructive/5">
+                        <Lock size={14} /> Disable Two-Factor Auth
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Phase: setup — show QR code + verify */}
+                {mfaPhase === "setup" && (
+                  <div className="space-y-4">
+                    <div className="text-center space-y-1">
+                      <p className="font-bold text-sm">Scan with your authenticator app</p>
+                      <p className="text-muted-foreground text-xs">Open Google Authenticator, Authy, or similar and scan the QR code below.</p>
+                    </div>
+
+                    {mfaQr && (
+                      <div className="flex justify-center">
+                        <div className="bg-white p-3 rounded-2xl border border-border shadow-sm inline-block">
+                          <img src={mfaQr} alt="TOTP QR Code" className="w-44 h-44" />
+                        </div>
+                      </div>
+                    )}
+
+                    {mfaSecret && (
+                      <div className="bg-muted rounded-xl px-4 py-3">
+                        <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wide mb-1">Can't scan? Enter manually:</p>
+                        <p className="text-foreground font-mono text-sm tracking-widest break-all select-all">{mfaSecret}</p>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Enter 6-digit code to confirm</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={7}
+                        placeholder="000 000"
+                        value={mfaCode}
+                        onChange={e => setMfaCode(e.target.value.replace(/[^\d]/g, "").slice(0, 6))}
+                        className="w-full text-center text-foreground font-bold text-xl tracking-[0.5em] border border-border rounded-xl py-3 bg-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button onClick={() => { setMfaPhase("status"); setMfaQr(""); setMfaSecret(""); setMfaCode(""); setMfaError(""); }}
+                        className="flex-1 border border-border rounded-2xl py-3 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                        Cancel
+                      </button>
+                      <button onClick={handleMfaEnable} disabled={mfaLoading || mfaCode.length !== 6}
+                        className="flex-1 bg-primary text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50">
+                        {mfaLoading ? <RefreshCw size={14} className="animate-spin" /> : null}
+                        {mfaLoading ? "Verifying…" : "Activate 2FA"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Phase: disable */}
+                {mfaPhase === "disable" && (
+                  <div className="space-y-4">
+                    <div className="bg-destructive/8 border border-destructive/20 rounded-xl p-3.5">
+                      <p className="text-destructive text-sm font-semibold mb-1">Disable Two-Factor Auth?</p>
+                      <p className="text-destructive/80 text-xs">This will remove the extra layer of protection from your account. Enter your current authenticator code to confirm.</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Authenticator code</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="000000"
+                        value={mfaCode}
+                        onChange={e => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        className="w-full text-center text-foreground font-bold text-xl tracking-[0.5em] border border-border rounded-xl py-3 bg-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button onClick={() => { setMfaPhase("status"); setMfaCode(""); setMfaError(""); }}
+                        className="flex-1 border border-border rounded-2xl py-3 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                        Cancel
+                      </button>
+                      <button onClick={handleMfaDisable} disabled={mfaLoading || mfaCode.length !== 6}
+                        className="flex-1 bg-destructive text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50">
+                        {mfaLoading ? <RefreshCw size={14} className="animate-spin" /> : null}
+                        {mfaLoading ? "Disabling…" : "Disable 2FA"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
