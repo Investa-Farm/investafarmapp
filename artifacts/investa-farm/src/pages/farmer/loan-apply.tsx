@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, DollarSign, CheckCircle2, Loader2, Clock, FileText, ChevronRight, ScrollText, Shield, BarChart3, Users, AlertCircle } from "lucide-react";
+import { ArrowLeft, DollarSign, CheckCircle2, Loader2, Clock, FileText, ChevronRight, ScrollText, Shield, BarChart3, Users, AlertCircle, Sprout, MapPin, CalendarDays } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { getToken, formatKES } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -128,6 +128,34 @@ export default function LoanApply() {
 
   const contractRef = useRef<HTMLDivElement>(null);
 
+  // Crop proposal tab state
+  const [pageTab, setPageTab] = useState<"funding" | "proposal">("funding");
+  const [propCropType, setPropCropType] = useState("");
+  const [propAcreage, setPropAcreage] = useState("");
+  const [propLocation, setPropLocation] = useState("");
+  const [propHarvest, setPropHarvest] = useState("");
+  const [propDesc, setPropDesc] = useState("");
+  const [propSuccess, setPropSuccess] = useState(false);
+
+  const CROP_OPTIONS = ["Maize", "Beans", "Coffee", "Tea", "Avocado", "Tomatoes", "Kale", "Dairy", "Poultry", "Rice", "Wheat", "Sunflower", "Cabbage", "Greenhouse Vegetables", "Other"];
+
+  const propMutation = useMutation({
+    mutationFn: async (body: object) => {
+      const r = await fetch("/api/farmer/market/crop-proposal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error ?? "Submission failed"); }
+      return r.json();
+    },
+    onSuccess: () => {
+      setPropSuccess(true);
+      setPropCropType(""); setPropAcreage(""); setPropLocation(""); setPropHarvest(""); setPropDesc("");
+      setTimeout(() => setPropSuccess(false), 5000);
+    },
+  });
+
   const { data: apps = [], isLoading } = useQuery<LoanApp[]>({
     queryKey: ["loan-apps"],
     queryFn: async () => {
@@ -211,11 +239,140 @@ export default function LoanApply() {
           </button>
           <div>
             <p className="text-white/70 text-xs">Farm Financing</p>
-            <h1 className="text-white text-lg font-bold">Apply for Funding</h1>
+            <h1 className="text-white text-lg font-bold">{pageTab === "funding" ? "Apply for Funding" : "Propose a Crop"}</h1>
           </div>
+        </div>
+        {/* Tab switcher */}
+        <div className="flex gap-2 mt-4 bg-white/10 rounded-xl p-1">
+          <button
+            onClick={() => setPageTab("funding")}
+            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${pageTab === "funding" ? "bg-white text-primary" : "text-white/70"}`}
+          >
+            <DollarSign size={12} /> Apply for Funding
+          </button>
+          <button
+            onClick={() => setPageTab("proposal")}
+            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${pageTab === "proposal" ? "bg-white text-primary" : "text-white/70"}`}
+          >
+            <Sprout size={12} /> Propose a Crop
+          </button>
         </div>
       </div>
 
+      {/* ── CROP PROPOSAL TAB ── */}
+      {pageTab === "proposal" && (
+        <div className="px-4 pt-4 space-y-4">
+          {propSuccess && (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
+              <CheckCircle2 size={20} className="text-green-600" />
+              <p className="text-green-700 text-sm font-medium">Proposal submitted! Admin will review and activate your farm listing.</p>
+            </div>
+          )}
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Sprout size={16} className="text-primary" />
+              </div>
+              <div>
+                <p className="text-foreground font-bold text-sm">New Crop Proposal</p>
+                <p className="text-muted-foreground text-[11px]">Tell us about what you want to grow — we'll create a farm listing for you</p>
+              </div>
+            </div>
+            <div className="space-y-3.5">
+              <div>
+                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Crop Type *</label>
+                <select
+                  value={propCropType}
+                  onChange={e => setPropCropType(e.target.value)}
+                  className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground bg-white focus:outline-none focus:border-primary"
+                >
+                  <option value="">Select a crop…</option>
+                  {CROP_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                    <MapPin size={10} className="inline mr-0.5" /> Acreage
+                  </label>
+                  <input
+                    type="number"
+                    value={propAcreage}
+                    onChange={e => setPropAcreage(e.target.value)}
+                    placeholder="e.g. 5"
+                    min={0.1}
+                    step={0.1}
+                    className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground bg-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                    <CalendarDays size={10} className="inline mr-0.5" /> Expected Harvest
+                  </label>
+                  <input
+                    type="month"
+                    value={propHarvest}
+                    onChange={e => setPropHarvest(e.target.value)}
+                    className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground bg-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                  <MapPin size={10} className="inline mr-0.5" /> Farm Location *
+                </label>
+                <input
+                  type="text"
+                  value={propLocation}
+                  onChange={e => setPropLocation(e.target.value)}
+                  placeholder="e.g. Nakuru County, Kenya"
+                  className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground bg-white focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Farm Description *</label>
+                <textarea
+                  value={propDesc}
+                  onChange={e => setPropDesc(e.target.value)}
+                  placeholder="Describe your farm, soil conditions, irrigation setup, experience, and why investors should back you…"
+                  rows={4}
+                  className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground bg-white focus:outline-none focus:border-primary resize-none"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  if (!propCropType || !propLocation || !propDesc) return;
+                  propMutation.mutate({ cropType: propCropType, acreage: parseFloat(propAcreage) || 1, location: propLocation, expectedHarvestDate: propHarvest, description: propDesc });
+                }}
+                disabled={propMutation.isPending || !propCropType || !propLocation || !propDesc}
+                className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-60"
+              >
+                {propMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Sprout size={16} />}
+                {propMutation.isPending ? "Submitting…" : "Submit Crop Proposal"}
+              </button>
+              {propMutation.isError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                  <AlertCircle size={14} className="text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-700 text-xs font-medium">{(propMutation.error as Error)?.message}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Info card */}
+          <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
+            <p className="text-primary font-semibold text-xs mb-2">ℹ️ What happens after you submit?</p>
+            <ul className="space-y-1.5 text-xs text-muted-foreground">
+              <li className="flex items-start gap-2"><CheckCircle2 size={12} className="text-primary mt-0.5 flex-shrink-0" />Admin reviews your proposal within 1 business day</li>
+              <li className="flex items-start gap-2"><CheckCircle2 size={12} className="text-primary mt-0.5 flex-shrink-0" />If approved, a farm listing is created and opened for investor funding</li>
+              <li className="flex items-start gap-2"><CheckCircle2 size={12} className="text-primary mt-0.5 flex-shrink-0" />You'll get a notification and can post field updates once live</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* ── FUNDING TAB ── */}
+      {pageTab === "funding" && (
       <div className="px-4 pt-4 space-y-4">
         {success && (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
@@ -433,6 +590,7 @@ export default function LoanApply() {
           })}
         </div>
       </div>
+      )}
 
       <RepayModal open={repayOpen} onClose={() => setRepayOpen(false)} loan={repayLoan} />
       <BottomNav role="farmer" />

@@ -1147,8 +1147,20 @@ export default function MarketHome() {
               )}
             </div>
 
-            {/* All upcoming crop seasons */}
-            {WATCHLIST_CROPS.map(crop => {
+            {/* All upcoming crop seasons — demo shows curated list, real users see live farms */}
+            {(isDemo ? WATCHLIST_CROPS : (listings ?? []).slice(0, 6).map((l: any) => ({
+              id: l.id,
+              name: l.cropType,
+              season: `Season 2026`,
+              plantingStart: "2026",
+              harvestEst: "2026",
+              expectedReturn: `${l.changePercent > 0 ? "+" : ""}${(l.changePercent ?? 0).toFixed(1)}%`,
+              image: getCropImage(l.cropType, l.imageUrl),
+              demand: Math.abs(l.changePercent ?? 0) > 2 ? "High" : "Moderate",
+              demandColor: Math.abs(l.changePercent ?? 0) > 2 ? "text-green-600 bg-green-50" : "text-primary bg-primary/5",
+              farms: 1,
+              change: l.changePercent ?? 0,
+            }))).map(crop => {
               const isWatchlisted = watchlisted.has(crop.id);
               return (
                 <div key={crop.id} className={`bg-card rounded-2xl border overflow-hidden transition-all ${isWatchlisted ? "border-primary/40 shadow-lg shadow-green-500/8" : "border-border"}`}>

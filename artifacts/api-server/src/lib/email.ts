@@ -624,48 +624,71 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
           </table>
         </div>
 
-        ${ctaButton(isFarmer ? "Open Farmer Dashboard →" : "Browse Live Farms →", "https://investafarm.co.ke")}
+        ${ctaButton(isFarmer ? "Open Farmer Dashboard →" : "Browse Live Farms →", isFarmer ? "https://app.investafarm.com/farmer" : "https://app.investafarm.com/market")}
 
         ${!isFarmer ? `
-        <!-- Crop image grid for investors -->
-        <div style="margin:0 0 24px 0;">
-          <p style="color:#374151;font-size:13px;font-weight:700;margin:0 0 12px 0;">🌾 Farms accepting investment right now:</p>
+        <!-- Live Marketplace Preview -->
+        <div style="background:linear-gradient(135deg,#052e16 0%,#14532d 100%);border-radius:16px;padding:20px;margin:0 0 20px 0;">
+          <p style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 12px 0;">🔴 Live on the Marketplace Now</p>
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td style="padding:0 4px 8px 0;width:33.3%;">
-                <div style="border-radius:10px;overflow:hidden;position:relative;">
-                  <img src="https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=180&h=110&fit=crop&auto=format" alt="Maize" style="width:100%;height:80px;object-fit:cover;display:block;" />
-                  <div style="background:rgba(0,0,0,0.5);padding:4px 6px;text-align:center;">
-                    <p style="color:#fff;font-size:10px;font-weight:700;margin:0;">🌽 Maize</p>
-                    <p style="color:#4ade80;font-size:9px;margin:0;">+18% p.a.</p>
-                  </div>
+                <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:10px 8px;text-align:center;">
+                  <img src="https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=60&h=40&fit=crop&auto=format" alt="Maize" style="width:100%;height:36px;object-fit:cover;border-radius:6px;display:block;margin:0 0 6px 0;" />
+                  <p style="color:#ffffff;font-size:10px;font-weight:700;margin:0 0 2px 0;">🌽 Maize Farms</p>
+                  <p style="color:#4ade80;font-size:11px;font-weight:800;margin:0;">+18% p.a.</p>
+                  <p style="color:rgba(255,255,255,0.5);font-size:9px;margin:2px 0 0 0;">12 farms open</p>
                 </div>
               </td>
               <td style="padding:0 4px 8px;width:33.3%;">
-                <div style="border-radius:10px;overflow:hidden;">
-                  <img src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=180&h=110&fit=crop&auto=format" alt="Coffee" style="width:100%;height:80px;object-fit:cover;display:block;" />
-                  <div style="background:rgba(0,0,0,0.5);padding:4px 6px;text-align:center;">
-                    <p style="color:#fff;font-size:10px;font-weight:700;margin:0;">☕ Coffee</p>
-                    <p style="color:#4ade80;font-size:9px;margin:0;">+22% p.a.</p>
-                  </div>
+                <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:10px 8px;text-align:center;">
+                  <img src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=60&h=40&fit=crop&auto=format" alt="Coffee" style="width:100%;height:36px;object-fit:cover;border-radius:6px;display:block;margin:0 0 6px 0;" />
+                  <p style="color:#ffffff;font-size:10px;font-weight:700;margin:0 0 2px 0;">☕ Coffee Estates</p>
+                  <p style="color:#4ade80;font-size:11px;font-weight:800;margin:0;">+22% p.a.</p>
+                  <p style="color:rgba(255,255,255,0.5);font-size:9px;margin:2px 0 0 0;">8 farms open</p>
                 </div>
               </td>
               <td style="padding:0 0 8px 4px;width:33.3%;">
-                <div style="border-radius:10px;overflow:hidden;">
-                  <img src="https://images.unsplash.com/photo-1519162808019-7de1683fa2ad?w=180&h=110&fit=crop&auto=format" alt="Avocado" style="width:100%;height:80px;object-fit:cover;display:block;" />
-                  <div style="background:rgba(0,0,0,0.5);padding:4px 6px;text-align:center;">
-                    <p style="color:#fff;font-size:10px;font-weight:700;margin:0;">🥑 Avocado</p>
-                    <p style="color:#4ade80;font-size:9px;margin:0;">+20% p.a.</p>
-                  </div>
+                <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:10px 8px;text-align:center;">
+                  <img src="https://images.unsplash.com/photo-1519162808019-7de1683fa2ad?w=60&h=40&fit=crop&auto=format" alt="Avocado" style="width:100%;height:36px;object-fit:cover;border-radius:6px;display:block;margin:0 0 6px 0;" />
+                  <p style="color:#ffffff;font-size:10px;font-weight:700;margin:0 0 2px 0;">🥑 Avocado Orchards</p>
+                  <p style="color:#4ade80;font-size:11px;font-weight:800;margin:0;">+20% p.a.</p>
+                  <p style="color:rgba(255,255,255,0.5);font-size:9px;margin:2px 0 0 0;">6 farms open</p>
                 </div>
               </td>
             </tr>
           </table>
-        </div>` : ""}
+          <a href="https://app.investafarm.com/market" style="display:block;text-align:center;color:#4ade80;font-size:12px;font-weight:700;text-decoration:none;margin:8px 0 0 0;">View all live farms → app.investafarm.com/market</a>
+        </div>` : `
+        <!-- Farmer marketplace snippet -->
+        <div style="background:linear-gradient(135deg,#052e16 0%,#14532d 100%);border-radius:16px;padding:20px;margin:0 0 20px 0;">
+          <p style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 10px 0;">📊 Active on app.investafarm.com</p>
+          <table width="100%" cellpadding="0" cellspacing="0"><tr>
+            <td style="text-align:center;padding:0 6px;">
+              <p style="color:#4ade80;font-size:18px;font-weight:800;margin:0;">50+</p>
+              <p style="color:rgba(255,255,255,0.6);font-size:10px;margin:2px 0 0 0;">Active Investors</p>
+            </td>
+            <td style="text-align:center;padding:0 6px;border-left:1px solid rgba(255,255,255,0.15);border-right:1px solid rgba(255,255,255,0.15);">
+              <p style="color:#4ade80;font-size:18px;font-weight:800;margin:0;">2-5 Days</p>
+              <p style="color:rgba(255,255,255,0.6);font-size:10px;margin:2px 0 0 0;">To Get Funded</p>
+            </td>
+            <td style="text-align:center;padding:0 6px;">
+              <p style="color:#4ade80;font-size:18px;font-weight:800;margin:0;">KES 2M+</p>
+              <p style="color:rgba(255,255,255,0.6);font-size:10px;margin:2px 0 0 0;">Deployed Capital</p>
+            </td>
+          </tr></table>
+          <a href="https://app.investafarm.com/farmer" style="display:block;text-align:center;color:#4ade80;font-size:12px;font-weight:700;text-decoration:none;margin:12px 0 0 0;">Open your dashboard → app.investafarm.com/farmer</a>
+        </div>`}
+
+        <!-- Social proof -->
+        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:0 0 20px 0;text-align:center;">
+          <p style="color:#6b7280;font-size:12px;margin:0 0 8px 0;">Trusted by farmers and investors across Kenya</p>
+          <p style="color:#111827;font-size:13px;font-weight:600;margin:0;">🌍 Nairobi · Nakuru · Meru · Kisumu · Eldoret · Mombasa</p>
+        </div>
 
         <p style="color:#9ca3af;font-size:12px;margin:20px 0 0 0;text-align:center;">
-          Need help? Email us at <a href="mailto:investafarm@proton.me" style="color:${GRASS_GREEN};text-decoration:none;">investafarm@proton.me</a> or join our
-          <a href="https://chat.whatsapp.com/BWfnSpL4GTl0EsFpuPMKOK" style="color:${GRASS_GREEN};text-decoration:none;"> WhatsApp community</a>.
+          Need help? Email us at <a href="mailto:support@investafarm.com" style="color:${GRASS_GREEN};text-decoration:none;">support@investafarm.com</a> or visit
+          <a href="https://app.investafarm.com" style="color:${GRASS_GREEN};text-decoration:none;">app.investafarm.com</a>
         </p>
       </td>
     </tr>`;
@@ -675,7 +698,7 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
     replyTo: `"Investa Farm Support" <investafarm@proton.me>`,
     to,
     subject: `🌾 Welcome to Investa Farm, ${name}! Your ${roleLabel} account is ready`,
-    html: emailWrapper(content, `Your ${roleLabel} account is now active. Here's how to get started in 4 easy steps.`),
+    html: emailWrapper(content, `Your ${roleLabel} account is now active on app.investafarm.com — here's how to get started.`),
     headers: {
       "X-Priority": "3",
       "List-Unsubscribe": "<mailto:investafarm@proton.me?subject=unsubscribe>",

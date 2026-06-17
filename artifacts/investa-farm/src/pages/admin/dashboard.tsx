@@ -87,6 +87,7 @@ export default function AdminDashboard() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [broadcast, setBroadcast] = useState({ title: "", body: "" });
   const [broadcastSending, setBroadcastSending] = useState(false);
+  const [clearDbLoading, setClearDbLoading] = useState(false);
 
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
@@ -1125,6 +1126,48 @@ export default function AdminDashboard() {
                   {settingsSaving ? <Loader2 size={15} className="animate-spin" /> : <Settings size={15} />}
                   {settingsSaving ? "Saving…" : "Save Platform Settings"}
                 </button>
+
+                {/* Danger Zone — Clear Database */}
+                <div className="bg-card border border-red-200 rounded-2xl overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-4 py-3 border-b border-red-200 bg-red-50">
+                    <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center">
+                      <XCircle size={13} className="text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-red-900 font-bold text-xs">Danger Zone</p>
+                      <p className="text-red-600 text-[10px]">Clear all non-demo users and their data from the database</p>
+                    </div>
+                  </div>
+                  <div className="px-4 py-4 space-y-3">
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                      This permanently deletes all real user accounts (investments, KYC docs, transactions, farms, etc.) while preserving the demo accounts. <span className="text-red-600 font-semibold">This action cannot be undone.</span>
+                    </p>
+                    <button
+                      onClick={async () => {
+                        if (!confirm("⚠️ This will permanently delete ALL non-demo users and their data. Demo accounts will be preserved.\n\nAre you absolutely sure?")) return;
+                        if (!confirm("Final confirmation: delete all non-demo user data?")) return;
+                        setClearDbLoading(true);
+                        try {
+                          const r = await fetch("/api/admin/clear-database", {
+                            method: "DELETE",
+                            headers: { Authorization: `Bearer ${token}` },
+                          });
+                          const data = await r.json();
+                          if (r.ok) showToast(`✅ ${data.message}`);
+                          else showToast(data.error ?? "Clear failed", "error");
+                        } finally {
+                          setClearDbLoading(false);
+                          fetchStats();
+                        }
+                      }}
+                      disabled={clearDbLoading}
+                      className="w-full bg-red-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                    >
+                      {clearDbLoading ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                      {clearDbLoading ? "Clearing…" : "Clear Non-Demo User Data"}
+                    </button>
+                  </div>
+                </div>
 
                 {/* Broadcast Notifications */}
                 <div className="bg-card border border-border rounded-2xl overflow-hidden">

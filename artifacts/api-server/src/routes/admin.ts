@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, notInArray } from "drizzle-orm";
 import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail } from "../lib/email";
@@ -444,6 +444,60 @@ router.post("/admin/broadcast", async (req, res): Promise<void> => {
     }))
   );
   res.json({ ok: true, sent: allUsers.length });
+});
+
+// ─── CLEAR DATABASE (non-demo users only) ────────────────────────────────────
+const DEMO_EMAILS_ADMIN = new Set([
+  "john.farmer@investafarm.com",
+  "david.investor@investafarm.com",
+  "demo.farmer@investafarm.com",
+  "demo.investor@investafarm.com",
+  "demo.coop@investafarm.com",
+  "admin@investafarm.com",
+  "grace.farmer@investafarm.com",
+  "peter.farmer@investafarm.com",
+]);
+
+router.delete("/admin/clear-database", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+
+  // Find all demo user IDs to preserve
+  const allUsers = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable);
+  const demoIds = allUsers.filter(u => DEMO_EMAILS_ADMIN.has(u.email.toLowerCase())).map(u => u.id);
+  const nonDemoIds = allUsers.filter(u => !DEMO_EMAILS_ADMIN.has(u.email.toLowerCase())).map(u => u.id);
+
+  if (nonDemoIds.length === 0) {
+    res.json({ ok: true, deleted: 0, message: "No non-demo users to delete." });
+    return;
+  }
+
+  // Delete non-demo users — associated rows in other tables are cleaned up via cascade or manual delete
+  // Delete related data first (no cascade FK in postgres by default here)
+  if (nonDemoIds.length > 0) {
+    await db.delete(walletTransactionsTable).where(notInArray(walletTransactionsTable.userId, demoIds));
+    await db.delete(investmentsTable).where(notInArray(investmentsTable.userId, demoIds));
+    await db.delete(kycDocumentsTable).where(notInArray(kycDocumentsTable.userId, demoIds));
+    await db.delete(notificationsTable).where(notInArray(notificationsTable.userId, demoIds));
+    await db.delete(walletsTable).where(notInArray(walletsTable.userId, demoIds));
+    await db.delete(loanApplicationsTable).where(notInArray(loanApplicationsTable.userId, demoIds));
+    await db.delete(transactionsTable).where(notInArray(transactionsTable.userId, demoIds));
+
+    // Delete farms + associated listings for non-demo farmers
+    const nonDemoFarms = await db.select({ id: farmsTable.id }).from(farmsTable).where(notInArray(farmsTable.userId, demoIds));
+    if (nonDemoFarms.length > 0) {
+      const { inArray } = await import("drizzle-orm");
+      const nonDemoFarmIds = nonDemoFarms.map(f => f.id);
+      await db.delete(marketListingsTable).where(inArray(marketListingsTable.farmId, nonDemoFarmIds));
+      await db.delete(farmUpdatesTable).where(inArray(farmUpdatesTable.farmId, nonDemoFarmIds));
+      await db.delete(farmsTable).where(inArray(farmsTable.id, nonDemoFarmIds));
+    }
+
+    // Finally delete the users themselves
+    await db.delete(usersTable).where(notInArray(usersTable.id, demoIds));
+  }
+
+  res.json({ ok: true, deleted: nonDemoIds.length, message: `Deleted ${nonDemoIds.length} non-demo user(s) and their data. Demo accounts preserved.` });
 });
 
 export default router;

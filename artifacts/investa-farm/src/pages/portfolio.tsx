@@ -506,8 +506,8 @@ export default function Portfolio() {
                   {p.isPublished && (
                     <div className="flex items-center gap-2 bg-muted/40 rounded-xl px-3 py-2">
                       <Globe size={11} className="text-muted-foreground" />
-                      <p className="text-muted-foreground text-[10px] flex-1 font-mono truncate">investafarm.co.ke/market/portfolios/{p.id}</p>
-                      <button onClick={() => { navigator.clipboard.writeText(`https://investafarm.co.ke/market/portfolios/${p.id}`).catch(()=>{}); }}
+                      <p className="text-muted-foreground text-[10px] flex-1 font-mono truncate">app.investafarm.com/market/portfolios/{p.id}</p>
+                      <button onClick={() => { navigator.clipboard.writeText(`https://app.investafarm.com/market/portfolios/${p.id}`).catch(()=>{}); }}
                         className="text-primary text-[10px] font-bold">Copy</button>
                     </div>
                   )}
@@ -785,6 +785,20 @@ export default function Portfolio() {
                         >
                           <ExternalLink size={12} /> View Farm
                         </Link>
+                        <button
+                          onClick={async () => {
+                            const url = `https://app.investafarm.com/market/exchange/${h.farmId}`;
+                            const text = `I'm investing in ${h.farmName} (${h.cropType}) on Investa Farm! Check it out → ${url}`;
+                            if (navigator.share) {
+                              navigator.share({ title: `${h.farmName} on Investa Farm`, text, url }).catch(() => {});
+                            } else {
+                              await navigator.clipboard.writeText(text).catch(() => {});
+                            }
+                          }}
+                          className="py-2 px-2.5 rounded-xl border border-border text-muted-foreground text-xs font-medium active:scale-95 transition-all flex items-center gap-1"
+                        >
+                          <Share2 size={12} /> Share
+                        </button>
                         {h.status === "active" && (
                           <>
                             <Link

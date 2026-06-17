@@ -75,10 +75,13 @@ router.post("/auth/totp/setup", async (req, res): Promise<void> => {
     return;
   }
 
-  const secret = otplib.generateSecret();
+  // If a secret was already generated (setup called before), reuse it — don't regenerate
+  const secret = user.totpSecret ?? otplib.generateSecret();
   const otpauthUrl = otplib.generateURI({ label: user.email, issuer: "Investa Farm", secret });
 
-  await db.update(usersTable).set({ totpSecret: secret }).where(eq(usersTable.id, userId));
+  if (!user.totpSecret) {
+    await db.update(usersTable).set({ totpSecret: secret }).where(eq(usersTable.id, userId));
+  }
 
   const qrCode = await QRCode.toDataURL(otpauthUrl);
 
