@@ -5,6 +5,47 @@ const GRASS_GREEN = "#16a34a";
 const GRASS_DARK = "#14532d";
 const GRASS_MID = "#166534";
 
+// ─── Resend HTTP API ──────────────────────────────────────────────────────────
+// Primary sender: works on Render, Railway and any platform (HTTP, not SMTP).
+// Set RESEND_FROM_EMAIL to your verified domain email (e.g. noreply@investafarm.com).
+// Without a verified domain, Resend only delivers to the account owner's email (sandbox).
+async function sendViaResend(opts: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  replyTo?: string;
+}): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return false;
+  const fromAddr = process.env.RESEND_FROM_EMAIL ?? "Investa Farm <onboarding@resend.dev>";
+  try {
+    const resp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: fromAddr,
+        to: [opts.to],
+        reply_to: opts.replyTo,
+        subject: opts.subject,
+        html: opts.html,
+      }),
+    });
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      console.warn(`[EMAIL] Resend delivery failed (${resp.status}): ${body}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn("[EMAIL] Resend request error:", err instanceof Error ? err.message : String(err));
+    return false;
+  }
+}
+
 function from(label: string) {
   return `"${label}" <${process.env.GOOGLE_SMTP_USER ?? ""}>`;
 }
@@ -60,63 +101,97 @@ function buildTransport(user: string, pass: string, cfg: { port: number; secure:
   });
 }
 
+// SendMailOpts matches the subset of nodemailer options used across this file.
+// `from` is the full formatted address string, e.g. '"Investa Farm" <user@gmail.com>'
+type SendMailOpts = {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
+};
+
 function createTransport() {
-  const user = process.env.GOOGLE_SMTP_USER;
-  const pass = process.env.GOOGLE_SMTP_PASS;
-  if (!user || !pass) {
-    console.warn("[EMAIL] SMTP not configured — set GOOGLE_SMTP_USER and GOOGLE_SMTP_PASS to enable emails");
+  const hasResend = !!process.env.RESEND_API_KEY;
+  const smtpUser = process.env.GOOGLE_SMTP_USER;
+  const smtpPass = process.env.GOOGLE_SMTP_PASS;
+  const hasSmtp = !!(smtpUser && smtpPass);
+
+  if (!hasResend && !hasSmtp) {
+    console.warn("[EMAIL] No email provider configured — set RESEND_API_KEY (recommended) or GOOGLE_SMTP_USER + GOOGLE_SMTP_PASS");
     return null;
   }
 
   return {
-    sendMail: async (opts: Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0]) => {
-      // Use cached working config, or try to probe one
-      if (!_workingConfig) {
-        _workingConfig = await probeSmtpConfig(user, pass);
+    sendMail: async (opts: SendMailOpts) => {
+      // 1. Try Resend first (HTTP — works on all cloud platforms, no SMTP port needed)
+      if (hasResend) {
+        const sent = await sendViaResend({
+          from: opts.from,
+          to: opts.to,
+          subject: opts.subject,
+          html: opts.html,
+          replyTo: opts.replyTo,
+        });
+        if (sent) {
+          console.info(`[EMAIL] Sent via Resend: "${opts.subject}" → ${opts.to}`);
+          return;
+        }
+        console.warn(`[EMAIL] Resend failed for "${opts.subject}" — trying SMTP fallback`);
+      }
+
+      // 2. Gmail SMTP fallback
+      if (!hasSmtp) {
+        console.warn(`[EMAIL] Skipped "${opts.subject}" — no working email provider`);
+        return;
       }
       if (!_workingConfig) {
-        const subject = typeof opts === "object" && opts !== null ? (opts as { subject?: string }).subject ?? "(no subject)" : "(no subject)";
-        console.warn(`[EMAIL] Skipped "${subject}" — no SMTP port reachable (platform may block outbound SMTP)`);
+        _workingConfig = await probeSmtpConfig(smtpUser!, smtpPass!);
+      }
+      if (!_workingConfig) {
+        console.warn(`[EMAIL] Skipped "${opts.subject}" — SMTP unreachable (platform may block outbound SMTP)`);
         return;
       }
       try {
-        const raw = buildTransport(user, pass, _workingConfig);
-        const result = await raw.sendMail(opts);
+        const raw = buildTransport(smtpUser!, smtpPass!, _workingConfig);
+        await raw.sendMail(opts);
         raw.close();
-        return result;
+        console.info(`[EMAIL] Sent via SMTP: "${opts.subject}" → ${opts.to}`);
       } catch (err: unknown) {
-        // Reset cached config so next send re-probes (handles transient failures)
         _workingConfig = null;
-        const subject = typeof opts === "object" && opts !== null ? (opts as { subject?: string }).subject ?? "(no subject)" : "(no subject)";
         const msg = err instanceof Error ? `${err.message} (code: ${(err as NodeJS.ErrnoException).code ?? "?"})` : String(err);
-        console.error(`[EMAIL] sendMail failed for "${subject}": ${msg}`);
-        throw err;
+        console.error(`[EMAIL] SMTP sendMail failed for "${opts.subject}": ${msg}`);
       }
     },
   };
 }
 
 export async function testSmtpConnection(): Promise<void> {
-  const user = process.env.GOOGLE_SMTP_USER;
-  const pass = process.env.GOOGLE_SMTP_PASS;
-  if (!user || !pass) {
-    console.info("[EMAIL] SMTP not configured — emails will be skipped (set GOOGLE_SMTP_USER + GOOGLE_SMTP_PASS to enable)");
-    return;
+  const hasResend = !!process.env.RESEND_API_KEY;
+  const smtpUser = process.env.GOOGLE_SMTP_USER;
+  const smtpPass = process.env.GOOGLE_SMTP_PASS;
+
+  if (hasResend) {
+    console.info("[EMAIL] Resend API configured — emails will use Resend (HTTP, no SMTP needed)");
   }
-  // Run non-blocking so it never delays server startup or shows scary errors
-  (async () => {
-    try {
-      const cfg = await probeSmtpConfig(user, pass);
-      if (cfg) {
-        _workingConfig = cfg;
-        console.info(`[EMAIL] SMTP ready — using smtp.gmail.com:${cfg.port} (${cfg.secure ? "SSL" : "STARTTLS"})`);
-      } else {
-        console.warn("[EMAIL] SMTP probe failed on all ports — emails will be silently skipped. If on Render free plan, outbound SMTP is blocked; upgrade to a paid plan or use an HTTP email API (Resend/SendGrid).");
-      }
-    } catch {
-      // Swallow — already handled inside probeSmtpConfig
-    }
-  })();
+
+  // SMTP probe runs non-blocking — never delays startup
+  if (smtpUser && smtpPass) {
+    (async () => {
+      try {
+        const cfg = await probeSmtpConfig(smtpUser, smtpPass);
+        if (cfg) {
+          _workingConfig = cfg;
+          console.info(`[EMAIL] SMTP fallback ready — smtp.gmail.com:${cfg.port} (${cfg.secure ? "SSL" : "STARTTLS"})`);
+        } else if (!hasResend) {
+          console.warn("[EMAIL] SMTP probe failed on all ports. Render free plan blocks outbound SMTP — set RESEND_API_KEY for reliable email delivery.");
+        }
+      } catch { /* swallowed */ }
+    })();
+  } else if (!hasResend) {
+    console.info("[EMAIL] No email provider configured — emails will be skipped");
+  }
 }
 
 // Logo image for email header

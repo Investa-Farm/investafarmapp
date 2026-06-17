@@ -148,4 +148,35 @@ router.get("/auth/totp/status", async (req, res): Promise<void> => {
   res.json({ totpEnabled: user.totpEnabled ?? false });
 });
 
+// Verify email ownership using TOTP code instead of email OTP.
+// Useful when SMTP is unavailable — user proves identity via authenticator app.
+router.post("/auth/totp/verify-email", async (req, res): Promise<void> => {
+  const userId = getAuthUserId(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { code } = req.body;
+  if (!code || typeof code !== "string") {
+    res.status(400).json({ error: "6-digit authenticator code required" }); return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  if (!user.totpEnabled || !user.totpSecret) {
+    res.status(400).json({ error: "Two-factor authentication is not set up on this account. Please verify via email instead." });
+    return;
+  }
+  if (user.emailVerified) {
+    res.json({ ok: true, message: "Email already verified" }); return;
+  }
+
+  const isValid = totpVerify(code.replace(/\s/g, ""), user.totpSecret);
+  if (!isValid) {
+    res.status(400).json({ error: "Invalid authenticator code. Please check your app and try again." });
+    return;
+  }
+
+  await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.id, userId));
+  res.json({ ok: true, message: "Email verified via authenticator app" });
+});
+
 export default router;

@@ -17,6 +17,7 @@ STELLAR_ISSUER_PUBLIC_KEY = "GDCTQTPZKLTNAXD6LM6AH3IZSJEV6BFB34XQCS4SHTLBN4YWKBI
 ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://4a2b9dca-eafc-4078-81eb-69d273702355-00-2341di8pdnyd5.spock.replit.dev"
 MEDIASTACK_API_KEY = "1e30a1be82fd6cba322d03044bfa057d"
 GNEWS_API_KEY = "f315af117cadae7bef4c9f1d4373a9bf"
+RESEND_API_KEY = "re_pZwfxHVC_GZ2k7rxUg8eZgy6hPvGTjVqE"
 
 [workflows]
 runButton = "Project"

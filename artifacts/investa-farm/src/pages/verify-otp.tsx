@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, PartyPopper, Mail, MessageCircle, Pencil, X, ArrowLeft } from "lucide-react";
+import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, PartyPopper, Mail, MessageCircle, Pencil, X, ArrowLeft, Smartphone, KeyRound } from "lucide-react";
 import { getToken, getStoredUser, storeUser, clearToken } from "@/lib/auth";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
 const WHATSAPP_COMMUNITY = "https://chat.whatsapp.com/BWfnSpL4GTl0EsFpuPMKOK";
 const SUPPORT_EMAIL = "investafarm@proton.me";
+
+type Mode = "email" | "totp";
 
 export default function VerifyOtp() {
   const [, setLocation] = useLocation();
@@ -16,6 +18,9 @@ export default function VerifyOtp() {
 
   const token = getToken();
   const user = getStoredUser();
+
+  const [mode, setMode] = useState<Mode>("email");
+  const [totpAvailable, setTotpAvailable] = useState(false);
 
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
@@ -31,11 +36,28 @@ export default function VerifyOtp() {
 
   const canResend = countdown === 0;
 
+  // Check if this user has TOTP enabled
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/auth/totp/status", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.totpEnabled) setTotpAvailable(true); })
+      .catch(() => {});
+  }, [token]);
+
   useEffect(() => {
     if (countdown <= 0) return;
     const t = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(t);
   }, [countdown]);
+
+  // Reset code + errors when switching modes
+  const switchMode = (m: Mode) => {
+    setMode(m);
+    setCode(["", "", "", "", "", ""]);
+    setError("");
+    setTimeout(() => inputs.current[0]?.focus(), 80);
+  };
 
   const handleChange = (i: number, v: string) => {
     const digit = v.replace(/\D/g, "").slice(-1);
@@ -65,7 +87,11 @@ export default function VerifyOtp() {
     if (fullCode.length !== 6) { setError("Enter the complete 6-digit code"); return; }
     setLoading(true); setError("");
     try {
-      const r = await fetch("/api/auth/verify-otp", {
+      const endpoint = mode === "totp"
+        ? "/api/auth/totp/verify-email"
+        : "/api/auth/verify-otp";
+
+      const r = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ code: fullCode }),
@@ -199,66 +225,119 @@ export default function VerifyOtp() {
               </motion.div>
             </motion.div>
           ) : (
-            <motion.div key="form" initial={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+            <motion.div key="form" initial={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5">
               <div className="text-center space-y-3">
                 <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto border border-primary/20">
                   <ShieldCheck size={28} className="text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-foreground">Verify Your Email</h1>
-                  <p className="text-muted-foreground text-sm mt-1">We sent a 6-digit code to</p>
+                  <h1 className="text-2xl font-bold text-foreground">Verify Your Account</h1>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    {mode === "email"
+                      ? "We sent a 6-digit code to"
+                      : "Enter the 6-digit code from your authenticator app"}
+                  </p>
 
-                  <div className="mt-1 flex items-center justify-center gap-2">
-                    <span className="text-primary font-medium text-sm break-all">{displayEmail || "your email"}</span>
-                    <button
-                      onClick={() => { setEditingEmail(v => !v); setNewEmail(displayEmail); }}
-                      className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
-                    >
-                      {editingEmail ? <X size={13} /> : <Pencil size={13} />}
-                    </button>
-                  </div>
+                  {mode === "email" && (
+                    <>
+                      <div className="mt-1 flex items-center justify-center gap-2">
+                        <span className="text-primary font-medium text-sm break-all">{displayEmail || "your email"}</span>
+                        <button
+                          onClick={() => { setEditingEmail(v => !v); setNewEmail(displayEmail); }}
+                          className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+                        >
+                          {editingEmail ? <X size={13} /> : <Pencil size={13} />}
+                        </button>
+                      </div>
 
-                  <AnimatePresence>
-                    {editingEmail && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden mt-3"
-                      >
-                        <div className="bg-card border border-border rounded-2xl p-4 space-y-3 text-left">
-                          <p className="text-foreground text-xs font-semibold">Change email address</p>
-                          <input
-                            type="email"
-                            value={newEmail}
-                            onChange={e => setNewEmail(e.target.value)}
-                            placeholder="new@example.com"
-                            className="w-full border border-border rounded-xl px-3 py-2.5 text-sm text-foreground bg-muted focus:outline-none focus:border-primary"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setEditingEmail(false)}
-                              className="flex-1 py-2 rounded-xl border border-border text-muted-foreground text-xs font-semibold"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={handleChangeEmail}
-                              disabled={changingEmail}
-                              className="flex-1 py-2 rounded-xl bg-primary text-white text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all disabled:opacity-60"
-                            >
-                              {changingEmail ? <Loader2 size={12} className="animate-spin" /> : null}
-                              {changingEmail ? "Updating…" : "Update & Resend"}
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                      <AnimatePresence>
+                        {editingEmail && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden mt-3"
+                          >
+                            <div className="bg-card border border-border rounded-2xl p-4 space-y-3 text-left">
+                              <p className="text-foreground text-xs font-semibold">Change email address</p>
+                              <input
+                                type="email"
+                                value={newEmail}
+                                onChange={e => setNewEmail(e.target.value)}
+                                placeholder="new@example.com"
+                                className="w-full border border-border rounded-xl px-3 py-2.5 text-sm text-foreground bg-muted focus:outline-none focus:border-primary"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => setEditingEmail(false)}
+                                  className="flex-1 py-2 rounded-xl border border-border text-muted-foreground text-xs font-semibold"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={handleChangeEmail}
+                                  disabled={changingEmail}
+                                  className="flex-1 py-2 rounded-xl bg-primary text-white text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all disabled:opacity-60"
+                                >
+                                  {changingEmail ? <Loader2 size={12} className="animate-spin" /> : null}
+                                  {changingEmail ? "Updating…" : "Update & Resend"}
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
-                  <p className="text-muted-foreground/60 text-xs mt-1">Check your inbox and spam folder.</p>
+                      <p className="text-muted-foreground/60 text-xs mt-1">Check your inbox and spam folder.</p>
+                    </>
+                  )}
                 </div>
               </div>
+
+              {/* Mode switcher — only shown if user has TOTP enabled */}
+              {totpAvailable && (
+                <div className="flex gap-2 bg-muted rounded-2xl p-1">
+                  <button
+                    onClick={() => switchMode("email")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                      mode === "email"
+                        ? "bg-white shadow-sm text-primary"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    <Mail size={13} />
+                    Email Code
+                  </button>
+                  <button
+                    onClick={() => switchMode("totp")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                      mode === "totp"
+                        ? "bg-white shadow-sm text-primary"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    <Smartphone size={13} />
+                    Authenticator App
+                  </button>
+                </div>
+              )}
+
+              {/* TOTP hint */}
+              {mode === "totp" && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-start gap-3"
+                >
+                  <KeyRound size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-blue-800 text-xs font-semibold">Use your Authenticator App</p>
+                    <p className="text-blue-600 text-[11px] mt-0.5">
+                      Open Google Authenticator, Authy, or any TOTP app and enter the 6-digit code for Investa Farm.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
 
               <div className="bg-card rounded-3xl border border-border p-6 space-y-5 shadow-sm">
                 {error && (
@@ -294,21 +373,23 @@ export default function VerifyOtp() {
                   className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                  {loading ? "Verifying…" : "Verify Email"}
+                  {loading ? "Verifying…" : mode === "totp" ? "Verify with Authenticator" : "Verify Email"}
                 </button>
 
-                <div className="flex items-center justify-center">
-                  <button
-                    onClick={handleResend}
-                    disabled={!canResend || resending}
-                    className={`text-xs flex items-center gap-1.5 transition-colors ${
-                      canResend ? "text-primary hover:text-primary/80" : "text-muted-foreground cursor-not-allowed"
-                    }`}
-                  >
-                    <RefreshCw size={12} className={resending ? "animate-spin" : ""} />
-                    {canResend ? (resending ? "Sending…" : "Resend code") : `Resend in ${countdown}s`}
-                  </button>
-                </div>
+                {mode === "email" && (
+                  <div className="flex items-center justify-center">
+                    <button
+                      onClick={handleResend}
+                      disabled={!canResend || resending}
+                      className={`text-xs flex items-center gap-1.5 transition-colors ${
+                        canResend ? "text-primary hover:text-primary/80" : "text-muted-foreground cursor-not-allowed"
+                      }`}
+                    >
+                      <RefreshCw size={12} className={resending ? "animate-spin" : ""} />
+                      {canResend ? (resending ? "Sending…" : "Resend code") : `Resend in ${countdown}s`}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Skip for now — only shown for users already logged in (coming from login, not fresh register) */}
