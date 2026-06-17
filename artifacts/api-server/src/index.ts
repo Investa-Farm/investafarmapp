@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { seedDemoUsers } from "./seed";
 import { startScheduler } from "./scheduler";
 import { initVapid } from "./lib/push";
+import { testSmtpConnection } from "./lib/email";
 
 const rawPort = process.env["PORT"] ?? "8080";
 const port = Number(rawPort);
@@ -14,6 +15,7 @@ if (Number.isNaN(port) || port <= 0) {
 const server = app.listen(port, async () => {
   logger.info({ port }, "Server listening");
   initVapid();
+  testSmtpConnection().catch(() => {});
 
   try {
     await seedDemoUsers((msg) => logger.info(msg));

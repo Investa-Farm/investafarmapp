@@ -16,13 +16,43 @@ function createTransport() {
     console.warn("[EMAIL] SMTP not configured — set GOOGLE_SMTP_USER and GOOGLE_SMTP_PASS secrets to enable emails");
     return null;
   }
-  return nodemailer.createTransport({
+  const raw = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
     secure: false,
     auth: { user, pass },
     tls: { rejectUnauthorized: false },
   });
+
+  return {
+    sendMail: async (opts: Parameters<typeof raw.sendMail>[0]) => {
+      try {
+        return await raw.sendMail(opts);
+      } catch (err: unknown) {
+        const subject = typeof opts === "object" && opts !== null ? (opts as { subject?: string }).subject ?? "(no subject)" : "(no subject)";
+        console.error("[EMAIL] sendMail failed — subject:", subject, "| error:", err instanceof Error ? `${err.message} (code: ${(err as NodeJS.ErrnoException).code ?? "?"})` : String(err));
+        console.error("[EMAIL] Hint: Verify GOOGLE_SMTP_USER and GOOGLE_SMTP_PASS are set correctly in your deployment environment.");
+        throw err;
+      }
+    },
+  };
+}
+
+export async function testSmtpConnection(): Promise<void> {
+  const user = process.env.GOOGLE_SMTP_USER;
+  const pass = process.env.GOOGLE_SMTP_PASS;
+  if (!user || !pass) {
+    console.warn("[EMAIL] SMTP not configured — emails will be skipped (set GOOGLE_SMTP_USER + GOOGLE_SMTP_PASS to enable)");
+    return;
+  }
+  try {
+    const t = nodemailer.createTransport({ host: "smtp.gmail.com", port: 587, secure: false, auth: { user, pass }, tls: { rejectUnauthorized: false } });
+    await t.verify();
+    console.info("[EMAIL] SMTP connection verified OK — emails will be sent");
+  } catch (err: unknown) {
+    console.error("[EMAIL] SMTP connection FAILED at startup:", err instanceof Error ? `${err.message} (code: ${(err as NodeJS.ErrnoException).code ?? "?"})` : String(err));
+    console.error("[EMAIL] Emails will NOT be sent until this is fixed. Check GOOGLE_SMTP_USER, GOOGLE_SMTP_PASS, and Gmail App Password configuration.");
+  }
 }
 
 // Logo image for email header
