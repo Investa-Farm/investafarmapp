@@ -57,7 +57,21 @@ function extractAllXmlTags(xml: string, tag: string): string[] {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").trim();
+  // First pass: strip actual HTML tags
+  let s = html.replace(/<[^>]+>/g, "");
+  // Decode HTML entities (Google News RSS encodes HTML inside description)
+  s = s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#\d+;/g, "");
+  // Second pass: strip any tags exposed after entity decoding
+  s = s.replace(/<[^>]+>/g, "");
+  return s.replace(/\s+/g, " ").trim();
 }
 
 function timeAgo(pubDate: string): string {

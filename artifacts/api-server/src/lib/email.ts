@@ -25,23 +25,20 @@ function createTransport() {
   });
 }
 
-// Inline SVG logo for email header (compatible with most clients)
+// Logo image for email header
 const LOGO_SVG = `
-<table cellpadding="0" cellspacing="0" style="margin:0 auto 16px auto;">
+<table cellpadding="0" cellspacing="0" style="margin:0 auto 12px auto;">
   <tr>
     <td align="center">
-      <div style="display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,0.15);border-radius:14px;padding:10px 18px;">
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
-          <rect width="32" height="32" rx="8" fill="rgba(255,255,255,0.2)"/>
-          <path d="M8 22c1.5-4 4-7 8-8s7 1.5 8 5" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-          <path d="M16 10v10" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          <path d="M12 14l4-4 4 4" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <div style="text-align:left;">
-          <p style="color:#ffffff;font-size:18px;font-weight:800;letter-spacing:-0.3px;margin:0;line-height:1.1;">Investa Farm</p>
-          <p style="color:rgba(255,255,255,0.65);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;margin:0;font-weight:600;">AFRICA'S FARM EXCHANGE</p>
-        </div>
-      </div>
+      <img src="https://www.investafarm.com/Investa_8_-removebg-preview%20(1).png"
+           alt="Investa Farm" width="90" height="90"
+           style="display:block;border:0;outline:none;text-decoration:none;" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center" style="padding-top:6px;">
+      <p style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;margin:0;line-height:1.1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Investa Farm</p>
+      <p style="color:rgba(255,255,255,0.60);font-size:9px;letter-spacing:2px;text-transform:uppercase;margin:5px 0 0 0;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">AFRICA'S FARM EXCHANGE</p>
     </td>
   </tr>
 </table>`;

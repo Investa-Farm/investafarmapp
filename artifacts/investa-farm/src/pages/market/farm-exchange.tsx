@@ -63,20 +63,44 @@ export default function FarmExchange() {
   const token = getToken();
   const { formatAmount } = useCurrency();
 
-  const { data: farm, isLoading } = useQuery<any>({
+  const farmId = parseInt(params.id ?? "", 10);
+  const isValidId = !isNaN(farmId) && farmId > 0;
+
+  const { data: farm, isLoading, isError } = useQuery<any>({
     queryKey: ["farm-exchange", params.id],
     queryFn: async () => {
       const r = await fetch(`/api/farms/${params.id}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) throw new Error("Not found");
       return r.json();
     },
+    enabled: isValidId,
     staleTime: 30_000,
+    retry: false,
   });
 
   const isUp = (farm?.changePercent ?? 0) >= 0;
   const sparkData = farm ? generateSparkData(farm.currentPrice ?? farm.sharePrice, 20, (farm.changePercent ?? 0) / 100) : [];
   const dividends = farm ? buildDividendTable(Number(farm.currentPrice ?? farm.sharePrice)) : [];
   const fundamentals = farm ? getFundamentals(farm.cropType) : null;
+
+  if (!isValidId || isError) {
+    return (
+      <div className="app-shell pb-20 flex flex-col items-center justify-center min-h-[60vh] px-8 gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+          <Info size={28} className="text-muted-foreground" />
+        </div>
+        <div className="text-center">
+          <p className="text-foreground font-bold text-base">Farm not found</p>
+          <p className="text-muted-foreground text-xs mt-1">This farm listing may have been removed or the link is invalid.</p>
+        </div>
+        <button onClick={() => setLocation("/market")}
+          className="bg-primary text-white font-semibold px-6 py-2.5 rounded-xl text-sm active:scale-95 transition-transform">
+          Back to Market
+        </button>
+        <BottomNav role="investor" />
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell pb-20 page-enter">

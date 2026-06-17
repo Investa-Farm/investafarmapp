@@ -180,10 +180,10 @@ export default function PrimaryMarket() {
                     className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
 
                     {/* Main row */}
-                    <div className="grid grid-cols-[1fr_52px_52px_56px] gap-1 items-center px-3 py-2.5">
+                    <div className="grid grid-cols-[1fr_52px_52px_56px] gap-1 items-center px-3 py-2">
                       {/* Farm info with thumbnail */}
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
                           <img src={imgSrc} alt={listing.farmName} className="w-full h-full object-cover" />
                         </div>
                         <div className="min-w-0">
@@ -293,6 +293,12 @@ export default function PrimaryMarket() {
                               <p className="text-muted-foreground text-[8px]">~6 months</p>
                             </div>
                           </div>
+                          {(listing as any).dcfFairValue && (
+                            <div className="mt-2 pt-2 border-t border-green-200/70 flex items-center justify-between">
+                              <span className="text-green-700 text-[9px] font-semibold">DCF Fair Value / share</span>
+                              <span className="text-green-800 font-bold text-[11px]">{formatKES((listing as any).dcfFairValue)}</span>
+                            </div>
+                          )}
                         </div>
 
                         <button

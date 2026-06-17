@@ -321,10 +321,10 @@ export default function SecondaryMarket() {
                 <div key={crop} className="rounded-2xl border overflow-hidden shadow-sm" style={{ borderColor: isUp ? "rgba(22,163,74,0.25)" : undefined, background: "var(--card)" }}>
                   {/* Crop group header */}
                   <button
-                    className="w-full flex items-center gap-3 p-3 active:bg-green-50/50 transition-colors"
+                    className="w-full flex items-center gap-3 p-2.5 active:bg-green-50/50 transition-colors"
                     onClick={() => setExpandedCrop(isExpanded ? null : crop)}
                   >
-                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
                       <img src={getCropImage(crop, undefined)} alt={crop} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 text-left min-w-0">
@@ -386,12 +386,23 @@ export default function SecondaryMarket() {
                               <div className="w-14 flex-shrink-0">
                                 <Sparkline data={sparkData} color={up ? "#16a34a" : "#dc2626"} height={24} />
                               </div>
-                              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                              <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                                 <p className="text-foreground font-bold text-sm">{formatKES(listing.pricePerShare)}</p>
                                 <span className={`text-[9px] font-bold ${up ? "text-green-600" : "text-red-500"}`}>
                                   {formatChange(listing.changePercent)}
                                 </span>
-                                <div className="flex items-center gap-1.5">
+                                {(listing as any).dcfFairValue && (
+                                  <span className={`text-[8px] font-semibold px-1 py-0.5 rounded ${
+                                    (listing as any).dcfPremiumPct > 5
+                                      ? "bg-amber-50 text-amber-600"
+                                      : (listing as any).dcfPremiumPct < -5
+                                        ? "bg-green-50 text-green-600"
+                                        : "bg-muted text-muted-foreground"
+                                  }`}>
+                                    {(listing as any).dcfPremiumPct > 0 ? "+" : ""}{(listing as any).dcfPremiumPct?.toFixed(1)}% vs DCF
+                                  </span>
+                                )}
+                                <div className="flex items-center gap-1.5 mt-0.5">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setAlertListing(listing); }}
                                     title="Set price alert"

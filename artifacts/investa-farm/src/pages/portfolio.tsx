@@ -727,10 +727,10 @@ export default function Portfolio() {
                 const hasRoi = !!roi;
 
                 return (
-                  <div key={h.id} data-testid={`holding-${h.id}`} className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="relative h-20">
+                  <div key={h.id} data-testid={`holding-${h.id}`} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+                    <div className="relative h-24">
                       <img src={farmImg} alt={h.farmName} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/65 to-transparent" />
                       <div className="absolute inset-0 p-3 flex items-end">
                         <div>
                           <p className="text-white font-bold text-sm">{h.farmName}</p>

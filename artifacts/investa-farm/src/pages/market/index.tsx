@@ -1205,10 +1205,10 @@ export default function MarketHome() {
         {commitOpen && commitCrop && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setCommitOpen(false)} />
+              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm" onClick={() => setCommitOpen(false)} />
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="fixed bottom-0 inset-x-0 z-50 max-w-[430px] mx-auto bg-card rounded-t-3xl shadow-xl px-5 pt-5 pb-10">
+              className="fixed bottom-0 inset-x-0 z-[60] max-w-[430px] mx-auto bg-card rounded-t-3xl shadow-xl px-5 pt-5 pb-8">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="font-bold text-foreground">Commit Funds</p>

@@ -154,13 +154,19 @@ export default function LoanApply() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
-      if (!r.ok) throw new Error("Failed");
+      if (!r.ok) {
+        const errData = await r.json().catch(() => ({}));
+        throw new Error(errData.message || errData.error || "Submission failed. Please check your details and try again.");
+      }
       return r.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["loan-apps"] });
       setSuccess(true); setShowForm(false);
-      setTimeout(() => setSuccess(false), 4000);
+      setTimeout(() => setSuccess(false), 5000);
+      if (data?.newFarmId) {
+        qc.invalidateQueries({ queryKey: ["farms"] });
+      }
     },
   });
 
@@ -365,9 +371,9 @@ export default function LoanApply() {
               {apply.isPending ? "Submitting..." : "Submit Application"}
             </button>
             {apply.isError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-                <AlertCircle size={14} className="text-red-600 flex-shrink-0" />
-                <p className="text-red-700 text-xs font-medium">Submission failed. Check your details and try again.</p>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                <AlertCircle size={14} className="text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-red-700 text-xs font-medium">{(apply.error as Error)?.message || "Submission failed. Check your details and try again."}</p>
               </div>
             )}
           </form>

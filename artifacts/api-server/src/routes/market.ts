@@ -27,11 +27,82 @@ const FARM_IMAGES = [
   "/investa-farm/crops/potato-field.jpg",
 ];
 
+// ── DCF Pricing Engine ──────────────────────────────────────────────────────
+// Full no-arbitrage DCF model for fair secondary-market share pricing.
+// Reference: Investa Farm pricing spec (Two-Exit-Strategies document).
+const DCF_TOTAL_SHARES = 10_000;
+const DCF_ALPHA = 0.55;       // investor share allocation (55% revenue to investors)
+const DCF_RF = 0.105;         // Kenya risk-free rate (CBK base rate)
+const DCF_P_MAX = 0.15;       // maximum default probability
+const DCF_LGD = 0.40;         // loss given default
+const DCF_SEASON_DAYS = 180;  // full-season duration in days
+
+/**
+ * Compute DCF fair value per share for a secondary-market listing.
+ *
+ * Formula:
+ *   P_fair = (α × R̂ / N) × [1/(1+rf)^((T–t)/365)] × (1 – λ)
+ * where:
+ *   α   = investor revenue allocation (0.55)
+ *   R̂  = expected total farm revenue ≈ loanAmount raised
+ *   N   = total shares issued (10 000)
+ *   rf  = Kenya risk-free rate (10.5 %)
+ *   T–t = days remaining until harvest
+ *   λ   = default risk premium = ((10–S)/9) × P_MAX × LGD
+ *   S   = farm credit score 1–10 (default 7)
+ */
+function computeDCFFairValue(
+  loanAmount: number,
+  farmCreatedAt: Date,
+  creditScore: number = 7,
+): number {
+  const daysElapsed = Math.max(0, (Date.now() - farmCreatedAt.getTime()) / 86_400_000);
+  const daysRemaining = Math.max(1, DCF_SEASON_DAYS - daysElapsed);
+
+  // Expected investor payout per share at full harvest
+  const expectedPayoutPerShare = (DCF_ALPHA * loanAmount) / DCF_TOTAL_SHARES;
+
+  // Discount to present value
+  const pvFactor = 1 / Math.pow(1 + DCF_RF, daysRemaining / 365);
+
+  // Default risk premium
+  const S = Math.max(1, Math.min(10, creditScore));
+  const lambda = ((10 - S) / 9) * DCF_P_MAX * DCF_LGD;
+
+  const fairValue = expectedPayoutPerShare * pvFactor * (1 - lambda);
+  return Math.max(1, Math.round(fairValue * 100) / 100);
+}
+
+/**
+ * Compute secondary-market traded price with demand imbalance adjustment.
+ * P_sell = P_fair × (1 + β × imbalance) × (1 – δ)
+ * β = 0.10, δ = 0.005 (platform fee)
+ */
+function computeSecondaryPrice(
+  fairValue: number,
+  buyOrders: number = 0,
+  sellOrders: number = 1,
+): number {
+  const BETA = 0.10;
+  const DELTA = 0.005;
+  const total = Math.max(1, buyOrders + sellOrders);
+  const imbalance = (buyOrders - sellOrders) / total;
+  const price = fairValue * (1 + BETA * imbalance) * (1 - DELTA);
+  return Math.max(1, Math.round(price * 100) / 100);
+}
+// ───────────────────────────────────────────────────────────────────────────
+
 function listingToJson(
   listing: typeof marketListingsTable.$inferSelect,
   farm: typeof farmsTable.$inferSelect,
   sellerName?: string
 ) {
+  const loanAmt = Number(farm.loanAmount);
+  const dcfFairValue = computeDCFFairValue(loanAmt, farm.createdAt);
+  const dcfAskPrice = listing.listingType === "secondary"
+    ? computeSecondaryPrice(dcfFairValue)
+    : Number(listing.pricePerShare);
+
   return {
     id: listing.id,
     farmId: farm.id,
@@ -41,6 +112,11 @@ function listingToJson(
     listingType: listing.listingType,
     sharesAvailable: listing.sharesAvailable,
     pricePerShare: Number(listing.pricePerShare),
+    dcfFairValue,
+    dcfAskPrice,
+    dcfPremiumPct: Number(listing.pricePerShare) > 0
+      ? Math.round(((Number(listing.pricePerShare) / dcfFairValue) - 1) * 1000) / 10
+      : 0,
     changePercent: Number(farm.changePercent),
     tradeCount: farm.tradeCount,
     imageUrl: farm.imageUrl ?? FARM_IMAGES[farm.id % FARM_IMAGES.length],
