@@ -34,16 +34,23 @@ export default function FarmerAuth() {
     e.preventDefault(); setError("");
     login.mutate({ data: { email, password } }, {
       onSuccess: (data: any) => {
-        if (data.requiresOtp) {
-          setToken(data.token); storeUser(data.user);
-          setLocation(`/verify-otp?email=${encodeURIComponent(data.email ?? email)}`);
+        if (data.totpRequired) {
+          setError("Two-factor authentication is required. Please contact support.");
           return;
         }
+        if (!data.user) { setError("Login failed. Please try again."); return; }
         if (data.user.role !== "farmer") { setError("This account is not a farmer account."); return; }
         setToken(data.token); storeUser(data.user);
         setLocation("/farmer");
       },
-      onError: () => setError("Invalid email or password."),
+      onError: (err: any) => {
+        if (err?.data?.requiresOtp) {
+          setToken(err.data.token); storeUser(err.data.user);
+          setLocation(`/verify-otp?email=${encodeURIComponent(err.data.email ?? email)}`);
+          return;
+        }
+        setError("Invalid email or password.");
+      },
     });
   };
 
