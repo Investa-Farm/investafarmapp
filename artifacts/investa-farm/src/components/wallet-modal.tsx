@@ -93,6 +93,8 @@ export function WalletModal({ open, onClose }: Props) {
     onSuccess: (data) => {
       setPaystackRef(data.reference);
       setIframeUrl(data.authorizationUrl);
+      // Paystack blocks iframes — open directly in browser
+      window.open(data.authorizationUrl, "_blank", "noopener,noreferrer");
     },
   });
 
@@ -313,7 +315,8 @@ export function WalletModal({ open, onClose }: Props) {
                   onClick={(e) => { if (e.target === e.currentTarget) { setModal(null); setPaystackRef(null); } }}>
                   <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                     transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                    className="w-full bg-white rounded-t-3xl p-6 space-y-4 border-t-4 border-primary">
+                    className="w-full bg-white rounded-t-3xl p-6 space-y-4 border-t-4 border-primary overflow-y-auto"
+                    style={{ maxHeight: "82dvh" }}>
                     <div className="flex items-center justify-between">
                       <h3 className="text-foreground font-bold text-lg">
                         {modal === "deposit" ? "💳 Add Funds via Paystack" : "🏦 Withdraw to M-Pesa"}
@@ -364,34 +367,45 @@ export function WalletModal({ open, onClose }: Props) {
                     )}
 
                     {modal === "deposit" && paystackRef && (
-                      <div className="space-y-3">
-                        {iframeUrl && (
-                          <div className="rounded-2xl overflow-hidden border border-border bg-white shadow-sm" style={{ height: 420 }}>
-                            <div className="flex items-center gap-2 px-3 py-2 bg-muted/60 border-b border-border">
-                              <div className="flex gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                                <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-                              </div>
-                              <p className="text-[10px] text-muted-foreground truncate flex-1 text-center">Paystack Secure Payment</p>
-                            </div>
-                            <iframe
-                              src={iframeUrl}
-                              title="Paystack Payment"
-                              className="w-full"
-                              style={{ height: 382, border: "none" }}
-                              allow="payment"
-                              sandbox="allow-scripts allow-same-origin allow-forms allow-top-navigation allow-popups"
-                            />
-                          </div>
-                        )}
-                        <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5 flex items-center justify-between">
-                          <p className="text-primary text-xs">Ref: <span className="font-mono font-bold">{paystackRef.slice(0, 16)}…</span></p>
-                          <p className="text-primary/60 text-[10px]">Secure · 256-bit SSL</p>
+                      <div className="space-y-4">
+                        {/* Step indicator */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex-shrink-0">1</div>
+                          <p className="text-sm text-foreground font-medium">Complete your payment on Paystack</p>
                         </div>
+
+                        {/* Open in browser button */}
+                        {iframeUrl && (
+                          <button
+                            onClick={() => window.open(iframeUrl, "_blank", "noopener,noreferrer")}
+                            className="w-full bg-primary text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md shadow-primary/20"
+                          >
+                            <ExternalLink size={18} />
+                            Open Paystack Payment Page
+                          </button>
+                        )}
+
+                        {/* Reference info */}
+                        <div className="bg-muted/60 border border-border rounded-xl px-4 py-3 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-muted-foreground text-xs">Reference</p>
+                            <p className="text-foreground text-xs font-mono font-bold">{paystackRef.slice(0, 20)}…</p>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-muted-foreground text-xs">Security</p>
+                            <p className="text-primary/70 text-xs">🔒 256-bit SSL</p>
+                          </div>
+                        </div>
+
+                        {/* Step 2 */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-muted border border-border text-foreground text-xs font-bold flex-shrink-0">2</div>
+                          <p className="text-sm text-muted-foreground">Once paid, come back and tap the button below</p>
+                        </div>
+
                         <button onClick={() => { setIframeUrl(null); verifyPaystack(); }} disabled={paystackVerifying}
-                          className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
-                          {paystackVerifying ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                          className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60 shadow-md shadow-green-600/20">
+                          {paystackVerifying ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
                           {paystackVerifying ? "Verifying payment…" : "I've Completed Payment"}
                         </button>
                       </div>
