@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
-import { db, farmsTable, marketListingsTable, usersTable, investmentsTable, transactionsTable, notificationsTable, walletsTable, walletTransactionsTable, loanApplicationsTable, transactionFeesTable, escrowWalletsTable } from "@workspace/db";
-import { eq, and, desc, asc, count } from "drizzle-orm";
+import { db, farmsTable, marketListingsTable, usersTable, investmentsTable, transactionsTable, notificationsTable, walletsTable, walletTransactionsTable, loanApplicationsTable, transactionFeesTable, escrowWalletsTable, platformRevenueTable } from "@workspace/db";
+import { eq, and, desc, asc, count, sql } from "drizzle-orm";
+import { transferFunds, creditWallet } from "../lib/walletOps";
+import { cache, TTL } from "../lib/cache";
 import {
   BuySharesBody,
   ListSharesForSaleBody,
@@ -369,8 +371,8 @@ router.post("/market/buy", financialRateLimit, async (req, res): Promise<void> =
     }
   } catch (e) { console.error("[FIRST_INVEST_EMAIL]", e); }
 
-  // Notify farmer + credit their wallet immediately
-  if (farm) {
+  if (isPrimary && farm) {
+    // ── Primary market: investor money → farmer wallet immediately ───────────
     notifyUser(
       farm.farmerId,
       "investment_received",
@@ -379,27 +381,71 @@ router.post("/market/buy", financialRateLimit, async (req, res): Promise<void> =
       "/farmer"
     ).catch(() => {});
 
-    // Credit farmer wallet immediately when investment is received
     try {
-      const [farmerWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, farm.farmerId));
-      if (farmerWallet) {
-        const farmerCurrentBal = parseFloat(farmerWallet.balance);
-        const farmerNewBal = farmerCurrentBal + totalAmount;
-        await db.update(walletsTable)
-          .set({ balance: String(farmerNewBal), updatedAt: new Date() })
-          .where(eq(walletsTable.id, farmerWallet.id));
-        await db.insert(walletTransactionsTable).values({
-          walletId: farmerWallet.id,
-          userId: farm.farmerId,
-          type: "deposit" as const,
-          amount: String(totalAmount),
-          balanceAfter: String(farmerNewBal),
-          description: `Investment received: ${quantity} share${quantity > 1 ? "s" : ""} in ${farm.name} from ${user.name}`,
-          reference: `RCV-${tx.id}`,
-          status: "completed",
-        });
-      }
+      await creditWallet(farm.farmerId, totalAmount, {
+        type: "deposit",
+        description: `Investment received: ${quantity} share${quantity > 1 ? "s" : ""} in ${farm.name} from ${user.name}`,
+        reference: `RCV-${tx.id}`,
+      });
     } catch (e) { console.error("[FARMER_WALLET_CREDIT]", e); }
+
+  } else if (!isPrimary && listing.sellerId) {
+    // ── Secondary market: buyer pays → seller wallet credited atomically ─────
+    // Seller receives full listing price; buyer paid the 0.5% fee on top.
+    // Also reduce / close the seller's investment holding.
+    try {
+      await creditWallet(listing.sellerId, totalAmount, {
+        type: "return",
+        description: `Secondary sale: ${quantity} share${quantity > 1 ? "s" : ""} of ${farm?.name ?? "farm"} to ${user.name}`,
+        reference: `SEC-SELL-${tx.id}`,
+      });
+
+      // Record platform secondary fee revenue
+      await db.insert(platformRevenueTable).values({
+        source: "secondary_fee",
+        amount: String(feeAmount),
+        farmId: listing.farmId,
+        relatedUserId: listing.sellerId,
+        reference: `SEC-FEE-${tx.id}`,
+        description: `0.5% secondary trade fee: ${quantity} shares of ${farm?.name ?? "farm"}`,
+      }).catch(() => {});
+
+      // Reduce seller's investment holding
+      // Use investmentId stored on the listing (if available), else find by seller+farm
+      const sellerInvQuery = listing.investmentId
+        ? db.select().from(investmentsTable).where(eq(investmentsTable.id, listing.investmentId))
+        : db.select().from(investmentsTable).where(
+            and(
+              eq(investmentsTable.investorId, listing.sellerId),
+              eq(investmentsTable.farmId, listing.farmId),
+              eq(investmentsTable.status, "active")
+            )
+          ).limit(1);
+
+      const [sellerInv] = await sellerInvQuery;
+      if (sellerInv) {
+        const remaining = sellerInv.quantity - quantity;
+        if (remaining <= 0) {
+          await db.update(investmentsTable)
+            .set({ status: "exited" })
+            .where(eq(investmentsTable.id, sellerInv.id));
+        } else {
+          await db.update(investmentsTable)
+            .set({ quantity: remaining })
+            .where(eq(investmentsTable.id, sellerInv.id));
+        }
+      }
+
+      notifyUser(
+        listing.sellerId,
+        "investment_made",
+        "✅ Shares Sold!",
+        `${quantity} share${quantity > 1 ? "s" : ""} of ${farm?.name ?? "farm"} sold for KES ${totalAmount.toLocaleString("en-KE")}. Funds added to your wallet.`,
+        "/portfolio"
+      ).catch(() => {});
+    } catch (e) {
+      console.error("[SECONDARY_SELLER_CREDIT]", e);
+    }
   }
 
   // If farm is now fully funded → disburse loan + send voucher email to farmer
@@ -478,6 +524,7 @@ router.post("/market/sell", async (req, res): Promise<void> => {
   const [listing] = await db.insert(marketListingsTable).values({
     farmId: investment.farmId,
     sellerId: user.id,
+    investmentId: investment.id,
     listingType: "secondary",
     sharesAvailable: quantity,
     pricePerShare: String(pricePerShare),

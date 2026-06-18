@@ -10,6 +10,7 @@ export const marketListingsTable = pgTable("market_listings", {
   id: serial("id").primaryKey(),
   farmId: integer("farm_id").references(() => farmsTable.id).notNull(),
   sellerId: integer("seller_id").references(() => usersTable.id),
+  investmentId: integer("investment_id"),
   listingType: listingTypeEnum("listing_type").notNull(),
   sharesAvailable: integer("shares_available").notNull(),
   pricePerShare: numeric("price_per_share", { precision: 15, scale: 2 }).notNull(),

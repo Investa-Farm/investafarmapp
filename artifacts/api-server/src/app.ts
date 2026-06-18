@@ -4,6 +4,7 @@ import pinoHttp from "pino-http";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { randomUUID } from "crypto";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { securityHeaders, frontendSecurityHeaders, globalRateLimit, sanitizeInput, botDetection, payloadSizeGuard } from "./lib/security";
@@ -64,6 +65,12 @@ const corsMiddleware = cors({
     return callback(err);
   },
   credentials: true,
+});
+
+// Attach a unique request ID to every request for tracing and audit logs
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  (req as Request & { id?: string }).id = (req.headers["x-request-id"] as string) || randomUUID();
+  next();
 });
 
 app.use(payloadSizeGuard);

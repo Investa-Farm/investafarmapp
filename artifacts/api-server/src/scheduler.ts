@@ -1,6 +1,7 @@
 import cron from "node-cron";
-import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable, orderBookTable, watchlistTable, roiProjectionsTable } from "@workspace/db";
+import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable, orderBookTable, watchlistTable, roiProjectionsTable, platformRevenueTable } from "@workspace/db";
 import { eq, inArray, lt, and, lte, asc } from "drizzle-orm";
+import { creditWallet, debitWallet, ensureWallet } from "./lib/walletOps";
 import { sendOpportunityDigest, sendPriceAlertEmail, sendVerificationReminderEmail } from "./lib/email";
 import { notifyMany, notifyUser } from "./lib/push";
 import { getRainfallData, getKenyaCoords, checkRainfallAlerts } from "./lib/rainfall";
@@ -361,13 +362,12 @@ async function runOrderMatching(): Promise<void> {
     const farms = await db.select({ id: farmsTable.id, name: farmsTable.name }).from(farmsTable);
 
     for (const farm of farms) {
-      // Get all open buy and sell orders for this farm, price-time priority
       const buys = await db.select().from(orderBookTable)
         .where(and(eq(orderBookTable.farmId, farm.id), eq(orderBookTable.side, "buy"), eq(orderBookTable.status, "open")))
-        .orderBy(asc(orderBookTable.limitPrice)); // highest buy first (we'll sort descending below)
+        .orderBy(asc(orderBookTable.limitPrice));
       const sells = await db.select().from(orderBookTable)
         .where(and(eq(orderBookTable.farmId, farm.id), eq(orderBookTable.side, "sell"), eq(orderBookTable.status, "open")))
-        .orderBy(asc(orderBookTable.limitPrice), asc(orderBookTable.createdAt)); // lowest sell price first
+        .orderBy(asc(orderBookTable.limitPrice), asc(orderBookTable.createdAt));
 
       const sortedBuys = [...buys].sort((a, b) => Number(b.limitPrice) - Number(a.limitPrice));
 
@@ -376,21 +376,60 @@ async function runOrderMatching(): Promise<void> {
         if (sellRemaining <= 0) continue;
 
         for (const buy of sortedBuys) {
-          if (buy.investorId === sell.investorId) continue; // can't match with yourself
+          if (buy.investorId === sell.investorId) continue;
           const buyRemaining = Number(buy.quantity) - Number(buy.filledQuantity);
           if (buyRemaining <= 0) continue;
-          if (Number(buy.limitPrice) < Number(sell.limitPrice)) break; // no more matches possible
+          if (Number(buy.limitPrice) < Number(sell.limitPrice)) break;
 
-          // Match!
-          const fillQty = Math.min(sellRemaining, buyRemaining);
-          const fillPrice = Number(sell.limitPrice); // seller's price is execution price
+          const fillQty   = Math.min(sellRemaining, buyRemaining);
+          const fillPrice = Number(sell.limitPrice);
+          const fillTotal = Math.round(fillQty * fillPrice * 100) / 100;
+          const feeRate   = 0.005; // 0.5% secondary order-book fee
+          const feeAmount = Math.round(fillTotal * feeRate * 100) / 100;
+          const buyerPays = fillTotal + feeAmount;
 
-          const newBuyFilled = Number(buy.filledQuantity) + fillQty;
+          const newBuyFilled  = Number(buy.filledQuantity)  + fillQty;
           const newSellFilled = Number(sell.filledQuantity) + fillQty;
-          const buyComplete = newBuyFilled >= Number(buy.quantity) * 0.999;
-          const sellComplete = newSellFilled >= Number(sell.quantity) * 0.999;
+          const buyComplete   = newBuyFilled  >= Number(buy.quantity)  * 0.999;
+          const sellComplete  = newSellFilled >= Number(sell.quantity) * 0.999;
           const now = new Date();
+          const ref = `ORD-${buy.id}-${sell.id}-${Date.now()}`;
 
+          // ── 1. Transfer funds: buyer → seller (atomic via walletOps) ─────────
+          try {
+            await ensureWallet(buy.investorId);
+            await ensureWallet(sell.investorId);
+
+            // Debit buyer (fill total + fee)
+            await debitWallet(buy.investorId, buyerPays, {
+              type: "investment",
+              description: `Order fill: bought ${fillQty.toFixed(2)} shares of ${farm.name} @ KES ${fillPrice.toLocaleString()} (incl. 0.5% fee)`,
+              reference: `${ref}-BUY`,
+            });
+
+            // Credit seller (fill total, net of fee)
+            await creditWallet(sell.investorId, fillTotal, {
+              type: "return",
+              description: `Order fill: sold ${fillQty.toFixed(2)} shares of ${farm.name} @ KES ${fillPrice.toLocaleString()}`,
+              reference: `${ref}-SELL`,
+            });
+
+            // Record platform fee revenue
+            await db.insert(platformRevenueTable).values({
+              source: "secondary_fee",
+              amount: String(feeAmount),
+              farmId: farm.id,
+              relatedUserId: buy.investorId,
+              reference: `${ref}-FEE`,
+              description: `0.5% order-book match fee: ${fillQty.toFixed(2)} shares of ${farm.name}`,
+            }).catch(() => {});
+
+          } catch (walletErr) {
+            console.warn(`[matcher] Wallet transfer failed for order match ${ref}:`, (walletErr as Error)?.message);
+            continue; // skip this match if buyer can't pay
+          }
+
+          // ── 2. Update order book records ─────────────────────────────────────
           await db.update(orderBookTable).set({
             filledQuantity: String(newBuyFilled),
             status: buyComplete ? "filled" : "partially_filled",
@@ -405,21 +444,50 @@ async function runOrderMatching(): Promise<void> {
             filledAt: sellComplete ? now : undefined,
           }).where(eq(orderBookTable.id, sell.id));
 
-          // Notify both parties
+          // ── 3. Create investment record for buyer ─────────────────────────────
+          const exitDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000); // 6-month default
+          await db.insert(investmentsTable).values({
+            investorId: buy.investorId,
+            farmId: farm.id,
+            quantity: Math.round(fillQty),
+            purchasePrice: String(fillPrice),
+            exitType: "full_season",
+            exitDate,
+            status: "active",
+          }).catch(() => {});
+
+          // ── 4. Reduce / close seller's investment holding ─────────────────────
+          const [sellerInv] = await db.select().from(investmentsTable)
+            .where(and(
+              eq(investmentsTable.investorId, sell.investorId),
+              eq(investmentsTable.farmId, farm.id),
+              eq(investmentsTable.status, "active")
+            )).limit(1);
+
+          if (sellerInv) {
+            const remaining = sellerInv.quantity - Math.round(fillQty);
+            if (remaining <= 0) {
+              await db.update(investmentsTable).set({ status: "exited" }).where(eq(investmentsTable.id, sellerInv.id));
+            } else {
+              await db.update(investmentsTable).set({ quantity: remaining }).where(eq(investmentsTable.id, sellerInv.id));
+            }
+          }
+
+          // ── 5. Notify both parties ────────────────────────────────────────────
           notifyUser(buy.investorId, "order_filled",
             "✅ Buy Order Filled",
-            `${fillQty.toFixed(2)} shares of ${farm.name} @ KES ${fillPrice.toLocaleString()}`,
-            "/market/secondary"
+            `${fillQty.toFixed(2)} shares of ${farm.name} @ KES ${fillPrice.toLocaleString("en-KE")} — funds deducted from wallet.`,
+            "/portfolio"
           ).catch(() => {});
 
           notifyUser(sell.investorId, "order_filled",
             "✅ Sell Order Filled",
-            `${fillQty.toFixed(2)} shares of ${farm.name} @ KES ${fillPrice.toLocaleString()}`,
-            "/market/secondary"
+            `${fillQty.toFixed(2)} shares of ${farm.name} @ KES ${fillPrice.toLocaleString("en-KE")} — KES ${fillTotal.toLocaleString("en-KE")} added to wallet.`,
+            "/portfolio"
           ).catch(() => {});
 
           sellRemaining -= fillQty;
-          console.log(`[matcher] ${farm.name}: ${fillQty.toFixed(2)} shares matched @ KES ${fillPrice}`);
+          console.log(`[matcher] ${farm.name}: ${fillQty.toFixed(2)} sh @ KES ${fillPrice} | buyer pays ${buyerPays} | seller gets ${fillTotal}`);
           if (sellRemaining <= 0) break;
         }
       }

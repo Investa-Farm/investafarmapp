@@ -688,6 +688,7 @@ export default function Portfolio() {
             : (holdings as Holding[])?.map((h) => {
                 const isUp = h.gainLoss >= 0;
                 const isExited = h.status === "exit_requested";
+                const isHarvested = h.status === "exited";
                 const invested = h.purchasePrice * h.quantity;
                 const midPayout = invested * 1.10;
                 const fullPayout = invested * 1.22;
@@ -710,6 +711,11 @@ export default function Portfolio() {
                       {isExited && (
                         <div className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                           Exit Pending
+                        </div>
+                      )}
+                      {isHarvested && (
+                        <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                          🌾 Harvested
                         </div>
                       )}
                       {hasRoi && roi.rainfall && roi.rainfall.riskColor !== "green" && (

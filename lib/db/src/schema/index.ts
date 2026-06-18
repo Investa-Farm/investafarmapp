@@ -27,3 +27,6 @@ export * from "./password_reset_tokens";
 export * from "./roi_projections";
 export * from "./sentiment_scores";
 export * from "./escrow_wallets";
+export * from "./harvest_payments";
+export * from "./platform_revenue";
+export * from "./audit_logs";

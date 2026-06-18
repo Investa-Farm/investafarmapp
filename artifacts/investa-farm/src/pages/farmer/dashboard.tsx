@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
 import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, Users, ShieldCheck, LogOut, MapPin, TrendingUp, CalendarDays, AlertCircle, Moon, Settings } from "lucide-react";
+import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
 import { Link, useLocation } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { FARMER_HERO_IMAGE } from "@/lib/crops";
@@ -30,6 +31,7 @@ export default function FarmerDashboard() {
   const [kycOpen, setKycOpen] = useState(false);
   const [loanOpen, setLoanOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [harvestOpen, setHarvestOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
 
   const toggleDark = () => {
@@ -332,7 +334,7 @@ export default function FarmerDashboard() {
         )}
 
         {/* Quick access */}
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-4 gap-2">
           <button
             onClick={() => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); }}
             className={`rounded-2xl p-3 text-center cursor-pointer active:scale-95 transition-transform relative ${
@@ -341,7 +343,7 @@ export default function FarmerDashboard() {
                 : "bg-gray-50 border border-gray-200 opacity-60"
             }`}
           >
-            <DollarSign size={20} className={`mx-auto mb-1 ${kycApproved >= 1 ? "text-primary" : "text-gray-400"}`} />
+            <DollarSign size={18} className={`mx-auto mb-1 ${kycApproved >= 1 ? "text-primary" : "text-gray-400"}`} />
             <p className="text-foreground text-[10px] font-medium">Funding</p>
             {loans.length > 0
               ? <p className="text-primary text-[9px] font-bold mt-0.5">{loans.length} apps</p>
@@ -356,18 +358,27 @@ export default function FarmerDashboard() {
                 ? "bg-green-50 border border-green-100"
                 : "bg-amber-50 border-2 border-amber-300 animate-pulse"
             }`}>
-            <ShieldCheck size={20} className={`mx-auto mb-1 ${kycApproved >= 1 ? "text-primary" : "text-amber-600"}`} />
-            <p className={`text-[10px] font-medium ${kycApproved >= 1 ? "text-foreground" : "text-amber-800 font-bold"}`}>KYC Docs</p>
+            <ShieldCheck size={18} className={`mx-auto mb-1 ${kycApproved >= 1 ? "text-primary" : "text-amber-600"}`} />
+            <p className={`text-[10px] font-medium ${kycApproved >= 1 ? "text-foreground" : "text-amber-800 font-bold"}`}>KYC</p>
             {kycDocs.length > 0
               ? <p className={`text-[9px] font-bold mt-0.5 ${kycApproved >= 1 ? "text-primary" : "text-amber-600"}`}>{kycApproved}/{kycDocs.length} ✓</p>
-              : <p className="text-amber-600 text-[9px] font-bold mt-0.5">Required ⚠</p>}
+              : <p className="text-amber-600 text-[9px] font-bold mt-0.5">Required</p>}
           </button>
           <Link href="/farmer/updates">
             <div className="bg-card border border-border rounded-2xl p-3 text-center cursor-pointer active:scale-95 transition-transform">
-              <Settings size={20} className="text-primary mx-auto mb-1" />
-              <p className="text-foreground text-[10px] font-medium">Farm Updates</p>
+              <Settings size={18} className="text-primary mx-auto mb-1" />
+              <p className="text-foreground text-[10px] font-medium">Updates</p>
+              <p className="text-muted-foreground text-[9px] mt-0.5">Field logs</p>
             </div>
           </Link>
+          <button
+            onClick={() => setHarvestOpen(true)}
+            className="rounded-2xl p-3 text-center cursor-pointer active:scale-95 transition-transform bg-amber-50 border border-amber-200"
+          >
+            <Wheat size={18} className="text-amber-600 mx-auto mb-1" />
+            <p className="text-amber-800 text-[10px] font-bold">Harvest</p>
+            <p className="text-amber-600 text-[9px] mt-0.5">Record sale</p>
+          </button>
         </div>
       </div>
 
@@ -397,6 +408,7 @@ export default function FarmerDashboard() {
       <BottomNav role="farmer" />
       <KycModal open={kycOpen} onClose={() => setKycOpen(false)} onVerified={() => { setKycOpen(false); setLoanOpen(true); }} />
       <LoanModal open={loanOpen} onClose={() => setLoanOpen(false)} />
+      <HarvestPaymentModal open={harvestOpen} onClose={() => setHarvestOpen(false)} />
       <NotificationPrompt storageKey="farmer_notif_v1" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
     </div>
