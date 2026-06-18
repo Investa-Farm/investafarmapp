@@ -88,14 +88,20 @@ pnpm install
 | `ADMIN_PASSWORD` | Initial admin account password |
 | `VAPID_PUBLIC_KEY` | Web push VAPID public key |
 | `VAPID_PRIVATE_KEY` | Web push VAPID private key |
-| `STELLAR_ISSUER_SECRET_KEY` | Stellar custodial wallet issuer secret |
+| `STELLAR_ISSUER_SECRET_KEY` | Stellar custodial wallet issuer secret (XDR format secret starting with `S…`) |
+| `STELLAR_NETWORK` | `testnet` (default) or `mainnet` |
+| `CIRCLE_API_KEY` | Circle developer API key for stablecoin wallet ops (format: `uuid:secret`) |
 | `KYC_ADMIN_PASSWORD` | Password for the KYC-only sub-admin login |
-| `ALLOWED_ORIGINS` | CORS allowed origins (e.g. `https://your-app.railway.app`) |
+| `ALLOWED_ORIGINS` | CORS allowed origins (e.g. `https://your-app.replit.app`) |
 
 Optional (news / additional AI sources):
-```
-GNEWS_API_KEY, CURRENTS_API_KEY, THENEWSAPI_TOKEN, MEDIASTACK_API_KEY
-```
+
+| Variable | Description |
+|----------|-------------|
+| `GNEWS_API_KEY` | GNews API key |
+| `CURRENTS_API_KEY` | Currents API key |
+| `THENEWSAPI_TOKEN` | TheNewsAPI token |
+| `MEDIASTACK_API_KEY` | Mediastack access key |
 
 ### 3. Push the database schema
 

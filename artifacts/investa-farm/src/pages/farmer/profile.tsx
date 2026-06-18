@@ -3,7 +3,7 @@ import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, getStoredUser, storeUser, getToken, formatKES } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw } from "lucide-react";
+import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { WalletModal } from "@/components/wallet-modal";
@@ -94,7 +94,7 @@ export default function FarmerProfile() {
       title: "Account",
       items: [
         { icon: Bell, label: "Notifications", sublabel: "Loan updates, market alerts", action: () => setNotifOpen(true) },
-        { icon: Shield, label: "KYC Status", sublabel: "Verify your identity", action: () => setLocation("/farmer/kyc") },
+        { icon: ShieldCheck, label: "Security & 2FA", sublabel: "Two-factor authentication (TOTP)", action: () => setLocation("/farmer/totp") },
         { icon: Settings, label: "Account Settings", sublabel: "Name, password", action: openSettings },
       ]
     },
@@ -103,7 +103,6 @@ export default function FarmerProfile() {
       items: [
         { icon: TrendingUp, label: "Funding History", sublabel: "View all funding applications", action: () => setLocation("/farmer/loans") },
         { icon: Users, label: "Farmer Group", sublabel: "Manage cooperative members", action: () => setLocation("/farmer/group") },
-        { icon: FileText, label: "Documents", sublabel: "KYC files and certificates", action: () => setLocation("/farmer/kyc") },
         { icon: Star, label: "My Farms", sublabel: "Listed farms and performance", action: () => setLocation("/farmer/market") },
       ]
     },

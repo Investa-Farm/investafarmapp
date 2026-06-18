@@ -99,6 +99,13 @@ interface ProposalForm {
   plantingDate: string;
   expectedYield: string;
   description: string;
+  farmName: string;
+  sharePrice: string;
+}
+
+interface MsgState {
+  buyerName: string;
+  cropType: string;
 }
 
 export default function FarmerMarket() {
@@ -107,7 +114,11 @@ export default function FarmerMarket() {
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
   const [connectToast, setConnectToast] = useState<string | null>(null);
   const [showProposalForm, setShowProposalForm] = useState(false);
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1);
   const [proposalSuccess, setProposalSuccess] = useState<string | null>(null);
+  const [msgBuyer, setMsgBuyer] = useState<MsgState | null>(null);
+  const [msgText, setMsgText] = useState("");
+  const [msgSent, setMsgSent] = useState(false);
   const [form, setForm] = useState<ProposalForm>({
     cropType: "",
     acreage: "",
@@ -115,6 +126,8 @@ export default function FarmerMarket() {
     plantingDate: "",
     expectedYield: "",
     description: "",
+    farmName: "",
+    sharePrice: "100",
   });
 
   const { data: farms, isLoading } = useGetMyFarms();
@@ -151,6 +164,11 @@ export default function FarmerMarket() {
 
   const proposalMutation = useMutation({
     mutationFn: async (payload: ProposalForm) => {
+      const description = [
+        payload.description,
+        payload.farmName ? `Farm: ${payload.farmName}` : null,
+        payload.sharePrice ? `Share price: KES ${payload.sharePrice}` : null,
+      ].filter(Boolean).join(". ");
       const r = await fetch("/api/farmer/market/crop-proposal", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -160,7 +178,7 @@ export default function FarmerMarket() {
           location: payload.location,
           plantingDate: payload.plantingDate || undefined,
           expectedYield: payload.expectedYield ? parseFloat(payload.expectedYield) : undefined,
-          description: payload.description || undefined,
+          description: description || undefined,
         }),
       });
       if (!r.ok) {
@@ -171,8 +189,9 @@ export default function FarmerMarket() {
     },
     onSuccess: (data: { message?: string }) => {
       setShowProposalForm(false);
+      setWizardStep(1);
       setProposalSuccess(data.message ?? "Crop proposal submitted successfully!");
-      setForm({ cropType: "", acreage: "", location: "", plantingDate: "", expectedYield: "", description: "" });
+      setForm({ cropType: "", acreage: "", location: "", plantingDate: "", expectedYield: "", description: "", farmName: "", sharePrice: "100" });
       setTimeout(() => setProposalSuccess(null), 5000);
     },
   });
@@ -180,6 +199,14 @@ export default function FarmerMarket() {
   const handleSubmitProposal = () => {
     if (!form.cropType || !form.acreage || !form.location) return;
     proposalMutation.mutate(form);
+  };
+
+  const handleSendMessage = () => {
+    if (!msgText.trim() || !msgBuyer) return;
+    connectMutation.mutate({ name: msgBuyer.buyerName, cropType: msgBuyer.cropType, quantity: 0 });
+    setMsgSent(true);
+    setMsgText("");
+    setTimeout(() => { setMsgBuyer(null); setMsgSent(false); }, 2500);
   };
 
   const realBuyers = buyersData?.buyers ?? [];
@@ -388,8 +415,9 @@ export default function FarmerMarket() {
                             className="flex-1 bg-primary text-white font-semibold py-2.5 rounded-xl text-xs active:scale-95 transition-transform">
                             View Offer
                           </button>
-                          <button className="w-10 h-10 rounded-xl border border-border flex items-center justify-center active:scale-95 transition-transform flex-shrink-0">
-                            <MessageCircle size={15} className="text-muted-foreground" />
+                          <button onClick={() => setMsgBuyer({ buyerName: offer.name, cropType: offer.crop })}
+                            className="w-10 h-10 rounded-xl border border-border flex items-center justify-center active:scale-95 transition-transform flex-shrink-0">
+                            <MessageCircle size={15} className="text-primary" />
                           </button>
                         </div>
                       </div>
@@ -496,8 +524,9 @@ export default function FarmerMarket() {
                             className="flex-1 bg-primary text-white font-semibold py-2.5 rounded-xl text-xs active:scale-95 transition-transform disabled:opacity-60">
                             {connectMutation.isPending ? "Sending…" : "Connect with Buyer"}
                           </button>
-                          <button className="w-10 h-10 rounded-xl border border-border flex items-center justify-center active:scale-95 transition-transform flex-shrink-0">
-                            <MessageCircle size={15} className="text-muted-foreground" />
+                          <button onClick={() => setMsgBuyer({ buyerName: offer.name, cropType: offer.cropType })}
+                            className="w-10 h-10 rounded-xl border border-border flex items-center justify-center active:scale-95 transition-transform flex-shrink-0">
+                            <MessageCircle size={15} className="text-primary" />
                           </button>
                         </div>
                       </div>
@@ -836,7 +865,7 @@ export default function FarmerMarket() {
         </div>
       )}
 
-      {/* ── Crop Proposal Bottom Sheet ── */}
+      {/* ── Crop Proposal + Funding Wizard ── */}
       <AnimatePresence>
         {showProposalForm && (
           <motion.div
@@ -844,7 +873,7 @@ export default function FarmerMarket() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center"
-            onClick={() => setShowProposalForm(false)}
+            onClick={() => { setShowProposalForm(false); setWizardStep(1); }}
           >
             <motion.div
               initial={{ y: "100%" }}
@@ -854,185 +883,203 @@ export default function FarmerMarket() {
               className="w-full max-w-[430px] bg-background rounded-t-3xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              {/* Handle bar */}
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
               </div>
 
-              {/* Header */}
+              {/* Header with step indicator */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-border">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
                     <Sprout size={18} className="text-white" />
                   </div>
                   <div>
-                    <p className="font-bold text-base text-foreground">New Crop Proposal</p>
-                    <p className="text-muted-foreground text-[10px]">Submit for investor funding review</p>
+                    <p className="font-bold text-base text-foreground">
+                      {wizardStep === 1 ? "Step 1 — Crop Details" : "Step 2 — Funding Setup"}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className={`h-1.5 w-12 rounded-full ${wizardStep >= 1 ? "bg-primary" : "bg-muted"}`} />
+                      <div className={`h-1.5 w-12 rounded-full ${wizardStep >= 2 ? "bg-primary" : "bg-muted"}`} />
+                    </div>
                   </div>
                 </div>
-                <button onClick={() => setShowProposalForm(false)}
+                <button onClick={() => { setShowProposalForm(false); setWizardStep(1); }}
                   className="w-8 h-8 rounded-full bg-muted flex items-center justify-center active:scale-90 transition-transform">
                   <X size={16} className="text-muted-foreground" />
                 </button>
               </div>
 
-              {/* Scrollable form body */}
-              <div className="overflow-y-auto max-h-[70vh] px-5 py-4 space-y-4 pb-6">
-
-                {/* Crop Type */}
-                <div>
-                  <label className={labelClass}>
-                    <Sprout size={12} className="text-primary" />
-                    Crop Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={form.cropType}
-                    onChange={e => setForm(f => ({ ...f, cropType: e.target.value }))}
-                    className={inputClass}
-                  >
-                    <option value="">Select crop…</option>
-                    {CROP_OPTIONS.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Acreage */}
-                <div>
-                  <label className={labelClass}>
-                    <Maximize2 size={12} className="text-primary" />
-                    Acreage (acres) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    placeholder="e.g. 5"
-                    value={form.acreage}
-                    onChange={e => setForm(f => ({ ...f, acreage: e.target.value }))}
-                    className={inputClass}
-                  />
-                  {form.acreage && parseFloat(form.acreage) > 0 && (
-                    <p className="text-[10px] text-primary font-semibold mt-1.5 ml-1">
-                      Estimated capital needed: {formatKES(parseFloat(form.acreage) * 15000)}
-                    </p>
+              <div className="overflow-y-auto max-h-[72vh] px-5 py-4 space-y-4 pb-6">
+                <AnimatePresence mode="wait">
+                  {wizardStep === 1 && (
+                    <motion.div key="step1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                      <div>
+                        <label className={labelClass}><Sprout size={12} className="text-primary" />Crop Type <span className="text-red-500">*</span></label>
+                        <select value={form.cropType} onChange={e => setForm(f => ({ ...f, cropType: e.target.value }))} className={inputClass}>
+                          <option value="">Select crop…</option>
+                          {CROP_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}><Maximize2 size={12} className="text-primary" />Acreage (acres) <span className="text-red-500">*</span></label>
+                        <input type="number" min="0.1" step="0.1" placeholder="e.g. 5" value={form.acreage}
+                          onChange={e => setForm(f => ({ ...f, acreage: e.target.value }))} className={inputClass} />
+                        {form.acreage && parseFloat(form.acreage) > 0 && (
+                          <p className="text-[10px] text-primary font-semibold mt-1.5 ml-1">Est. capital needed: {formatKES(parseFloat(form.acreage) * 15000)}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className={labelClass}><MapPin size={12} className="text-primary" />County / Location <span className="text-red-500">*</span></label>
+                        <select value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} className={inputClass}>
+                          <option value="">Select county…</option>
+                          {KENYA_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}><Calendar size={12} className="text-primary" />Planting Date</label>
+                        <input type="date" value={form.plantingDate} min={new Date().toISOString().split("T")[0]}
+                          onChange={e => setForm(f => ({ ...f, plantingDate: e.target.value }))} className={inputClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}><TrendingUp size={12} className="text-primary" />Expected Yield (tons)</label>
+                        <input type="number" min="0.1" step="0.1" placeholder="e.g. 12.5" value={form.expectedYield}
+                          onChange={e => setForm(f => ({ ...f, expectedYield: e.target.value }))} className={inputClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}><FileText size={12} className="text-primary" />Additional Details</label>
+                        <textarea rows={2} placeholder="Soil type, irrigation setup, anything investors should know…"
+                          value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                          className={`${inputClass} resize-none`} />
+                      </div>
+                      <button
+                        onClick={() => setWizardStep(2)}
+                        disabled={!form.cropType || !form.acreage || !form.location}
+                        className="w-full bg-primary text-white font-bold py-4 rounded-2xl text-sm active:scale-[0.98] transition-transform disabled:opacity-50 flex items-center justify-center gap-2">
+                        Next: Funding Setup →
+                      </button>
+                    </motion.div>
                   )}
-                </div>
 
-                {/* Location */}
-                <div>
-                  <label className={labelClass}>
-                    <MapPin size={12} className="text-primary" />
-                    County / Location <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={form.location}
-                    onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-                    className={inputClass}
-                  >
-                    <option value="">Select county…</option>
-                    {KENYA_COUNTIES.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
+                  {wizardStep === 2 && (
+                    <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-4">
+                      <div>
+                        <label className={labelClass}><Star size={12} className="text-primary" />Farm Name</label>
+                        <input type="text" placeholder="e.g. Kamau Tomato Farm" value={form.farmName}
+                          onChange={e => setForm(f => ({ ...f, farmName: e.target.value }))} className={inputClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}><DollarSign size={12} className="text-primary" />Share Price (KES)</label>
+                        <input type="number" min="10" step="10" value={form.sharePrice}
+                          onChange={e => setForm(f => ({ ...f, sharePrice: e.target.value }))} className={inputClass} />
+                      </div>
 
-                {/* Planting Date */}
-                <div>
-                  <label className={labelClass}>
-                    <Calendar size={12} className="text-primary" />
-                    Planting Date
-                  </label>
-                  <input
-                    type="date"
-                    value={form.plantingDate}
-                    min={new Date().toISOString().split("T")[0]}
-                    onChange={e => setForm(f => ({ ...f, plantingDate: e.target.value }))}
-                    className={inputClass}
-                  />
-                </div>
-
-                {/* Expected Yield */}
-                <div>
-                  <label className={labelClass}>
-                    <TrendingUp size={12} className="text-primary" />
-                    Expected Yield (tons)
-                  </label>
-                  <input
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    placeholder="e.g. 12.5"
-                    value={form.expectedYield}
-                    onChange={e => setForm(f => ({ ...f, expectedYield: e.target.value }))}
-                    className={inputClass}
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className={labelClass}>
-                    <FileText size={12} className="text-primary" />
-                    Additional Details
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Describe your farm, soil type, irrigation setup, or anything investors should know…"
-                    value={form.description}
-                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                    className={`${inputClass} resize-none`}
-                  />
-                </div>
-
-                {/* Estimated breakdown */}
-                {form.cropType && form.acreage && parseFloat(form.acreage) > 0 && (
-                  <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-                    <p className="text-green-800 text-xs font-bold mb-2.5">📊 Estimated Breakdown</p>
-                    <div className="space-y-2">
-                      {[
-                        { label: "Capital Required", val: formatKES(parseFloat(form.acreage) * 15000) },
-                        { label: "Total Shares", val: `${Math.ceil(parseFloat(form.acreage) * 15000 / 100).toLocaleString()} shares @ KES 100` },
-                        { label: "Your Revenue Share", val: "55% of harvest" },
-                        { label: "Review Timeline", val: "2–5 business days" },
-                      ].map(({ label, val }) => (
-                        <div key={label} className="flex justify-between text-[11px]">
-                          <span className="text-green-700">{label}</span>
-                          <span className="text-green-900 font-semibold">{val}</span>
+                      {form.acreage && parseFloat(form.acreage) > 0 && (
+                        <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+                          <p className="text-green-800 text-xs font-bold mb-2.5">📊 Funding Breakdown</p>
+                          <div className="space-y-2">
+                            {[
+                              { label: "Crop", val: form.cropType || "—" },
+                              { label: "Location", val: form.location || "—" },
+                              { label: "Capital Required", val: formatKES(parseFloat(form.acreage) * 15000) },
+                              { label: "Total Shares", val: `${Math.ceil(parseFloat(form.acreage) * 15000 / (parseFloat(form.sharePrice) || 100)).toLocaleString()} @ KES ${form.sharePrice || 100}` },
+                              { label: "Your Revenue Share", val: "55% of harvest" },
+                              { label: "Review Timeline", val: "2–5 business days" },
+                            ].map(({ label, val }) => (
+                              <div key={label} className="flex justify-between text-[11px]">
+                                <span className="text-green-700">{label}</span>
+                                <span className="text-green-900 font-semibold">{val}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                      )}
 
-                {/* Error */}
-                {proposalMutation.isError && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                    <p className="text-red-700 text-xs font-medium">{(proposalMutation.error as Error).message}</p>
-                  </div>
-                )}
+                      {proposalMutation.isError && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                          <p className="text-red-700 text-xs font-medium">{(proposalMutation.error as Error).message}</p>
+                        </div>
+                      )}
 
-                {/* Submit */}
-                <button
-                  onClick={handleSubmitProposal}
-                  disabled={!form.cropType || !form.acreage || !form.location || proposalMutation.isPending}
-                  className="w-full bg-primary text-white font-bold py-4 rounded-2xl text-sm active:scale-[0.98] transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {proposalMutation.isPending ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                      Submitting…
-                    </>
-                  ) : (
-                    <>
-                      <Sprout size={16} />
-                      Submit Crop Proposal
-                    </>
+                      <div className="flex gap-2">
+                        <button onClick={() => setWizardStep(1)}
+                          className="w-1/3 border border-border text-foreground font-semibold py-3.5 rounded-2xl text-sm active:scale-95 transition-transform">
+                          ← Back
+                        </button>
+                        <button
+                          onClick={handleSubmitProposal}
+                          disabled={proposalMutation.isPending}
+                          className="flex-1 bg-primary text-white font-bold py-3.5 rounded-2xl text-sm active:scale-[0.98] transition-transform disabled:opacity-50 flex items-center justify-center gap-2">
+                          {proposalMutation.isPending
+                            ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Submitting…</>
+                            : <><Sprout size={16} />Submit Proposal</>}
+                        </button>
+                      </div>
+                      <p className="text-muted-foreground text-[10px] text-center leading-relaxed">
+                        Reviewed within 2–5 business days. 55% harvest revenue goes to you.
+                      </p>
+                    </motion.div>
                   )}
-                </button>
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                <p className="text-muted-foreground text-[10px] text-center leading-relaxed">
-                  Your proposal will be reviewed by our team and listed for investor funding within 2–5 business days.
-                </p>
+      {/* ── Message Sheet ── */}
+      <AnimatePresence>
+        {msgBuyer && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center"
+            onClick={() => { setMsgBuyer(null); setMsgSent(false); setMsgText(""); }}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="w-full max-w-[430px] bg-background rounded-t-3xl pb-8"
+              onClick={e => e.stopPropagation()}>
+              <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 bg-muted-foreground/30 rounded-full" /></div>
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <MessageCircle size={16} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-foreground">{msgBuyer.buyerName}</p>
+                    <p className="text-muted-foreground text-[10px]">Send a message to this offtaker</p>
+                  </div>
+                </div>
+                <button onClick={() => { setMsgBuyer(null); setMsgSent(false); setMsgText(""); }}
+                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <X size={14} className="text-muted-foreground" />
+                </button>
+              </div>
+              <div className="px-5 py-4 space-y-4">
+                {msgSent ? (
+                  <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                    className="text-center py-6">
+                    <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                      <CheckCircle2 size={28} className="text-green-600" />
+                    </div>
+                    <p className="text-foreground font-bold">Message Sent!</p>
+                    <p className="text-muted-foreground text-xs mt-1">{msgBuyer.buyerName} will receive your enquiry.</p>
+                  </motion.div>
+                ) : (
+                  <>
+                    <div className="bg-muted/40 rounded-xl p-3">
+                      <p className="text-muted-foreground text-[10px]">To</p>
+                      <p className="text-foreground text-sm font-semibold">{msgBuyer.buyerName} · {msgBuyer.cropType}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-foreground mb-1.5 block">Your Message</label>
+                      <textarea rows={4} value={msgText} onChange={e => setMsgText(e.target.value)}
+                        placeholder={`Hi, I'm interested in selling my ${msgBuyer.cropType} harvest. I have X tons available from…`}
+                        className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+                    </div>
+                    <button onClick={handleSendMessage} disabled={!msgText.trim()}
+                      className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl text-sm active:scale-[0.98] transition-transform disabled:opacity-50 flex items-center justify-center gap-2">
+                      <MessageCircle size={15} /> Send Message
+                    </button>
+                  </>
+                )}
               </div>
             </motion.div>
           </motion.div>

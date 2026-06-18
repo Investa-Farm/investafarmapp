@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Leaf, CloudRain, Wind, Thermometer, Droplets, Sun, Moon,
   Sparkles, ShieldCheck, AlertTriangle, CheckCircle, RefreshCw, TrendingUp,
-  BarChart2, Bug, Calendar, ChevronRight, Droplet, CloudSun, CloudSnow,
+  BarChart2, Bug, Calendar, CalendarDays, ChevronRight, Droplet, CloudSun, CloudSnow,
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { BottomNav } from "@/components/bottom-nav";
@@ -386,6 +386,58 @@ export default function FarmerHealth() {
               </div>
             </motion.div>
           )}
+
+          {/* ── Crop Planting Calendar ── */}
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.17 }}
+            className="bg-card rounded-2xl border border-border p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                <CalendarDays size={14} className="text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Kenya Planting Calendar</p>
+                <p className="text-[10px] text-muted-foreground">Long rains (Mar–Jun) · Short rains (Oct–Dec)</p>
+              </div>
+            </div>
+            <div className="space-y-2.5">
+              {[
+                { crop: "Maize",    icon: "🌽", longRain: "Mar–Apr", shortRain: "Oct–Nov", highlight: farm?.cropType?.toLowerCase().includes("maize") },
+                { crop: "Beans",    icon: "🫘", longRain: "Mar–May", shortRain: "Oct–Nov", highlight: farm?.cropType?.toLowerCase().includes("bean") },
+                { crop: "Coffee",   icon: "☕", longRain: "Mar–May", shortRain: "Oct–Nov", highlight: farm?.cropType?.toLowerCase().includes("coffee") },
+                { crop: "Tea",      icon: "🍵", longRain: "Year-round", shortRain: "—",    highlight: farm?.cropType?.toLowerCase().includes("tea") },
+                { crop: "Avocado",  icon: "🥑", longRain: "Mar–Apr", shortRain: "Oct",     highlight: farm?.cropType?.toLowerCase().includes("avocado") },
+                { crop: "Tomatoes", icon: "🍅", longRain: "Feb–Mar", shortRain: "Sep–Oct", highlight: farm?.cropType?.toLowerCase().includes("tomato") },
+                { crop: "Wheat",    icon: "🌾", longRain: "Mar–Apr", shortRain: "Oct–Nov", highlight: farm?.cropType?.toLowerCase().includes("wheat") },
+                { crop: "Sorghum",  icon: "🌿", longRain: "Apr–May", shortRain: "Nov",     highlight: farm?.cropType?.toLowerCase().includes("sorghum") },
+              ].map(({ crop, icon, longRain, shortRain, highlight }) => (
+                <div key={crop} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-colors ${
+                  highlight ? "bg-primary/5 border-primary/20" : "bg-muted/30 border-transparent"
+                }`}>
+                  <span className="text-base flex-shrink-0">{icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold leading-none ${highlight ? "text-primary" : "text-foreground"}`}>
+                      {crop} {highlight && <span className="text-[9px] font-bold text-primary ml-1">YOUR CROP</span>}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <div className="text-center">
+                      <p className="text-[8px] text-sky-500 font-bold">LR</p>
+                      <p className="text-[10px] text-foreground font-semibold">{longRain}</p>
+                    </div>
+                    <div className="w-px h-full bg-border" />
+                    <div className="text-center">
+                      <p className="text-[8px] text-amber-500 font-bold">SR</p>
+                      <p className="text-[10px] text-foreground font-semibold">{shortRain}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 mt-2.5 px-1">
+              <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-sky-400" /><span className="text-[9px] text-muted-foreground">LR = Long Rains</span></div>
+              <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" /><span className="text-[9px] text-muted-foreground">SR = Short Rains</span></div>
+            </div>
+          </motion.div>
 
           {/* ── AI Weekly Recommendations ── */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }}

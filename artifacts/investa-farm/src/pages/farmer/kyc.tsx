@@ -40,6 +40,7 @@ export default function FarmerKyc() {
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showUnderReview, setShowUnderReview] = useState(false);
   const token = getToken();
 
   const { data: docs = [], isLoading } = useQuery<KycDoc[]>({
@@ -76,9 +77,13 @@ export default function FarmerKyc() {
       if (!r.ok) throw new Error("Document save failed");
       return r.json();
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["kyc-docs"] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["kyc-docs"] });
       closePopup();
+      const updated: KycDoc[] = qc.getQueryData(["kyc-docs"]) ?? [];
+      const uploadedTypes = new Set(updated.map(d => d.docType));
+      const allCovered = DOC_TYPES.every(dt => uploadedTypes.has(dt.value));
+      if (allCovered) setShowUnderReview(true);
     },
     onError: (e: Error) => setUploadError(e.message),
   });
@@ -215,6 +220,65 @@ export default function FarmerKyc() {
     </AnimatePresence>,
     document.body
   ) : null;
+
+  const requiredUploaded = DOC_TYPES.filter(dt => docs.some(d => d.docType === dt.value));
+  const allRequiredUploaded = requiredUploaded.length >= DOC_TYPES.length;
+
+  if (showUnderReview || (!isLoading && allRequiredUploaded && docs.length >= DOC_TYPES.length)) {
+    return (
+      <div className="app-shell pb-20 page-enter">
+        <div className="hero-header pt-12 pb-5 px-5">
+          <div className="flex items-center gap-3 mb-2">
+            <button onClick={() => setLocation("/farmer")}
+              className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center border border-white/30">
+              <ArrowLeft size={16} className="text-white" />
+            </button>
+            <div>
+              <p className="text-white/70 text-xs font-medium">Account Verification</p>
+              <h1 className="text-white text-xl font-bold">KYC Documents</h1>
+            </div>
+          </div>
+        </div>
+        <div className="px-4 pt-8 flex flex-col items-center text-center gap-5">
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="w-24 h-24 rounded-full bg-amber-100 border-4 border-amber-300 flex items-center justify-center">
+            <Clock size={44} className="text-amber-500" />
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <h2 className="text-foreground font-extrabold text-xl mb-2">Under Review</h2>
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
+              All your documents have been submitted. Our team will verify them within <strong>24–48 hours</strong> and notify you by email.
+            </p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+            className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left">
+            <p className="text-amber-800 font-bold text-xs mb-2.5">📋 Documents Submitted</p>
+            <div className="space-y-1.5">
+              {docs.map(doc => (
+                <div key={doc.id} className="flex items-center gap-2">
+                  {doc.status === "approved" ? <CheckCircle2 size={12} className="text-green-500" /> : <Clock size={12} className="text-amber-500" />}
+                  <span className="text-amber-700 text-xs">{DOC_TYPES.find(d => d.value === doc.docType)?.label ?? doc.docType}</span>
+                  <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full ${statusClass(doc.status)}`}>{doc.status}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+            className="w-full space-y-2">
+            <button onClick={() => setShowUnderReview(false)}
+              className="w-full border border-border text-foreground font-semibold py-3 rounded-2xl text-sm active:scale-95 transition-transform">
+              View Documents
+            </button>
+            <button onClick={() => setLocation("/farmer")}
+              className="w-full bg-primary text-white font-bold py-3 rounded-2xl text-sm active:scale-95 transition-transform">
+              Back to Dashboard
+            </button>
+          </motion.div>
+        </div>
+        <BottomNav role="farmer" />
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell pb-20 page-enter">
