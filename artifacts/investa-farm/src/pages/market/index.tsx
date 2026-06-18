@@ -310,6 +310,7 @@ export default function MarketHome() {
   const [alertListing, setAlertListing] = useState<any>(null);
   const [selectedMover, setSelectedMover] = useState<any>(null);
   const [moverDetailOpen, setMoverDetailOpen] = useState(false);
+  const [newsCategory, setNewsCategory] = useState("All");
   const [insightOpen, setInsightOpen] = useState(false);
   const [insightCrop, setInsightCrop] = useState<typeof WATCHLIST_CROPS[0] | null>(null);
   const [insightText, setInsightText] = useState("");
@@ -917,9 +918,10 @@ export default function MarketHome() {
                                             <RiskBadge level={risk} />
                                           </div>
                                           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                            <span className="text-[9px] bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded-full">⚡ +10% mid</span>
-                                            <span className="text-[9px] bg-emerald-100 text-emerald-700 font-semibold px-1.5 py-0.5 rounded-full">🌾 +22% full</span>
-                                            <span className="text-[9px] text-muted-foreground">{listing.sharesAvailable} shares</span>
+                                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${isUp ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                                              {isUp ? "⚡" : "📉"} {formatChange(listing.changePercent)}
+                                            </span>
+                                            <span className="text-[9px] text-muted-foreground">{listing.sharesAvailable} shares left</span>
                                           </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
@@ -1006,8 +1008,9 @@ export default function MarketHome() {
             <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
               {["All", "Markets", "Weather", "Policy", "Returns"].map((cat) => (
                 <button key={cat}
+                  onClick={() => setNewsCategory(cat)}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all active:scale-95 ${
-                    cat === "All"
+                    newsCategory === cat
                       ? "bg-primary text-white border-primary shadow-sm"
                       : "bg-muted/80 border-border text-foreground hover:bg-muted"
                   }`}>
@@ -1058,7 +1061,10 @@ export default function MarketHome() {
             {newsLoading
               ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
               : (() => {
-                  const items = newsItems ?? [];
+                  const allItems = newsItems ?? [];
+                  const items = newsCategory === "All"
+                    ? allItems
+                    : allItems.filter((n: any) => (n.tag ?? "").toLowerCase() === newsCategory.toLowerCase());
                   if (items.length === 0) return (
                     <div className="bg-card rounded-2xl border border-border p-8 text-center">
                       <Newspaper size={28} className="text-muted-foreground mx-auto mb-2" />

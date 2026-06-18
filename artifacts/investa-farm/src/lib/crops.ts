@@ -5,7 +5,9 @@ import teaImg      from "@assets/IMG_8017_1781250392113.jpeg";
 
 import avocadoImg  from "@assets/IMG_8004_1781255323883.jpeg";
 import wheatImg    from "@assets/IMG_8005_1781255323884.jpeg";
-import maizeImg    from "@assets/IMG_8007_1781255323886.jpeg";
+
+// Corn/maize field — proper crop photo (replaces person-with-phone placeholder)
+import cornFieldImg from "@assets/pexels-livier-garcia-645743-1459331_1778315943105.jpg";
 
 // Crop-specific photos from Pexels
 import beansImg       from "@assets/pexels-ana-vieira-1110685065-33068285_1781331189485.jpg";
@@ -19,9 +21,9 @@ import dairyImg       from "@assets/pexels-carina-chowanek-297993717-13340333_17
 import tomatoesImg    from "@assets/pexels-mnannapaneni-6187904_1781331189493.jpg";
 
 export const CROP_IMAGES: Record<string, string> = {
-  maize:        maizeImg,
-  corn:         maizeImg,
-  sorghum:      maizeImg,
+  maize:        cornFieldImg,
+  corn:         cornFieldImg,
+  sorghum:      cornFieldImg,
   wheat:        wheatImg,
   barley:       wheatImg,
   grain:        wheatImg,
@@ -39,7 +41,7 @@ export const CROP_IMAGES: Record<string, string> = {
   beans:        beansImg,
   legumes:      beansImg,
   onions:       aerialImg,
-  capsicum:     farmerImg,
+  capsicum:     cabbageImg,
   strawberries: avocadoImg,
   kale:         kaleImg,
   sukumawiki:   kaleImg,
@@ -47,8 +49,8 @@ export const CROP_IMAGES: Record<string, string> = {
   spinach:      kaleImg,
   rice:         riceImg,
   macadamia:    avocadoImg,
-  sugarcane:    maizeImg,
-  cassava:      farmerImg,
+  sugarcane:    cornFieldImg,
+  cassava:      aerialImg,
   cabbage:      cabbageImg,
   vegetables:   cabbageImg,
   horticulture: greenhouseImg,
