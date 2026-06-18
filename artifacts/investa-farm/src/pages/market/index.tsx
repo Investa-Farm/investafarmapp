@@ -1057,17 +1057,29 @@ export default function MarketHome() {
                           </div>
                           <div className="absolute top-3 right-3"><NewsAiBot item={top} /></div>
                         </div>
-                        <button className="w-full text-left px-4 pt-3 pb-3 active:bg-muted/30 transition-colors"
-                          onClick={() => setExpandedNews(topExpanded ? null : top.id)}>
+                        <div className="px-4 pt-3 pb-3">
                           <div className="flex items-center gap-1.5 mb-1.5">
                             <span className="text-primary text-[10px] font-bold">{top.source}</span>
                             <span className="text-muted-foreground/40 text-[10px]">·</span>
                             <span className="text-muted-foreground text-[10px] flex items-center gap-0.5"><Clock size={8} />{top.time}</span>
-                            <ChevronDown size={13} className={`text-muted-foreground ml-auto transition-transform ${topExpanded ? "rotate-180" : ""}`} />
+                            <button onClick={() => setExpandedNews(topExpanded ? null : top.id)} className="ml-auto flex items-center gap-0.5 text-muted-foreground text-[10px]">
+                              <ChevronDown size={13} className={`transition-transform ${topExpanded ? "rotate-180" : ""}`} />
+                            </button>
                           </div>
-                          <p className="text-foreground font-bold text-[14px] leading-snug">{top.title}</p>
-                          <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed line-clamp-2">{top.summary}</p>
-                        </button>
+                          <button
+                            className="text-left w-full active:opacity-70"
+                            onClick={() => top.url && top.url !== "#" ? window.open(top.url, "_blank", "noopener,noreferrer") : setExpandedNews(topExpanded ? null : top.id)}
+                          >
+                            <p className="text-foreground font-bold text-[14px] leading-snug">{top.title}</p>
+                            <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed line-clamp-2">{top.summary}</p>
+                            {top.url && top.url !== "#" && (
+                              <div className="flex items-center gap-1 mt-1.5">
+                                <ExternalLink size={10} className="text-primary" />
+                                <span className="text-primary text-[10px] font-semibold">Read full story</span>
+                              </div>
+                            )}
+                          </button>
+                        </div>
                         <AnimatePresence>
                           {topExpanded && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden bg-card">
@@ -1097,7 +1109,7 @@ export default function MarketHome() {
                             return (
                               <div key={item.id}>
                                 <button className="w-full text-left px-3.5 py-3 active:bg-muted/20 transition-colors flex gap-3 items-start"
-                                  onClick={() => setExpandedNews(isExpanded ? null : item.id)}>
+                                  onClick={() => item.url && item.url !== "#" ? window.open(item.url, "_blank", "noopener,noreferrer") : setExpandedNews(isExpanded ? null : item.id)}>
                                   <div className="flex-1 min-w-0 pt-0.5">
                                     <div className="flex items-center gap-1.5 mb-1">
                                       <span className="text-primary text-[9px] font-bold truncate max-w-[90px]">{item.source}</span>
@@ -1106,6 +1118,12 @@ export default function MarketHome() {
                                       <span className={`ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
                                     </div>
                                     <p className="text-foreground font-semibold text-[12px] leading-snug line-clamp-2">{item.title}</p>
+                                    {item.url && item.url !== "#" && (
+                                      <div className="flex items-center gap-1 mt-1">
+                                        <ExternalLink size={9} className="text-primary" />
+                                        <span className="text-primary text-[9px] font-semibold">Tap to read</span>
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="w-16 h-14 rounded-xl overflow-hidden flex-shrink-0 mt-0.5">
                                     <img src={getNewsImage(item)} alt="" className="w-full h-full object-cover" />

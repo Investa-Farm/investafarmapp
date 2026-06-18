@@ -319,7 +319,7 @@ export async function sendVerificationReminderEmail(
         <table cellpadding="0" cellspacing="0" style="margin:24px auto;">
           <tr>
             <td align="center" style="background:linear-gradient(135deg,${GRASS_DARK},${GRASS_GREEN});border-radius:12px;padding:1px;">
-              <a href="https://investafarm.co.ke/verify-otp" style="display:inline-block;background:linear-gradient(135deg,${GRASS_DARK},${GRASS_GREEN});color:#ffffff;font-size:15px;font-weight:800;text-decoration:none;padding:14px 36px;border-radius:12px;">
+              <a href="https://app.investafarm.com/verify-otp" style="display:inline-block;background:linear-gradient(135deg,${GRASS_DARK},${GRASS_GREEN});color:#ffffff;font-size:15px;font-weight:800;text-decoration:none;padding:14px 36px;border-radius:12px;">
                 ✅ Verify My Email Now
               </a>
             </td>
@@ -431,7 +431,7 @@ export async function sendFirstInvestmentEmail(
           </p>`).join("")}
         </div>
 
-        ${ctaButton("🌾 Track My Investment →", "https://investafarm.co.ke/portfolio")}
+        ${ctaButton("🌾 Track My Investment →", "https://app.investafarm.com/portfolio")}
 
         <p style="color:#9ca3af;font-size:12px;margin:20px 0 0 0;text-align:center;font-style:italic;">
           Pro tip: Diversify across 3–5 farms for the best risk-adjusted returns. ¡Buena suerte! 🍀
@@ -752,7 +752,7 @@ export async function sendKycApprovedEmail(to: string, name: string): Promise<vo
           </table>
         </div>
 
-        ${ctaButton("🚀 Start Investing Now →", "https://investafarm.co.ke/market")}
+        ${ctaButton("🚀 Start Investing Now →", "https://app.investafarm.com/market")}
       </td>
     </tr>`;
 
@@ -800,7 +800,7 @@ export async function sendKycRejectedEmail(to: string, name: string): Promise<vo
           <p style="color:${GRASS_MID};font-size:14px;margin:0;">💡 <strong>Tip:</strong> Take photos in bright natural light, hold the document flat, and ensure all four corners are visible.</p>
         </div>
 
-        ${ctaButton("📄 Re-submit KYC Documents →", "https://investafarm.co.ke/kyc", "linear-gradient(135deg,#7f1d1d,#dc2626)")}
+        ${ctaButton("📄 Re-submit KYC Documents →", "https://app.investafarm.com/kyc", "linear-gradient(135deg,#7f1d1d,#dc2626)")}
 
         <p style="color:#9ca3af;font-size:13px;margin:20px 0 0 0;text-align:center;">
           If you believe this is a mistake, reply to this email and we'll investigate within 24 hours.
@@ -890,7 +890,7 @@ export async function sendFundingVoucherEmail(
           </table>
         </div>
 
-        ${ctaButton("View Farm Dashboard →", "https://investafarm.co.ke/farmer/dashboard")}
+        ${ctaButton("View Farm Dashboard →", "https://app.investafarm.com/farmer/dashboard")}
       </td>
     </tr>`;
 
@@ -940,7 +940,7 @@ export async function sendKycUnderReviewEmail(to: string, name: string): Promise
           </p>`).join("")}
         </div>
 
-        ${ctaButton("Explore the Market →", "https://investafarm.co.ke/market", `linear-gradient(135deg,#1e40af,#3b82f6)`)}
+        ${ctaButton("Explore the Market →", "https://app.investafarm.com/market", `linear-gradient(135deg,#1e40af,#3b82f6)`)}
 
         <p style="color:#9ca3af;font-size:13px;margin:20px 0 0 0;text-align:center;">
           You'll receive an email as soon as your review is complete.
@@ -1042,7 +1042,7 @@ export async function sendPriceAlertEmail(to: string, name: string, farmName: st
           </div>
         </div>
 
-        ${ctaButton("View Portfolio →", "https://investafarm.co.ke/portfolio", headerBg)}
+        ${ctaButton("View Portfolio →", "https://app.investafarm.com/portfolio", headerBg)}
       </td>
     </tr>`;
 
@@ -1169,7 +1169,7 @@ export async function sendOpportunityDigest(
           </tr>
         </table>
 
-        ${ctaButton("Browse All Farm Opportunities →", "https://investafarm.co.ke/market/primary")}
+        ${ctaButton("Browse All Farm Opportunities →", "https://app.investafarm.com/market/primary")}
 
         <div style="background:#f8faf8;border:1px solid #e5ede5;border-radius:12px;padding:16px;margin:20px 0 0 0;">
           <p style="color:#6b7280;font-size:12px;margin:0;line-height:1.6;">
@@ -1268,7 +1268,7 @@ export async function sendFundingApplicationEmail(
           </ul>
         </div>
 
-        ${ctaButton("View My Application →", "https://investafarm.co.ke/farmer/loan-apply")}
+        ${ctaButton("View My Application →", "https://app.investafarm.com/farmer/loan-apply")}
 
         <p style="color:#9ca3af;font-size:12px;margin:24px 0 0 0;line-height:1.6;">
           Questions? Reply to this email or contact us at <a href="mailto:investafarm@proton.me" style="color:${GRASS_GREEN};">investafarm@proton.me</a><br>

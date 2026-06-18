@@ -19,6 +19,7 @@ import { SellSharesModal } from "@/components/sell-shares-modal";
 import { PortfolioHealthAI } from "@/components/portfolio-health-ai";
 import { getCropImage } from "@/lib/crops";
 import { ReinvestmentSettings } from "@/components/reinvestment-settings";
+import { useCurrency } from "@/lib/currency";
 
 function useCountUp(target: number, duration = 900) {
   const [current, setCurrent] = useState(0);
@@ -159,6 +160,7 @@ export default function Portfolio() {
   const token = getToken();
   const user = getStoredUser();
   const qc = useQueryClient();
+  const { formatAmount } = useCurrency();
 
   const { data: myPortfolios = [], refetch: refetchPortfolios } = useQuery<any[]>({
     queryKey: ["my-portfolios"],
@@ -725,7 +727,7 @@ export default function Portfolio() {
                         </div>
                         <div className="bg-muted/50 rounded-xl p-2 text-center">
                           <p className="text-muted-foreground text-[9px]">Value</p>
-                          <p className="text-foreground font-bold text-xs">{formatKES(h.totalValue)}</p>
+                          <p className="text-foreground font-bold text-xs">{formatAmount(h.totalValue)}</p>
                         </div>
                         <div className={`rounded-xl p-2 text-center ${isUp ? "bg-green-50" : "bg-red-50"}`}>
                           <p className="text-muted-foreground text-[9px]">Gain/Loss</p>
@@ -747,13 +749,13 @@ export default function Portfolio() {
                           <div className="grid grid-cols-2 gap-2">
                             <div className="bg-white/80 rounded-lg p-2">
                               <p className="text-muted-foreground text-[9px]">⚡ Mid-Season Exit</p>
-                              <p className="text-orange-600 font-bold text-xs">{formatKES(roi.midSeason.saleProceeds)}</p>
+                              <p className="text-orange-600 font-bold text-xs">{formatAmount(roi.midSeason.saleProceeds)}</p>
                               <p className="text-orange-500 text-[9px] font-semibold">{roi.midSeason.roiPercent >= 0 ? "+" : ""}{roi.midSeason.roiPercent.toFixed(1)}% · {roi.midSeason.annualizedPercent.toFixed(0)}% ann.</p>
-                              <p className="text-muted-foreground text-[8px]">{roi.midSeason.daysHeld}d held · sell @ {formatKES(roi.midSeason.pSell)}/sh</p>
+                              <p className="text-muted-foreground text-[8px]">{roi.midSeason.daysHeld}d held · sell @ {formatAmount(roi.midSeason.pSell)}/sh</p>
                             </div>
                             <div className="bg-white/80 rounded-lg p-2">
                               <p className="text-muted-foreground text-[9px]">🌾 Full Season Exit</p>
-                              <p className="text-green-600 font-bold text-xs">{formatKES(roi.fullSeason.projectedPayout)}</p>
+                              <p className="text-green-600 font-bold text-xs">{formatAmount(roi.fullSeason.projectedPayout)}</p>
                               <p className="text-green-600 text-[9px] font-semibold">{roi.fullSeason.roiPercent >= 0 ? "+" : ""}{roi.fullSeason.roiPercent.toFixed(1)}% · {roi.fullSeason.annualizedPercent.toFixed(0)}% ann.</p>
                               <p className="text-muted-foreground text-[8px]">{roi.fullSeason.daysToHarvest}d to harvest</p>
                             </div>
@@ -770,11 +772,11 @@ export default function Portfolio() {
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <p className="text-muted-foreground text-[9px]">⚡ Mid-Season (+10%)</p>
-                              <p className="text-orange-600 font-bold text-xs">{formatKES(midPayout)}</p>
+                              <p className="text-orange-600 font-bold text-xs">{formatAmount(midPayout)}</p>
                             </div>
                             <div>
                               <p className="text-muted-foreground text-[9px]">🌾 Full Season (+22%)</p>
-                              <p className="text-green-600 font-bold text-xs">{formatKES(fullPayout)}</p>
+                              <p className="text-green-600 font-bold text-xs">{formatAmount(fullPayout)}</p>
                             </div>
                           </div>
                         </div>

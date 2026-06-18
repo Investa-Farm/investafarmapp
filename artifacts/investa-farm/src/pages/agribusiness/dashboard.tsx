@@ -28,7 +28,7 @@ export default function AgribusinessDashboard() {
 
   // Referral state
   const [refCopied, setRefCopied] = useState(false);
-  const refLink = `https://investafarm.co.ke/register?ref=${user?.id ?? 0}&type=farmer&via=agribiz&partner=${encodeURIComponent(user?.name ?? "")}`;
+  const refLink = `https://app.investafarm.com/register?ref=${user?.id ?? 0}&type=farmer&via=agribiz&partner=${encodeURIComponent(user?.name ?? "")}`;
 
   const copyRef = async () => {
     await navigator.clipboard.writeText(refLink).catch(() => {});

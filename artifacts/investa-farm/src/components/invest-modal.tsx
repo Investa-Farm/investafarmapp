@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield } from "lucide-react";
+import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield, Wallet } from "lucide-react";
 import { formatKES, formatChange, getToken, isDemoAccount } from "@/lib/auth";
 import { getCropImage } from "@/lib/crops";
 import { PaymentModal } from "./payment-modal";
@@ -50,6 +51,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const [payOpen, setPayOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [kycOpen, setKycOpen] = useState(false);
+  const [, setLocation] = useLocation();
   const buyShares = useBuyShares();
   const qc = useQueryClient();
   const token = getToken();
@@ -310,9 +312,9 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                             </p>
                           </div>
                           <button
-                            onClick={() => { onClose(); }}
-                            className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all">
-                            Go to Wallet & Top Up →
+                            onClick={() => { resetAndClose(); setLocation("/wallet"); }}
+                            className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+                            <Wallet size={15} /> Go to Wallet & Top Up →
                           </button>
                         </div>
                       )}

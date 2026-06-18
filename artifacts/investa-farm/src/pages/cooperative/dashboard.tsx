@@ -87,7 +87,7 @@ export default function CooperativeDashboard() {
 
   // Invitation link
   const [inviteCopied, setInviteCopied] = useState(false);
-  const inviteLink = `https://investafarm.co.ke/register?ref=${user?.id ?? 0}&type=farmer&partner=${encodeURIComponent(user?.name ?? "")}`;
+  const inviteLink = `https://app.investafarm.com/register?ref=${user?.id ?? 0}&type=farmer&partner=${encodeURIComponent(user?.name ?? "")}`;
 
   const handleLogout = () => { clearToken(); setLocation("/"); };
 

@@ -10,6 +10,19 @@ import { TermsModal } from "@/components/terms-modal";
 
 const COUNTIES = ["Nairobi","Mombasa","Kisumu","Nakuru","Eldoret","Thika","Malindi","Kitale","Machakos","Nyeri","Meru","Kakamega","Kisii","Kericho","Embu"];
 
+const COUNTRY_CODES = [
+  { code: "+254", flag: "🇰🇪", name: "Kenya" },
+  { code: "+255", flag: "🇹🇿", name: "Tanzania" },
+  { code: "+256", flag: "🇺🇬", name: "Uganda" },
+  { code: "+250", flag: "🇷🇼", name: "Rwanda" },
+  { code: "+251", flag: "🇪🇹", name: "Ethiopia" },
+  { code: "+27",  flag: "🇿🇦", name: "South Africa" },
+  { code: "+234", flag: "🇳🇬", name: "Nigeria" },
+  { code: "+44",  flag: "🇬🇧", name: "UK" },
+  { code: "+1",   flag: "🇺🇸", name: "USA" },
+  { code: "+971", flag: "🇦🇪", name: "UAE" },
+];
+
 export default function FarmerAuth() {
   const [, setLocation] = useLocation();
   const search = useSearch();
@@ -19,6 +32,7 @@ export default function FarmerAuth() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [countryCode, setCountryCode] = useState("+254");
   const [county, setCounty] = useState("");
   const [cropType, setCropType] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -273,7 +287,21 @@ export default function FarmerAuth() {
                 <form onSubmit={handleRegister} className="space-y-4">
                   <Field label="Full Name" id="name" type="text" value={fullName} set={setFullName} placeholder="e.g. John Kamau" icon={<User size={15} />} required />
                   <Field label="Email address" id="email" type="email" value={email} set={setEmail} placeholder="farmer@example.com" icon={<Mail size={15} />} />
-                  <Field label="Phone Number" id="phone" type="tel" value={phone} set={setPhone} placeholder="+254 7xx xxx xxx" icon={<Phone size={15} />} required />
+                  <div className="space-y-1.5">
+                    <label className="text-foreground/60 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5"><Phone size={11} /> Phone Number</label>
+                    <div className="flex gap-2">
+                      <select value={countryCode} onChange={e => setCountryCode(e.target.value)}
+                        className="border border-border rounded-xl px-2 py-3 text-sm bg-gray-50 focus:outline-none focus:border-green-500 appearance-none w-[88px] flex-shrink-0 text-center">
+                        {COUNTRY_CODES.map(c => (
+                          <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                        ))}
+                      </select>
+                      <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                        placeholder={countryCode === "+254" ? "7xx xxx xxx" : "Phone number"}
+                        required
+                        className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground bg-gray-50 text-sm focus:outline-none focus:border-green-500 focus:bg-white transition-colors" />
+                    </div>
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-foreground/60 text-xs font-semibold uppercase tracking-wider">County</label>
                     <div className="relative">

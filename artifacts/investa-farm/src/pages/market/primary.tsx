@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { useListPrimaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES } from "@/lib/auth";
-import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator } from "lucide-react";
+import { useCurrency } from "@/lib/currency";
+import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator, MapPin, Users } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
@@ -89,6 +90,7 @@ type Listing = {
 
 export default function PrimaryMarket() {
   const [, setLocation] = useLocation();
+  const { formatAmount } = useCurrency();
   const { data: listings, isLoading } = useListPrimaryMarket();
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [investOpen, setInvestOpen] = useState(false);
@@ -226,14 +228,14 @@ export default function PrimaryMarket() {
                       </div>
                     </div>
 
-                    {/* Price + sparkline + details toggle */}
+                    {/* Price + sparkline + shares available + details toggle */}
                     <button
                       onClick={() => setExpandedId(isExpanded ? null : listing.id)}
                       className="w-full border-t border-border/50 px-3 py-2 flex items-center justify-between bg-muted/20 hover:bg-muted/40 transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
-                          <span className="text-foreground font-bold text-xs">{formatKES(listing.pricePerShare)}</span>
+                          <span className="text-foreground font-bold text-xs">{formatAmount(listing.pricePerShare)}</span>
                           <span className="text-muted-foreground text-[10px]">/share</span>
                         </div>
                         <span className={`text-[10px] font-semibold ${isUp ? "text-green-600" : "text-red-500"}`}>
@@ -241,6 +243,10 @@ export default function PrimaryMarket() {
                         </span>
                         <div className="w-12 opacity-70">
                           <Sparkline data={sparkData} color={isUp ? "#16a34a" : "#dc2626"} height={16} />
+                        </div>
+                        <div className="flex items-center gap-0.5 text-muted-foreground/70">
+                          <Users size={9} />
+                          <span className="text-[9px]">{listing.sharesAvailable.toLocaleString()} left</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-0.5 text-primary text-[10px] font-semibold">
@@ -273,11 +279,28 @@ export default function PrimaryMarket() {
                           </ResponsiveContainer>
                         </div>
 
+                        {/* Location + shares info */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <MapPin size={11} className="flex-shrink-0" />
+                            <span className="text-[10px]">{listing.location}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Users size={11} className="flex-shrink-0" />
+                            <span className="text-[10px]">{listing.sharesAvailable.toLocaleString()} shares available</span>
+                          </div>
+                          <div className="ml-auto">
+                            <span className="text-[9px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                              Min: {formatAmount(listing.pricePerShare * 10)} (10 shares)
+                            </span>
+                          </div>
+                        </div>
+
                         <div className="grid grid-cols-3 gap-2">
                           {[
-                            { label: "Season Low",  value: formatKES(Math.round(listing.pricePerShare * 0.85)), cls: "text-red-500" },
-                            { label: "Current",     value: formatKES(listing.pricePerShare),                    cls: "text-foreground" },
-                            { label: "Target Exit", value: formatKES(Math.round(listing.pricePerShare * (1 + targetRoi / 100))), cls: "text-green-600" },
+                            { label: "Season Low",  value: formatAmount(Math.round(listing.pricePerShare * 0.85)), cls: "text-red-500" },
+                            { label: "Current",     value: formatAmount(listing.pricePerShare),                    cls: "text-foreground" },
+                            { label: "Target Exit", value: formatAmount(Math.round(listing.pricePerShare * (1 + targetRoi / 100))), cls: "text-green-600" },
                           ].map(({ label, value, cls }) => (
                             <div key={label} className="bg-muted/50 rounded-xl p-2 text-center">
                               <p className="text-muted-foreground text-[8px]">{label}</p>
@@ -291,19 +314,19 @@ export default function PrimaryMarket() {
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <p className="text-muted-foreground text-[9px]">⚡ Mid-Season (+10%)</p>
-                              <p className="text-orange-600 font-bold text-xs">{formatKES(Math.round(listing.pricePerShare * 100 * 1.10))}</p>
+                              <p className="text-orange-600 font-bold text-xs">{formatAmount(Math.round(listing.pricePerShare * 100 * 1.10))}</p>
                               <p className="text-muted-foreground text-[8px]">30–60 days</p>
                             </div>
                             <div>
                               <p className="text-muted-foreground text-[9px]">🌾 Full Season (+{targetRoi}%)</p>
-                              <p className="text-green-600 font-bold text-xs">{formatKES(Math.round(listing.pricePerShare * 100 * (1 + targetRoi / 100)))}</p>
+                              <p className="text-green-600 font-bold text-xs">{formatAmount(Math.round(listing.pricePerShare * 100 * (1 + targetRoi / 100)))}</p>
                               <p className="text-muted-foreground text-[8px]">~6 months</p>
                             </div>
                           </div>
                           {(listing as any).dcfFairValue && (
                             <div className="mt-2 pt-2 border-t border-green-200/70 flex items-center justify-between">
                               <span className="text-green-700 text-[9px] font-semibold">DCF Fair Value / share</span>
-                              <span className="text-green-800 font-bold text-[11px]">{formatKES((listing as any).dcfFairValue)}</span>
+                              <span className="text-green-800 font-bold text-[11px]">{formatAmount((listing as any).dcfFairValue)}</span>
                             </div>
                           )}
                         </div>

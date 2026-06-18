@@ -54,6 +54,17 @@ A farm investment PWA where farmers raise capital by listing farm shares (like a
 - **Investors**: Browse live market with sparklines + price ticker, buy shares (primary/secondary), manage portfolio, request exit (Wide Season 30-60d or Full Season ~6mo), view transaction history
 - **Demo accounts**: `john.farmer@investafarm.com` / `password123` (farmer), `david.investor@investafarm.com` / `password123` (investor)
 
+## UX Details
+
+- **Email links**: All transactional email links point to `https://app.investafarm.com`
+- **News cards**: Tap any news headline or card to open the full article in a new tab directly (no expand step)
+- **Insufficient funds**: "Go to Wallet" button in the invest modal closes the sheet and navigates to `/wallet`
+- **Farm cards (primary)**: Expanded card shows location + shares remaining badge, min-investment pill, currency-aware price/ROI figures that follow the user's currency setting (KES/USD/etc.)
+- **KYC banner (investor profile)**: Three states — *Upload KYC* (orange) when no docs uploaded; *Documents Under Review* (blue) when all docs submitted but not yet approved; banner disappears entirely once verified
+- **KYC upload popup**: Shows an animated "Document Submitted / Under Review" success screen for ~1.4s before auto-closing
+- **Phone country code**: All phone fields (farmer register, cooperative register, wallet withdrawal) have a flag + dial-code dropdown defaulting to 🇰🇪 +254, covering KE/TZ/UG/RW/ET/ZA/NG/GB/US/AE
+- **Portfolio holdings**: Value, mid-season proceeds, full-season payout, and per-share sell price in holdings cards all respect the active currency setting
+
 ## Deploying to Production
 
 ### Railway (Single deployment — frontend + backend on one service)

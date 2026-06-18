@@ -27,6 +27,13 @@ const TX_ICONS: Record<string, { emoji: string }> = {
 
 const QUICK_AMOUNTS = [1000, 5000, 10000, 25000, 50000];
 
+const MPESA_CODES = [
+  { code: "+254", flag: "🇰🇪", name: "Kenya (Safaricom)" },
+  { code: "+255", flag: "🇹🇿", name: "Tanzania" },
+  { code: "+256", flag: "🇺🇬", name: "Uganda" },
+  { code: "+250", flag: "🇷🇼", name: "Rwanda" },
+];
+
 type Props = { open: boolean; onClose: () => void };
 
 export function WalletModal({ open, onClose }: Props) {
@@ -36,6 +43,7 @@ export function WalletModal({ open, onClose }: Props) {
   const [modal, setModal] = useState<"deposit" | "withdraw" | null>(null);
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneCode, setPhoneCode] = useState("+254");
   const [success, setSuccess] = useState<string | null>(null);
   const [paystackRef, setPaystackRef] = useState<string | null>(null);
   const [paystackVerifying, setPaystackVerifying] = useState(false);
@@ -390,16 +398,22 @@ export function WalletModal({ open, onClose }: Props) {
                     )}
 
                     {modal === "withdraw" && (
-                      <form onSubmit={(e) => { e.preventDefault(); const amt = parseFloat(amount); if (!amt || amt < 100 || !phone.trim()) return; withdrawMutation.mutate({ amt, phoneNum: phone.trim() }); }} className="space-y-4">
+                      <form onSubmit={(e) => { e.preventDefault(); const amt = parseFloat(amount); if (!amt || amt < 100 || !phone.trim()) return; withdrawMutation.mutate({ amt, phoneNum: phoneCode + phone.trim() }); }} className="space-y-4">
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                           <p className="text-amber-700 text-xs">Available: <strong>{formatKES(balance)}</strong>. Sent to M-Pesa within 1–2 business days.</p>
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">M-Pesa Number</label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">+254</span>
-                            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="7XXXXXXXX" required
-                              className="w-full border border-border rounded-xl pl-14 pr-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
+                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Mobile Money Number</label>
+                          <div className="flex gap-2">
+                            <select value={phoneCode} onChange={e => setPhoneCode(e.target.value)}
+                              className="border border-border rounded-xl px-2 py-3 text-sm bg-white focus:outline-none focus:border-primary appearance-none w-[90px] flex-shrink-0 text-center font-medium">
+                              {MPESA_CODES.map(c => (
+                                <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                              ))}
+                            </select>
+                            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                              placeholder={phoneCode === "+254" ? "7XXXXXXXX" : "Phone number"} required
+                              className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
                           </div>
                         </div>
                         <div>

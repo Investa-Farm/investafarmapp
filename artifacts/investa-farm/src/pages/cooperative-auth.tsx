@@ -19,6 +19,17 @@ const INPUT_PROVIDER_ORG_TYPES = [
   { value: "financial",    label: "🏦 Financial Institution" },
 ];
 
+const COOP_PHONE_CODES = [
+  { code: "+254", flag: "🇰🇪" },
+  { code: "+255", flag: "🇹🇿" },
+  { code: "+256", flag: "🇺🇬" },
+  { code: "+250", flag: "🇷🇼" },
+  { code: "+251", flag: "🇪🇹" },
+  { code: "+27",  flag: "🇿🇦" },
+  { code: "+44",  flag: "🇬🇧" },
+  { code: "+1",   flag: "🇺🇸" },
+];
+
 const WELCOME_STEPS = [
   { icon: "🤝", title: "Welcome, Partner!", body: "Investa Farm connects your organization to Africa's leading farm investment network. Access farmer data, loans, and market intelligence." },
   { icon: "👥", title: "Manage Farmer Networks", body: "Onboard and manage farmer groups in your county. Track KYC status, loan repayments, and crop progress in real time." },
@@ -40,6 +51,7 @@ export default function CooperativeAuth() {
   const [orgType, setOrgType] = useState("cooperative");
   const [county, setCounty] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneCode, setPhoneCode] = useState("+254");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -318,11 +330,16 @@ export default function CooperativeAuth() {
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Phone</label>
-                        <div className="relative">
-                          <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                          <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+254 7xx..."
-                            className="w-full border border-border rounded-xl pl-8 pr-3 py-3 text-foreground bg-gray-50 text-sm focus:outline-none focus:border-[#16a34a] focus:bg-white transition-colors" />
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1"><Phone size={10} /> Phone</label>
+                        <div className="flex gap-1.5">
+                          <select value={phoneCode} onChange={e => setPhoneCode(e.target.value)}
+                            className="border border-border rounded-xl px-1 py-3 text-xs bg-gray-50 focus:outline-none focus:border-[#16a34a] appearance-none w-[62px] flex-shrink-0 text-center">
+                            {COOP_PHONE_CODES.map(c => (
+                              <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                            ))}
+                          </select>
+                          <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="7xx..."
+                            className="flex-1 border border-border rounded-xl px-2 py-3 text-foreground bg-gray-50 text-sm focus:outline-none focus:border-[#16a34a] focus:bg-white transition-colors min-w-0" />
                         </div>
                       </div>
                     </div>

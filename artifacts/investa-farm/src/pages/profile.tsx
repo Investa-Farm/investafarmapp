@@ -72,7 +72,7 @@ export default function Profile() {
     reader.readAsDataURL(file);
   };
 
-  const { data: kycStatus } = useQuery<{ isVerified: boolean; approved: number; total: number }>({
+  const { data: kycStatus } = useQuery<{ isVerified: boolean; approved: number; total: number; allUploaded: boolean }>({
     queryKey: ["kyc-status"],
     queryFn: async () => {
       const r = await fetch("/api/kyc/status", { headers: { Authorization: `Bearer ${token}` } });
@@ -332,24 +332,30 @@ export default function Profile() {
       </div>
 
       <div className="px-4 pt-4 space-y-3">
-        {/* KYC status banner */}
-        <button onClick={() => setKycOpen(true)}
-          className={`w-full rounded-2xl p-3.5 border flex items-center gap-3 text-left active:scale-98 transition-transform ${kycStatus?.isVerified ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200"}`}>
-          {kycStatus?.isVerified
-            ? <CheckCircle2 size={20} className="text-green-600 flex-shrink-0" />
-            : <Clock size={20} className="text-orange-600 flex-shrink-0" />}
-          <div className="flex-1">
-            <p className={`font-semibold text-sm ${kycStatus?.isVerified ? "text-green-700" : "text-orange-700"}`}>
-              {kycStatus?.isVerified ? "Identity Verified" : "Complete KYC to Trade"}
-            </p>
-            <p className={`text-xs ${kycStatus?.isVerified ? "text-green-600" : "text-orange-600"}`}>
-              {kycStatus?.isVerified
-                ? "You can buy and trade shares freely"
-                : `${kycStatus?.approved ?? 0} documents approved — ${2 - (kycStatus?.approved ?? 0)} more needed`}
-            </p>
-          </div>
-          <ChevronRight size={15} className={kycStatus?.isVerified ? "text-green-400" : "text-orange-400"} />
-        </button>
+        {/* KYC status banner — hidden when fully verified */}
+        {!kycStatus?.isVerified && (
+          <button onClick={() => setKycOpen(true)}
+            className={`w-full rounded-2xl p-3.5 border flex items-center gap-3 text-left active:scale-98 transition-transform ${
+              kycStatus?.allUploaded
+                ? "bg-blue-50 border-blue-200"
+                : "bg-orange-50 border-orange-200"
+            }`}>
+            {kycStatus?.allUploaded
+              ? <Clock size={20} className="text-blue-600 flex-shrink-0" />
+              : <Shield size={20} className="text-orange-600 flex-shrink-0" />}
+            <div className="flex-1">
+              <p className={`font-semibold text-sm ${kycStatus?.allUploaded ? "text-blue-700" : "text-orange-700"}`}>
+                {kycStatus?.allUploaded ? "Documents Under Review" : "Upload KYC to Trade"}
+              </p>
+              <p className={`text-xs ${kycStatus?.allUploaded ? "text-blue-600" : "text-orange-600"}`}>
+                {kycStatus?.allUploaded
+                  ? "Our team is verifying your documents — usually within 24h"
+                  : `${kycStatus?.approved ?? 0} of ${kycStatus?.total ?? 4} documents approved`}
+              </p>
+            </div>
+            <ChevronRight size={15} className={kycStatus?.allUploaded ? "text-blue-400" : "text-orange-400"} />
+          </button>
+        )}
 
         {/* Broker badge card */}
         {isBroker ? (

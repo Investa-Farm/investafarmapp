@@ -89,6 +89,8 @@ function UploadPopup({
     setFileUrl(`uploaded://${file.name}/${Date.now()}`);
   };
 
+  const [submitted, setSubmitted] = useState(false);
+
   const upload = useMutation({
     mutationFn: async () => {
       const r = await fetch("/api/kyc/upload", {
@@ -102,11 +104,38 @@ function UploadPopup({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["kyc-docs"] });
       qc.invalidateQueries({ queryKey: ["kyc-status"] });
-      onSuccess();
+      setSubmitted(true);
+      setTimeout(() => onSuccess(), 1400);
     },
   });
 
   const ready = !!fileUrl;
+
+  if (submitted) {
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative bg-white rounded-3xl p-8 flex flex-col items-center gap-3 shadow-2xl max-w-[280px] text-center"
+        >
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-1">
+            <CheckCircle2 size={36} className="text-green-600" />
+          </div>
+          <h3 className="text-foreground font-bold text-lg">Document Submitted</h3>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Your {docType.label} has been uploaded and is now <strong className="text-orange-600">under review</strong>. We'll notify you once it's verified.
+          </p>
+          <div className="flex items-center gap-1.5 mt-1">
+            <Loader2 size={12} className="animate-spin text-muted-foreground" />
+            <span className="text-muted-foreground text-xs">Processing…</span>
+          </div>
+        </motion.div>
+      </div>,
+      document.body
+    );
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
