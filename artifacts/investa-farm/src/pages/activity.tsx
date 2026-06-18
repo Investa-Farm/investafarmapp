@@ -164,12 +164,30 @@ export default function Activity() {
     staleTime: 60_000,
   });
 
+  const totalBought = (transactions ?? []).filter((t: any) => t.type === "buy").reduce((s: number, t: any) => s + Number(t.totalAmount), 0);
+  const totalExited = (transactions ?? []).filter((t: any) => t.type === "exit" || t.type === "sell").reduce((s: number, t: any) => s + Number(t.totalAmount), 0);
+  const txCount = (transactions ?? []).length;
+
   return (
     <div className="app-shell pb-20 page-enter" data-testid="activity-page">
-      <div className="hero-header pt-12 pb-5 px-5">
+      <div className="hero-header pt-12 pb-6 px-5">
         <p className="text-white/80 text-xs font-medium">Transaction History</p>
-        <h1 className="text-white text-xl font-bold">Activity</h1>
-        <p className="text-white/60 text-xs mt-1">Tap any transaction to view receipt</p>
+        <h1 className="text-white text-2xl font-bold mt-0.5">Activity</h1>
+        <p className="text-white/60 text-xs mt-0.5">Tap any transaction to view receipt</p>
+        {txCount > 0 && (
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            {[
+              { label: "Transactions", val: String(txCount) },
+              { label: "Total Invested", val: `KES ${(totalBought / 1000).toFixed(0)}K` },
+              { label: "Total Exits", val: `KES ${(totalExited / 1000).toFixed(0)}K` },
+            ].map(({ label, val }) => (
+              <div key={label} className="bg-white/10 border border-white/15 rounded-xl py-2 px-1 text-center">
+                <p className="text-white font-bold text-sm leading-none">{val}</p>
+                <p className="text-white/55 text-[9px] mt-1 leading-none">{label}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Tab switcher */}

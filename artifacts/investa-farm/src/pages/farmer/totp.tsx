@@ -20,16 +20,16 @@ export default function FarmerTotp() {
 
   const setupMutation = useMutation({
     mutationFn: async () => {
-      const r = await fetch("/api/farmer/totp/setup", {
+      const r = await fetch("/api/auth/totp/setup", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!r.ok) throw new Error("Failed to set up 2FA");
-      return r.json() as Promise<{ secret: string; qrUrl: string }>;
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error ?? "Failed to set up 2FA"); }
+      return r.json() as Promise<{ secret: string; qrCode: string }>;
     },
     onSuccess: (data) => {
       setSecret(data.secret);
-      setQrUrl(data.qrUrl);
+      setQrUrl(data.qrCode);
       setStep("setup");
     },
     onError: (e: Error) => setError(e.message),
@@ -37,12 +37,12 @@ export default function FarmerTotp() {
 
   const verifyMutation = useMutation({
     mutationFn: async (otp: string) => {
-      const r = await fetch("/api/farmer/totp/verify", {
+      const r = await fetch("/api/auth/totp/enable", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ code: otp }),
       });
-      if (!r.ok) throw new Error("Invalid code — please try again");
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error ?? "Invalid code — please try again"); }
       return r.json();
     },
     onSuccess: () => { setStep("done"); setError(null); },

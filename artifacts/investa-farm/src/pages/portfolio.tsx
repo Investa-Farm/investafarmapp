@@ -378,7 +378,7 @@ export default function Portfolio() {
         <div className="flex gap-2.5 px-4" style={{ width: "max-content" }}>
           {[
             { icon: "🛒", label: "Browse Farms", href: "/market/primary" },
-            { icon: "⚡", label: "Exit Holding", onTap: () => {} },
+            { icon: "⚡", label: "Exit Holding", onTap: () => { const first = (holdings as Holding[])?.find(h => h.status === "active"); if (first) { setActiveTab("holdings"); handleExitClick(first); } else setActiveTab("holdings"); } },
             { icon: "📊", label: "Trade Shares", href: "/market/secondary" },
             { icon: "🔔", label: "Set Price Alert", href: "/market" },
             { icon: "💼", label: "Portfolio Mgr", onTap: () => setActiveTab("broker") },
@@ -675,6 +675,30 @@ export default function Portfolio() {
         {/* AI Health Card — show when there are holdings */}
         {(holdings as Holding[])?.length > 0 && summary && (
           <PortfolioHealthAI holdings={holdings as Holding[]} summary={summary} />
+        )}
+
+        {/* Stellar custodial account card */}
+        {stellarAcct?.accountNumber && (
+          <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)" }}>
+            <div className="px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm">🌐</span>
+                </div>
+                <div>
+                  <p className="text-slate-300 text-[9px] font-bold uppercase tracking-widest">IFV Account</p>
+                  <p className="text-white font-mono font-semibold text-xs tracking-wider">{stellarAcct.accountNumber}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleCopyAcct}
+                className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5 active:scale-95 transition-all"
+              >
+                {acctCopied ? <Check size={11} className="text-green-400" /> : <Copy size={11} className="text-white/70" />}
+                <span className="text-white/70 text-[10px] font-semibold">{acctCopied ? "Copied!" : "Copy"}</span>
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Reinvestment Automation banner */}
