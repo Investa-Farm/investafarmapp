@@ -4,6 +4,12 @@ import { db, walletsTable, walletTransactionsTable, escrowWalletsTable } from "@
 import { eq, desc, and, sum, sql } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { initializePayment, verifyTransaction } from "../lib/paystack";
+import {
+  financialRateLimit,
+  checkDepositVelocity, recordDeposit,
+  checkWithdrawalVelocity, recordWithdrawal,
+  getUserVelocitySummary,
+} from "../lib/security";
 
 const router: IRouter = Router();
 
@@ -48,14 +54,15 @@ router.get("/wallet/escrow", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/wallet/deposit", async (req, res): Promise<void> => {
+router.post("/wallet/deposit", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const amount = Number(req.body.amount);
-  if (!amount || amount <= 0 || amount > 1_000_000) {
-    res.status(400).json({ error: "Invalid amount. Min KES 1, Max KES 1,000,000." });
-    return;
-  }
+  if (!amount || isNaN(amount)) { res.status(400).json({ error: "Invalid amount." }); return; }
+
+  const check = checkDepositVelocity(user.id, amount);
+  if (!check.ok) { res.status(400).json({ error: check.error }); return; }
+
   const wallet = await getOrCreateWallet(user.id);
   const newBalance = parseFloat(wallet.balance) + amount;
   await db.update(walletsTable)
@@ -71,15 +78,20 @@ router.post("/wallet/deposit", async (req, res): Promise<void> => {
     reference: `DEP-${Date.now()}`,
     status: "completed",
   }).returning();
+  recordDeposit(user.id, amount);
   res.json({ wallet: { ...wallet, balance: String(newBalance) }, transaction: tx });
 });
 
-router.post("/wallet/withdraw", async (req, res): Promise<void> => {
+router.post("/wallet/withdraw", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const amount = Number(req.body.amount);
+  if (!amount || isNaN(amount)) { res.status(400).json({ error: "Invalid amount." }); return; }
+
+  const check = checkWithdrawalVelocity(user.id, amount);
+  if (!check.ok) { res.status(400).json({ error: check.error }); return; }
+
   const wallet = await getOrCreateWallet(user.id);
-  if (!amount || amount <= 0) { res.status(400).json({ error: "Invalid amount." }); return; }
   const FEE_RATE = 0.005;
   const FEE_CAP = 260;
   const fee = Math.min(Math.round(amount * FEE_RATE * 100) / 100, FEE_CAP);
@@ -116,6 +128,7 @@ router.post("/wallet/withdraw", async (req, res): Promise<void> => {
       status: "completed",
     }).catch(() => {});
   }
+  recordWithdrawal(user.id, amount);
   res.json({ wallet: { ...wallet, balance: String(newBalance) }, transaction: tx, fee });
 });
 
@@ -230,6 +243,12 @@ router.post("/wallet/paystack/webhook", async (req, res): Promise<void> => {
   }
 
   res.sendStatus(200);
+});
+
+router.get("/security/limits", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  res.json(getUserVelocitySummary(user.id));
 });
 
 export default router;

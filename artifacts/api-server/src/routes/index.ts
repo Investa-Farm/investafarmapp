@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { aiRateLimit } from "../lib/security";
 import healthRouter from "./health";
 import authRouter from "./auth";
 import farmsRouter from "./farms";
@@ -46,10 +47,10 @@ router.use(adminRouter);
 router.use(cropPricesRouter);
 router.use(walletRouter);
 router.use(notificationsRouter);
-router.use(aiChatRouter);
+router.use(aiRateLimit, aiChatRouter);
 router.use(newsRouter);
 router.use(priceAlertsRouter);
-router.use(aiRouter);
+router.use(aiRateLimit, aiRouter);
 router.use(portfolioManagerRouter);
 router.use(reinvestmentRouter);
 router.use(investorFeedRouter);

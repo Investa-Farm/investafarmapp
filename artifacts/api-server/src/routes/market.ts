@@ -8,6 +8,7 @@ import {
 import { getCurrentUser } from "./auth";
 import { sendFundingVoucherEmail, sendFirstInvestmentEmail } from "../lib/email";
 import { notifyUser } from "../lib/push";
+import { financialRateLimit, checkInvestmentVelocity, recordInvestment } from "../lib/security";
 
 const router: IRouter = Router();
 
@@ -226,7 +227,7 @@ router.get("/market/summary", async (_req, res): Promise<void> => {
   });
 });
 
-router.post("/market/buy", async (req, res): Promise<void> => {
+router.post("/market/buy", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) {
     res.status(401).json({ error: "Unauthorized" });
@@ -246,9 +247,16 @@ router.post("/market/buy", async (req, res): Promise<void> => {
 
   const totalAmount = Number(listing.pricePerShare) * quantity;
   const isPrimary = listing.listingType === "primary";
-  const feeRate = isPrimary ? 0.015 : 0.005; // 1.5% primary, 0.5% secondary
+  const feeRate = isPrimary ? 0.015 : 0.005;
   const feeAmount = Math.round(totalAmount * feeRate * 100) / 100;
   const totalWithFee = totalAmount + feeAmount;
+
+  // Transaction velocity check
+  const velocityCheck = checkInvestmentVelocity(user.id, totalAmount);
+  if (!velocityCheck.ok) {
+    res.status(400).json({ error: velocityCheck.error, code: "VELOCITY_LIMIT" });
+    return;
+  }
 
   // Check wallet balance (amount + fee)
   const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, user.id));
@@ -349,6 +357,9 @@ router.post("/market/buy", async (req, res): Promise<void> => {
     `You bought ${quantity} share${quantity > 1 ? "s" : ""} in ${farm?.name ?? "a farm"} for KES ${Number(totalAmount).toLocaleString("en-KE")}. Exit: ${exitType === "wide_season" ? "45 days" : "~6 months"}.`,
     "/portfolio"
   ).catch(() => {});
+
+  // Record investment velocity
+  recordInvestment(user.id, totalAmount);
 
   // Send first-investment congratulations email if this is the investor's first purchase
   try {

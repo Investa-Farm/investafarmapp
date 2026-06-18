@@ -6,6 +6,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { securityHeaders, globalRateLimit, sanitizeInput, botDetection, payloadSizeGuard } from "./lib/security";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -65,10 +66,14 @@ const corsMiddleware = cors({
   credentials: true,
 });
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(securityHeaders);
+app.use(payloadSizeGuard);
+app.use(express.json({ limit: "512kb" }));
+app.use(express.urlencoded({ extended: true, limit: "512kb" }));
+app.use(botDetection);
+app.use(sanitizeInput);
 
-app.use("/api", corsMiddleware, router);
+app.use("/api", corsMiddleware, globalRateLimit, router);
 
 // Serve uploaded files (KYC docs, farm photos) from the uploads directory
 const uploadsDir = path.resolve(process.cwd(), "uploads");
