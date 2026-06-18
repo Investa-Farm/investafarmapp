@@ -130,6 +130,39 @@ type Listing = {
   changePercent: number; imageUrl?: string; tradeCount?: number;
 };
 
+function getMoverReason(item: any, isGainer: boolean): string {
+  const crop = (item.cropType ?? "").toLowerCase();
+  const change = Math.abs(item.changePercent ?? 0).toFixed(1);
+  const name = item.farmName ?? "This farm";
+
+  if (isGainer) {
+    if (crop.includes("coffee") || crop.includes("avocado")) {
+      return `${name} is up ${change}% driven by strong EU and Japanese export demand. Mombasa auction prices hit multi-year highs this week as global arabica and Hass supply tightens. Early investors are locking in shares ahead of the main harvest window.`;
+    }
+    if (crop.includes("maize") || crop.includes("corn") || crop.includes("sorghum")) {
+      return `${name} surges ${change}% as drought conditions in northern Kenya drive maize scarcity. NCPB depots report below-average national reserves, lifting spot prices across Rift Valley and Eastern regions. Ethanol processing demand is adding further upside pressure.`;
+    }
+    if (crop.includes("tea")) {
+      return `${name} climbs ${change}% after strong Mombasa auction results. Pakistan and Egypt buyers placed large orders ahead of the Ramadan season. La Niña-linked rains boosted leaf quality scores, commanding a premium over competing origins such as Sri Lanka and India.`;
+    }
+    if (crop.includes("tomato") || crop.includes("vegetable") || crop.includes("kale")) {
+      return `${name} rises ${change}% as off-season supply shortfalls hit major wholesale markets. Wakulima Market in Nairobi reports 30% lower arrivals than the 5-year average, pushing farm-gate prices sharply higher. Urban population growth continues to drive steady demand.`;
+    }
+    return `${name} is up ${change}% on rising wholesale prices at Nairobi and Mombasa markets. Strong investor appetite and limited shares remaining are supporting this premium. Harvest forecasts remain favourable and seasonal fundamentals look solid heading into the next quarter.`;
+  } else {
+    if (crop.includes("tomato") || crop.includes("potato") || crop.includes("onion")) {
+      return `${name} dips ${change}% amid a seasonal glut — multiple farms across Kajiado and Kirinyaga harvested simultaneously this week, flooding Wakulima Market. This is a typical short-cycle correction; prices historically recover within 2–3 weeks once oversupply clears.`;
+    }
+    if (crop.includes("coffee") || crop.includes("avocado")) {
+      return `${name} pulls back ${change}% after recent strong gains triggered profit-taking by early investors. The long-term fundamentals remain intact — this is healthy consolidation ahead of the main harvest window. Seasonal demand from export markets stays bullish.`;
+    }
+    if (crop.includes("maize") || crop.includes("wheat")) {
+      return `${name} slips ${change}% as good rainfall in Rift Valley improved crop prospects, softening near-term prices. Traders are adjusting inventory positions ahead of the expected harvest. This is likely a temporary dip — demand from food processors remains strong year-round.`;
+    }
+    return `${name} falls ${change}% due to short-term price pressure from increased local supply in this region. Traders report slower buying as buyers wait for price stabilisation before restocking. Historical data suggests recovery within 1–2 weeks as demand catches up with supply.`;
+  }
+}
+
 type RiskLevel = "Low" | "Moderate" | "High";
 
 const HIGH_RISK_CROPS = new Set(["coffee", "avocado", "tobacco", "horticulture"]);
@@ -275,6 +308,8 @@ export default function MarketHome() {
   const [statModal, setStatModal] = useState<"turnover" | "return" | "listings" | null>(null);
   const [calcListing, setCalcListing] = useState<any>(null);
   const [alertListing, setAlertListing] = useState<any>(null);
+  const [selectedMover, setSelectedMover] = useState<any>(null);
+  const [moverDetailOpen, setMoverDetailOpen] = useState(false);
   const [insightOpen, setInsightOpen] = useState(false);
   const [insightCrop, setInsightCrop] = useState<typeof WATCHLIST_CROPS[0] | null>(null);
   const [insightText, setInsightText] = useState("");
@@ -491,23 +526,6 @@ export default function MarketHome() {
           </div>
         </div>
 
-        {/* Market stats inline strip */}
-        {summary && (
-          <div className="flex items-center gap-0 mb-3 bg-muted/40 rounded-xl overflow-hidden border border-border">
-            {(["turnover", "return", "listings"] as const).map((key, i) => {
-              const d = STAT_DETAILS[key];
-              return (
-                <div key={key} className={`flex-1 flex items-center gap-2 px-3 py-2 ${i < 2 ? "border-r border-border" : ""}`}>
-                  <span className="text-base leading-none flex-shrink-0">{d.icon}</span>
-                  <div className="min-w-0">
-                    <p className={`font-extrabold text-xs leading-tight truncate ${key === "return" ? "text-green-600" : "text-foreground"}`}>{d.val}</p>
-                    <p className="text-muted-foreground text-[9px] leading-tight">{key === "turnover" ? "Turnover" : key === "return" ? "Avg Return" : "Listings"}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
 
         {/* Ticker — rich with KES commodity prices + market insights */}
         <div className="relative overflow-hidden rounded-xl mb-0 border-t border-border" style={{ background: "rgba(0,0,0,0.03)" }}>
@@ -693,26 +711,31 @@ export default function MarketHome() {
                         {pageData.map((item: any) => {
                           const risk = getRiskLevel(item.cropType ?? "", item.changePercent);
                           return (
-                            <Link key={item.farmId} href={`/market/exchange/${item.farmId}`}>
-                              <div className="rounded-2xl overflow-hidden relative cursor-pointer active:scale-95 transition-transform shadow-md">
-                                <img src={getCropImage(item.cropType ?? "", item.imageUrl ?? undefined)} alt={item.farmName} className="w-full h-24 object-cover" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-3 flex flex-col justify-end">
-                                  <p className="text-white text-xs font-bold leading-tight">{item.farmName}</p>
-                                  <p className="text-white/70 text-[9px]">{item.cropType} · {formatAmount(item.currentPrice)}</p>
-                                  <div className="flex items-center justify-between mt-1">
-                                    <div className="flex items-center gap-1">
-                                      {isMovers
-                                        ? <TrendingUp size={9} className="text-green-300" />
-                                        : <TrendingDown size={9} className="text-red-300" />}
-                                      <span className={`text-[10px] font-bold ${isMovers ? "text-green-300" : "text-red-300"}`}>
-                                        {formatChange(item.changePercent)}
-                                      </span>
-                                    </div>
-                                    <RiskBadge level={risk} />
+                            <div
+                              key={item.farmId}
+                              onClick={() => { setSelectedMover({ ...item, isGainer: isMovers }); setMoverDetailOpen(true); }}
+                              className="rounded-2xl overflow-hidden relative cursor-pointer active:scale-95 transition-transform shadow-md"
+                            >
+                              <img src={getCropImage(item.cropType ?? "", item.imageUrl ?? undefined)} alt={item.farmName} className="w-full h-24 object-cover" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent p-3 flex flex-col justify-end">
+                                <p className="text-white text-xs font-bold leading-tight">{item.farmName}</p>
+                                <p className="text-white/70 text-[9px]">{item.cropType} · {formatAmount(item.currentPrice)}</p>
+                                <div className="flex items-center justify-between mt-1">
+                                  <div className="flex items-center gap-1">
+                                    {isMovers
+                                      ? <TrendingUp size={9} className="text-green-300" />
+                                      : <TrendingDown size={9} className="text-red-300" />}
+                                    <span className={`text-[10px] font-bold ${isMovers ? "text-green-300" : "text-red-300"}`}>
+                                      {formatChange(item.changePercent)}
+                                    </span>
                                   </div>
+                                  <RiskBadge level={risk} />
+                                </div>
+                                <div className="mt-1.5 bg-white/20 backdrop-blur-sm rounded-lg py-1 text-center">
+                                  <span className="text-white text-[9px] font-bold">Tap for details →</span>
                                 </div>
                               </div>
-                            </Link>
+                            </div>
                           );
                         })}
                       </motion.div>
@@ -1430,6 +1453,115 @@ export default function MarketHome() {
             </motion.div>
           </>
         )}
+      </AnimatePresence>
+
+      {/* Mover Detail Bottom Sheet */}
+      <AnimatePresence>
+        {moverDetailOpen && selectedMover && (() => {
+          const isGainer = selectedMover.isGainer;
+          const risk = getRiskLevel(selectedMover.cropType ?? "", selectedMover.changePercent);
+          const reason = getMoverReason(selectedMover, isGainer);
+          return (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
+                onClick={() => setMoverDetailOpen(false)} />
+              <motion.div
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="fixed bottom-0 inset-x-0 z-[60] max-w-[430px] mx-auto bg-card rounded-t-3xl shadow-2xl overflow-hidden"
+              >
+                {/* Accent bar */}
+                <div className={`h-1 w-full ${isGainer ? "bg-gradient-to-r from-green-500 to-emerald-400" : "bg-gradient-to-r from-red-500 to-rose-400"}`} />
+
+                {/* Hero image */}
+                <div className="relative h-36 overflow-hidden">
+                  <img
+                    src={getCropImage(selectedMover.cropType ?? "", selectedMover.imageUrl ?? undefined)}
+                    alt={selectedMover.farmName}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <button
+                    onClick={() => setMoverDetailOpen(false)}
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+                  >
+                    <X size={14} className="text-white" />
+                  </button>
+                  <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
+                    <div>
+                      <p className="text-white font-bold text-base leading-tight">{selectedMover.farmName}</p>
+                      <p className="text-white/70 text-xs">{selectedMover.cropType} · {selectedMover.location}</p>
+                    </div>
+                    <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl ${isGainer ? "bg-green-500/90" : "bg-red-500/90"}`}>
+                      {isGainer ? <TrendingUp size={12} className="text-white" /> : <TrendingDown size={12} className="text-white" />}
+                      <span className="text-white font-bold text-sm">{formatChange(selectedMover.changePercent)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-5 pt-4 pb-8 space-y-4">
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-muted/50 rounded-xl p-2.5 text-center">
+                      <p className="text-muted-foreground text-[9px] uppercase font-semibold">Price</p>
+                      <p className="text-foreground font-bold text-xs mt-0.5">{formatAmount(selectedMover.currentPrice ?? selectedMover.pricePerShare)}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-xl p-2.5 text-center">
+                      <p className="text-muted-foreground text-[9px] uppercase font-semibold">Change</p>
+                      <p className={`font-bold text-xs mt-0.5 ${isGainer ? "text-green-600" : "text-red-500"}`}>{formatChange(selectedMover.changePercent)}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-xl p-2.5 text-center">
+                      <p className="text-muted-foreground text-[9px] uppercase font-semibold">Risk</p>
+                      <p className="text-foreground font-bold text-xs mt-0.5">{risk}</p>
+                    </div>
+                  </div>
+
+                  {/* Why section */}
+                  <div className={`rounded-2xl p-4 border ${isGainer ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">{isGainer ? "📈" : "📉"}</span>
+                      <p className={`font-bold text-sm ${isGainer ? "text-green-800" : "text-red-800"}`}>
+                        Why {isGainer ? "it's gaining" : "it's declining"}
+                      </p>
+                    </div>
+                    <p className={`text-xs leading-relaxed ${isGainer ? "text-green-700" : "text-red-700"}`}>{reason}</p>
+                  </div>
+
+                  {/* Key drivers */}
+                  <div className="space-y-2">
+                    <p className="text-foreground font-semibold text-xs">Key Drivers</p>
+                    {(isGainer ? [
+                      { icon: "🌍", label: "Market Demand", val: "Rising" },
+                      { icon: "📦", label: "Supply Level", val: "Tight" },
+                      { icon: "🌦️", label: "Weather Outlook", val: "Favourable" },
+                    ] : [
+                      { icon: "📦", label: "Supply Level", val: "Elevated" },
+                      { icon: "💰", label: "Price Pressure", val: "Downward" },
+                      { icon: "⏱️", label: "Recovery Est.", val: "1–3 weeks" },
+                    ]).map(d => (
+                      <div key={d.label} className="flex items-center justify-between bg-muted/40 rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{d.icon}</span>
+                          <span className="text-foreground text-xs font-medium">{d.label}</span>
+                        </div>
+                        <span className={`text-xs font-bold ${isGainer ? "text-green-600" : "text-amber-600"}`}>{d.val}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* CTA */}
+                  <button
+                    onClick={() => { setMoverDetailOpen(false); setLocation(`/market/exchange/${selectedMover.farmId}`); }}
+                    className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    View Full Farm Details →
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          );
+        })()}
       </AnimatePresence>
 
       <InvestModal
