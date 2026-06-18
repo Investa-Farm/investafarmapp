@@ -70,42 +70,55 @@ A farm investment PWA where farmers raise capital by listing farm shares (like a
 
 ## Deploying to Production
 
-### Railway (Single deployment — frontend + backend on one service)
+### Render (Single web service — frontend + backend on one service)
 
-The `railway.toml` is pre-configured. Railway will:
+The `render.yaml` is pre-configured. Render will:
 - Build the React frontend → `artifacts/investa-farm/dist/public`
 - Build the API server → `artifacts/api-server/dist/index.mjs`
-- Push the DB schema automatically during build
-- Serve both from the same process on port 8080
+- Push the DB schema automatically during build (if `DATABASE_URL` is set)
+- Serve both from the same Express process on port 8080
 
 **Steps:**
 1. Push your code to GitHub
-2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo
-3. In Railway dashboard → **Variables**, add:
-   ```
-   DATABASE_URL=<from Railway PostgreSQL plugin>
-   SESSION_SECRET=<long random string>
-   GOOGLE_SMTP_USER=mosesochiengopiyo@gmail.com
-   GOOGLE_SMTP_PASS=<gmail app password>
-   ADMIN_EMAIL=mosesochiengopiyo@gmail.com
-   ADMIN_PASSWORD=<secure password>
-   PAYSTACK_SECRET_KEY=sk_live_...
-   PAYSTACK_PUBLIC_KEY=pk_live_...
-   GROQ_API_KEY=...
-   VAPID_PUBLIC_KEY=BL36T426aOm-MLB77gGSDBvvsvAg679MLHt-dpmJ-SSNls6hqQA9AguxAhIwWmqbrPHsKnqQz8D9kVQaD5qZwfc
-   VAPID_PRIVATE_KEY=W4d_A-f1wGaBtbH8nzrPGfCxTCqYkHo5AJxsJG0ssLU
-   STELLAR_ISSUER_SECRET_KEY=<your Stellar issuer secret>
-   ALLOWED_ORIGINS=https://your-app.railway.app
-   ```
-4. Add a **PostgreSQL** plugin in Railway → it auto-sets `DATABASE_URL`
-5. Deploy → the whole app (UI + API) is live at `https://your-app.railway.app`
+2. Go to [render.com](https://render.com) → New → **Blueprint** → connect your GitHub repo (Render reads `render.yaml` automatically)
+3. In the Render dashboard → your service → **Environment**, add the secrets marked `sync: false`:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Postgres connection string (e.g. from Render PostgreSQL add-on or Neon) |
+| `SESSION_SECRET` | Any long random string (e.g. `openssl rand -hex 32`) |
+| `ADMIN_EMAIL` | `mosesochiengopiyo@gmail.com` |
+| `ADMIN_PASSWORD` | Secure admin password |
+| `GOOGLE_SMTP_USER` | `mosesochiengopiyo@gmail.com` |
+| `GOOGLE_SMTP_PASS` | Gmail App Password (see below) |
+| `RESEND_API_KEY` | Resend API key (alternative to Gmail SMTP) |
+| `PAYSTACK_SECRET_KEY` | `sk_live_...` from Paystack dashboard |
+| `PAYSTACK_PUBLIC_KEY` | `pk_live_...` from Paystack dashboard |
+| `GROQ_API_KEY` | Groq API key for AI farm insights |
+| `VAPID_PRIVATE_KEY` | `W4d_A-f1wGaBtbH8nzrPGfCxTCqYkHo5AJxsJG0ssLU` |
+| `STELLAR_ISSUER_SECRET_KEY` | Stellar issuer secret key for custodial wallets |
+| `ALLOWED_ORIGINS` | Your Render app URL e.g. `https://investa-farm.onrender.com` |
+| `BREVO_API_KEY` | (Optional) Brevo key for SMS OTP on signup |
+| `KYC_ADMIN_PASSWORD` | (Optional) Password for sub-admin KYC-only login |
+
+4. Already hardcoded in `render.yaml` (no action needed):
+   - `NODE_ENV=production`, `PORT=8080`, `BASE_PATH=/`
+   - `VAPID_PUBLIC_KEY`, `STELLAR_ISSUER_PUBLIC_KEY`, `GNEWS_API_KEY`, `MEDIASTACK_API_KEY`
+
+5. Deploy → the whole app (UI + API) is live at `https://investa-farm.onrender.com`
 
 **Notes:**
-- Do NOT set `VITE_API_URL` — frontend and backend share the same origin on Railway
-- `PORT`, `NODE_ENV`, and `BASE_PATH` are already set in `railway.toml`
-- DB schema push happens automatically during the Railway build step
-- Demo seed runs automatically on first server start
+- Do NOT set `VITE_API_URL` — frontend and backend share the same origin
+- DB schema push runs automatically during the build step (requires `DATABASE_URL`)
+- Demo seed data (users, farms, listings) is created automatically on first server start
 - Gmail App Password: myaccount.google.com → Security → 2-Step Verification → App Passwords
+- If you use **Resend** for email, set `RESEND_API_KEY` and leave Gmail vars empty — the server auto-detects which to use
+- Free-tier Render services sleep after inactivity; upgrade to "Starter" to keep it always-on
+
+**Content Security Policy (CSP):**
+The server applies two separate CSPs:
+- `/api/*` routes → `default-src 'none'` (strict, JSON only)
+- Frontend HTML + assets → permissive policy that allows self-hosted scripts, Google Fonts, and HTTPS images
 
 ## User preferences
 

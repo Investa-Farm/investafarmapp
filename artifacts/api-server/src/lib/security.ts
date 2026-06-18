@@ -18,24 +18,52 @@ import { logger } from "./logger";
 // 1. SECURITY HEADERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function securityHeaders(req: Request, res: Response, next: NextFunction): void {
+/** Common hardening headers applied to every response. */
+function baseSecurityHeaders(res: Response): void {
   res.removeHeader("X-Powered-By");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("X-XSS-Protection", "1; mode=block");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
-
   if (process.env.NODE_ENV === "production") {
     res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   }
+}
 
-  // Content-Security-Policy — tight for API responses (no HTML served from /api)
+/**
+ * Tight CSP for /api routes — they only return JSON, so nothing external is
+ * needed and `default-src 'none'` is correct.
+ */
+export function securityHeaders(req: Request, res: Response, next: NextFunction): void {
+  baseSecurityHeaders(res);
   res.setHeader(
     "Content-Security-Policy",
     "default-src 'none'; frame-ancestors 'none';",
   );
+  next();
+}
 
+/**
+ * Permissive CSP for the React SPA HTML page and its static assets.
+ * Allows self-hosted scripts/styles, Google Fonts, and data/blob URLs for images.
+ */
+export function frontendSecurityHeaders(req: Request, res: Response, next: NextFunction): void {
+  baseSecurityHeaders(res);
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self' https:",
+      "manifest-src 'self'",
+      "worker-src 'self' blob:",
+      "frame-ancestors 'none'",
+    ].join("; "),
+  );
   next();
 }
 

@@ -6,7 +6,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
-import { securityHeaders, globalRateLimit, sanitizeInput, botDetection, payloadSizeGuard } from "./lib/security";
+import { securityHeaders, frontendSecurityHeaders, globalRateLimit, sanitizeInput, botDetection, payloadSizeGuard } from "./lib/security";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -66,14 +66,14 @@ const corsMiddleware = cors({
   credentials: true,
 });
 
-app.use(securityHeaders);
 app.use(payloadSizeGuard);
 app.use(express.json({ limit: "512kb" }));
 app.use(express.urlencoded({ extended: true, limit: "512kb" }));
 app.use(botDetection);
 app.use(sanitizeInput);
 
-app.use("/api", corsMiddleware, globalRateLimit, router);
+// Tight API CSP (default-src 'none') — correct for JSON-only routes
+app.use("/api", corsMiddleware, globalRateLimit, securityHeaders, router);
 
 // Serve uploaded files (KYC docs, farm photos) from the uploads directory
 const uploadsDir = path.resolve(process.cwd(), "uploads");
@@ -82,6 +82,8 @@ app.use("/uploads", express.static(uploadsDir));
 
 if (process.env.NODE_ENV === "production") {
   const staticDir = path.resolve(__dirname, "..", "..", "investa-farm", "dist", "public");
+  // Permissive CSP for the React SPA — allows scripts, styles, Google Fonts, images
+  app.use(frontendSecurityHeaders);
   app.use(express.static(staticDir));
   app.get("/{*path}", (_req, res) => {
     res.sendFile(path.join(staticDir, "index.html"));
