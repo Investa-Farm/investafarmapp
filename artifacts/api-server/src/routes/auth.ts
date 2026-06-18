@@ -6,12 +6,14 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { LoginBody } from "@workspace/api-zod";
 import { sendOtpEmail, sendWelcomeEmail, sendPasswordResetEmail } from "../lib/email";
+import { sendWelcomeSms, sendOtpSms } from "../lib/sms";
 
 const RegisterBody = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   name: z.string().min(1),
   role: z.enum(["farmer", "investor", "cooperative", "agribusiness"]),
+  phone: z.string().optional(),
   orgType: z.string().optional(),
   county: z.string().optional(),
 });
@@ -111,7 +113,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { email: rawEmail, password, name, role } = parsed.data;
+  const { email: rawEmail, password, name, role, phone } = parsed.data;
   const email = rawEmail.toLowerCase().trim();
 
   // Block disposable/spam email patterns
@@ -154,6 +156,10 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
   await db.insert(otpCodesTable).values({ userId: user.id, code, purpose: "email_verify", expiresAt });
   sendOtpEmail(email, name, code).catch(() => {});
+  if (phone) {
+    sendWelcomeSms(phone, name).catch(() => {});
+    sendOtpSms(phone, code).catch(() => {});
+  }
 
   res.status(201).json({
     user: { id: user.id, email: user.email, name: user.name, role: user.role, emailVerified: user.emailVerified, createdAt: user.createdAt.toISOString() },

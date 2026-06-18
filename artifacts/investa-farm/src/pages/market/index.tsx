@@ -318,7 +318,6 @@ export default function MarketHome() {
   const token = getToken();
   const { formatAmount } = useCurrency();
 
-  const [expandedNews, setExpandedNews] = useState<number | null>(null);
 
   // Combined movers/decliners tab
   const [moverTab, setMoverTab] = useState<"movers" | "decliners">("movers");
@@ -1044,7 +1043,6 @@ export default function MarketHome() {
                     </div>
                   );
                   const [top, ...rest] = items;
-                  const topExpanded = expandedNews === top.id;
                   return (
                     <>
                       {/* Top story — editorial hero */}
@@ -1057,100 +1055,53 @@ export default function MarketHome() {
                           </div>
                           <div className="absolute top-3 right-3"><NewsAiBot item={top} /></div>
                         </div>
-                        <div className="px-4 pt-3 pb-3">
+                        <button
+                          className="px-4 pt-3 pb-3 text-left w-full active:opacity-70 block"
+                          onClick={() => top.url && top.url !== "#" && window.open(top.url, "_blank", "noopener,noreferrer")}
+                        >
                           <div className="flex items-center gap-1.5 mb-1.5">
                             <span className="text-primary text-[10px] font-bold">{top.source}</span>
                             <span className="text-muted-foreground/40 text-[10px]">·</span>
                             <span className="text-muted-foreground text-[10px] flex items-center gap-0.5"><Clock size={8} />{top.time}</span>
-                            <button onClick={() => setExpandedNews(topExpanded ? null : top.id)} className="ml-auto flex items-center gap-0.5 text-muted-foreground text-[10px]">
-                              <ChevronDown size={13} className={`transition-transform ${topExpanded ? "rotate-180" : ""}`} />
-                            </button>
                           </div>
-                          <button
-                            className="text-left w-full active:opacity-70"
-                            onClick={() => top.url && top.url !== "#" ? window.open(top.url, "_blank", "noopener,noreferrer") : setExpandedNews(topExpanded ? null : top.id)}
-                          >
-                            <p className="text-foreground font-bold text-[14px] leading-snug">{top.title}</p>
-                            <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed line-clamp-2">{top.summary}</p>
-                            {top.url && top.url !== "#" && (
-                              <div className="flex items-center gap-1 mt-1.5">
-                                <ExternalLink size={10} className="text-primary" />
-                                <span className="text-primary text-[10px] font-semibold">Read full story</span>
-                              </div>
-                            )}
-                          </button>
-                        </div>
-                        <AnimatePresence>
-                          {topExpanded && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden bg-card">
-                              <div className="px-4 pb-4 border-t border-border space-y-3 pt-3">
-                                <p className="text-muted-foreground text-sm leading-relaxed">{top.summary}</p>
-                                <div className="flex items-center gap-2">
-                                  {top.url && top.url !== "#" && (
-                                    <button onClick={() => window.open(top.url, "_blank", "noopener,noreferrer")}
-                                      className="inline-flex items-center gap-1.5 bg-primary text-white text-xs font-semibold px-3 py-2 rounded-xl active:scale-95 transition-transform">
-                                      Read full story <ExternalLink size={11} />
-                                    </button>
-                                  )}
-                                  <span className="flex-1" />
-                                  <NewsAiBot item={top} />
-                                </div>
-                              </div>
-                            </motion.div>
+                          <p className="text-foreground font-bold text-[14px] leading-snug">{top.title}</p>
+                          <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed line-clamp-2">{top.summary}</p>
+                          {top.url && top.url !== "#" && (
+                            <div className="flex items-center gap-1 mt-1.5">
+                              <ExternalLink size={10} className="text-primary" />
+                              <span className="text-primary text-[10px] font-semibold">Read full story</span>
+                            </div>
                           )}
-                        </AnimatePresence>
+                        </button>
                       </div>
 
                       {/* Remaining stories — newspaper list */}
                       {rest.length > 0 && (
                         <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
-                          {rest.map((item: any) => {
-                            const isExpanded = expandedNews === item.id;
-                            return (
-                              <div key={item.id}>
-                                <button className="w-full text-left px-3.5 py-3 active:bg-muted/20 transition-colors flex gap-3 items-start"
-                                  onClick={() => item.url && item.url !== "#" ? window.open(item.url, "_blank", "noopener,noreferrer") : setExpandedNews(isExpanded ? null : item.id)}>
-                                  <div className="flex-1 min-w-0 pt-0.5">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                      <span className="text-primary text-[9px] font-bold truncate max-w-[90px]">{item.source}</span>
-                                      <span className="text-muted-foreground/40 text-[9px]">·</span>
-                                      <span className="text-muted-foreground text-[9px] flex items-center gap-0.5 flex-shrink-0"><Clock size={7} />{item.time}</span>
-                                      <span className={`ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
-                                    </div>
-                                    <p className="text-foreground font-semibold text-[12px] leading-snug line-clamp-2">{item.title}</p>
-                                    {item.url && item.url !== "#" && (
-                                      <div className="flex items-center gap-1 mt-1">
-                                        <ExternalLink size={9} className="text-primary" />
-                                        <span className="text-primary text-[9px] font-semibold">Tap to read</span>
-                                      </div>
-                                    )}
+                          {rest.map((item: any) => (
+                            <button key={item.id}
+                              className="w-full text-left px-3.5 py-3 active:bg-muted/20 transition-colors flex gap-3 items-start"
+                              onClick={() => item.url && item.url !== "#" && window.open(item.url, "_blank", "noopener,noreferrer")}>
+                              <div className="flex-1 min-w-0 pt-0.5">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="text-primary text-[9px] font-bold truncate max-w-[90px]">{item.source}</span>
+                                  <span className="text-muted-foreground/40 text-[9px]">·</span>
+                                  <span className="text-muted-foreground text-[9px] flex items-center gap-0.5 flex-shrink-0"><Clock size={7} />{item.time}</span>
+                                  <span className={`ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
+                                </div>
+                                <p className="text-foreground font-semibold text-[12px] leading-snug line-clamp-2">{item.title}</p>
+                                {item.url && item.url !== "#" && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <ExternalLink size={9} className="text-primary" />
+                                    <span className="text-primary text-[9px] font-semibold">Tap to read</span>
                                   </div>
-                                  <div className="w-16 h-14 rounded-xl overflow-hidden flex-shrink-0 mt-0.5">
-                                    <img src={getNewsImage(item)} alt="" className="w-full h-full object-cover" />
-                                  </div>
-                                </button>
-                                <AnimatePresence>
-                                  {isExpanded && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-                                      <div className="px-3.5 pb-3.5 pt-3 border-t border-border space-y-2.5">
-                                        <p className="text-muted-foreground text-sm leading-relaxed">{item.summary}</p>
-                                        <div className="flex items-center gap-2">
-                                          {item.url && item.url !== "#" && (
-                                            <button onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
-                                              className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
-                                              Read full story <ExternalLink size={11} />
-                                            </button>
-                                          )}
-                                          <span className="flex-1" />
-                                          <NewsAiBot item={item} />
-                                        </div>
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
+                                )}
                               </div>
-                            );
-                          })}
+                              <div className="w-16 h-14 rounded-xl overflow-hidden flex-shrink-0 mt-0.5">
+                                <img src={getNewsImage(item)} alt="" className="w-full h-full object-cover" />
+                              </div>
+                            </button>
+                          ))}
                         </div>
                       )}
                     </>

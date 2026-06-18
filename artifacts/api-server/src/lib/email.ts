@@ -1068,7 +1068,7 @@ export async function sendFarmUpdateEmail(
     console.log(`[EMAIL] Farm update email for ${to} (SMTP not configured)`);
     return;
   }
-  const appUrl = process.env.APP_URL ?? "https://investa.farm";
+  const appUrl = process.env.APP_URL ?? "https://app.investafarm.com";
   const farmUrl = `${appUrl}/market/${farmId}`;
   const content = `
     <div style="text-align:center;margin-bottom:24px;">

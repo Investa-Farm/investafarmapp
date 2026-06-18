@@ -20,7 +20,7 @@ async function requireAdmin(req: any, res: any): Promise<boolean> {
     const tok = auth.slice(7);
     try {
       const decoded = Buffer.from(tok, "base64").toString("utf8");
-      if (decoded.startsWith("admin-session:")) return true;
+      if (decoded.startsWith("admin-session:") || decoded.startsWith("kyc-admin-session:")) return true;
     } catch {}
   }
 
@@ -51,6 +51,21 @@ router.post("/admin/login", async (req, res): Promise<void> => {
   }
 
   res.status(401).json({ error: "Invalid credentials" });
+});
+
+// KYC-only sub-admin login — limited to KYC tab access
+router.post("/admin/login-kyc", async (req, res): Promise<void> => {
+  const { password } = req.body ?? {};
+  const kycPass = process.env["KYC_ADMIN_PASSWORD"];
+  if (!kycPass) {
+    res.status(503).json({ error: "KYC admin access not configured" });
+    return;
+  }
+  if (password !== kycPass) {
+    res.status(401).json({ error: "Invalid KYC admin password" });
+    return;
+  }
+  res.json({ ok: true, token: Buffer.from("kyc-admin-session:" + Date.now()).toString("base64"), kycOnly: true });
 });
 
 router.post("/admin/create-admin", async (req, res): Promise<void> => {
@@ -99,6 +114,32 @@ router.delete("/admin/users/:id", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   if (user.role === "admin") { res.status(403).json({ error: "Cannot delete admin accounts" }); return; }
+
+  // Cascade-delete all related records before removing the user
+  const userFarms = await db.select({ id: farmsTable.id }).from(farmsTable).where(eq(farmsTable.farmerId, id));
+  const farmIds = userFarms.map(f => f.id);
+
+  await Promise.all([
+    db.delete(kycDocumentsTable).where(eq(kycDocumentsTable.userId, id)),
+    db.delete(investmentsTable).where(eq(investmentsTable.investorId, id)),
+    db.delete(walletTransactionsTable).where(eq(walletTransactionsTable.userId, id)),
+    db.delete(marketListingsTable).where(eq(marketListingsTable.farmerId, id)),
+    db.delete(notificationsTable).where(eq(notificationsTable.userId, id)),
+    db.delete(dividendsTable).where(eq(dividendsTable.investorId, id)),
+    db.delete(transactionsTable).where(eq(transactionsTable.investorId, id)),
+    db.delete(walletsTable).where(eq(walletsTable.userId, id)),
+    db.delete(loanApplicationsTable).where(eq(loanApplicationsTable.farmerId, id)),
+  ]);
+
+  if (farmIds.length > 0) {
+    for (const farmId of farmIds) {
+      await db.delete(farmUpdatesTable).where(eq(farmUpdatesTable.farmId, farmId));
+      await db.delete(investmentsTable).where(eq(investmentsTable.farmId, farmId));
+      await db.delete(marketListingsTable).where(eq(marketListingsTable.farmId, farmId));
+    }
+    await db.delete(farmsTable).where(eq(farmsTable.farmerId, id));
+  }
+
   await db.delete(usersTable).where(eq(usersTable.id, id));
   res.json({ ok: true });
 });

@@ -59,11 +59,14 @@ A farm investment PWA where farmers raise capital by listing farm shares (like a
 - **Email links**: All transactional email links point to `https://app.investafarm.com`
 - **News cards**: Tap any news headline or card to open the full article in a new tab directly (no expand step)
 - **Insufficient funds**: "Go to Wallet" button in the invest modal closes the sheet and navigates to `/wallet`
-- **Farm cards (primary)**: Expanded card shows location + shares remaining badge, min-investment pill, currency-aware price/ROI figures that follow the user's currency setting (KES/USD/etc.)
-- **KYC banner (investor profile)**: Three states — *Upload KYC* (orange) when no docs uploaded; *Documents Under Review* (blue) when all docs submitted but not yet approved; banner disappears entirely once verified
+- **Farm cards (primary)**: Expanded card shows location + shares remaining badge, funding progress bar (% funded + remaining/total shares), min-investment pill, currency-aware price/ROI figures that follow the user's currency setting (KES/USD/etc.)
+- **KYC banner (investor profile)**: Three states — *Upload KYC* (orange) when no docs uploaded; *Documents Under Review* (blue) when all docs submitted but not yet approved; banner disappears entirely once verified. KYC menu item badge also reflects all three states
 - **KYC upload popup**: Shows an animated "Document Submitted / Under Review" success screen for ~1.4s before auto-closing
 - **Phone country code**: All phone fields (farmer register, cooperative register, wallet withdrawal) have a flag + dial-code dropdown defaulting to 🇰🇪 +254, covering KE/TZ/UG/RW/ET/ZA/NG/GB/US/AE
-- **Portfolio holdings**: Value, mid-season proceeds, full-season payout, and per-share sell price in holdings cards all respect the active currency setting
+- **Portfolio holdings**: 4-column stats (Shares / Invested / Value / P&L); mid-season + full-season payout both show per-share sell price; all amounts respect the active currency setting
+- **Admin dashboard**: Secondary tabs (Transactions, Farms, Payouts, Settings) live in a "More ···" footer sheet instead of a Row 2 nav — keeps the primary nav uncluttered
+- **Admin sub-admin KYC login**: POST `/api/admin/login-kyc` with `KYC_ADMIN_PASSWORD` env var returns a kyc-admin-session token; dashboard auto-detects it and restricts UI to the KYC tab only
+- **Brevo SMS on signup**: If user registers with a `phone` field, a welcome SMS and OTP SMS are sent via Brevo (requires `BREVO_API_KEY`)
 
 ## Deploying to Production
 

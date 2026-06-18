@@ -226,8 +226,8 @@ export default function Profile() {
       icon: Shield, label: "KYC Verification",
       sublabel: kycStatus?.isVerified ? "Verified ✓" : `${kycStatus?.approved ?? 0} docs approved`,
       action: () => setKycOpen(true),
-      badge: kycStatus?.isVerified ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700",
-      badgeLabel: kycStatus?.isVerified ? "Verified" : "Pending",
+      badge: kycStatus?.isVerified ? "bg-green-100 text-green-700" : kycStatus?.allUploaded ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700",
+      badgeLabel: kycStatus?.isVerified ? "Verified" : kycStatus?.allUploaded ? "Under Review" : "Pending",
     },
     { icon: Settings, label: "Account Settings", sublabel: "Name, password", action: () => { setSettingsName(user?.name ?? stored?.name ?? ""); setSettingsOpen(true); }, badge: null, badgeLabel: null },
     {

@@ -287,7 +287,7 @@ export default function PrimaryMarket() {
                           </div>
                           <div className="flex items-center gap-1 text-muted-foreground">
                             <Users size={11} className="flex-shrink-0" />
-                            <span className="text-[10px]">{listing.sharesAvailable.toLocaleString()} shares available</span>
+                            <span className="text-[10px]">{listing.sharesAvailable.toLocaleString()} shares left</span>
                           </div>
                           <div className="ml-auto">
                             <span className="text-[9px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
@@ -295,6 +295,26 @@ export default function PrimaryMarket() {
                             </span>
                           </div>
                         </div>
+
+                        {/* Funding progress bar */}
+                        {(listing as any).totalShares > 0 && (
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[10px] font-semibold text-foreground">Funding Progress</p>
+                              <span className="text-[10px] text-primary font-bold">
+                                {Math.round(((listing as any).totalShares - listing.sharesAvailable) / (listing as any).totalShares * 100)}% funded
+                              </span>
+                            </div>
+                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full transition-all"
+                                style={{ width: `${Math.min(100, Math.round(((listing as any).totalShares - listing.sharesAvailable) / (listing as any).totalShares * 100))}%` }} />
+                            </div>
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-[9px] text-muted-foreground">{listing.sharesAvailable.toLocaleString()} remaining</span>
+                              <span className="text-[9px] text-muted-foreground">{((listing as any).totalShares ?? 0).toLocaleString()} total shares</span>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="grid grid-cols-3 gap-2">
                           {[

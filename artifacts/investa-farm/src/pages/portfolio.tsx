@@ -720,17 +720,21 @@ export default function Portfolio() {
                     </div>
 
                     <div className="p-3 space-y-2.5">
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 gap-1.5">
                         <div className="bg-muted/50 rounded-xl p-2 text-center">
                           <p className="text-muted-foreground text-[9px]">Shares</p>
                           <p className="text-foreground font-bold text-xs">{h.quantity}</p>
+                        </div>
+                        <div className="bg-muted/50 rounded-xl p-2 text-center">
+                          <p className="text-muted-foreground text-[9px]">Invested</p>
+                          <p className="text-foreground font-bold text-xs">{formatAmount(invested)}</p>
                         </div>
                         <div className="bg-muted/50 rounded-xl p-2 text-center">
                           <p className="text-muted-foreground text-[9px]">Value</p>
                           <p className="text-foreground font-bold text-xs">{formatAmount(h.totalValue)}</p>
                         </div>
                         <div className={`rounded-xl p-2 text-center ${isUp ? "bg-green-50" : "bg-red-50"}`}>
-                          <p className="text-muted-foreground text-[9px]">Gain/Loss</p>
+                          <p className="text-muted-foreground text-[9px]">P&L</p>
                           <p className={`font-bold text-xs ${isUp ? "text-green-600" : "text-red-500"}`}>{formatChange(h.gainLossPercent)}</p>
                         </div>
                       </div>
@@ -773,10 +777,12 @@ export default function Portfolio() {
                             <div>
                               <p className="text-muted-foreground text-[9px]">⚡ Mid-Season (+10%)</p>
                               <p className="text-orange-600 font-bold text-xs">{formatAmount(midPayout)}</p>
+                              <p className="text-muted-foreground text-[8px]">{formatAmount(h.purchasePrice * 1.10)}/share</p>
                             </div>
                             <div>
                               <p className="text-muted-foreground text-[9px]">🌾 Full Season (+22%)</p>
                               <p className="text-green-600 font-bold text-xs">{formatAmount(fullPayout)}</p>
+                              <p className="text-muted-foreground text-[8px]">{formatAmount(h.purchasePrice * 1.22)}/share</p>
                             </div>
                           </div>
                         </div>

@@ -90,6 +90,7 @@ export default function AdminDashboard() {
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [clearDbLoading, setClearDbLoading] = useState(false);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
+  const [kycOnly, setKycOnly] = useState(false);
 
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
@@ -98,6 +99,15 @@ export default function AdminDashboard() {
   useEffect(() => {
     const auth = sessionStorage.getItem("admin_auth");
     if (!auth) { setLocation("/admin"); return; }
+    // Detect KYC-only sub-admin token
+    try {
+      const tok = sessionStorage.getItem("admin_token") ?? "";
+      const decoded = atob(tok);
+      if (decoded.startsWith("kyc-admin-session:")) {
+        setKycOnly(true);
+        setTab("kyc");
+      }
+    } catch {}
     fetchStats();
   }, []);
 
@@ -462,11 +472,11 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Fixed bottom nav — mobile app style footer */}
+      {/* Fixed bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[430px] mx-auto bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-        {/* Row 1 */}
-        <div className="grid grid-cols-4">
-          {PRIMARY_TABS.map(t => (
+        {/* Primary tabs row */}
+        <div className={`grid ${kycOnly ? "grid-cols-1" : "grid-cols-4"}`}>
+          {(kycOnly ? PRIMARY_TABS.filter(t => t.id === "kyc") : PRIMARY_TABS).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex flex-col items-center gap-0.5 py-2.5 relative transition-all ${tab === t.id ? t.color : "text-gray-400"}`}>
               <div className={`relative w-8 h-8 rounded-xl flex items-center justify-center transition-all ${tab === t.id ? t.bg : ""}`}>
@@ -482,27 +492,65 @@ export default function AdminDashboard() {
             </button>
           ))}
         </div>
-        {/* Divider */}
-        <div className="h-px bg-gray-100 mx-3" />
-        {/* Row 2 */}
-        <div className="grid grid-cols-4">
-          {SECONDARY_TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex flex-col items-center gap-0.5 py-2.5 relative transition-all ${tab === t.id ? t.color : "text-gray-400"}`}>
-              <div className={`relative w-8 h-8 rounded-xl flex items-center justify-center transition-all ${tab === t.id ? t.bg : ""}`}>
-                {t.icon}
-                {t.badge != null && t.badge > 0 && (
-                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
-                    {t.badge > 9 ? "9+" : t.badge}
-                  </span>
-                )}
-              </div>
-              <span className="text-[9px] font-semibold leading-none">{t.label}</span>
-              {tab === t.id && <div className="absolute top-0 inset-x-3 h-0.5 bg-current rounded-full" />}
-            </button>
-          ))}
-        </div>
+
+        {/* More row — only for full admins */}
+        {!kycOnly && (
+          <>
+            <div className="h-px bg-gray-100 mx-3" />
+            <div className="px-3 pb-2 pt-1.5">
+              {SECONDARY_TABS.some(t => t.id === tab) ? (
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const active = SECONDARY_TABS.find(t => t.id === tab)!;
+                    return (
+                      <div className={`flex-1 flex items-center gap-2 rounded-xl px-3 py-2 ${active.bg} ${active.color}`}>
+                        {active.icon}
+                        <span className="text-xs font-bold flex-1">{active.label}</span>
+                      </div>
+                    );
+                  })()}
+                  <button onClick={() => setShowMoreSheet(true)}
+                    className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <MoreHorizontal size={16} className="text-gray-500" />
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setShowMoreSheet(true)}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 rounded-xl text-gray-500 bg-gray-50 border border-gray-200 active:scale-95 transition-transform">
+                  <MoreHorizontal size={15} />
+                  <span className="text-xs font-semibold">Transactions · Farms · Payouts · Settings</span>
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
+
+      {/* More bottom sheet */}
+      {showMoreSheet && (
+        <div className="fixed inset-0 z-50 flex items-end max-w-[430px] mx-auto" onClick={() => setShowMoreSheet(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative w-full bg-white rounded-t-3xl p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
+            <p className="text-sm font-bold text-gray-800 mb-3">More Options</p>
+            <div className="grid grid-cols-2 gap-2">
+              {SECONDARY_TABS.map(t => (
+                <button key={t.id} onClick={() => { setTab(t.id); setShowMoreSheet(false); }}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all active:scale-[0.97] ${tab === t.id ? `${t.bg} ${t.color} border-current` : "bg-gray-50 border-gray-200 text-gray-600"}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tab === t.id ? "bg-white/60" : t.bg}`}>
+                    {t.icon}
+                  </div>
+                  <span className="text-xs font-bold">{t.label}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowMoreSheet(false)}
+              className="w-full mt-3 py-3 rounded-2xl bg-gray-100 text-gray-500 text-sm font-semibold">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="px-4 pt-4 space-y-4">
 
