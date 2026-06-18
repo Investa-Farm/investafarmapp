@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, FileText, CheckCircle2, Clock, XCircle, Loader2, Shield, Info, Camera, AlertCircle, Video, VideoOff, Trash2 } from "lucide-react";
 import { getToken } from "@/lib/auth";
@@ -35,24 +35,26 @@ function UploadPopup({
   const qc = useQueryClient();
 
   const startCamera = useCallback(async () => {
+    setCameraReady(false);
     try {
-      const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
-        audio: false,
-      };
-      const s = await navigator.mediaDevices.getUserMedia(constraints);
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
       setStream(s);
-      if (videoRef.current) {
-        videoRef.current.srcObject = s;
-      }
+      // srcObject assigned via useEffect once video element is mounted
     } catch {
       setCameraReady(false);
     }
   }, []);
+
+  // Sync stream → video element as soon as both are available
+  useEffect(() => {
+    if (!stream || !videoRef.current) return;
+    const vid = videoRef.current;
+    vid.srcObject = stream;
+    vid.play().catch(() => {});
+    // Fallback: mark ready after 1.5s in case onLoadedMetadata never fires
+    const t = setTimeout(() => setCameraReady(true), 1500);
+    return () => clearTimeout(t);
+  }, [stream]);
 
   const stopCamera = useCallback(() => {
     stream?.getTracks().forEach(t => t.stop());

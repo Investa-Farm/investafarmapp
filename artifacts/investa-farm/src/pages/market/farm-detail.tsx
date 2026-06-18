@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useGetFarm, getGetFarmQueryKey, useListPrimaryMarket } from "@workspace/api-client-react";
-import { ArrowLeft, TrendingUp, TrendingDown, Users, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles, BarChart2, Navigation, CloudRain, Wind, Thermometer, Droplet } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Users, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles, BarChart2, Navigation, CloudRain, Wind, Thermometer, Droplet, Newspaper, RefreshCw } from "lucide-react";
 import { ShareModal } from "@/components/share-modal";
 import { AiSectionBot } from "@/components/ai-section-bot";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
@@ -208,13 +208,14 @@ function WeatherNdvi({ lat, lng, cropType, stage }: { lat: number; lng: number; 
   );
 }
 
-type DetailTab = "overview" | "financials" | "growth" | "location";
+type DetailTab = "overview" | "financials" | "growth" | "location" | "news";
 
 const DETAIL_TABS: { id: DetailTab; label: string; icon: string }[] = [
   { id: "overview",   label: "Overview",   icon: "🌾" },
   { id: "financials", label: "Financials", icon: "💰" },
   { id: "growth",     label: "Growth",     icon: "🌱" },
   { id: "location",   label: "Location",   icon: "📍" },
+  { id: "news",       label: "News",       icon: "📰" },
 ];
 
 export default function FarmDetail() {
@@ -230,6 +231,42 @@ export default function FarmDetail() {
     query: { enabled: !!farmId, queryKey: getGetFarmQueryKey(farmId), staleTime: 3 * 60 * 1000 },
   });
   const { data: primaryListings } = useListPrimaryMarket();
+
+  type NewsItem = { title: string; summary: string; url: string; source: string; publishedAt: string; sentiment?: number; cropRelevance?: number };
+  type SentimentItem = { crop: string; score: number; trend: string };
+
+  const { data: cropNews, isLoading: newsLoading, refetch: refetchNews } = useQuery<NewsItem[]>({
+    queryKey: ["farm-crop-news", farm?.cropType],
+    enabled: !!farm?.cropType && activeTab === "news",
+    staleTime: 30 * 60 * 1000,
+    queryFn: async () => {
+      const r = await fetch("/api/news");
+      const all: NewsItem[] = await r.json().catch(() => []);
+      const crop = farm?.cropType?.toLowerCase() ?? "";
+      const keywords = crop.split(/\s+/).filter(w => w.length > 3);
+      return all.map((item: NewsItem) => ({
+        ...item,
+        cropRelevance: keywords.some(k =>
+          item.title?.toLowerCase().includes(k) || item.summary?.toLowerCase().includes(k)
+        ) ? 1 : 0,
+      })).sort((a, b) => (b.cropRelevance ?? 0) - (a.cropRelevance ?? 0));
+    },
+  });
+
+  const { data: sentimentData } = useQuery<SentimentItem[]>({
+    queryKey: ["news-sentiment"],
+    enabled: activeTab === "news",
+    staleTime: 60 * 60 * 1000,
+    queryFn: async () => {
+      const r = await fetch("/api/news/sentiment");
+      const d = await r.json().catch(() => ({}));
+      return d.scores ?? [];
+    },
+  });
+
+  const cropSentiment = sentimentData?.find(
+    s => farm?.cropType && s.crop?.toLowerCase().includes(farm.cropType.toLowerCase().split(" ")[0] ?? "")
+  );
 
   const { data: growth } = useQuery<GrowthData>({
     queryKey: ["farm-growth", farmId],
@@ -641,6 +678,105 @@ export default function FarmDetail() {
               </div>
             )}
           </>
+        )}
+
+        {/* ── NEWS TAB ── */}
+        {activeTab === "news" && (
+          <div className="space-y-4">
+            {/* Crop Sentiment card */}
+            {cropSentiment && (
+              <div className={`rounded-2xl border p-4 ${cropSentiment.score > 10 ? "bg-green-50 border-green-200" : cropSentiment.score < -10 ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className={cropSentiment.score > 10 ? "text-green-600" : cropSentiment.score < -10 ? "text-red-500" : "text-amber-600"} />
+                    <p className="text-sm font-bold text-foreground">AI Market Sentiment — {farm?.cropType}</p>
+                  </div>
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${cropSentiment.score > 10 ? "bg-green-100 text-green-700" : cropSentiment.score < -10 ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                    {cropSentiment.score > 10 ? "Bullish 📈" : cropSentiment.score < -10 ? "Bearish 📉" : "Neutral ➡️"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-2.5 bg-white/60 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${cropSentiment.score > 10 ? "bg-green-500" : cropSentiment.score < -10 ? "bg-red-500" : "bg-amber-400"}`}
+                      style={{ width: `${Math.min(100, Math.max(5, 50 + cropSentiment.score / 2))}%` }} />
+                  </div>
+                  <span className={`text-sm font-bold ${cropSentiment.score > 10 ? "text-green-700" : cropSentiment.score < -10 ? "text-red-600" : "text-amber-700"}`}>
+                    {cropSentiment.score > 0 ? "+" : ""}{cropSentiment.score}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1.5">Based on live news analysis across Kenyan agri-markets · updated hourly</p>
+              </div>
+            )}
+
+            {/* Header + refresh */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Newspaper size={14} className="text-primary" />
+                <p className="text-sm font-semibold">Crop Price News</p>
+              </div>
+              <button onClick={() => refetchNews()} className="text-xs text-primary flex items-center gap-1 font-medium">
+                <RefreshCw size={11} /> Refresh
+              </button>
+            </div>
+
+            {newsLoading ? (
+              <div className="space-y-3">
+                {[1,2,3].map(i => (
+                  <div key={i} className="bg-card border border-border rounded-2xl p-4 animate-pulse">
+                    <div className="h-3 bg-muted rounded w-3/4 mb-2" />
+                    <div className="h-2.5 bg-muted rounded w-full mb-1.5" />
+                    <div className="h-2.5 bg-muted rounded w-2/3" />
+                  </div>
+                ))}
+              </div>
+            ) : !cropNews?.length ? (
+              <div className="bg-muted/40 rounded-2xl border border-border p-8 text-center">
+                <Newspaper size={28} className="text-muted-foreground mx-auto mb-2" />
+                <p className="text-foreground font-semibold text-sm">No news found</p>
+                <p className="text-muted-foreground text-xs mt-1">Check back soon for Kenyan agri-market updates</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {cropNews.map((item, i) => {
+                  const isCropRelated = !!item.cropRelevance;
+                  const sentScore = item.sentiment ?? 0;
+                  const sentColor = sentScore > 10 ? "text-green-600 bg-green-50 border-green-200"
+                    : sentScore < -10 ? "text-red-500 bg-red-50 border-red-200"
+                    : "text-amber-600 bg-amber-50 border-amber-200";
+                  const sentLabel = sentScore > 10 ? `+${sentScore} Bullish` : sentScore < -10 ? `${sentScore} Bearish` : "Neutral";
+                  return (
+                    <a key={i} href={item.url || "#"} target="_blank" rel="noreferrer"
+                      className={`block bg-card border rounded-2xl p-4 active:scale-[0.98] transition-transform ${isCropRelated ? "border-primary/30 ring-1 ring-primary/10" : "border-border"}`}>
+                      {isCropRelated && (
+                        <div className="flex items-center gap-1 mb-1.5">
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wide">
+                            🌾 {farm?.cropType} related
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-foreground font-semibold text-sm leading-snug line-clamp-2 mb-1.5">{item.title}</p>
+                      <p className="text-muted-foreground text-xs line-clamp-2 leading-relaxed mb-2">{item.summary}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-muted-foreground font-medium">{item.source}</span>
+                          {item.publishedAt && (
+                            <span className="text-[10px] text-muted-foreground">· {new Date(item.publishedAt).toLocaleDateString("en-KE", { month: "short", day: "numeric" })}</span>
+                          )}
+                        </div>
+                        {sentScore !== 0 && (
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${sentColor}`}>{sentLabel}</span>
+                        )}
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="bg-muted/30 rounded-2xl border border-border p-3 text-center">
+              <p className="text-muted-foreground text-[10px]">News sourced from Kenyan agri-markets via AI analysis. Not financial advice.</p>
+            </div>
+          </div>
         )}
 
         {/* ── LOCATION TAB ── */}
