@@ -408,15 +408,15 @@ export default function MarketHome() {
     refetchInterval: 5 * 60 * 1000,
   });
 
-  // Build rich ticker: live prices for real users, static fallback only for demo accounts
+  // Build rich ticker: live prices preferred, always fall back to TICKER_ITEMS so the tape never runs empty
   const tickerItems = (() => {
     const result: Array<{ type: "price"; name: string; price: string; unit: string; change: number } | { type: "insight"; text: string }> = [];
-    const priceSource = isDemo
-      ? TICKER_ITEMS
-      : (liveTickerData?.prices?.length ? liveTickerData.prices : []);
-    const insightSource = isDemo
-      ? MARKET_INSIGHTS
-      : (liveTickerData?.insights?.length ? liveTickerData.insights.map(text => ({ text })) : []);
+    const priceSource = liveTickerData?.prices?.length
+      ? liveTickerData.prices
+      : TICKER_ITEMS;
+    const insightSource = liveTickerData?.insights?.length
+      ? liveTickerData.insights.map(text => ({ text }))
+      : MARKET_INSIGHTS;
     const prices = priceSource.map(t => ({ type: "price" as const, ...t }));
     const insights = insightSource.map(i => ({ type: "insight" as const, ...i }));
     for (let i = 0; i < prices.length; i++) {
@@ -617,10 +617,7 @@ export default function MarketHome() {
                   <img src={getCropImage("maize")} alt="Primary Market" className="absolute inset-0 w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-green-800/70 to-green-950/60 flex items-center px-3 gap-2">
                     <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest bg-white/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">New Issue</span>
-                    <div className="min-w-0">
-                      <p className="text-white font-extrabold text-xs leading-tight">Primary Market</p>
-                      <p className="text-white/70 text-[9px]">Buy direct from farms</p>
-                    </div>
+                    <p className="text-white font-extrabold text-xs leading-tight">Primary Market</p>
                   </div>
                 </div>
               </Link>
@@ -629,10 +626,7 @@ export default function MarketHome() {
                   <img src={getCropImage("coffee")} alt="Secondary Market" className="absolute inset-0 w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-br from-amber-800/85 via-amber-900/70 to-amber-950/60 flex items-center px-3 gap-2">
                     <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest bg-white/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">Resale</span>
-                    <div className="min-w-0">
-                      <p className="text-white font-extrabold text-xs leading-tight">Secondary Market</p>
-                      <p className="text-white/70 text-[9px]">Trade between investors</p>
-                    </div>
+                    <p className="text-white font-extrabold text-xs leading-tight">Secondary Market</p>
                   </div>
                 </div>
               </Link>
@@ -767,50 +761,79 @@ export default function MarketHome() {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <Link href="/market/primary">
-                        <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
-                          style={{ background: "linear-gradient(160deg, #78350f 0%, #b45309 50%, #fbbf24 100%)" }}>
-                          <img src={getCropImage("avocado")} alt="Avocado"
-                            className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-luminosity" />
-                          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
-                          <div className="relative h-full flex flex-col justify-between p-3">
-                            <div>
-                              <span className="text-yellow-100 text-[8px] font-bold uppercase tracking-widest bg-yellow-600/40 px-1.5 py-0.5 rounded-full">Premium</span>
-                              <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Avocado Export Season</p>
-                              <p className="text-yellow-100/70 text-[10px] mt-0.5">Kiambu · EU demand</p>
-                            </div>
-                            <div>
-                              <p className="text-yellow-300 font-black text-2xl leading-none">+22%</p>
-                              <p className="text-yellow-100/60 text-[9px]">projected ROI</p>
-                              <div className="mt-2 bg-white text-amber-700 font-bold text-[10px] py-1.5 rounded-lg text-center flex items-center justify-center gap-1">
-                                <Zap size={10} /> Invest Now
+                      {(listings && listings.length >= 2 ? listings.slice(0, 2) : null)?.map((listing: any, idx: number) => {
+                        const isFirst = idx === 0;
+                        const roi = listing.changePercent > 0 ? `+${listing.changePercent.toFixed(1)}%` : `${listing.changePercent.toFixed(1)}%`;
+                        return (
+                          <div key={listing.id}
+                            onClick={() => { setSelectedListing(listing); setInvestOpen(true); }}
+                            className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
+                            style={{ background: isFirst ? "linear-gradient(160deg,#78350f 0%,#b45309 50%,#fbbf24 100%)" : "linear-gradient(160deg,#052e16 0%,#14532d 50%,#16a34a 100%)" }}>
+                            <img src={getCropImage(listing.cropType, listing.imageUrl)}
+                              className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-luminosity" alt={listing.cropType} />
+                            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.7) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
+                            <div className="relative h-full flex flex-col justify-between p-3">
+                              <div>
+                                <span className={`text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${isFirst ? "text-yellow-100 bg-yellow-600/40" : "text-green-200 bg-green-600/30"}`}>
+                                  {getRiskLevel(listing.cropType, listing.changePercent)}
+                                </span>
+                                <p className="text-white font-extrabold text-sm leading-tight mt-1.5">{listing.farmName}</p>
+                                <p className={`text-[10px] mt-0.5 ${isFirst ? "text-yellow-100/70" : "text-green-200/70"}`}>{listing.location} · {listing.cropType}</p>
+                              </div>
+                              <div>
+                                <p className={`font-black text-2xl leading-none ${isFirst ? "text-yellow-300" : "text-green-300"}`}>{roi}</p>
+                                <p className={`text-[9px] ${isFirst ? "text-yellow-100/60" : "text-green-200/60"}`}>price change</p>
+                                <div className={`mt-2 bg-white font-bold text-[10px] py-1.5 rounded-lg text-center flex items-center justify-center gap-1 ${isFirst ? "text-amber-700" : "text-primary"}`}>
+                                  <Zap size={10} /> Invest Now
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </Link>
-                      <Link href="/market/primary">
-                        <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
-                          style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
-                          <img src={getCropImage("maize")} alt="Maize"
-                            className="absolute inset-0 w-full h-full object-cover opacity-25 mix-blend-luminosity" />
-                          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
-                          <div className="relative h-full flex flex-col justify-between p-3">
-                            <div>
-                              <span className="text-green-200 text-[8px] font-bold uppercase tracking-widest bg-green-600/30 px-1.5 py-0.5 rounded-full">Low Risk</span>
-                              <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Maize Long Rains</p>
-                              <p className="text-green-200/70 text-[10px] mt-0.5">Nakuru · Rift Valley</p>
-                            </div>
-                            <div>
-                              <p className="text-green-300 font-black text-2xl leading-none">+14%</p>
-                              <p className="text-green-200/60 text-[9px]">target return</p>
-                              <div className="mt-2 bg-white text-primary font-bold text-[10px] py-1.5 rounded-lg text-center flex items-center justify-center gap-1">
-                                🌽 Invest Now
+                        );
+                      }) ?? (
+                        <>
+                          <Link href="/market/primary">
+                            <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
+                              style={{ background: "linear-gradient(160deg, #78350f 0%, #b45309 50%, #fbbf24 100%)" }}>
+                              <img src={getCropImage("avocado")} alt="Avocado"
+                                className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-luminosity" />
+                              <div className="relative h-full flex flex-col justify-between p-3">
+                                <div>
+                                  <span className="text-yellow-100 text-[8px] font-bold uppercase tracking-widest bg-yellow-600/40 px-1.5 py-0.5 rounded-full">Premium</span>
+                                  <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Avocado Export</p>
+                                </div>
+                                <div>
+                                  <p className="text-yellow-300 font-black text-2xl leading-none">+22%</p>
+                                  <p className="text-yellow-100/60 text-[9px]">projected ROI</p>
+                                  <div className="mt-2 bg-white text-amber-700 font-bold text-[10px] py-1.5 rounded-lg text-center">
+                                    <Zap size={10} className="inline mr-1" /> View Farms
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      </Link>
+                          </Link>
+                          <Link href="/market/primary">
+                            <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
+                              style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
+                              <img src={getCropImage("maize")} alt="Maize"
+                                className="absolute inset-0 w-full h-full object-cover opacity-25 mix-blend-luminosity" />
+                              <div className="relative h-full flex flex-col justify-between p-3">
+                                <div>
+                                  <span className="text-green-200 text-[8px] font-bold uppercase tracking-widest bg-green-600/30 px-1.5 py-0.5 rounded-full">Low Risk</span>
+                                  <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Maize Long Rains</p>
+                                </div>
+                                <div>
+                                  <p className="text-green-300 font-black text-2xl leading-none">+14%</p>
+                                  <p className="text-green-200/60 text-[9px]">target return</p>
+                                  <div className="mt-2 bg-white text-primary font-bold text-[10px] py-1.5 rounded-lg text-center">
+                                    🌽 View Farms
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                        </>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -1145,12 +1168,26 @@ export default function MarketHome() {
             </div>
 
             {/* All upcoming crop seasons — demo shows curated list, real users see live farms */}
+            {!isDemo && (!listings || listings.length === 0) && (
+              <div className="bg-muted/30 border border-border rounded-2xl px-4 py-8 text-center">
+                <BookmarkPlus size={28} className="text-muted-foreground mx-auto mb-3" />
+                <p className="text-foreground font-semibold text-sm">No listings yet</p>
+                <p className="text-muted-foreground text-xs mt-1 leading-relaxed">
+                  Farm listings will appear here as farmers add their seasons. Check back soon or browse the Primary Market.
+                </p>
+                <Link href="/market/primary">
+                  <button className="mt-4 bg-primary text-white font-semibold text-xs px-5 py-2.5 rounded-xl">
+                    Browse Primary Market
+                  </button>
+                </Link>
+              </div>
+            )}
             {(isDemo ? WATCHLIST_CROPS : (listings ?? []).slice(0, 6).map((l: any) => ({
               id: l.id,
               name: l.cropType,
-              season: `Season 2026`,
-              plantingStart: "2026",
-              harvestEst: "2026",
+              season: `Long Rains 2026`,
+              plantingStart: "Mar 2026",
+              harvestEst: "Aug 2026",
               expectedReturn: `${l.changePercent > 0 ? "+" : ""}${(l.changePercent ?? 0).toFixed(1)}%`,
               image: getCropImage(l.cropType, l.imageUrl),
               demand: Math.abs(l.changePercent ?? 0) > 2 ? "High" : "Moderate",

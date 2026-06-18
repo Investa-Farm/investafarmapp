@@ -237,48 +237,84 @@ export default function FarmerMarket() {
 
       {tab === "offers" && (
         <div className="px-4 pt-4 space-y-4">
-          {/* Market Insights Hero Card */}
-          <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg,#0B6B3A,#22A45D)" }}>
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-orange-300 text-sm">🔥</span>
-                    <span className="text-white/80 text-xs font-semibold">HIGH DEMAND</span>
+          {/* Market Insights Hero Card — demo shows hardcoded Tomatoes; real users see their farm's crop or a generic card */}
+          {isDemo ? (
+            <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg,#0B6B3A,#22A45D)" }}>
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-orange-300 text-sm">🔥</span>
+                      <span className="text-white/80 text-xs font-semibold">HIGH DEMAND</span>
+                    </div>
+                    <p className="text-white/60 text-[10px]">Top Crop Right Now</p>
+                    <p className="text-white text-xl font-bold">Tomatoes</p>
                   </div>
-                  <p className="text-white/60 text-[10px]">Top Crop Right Now</p>
-                  <p className="text-white text-xl font-bold">Tomatoes</p>
+                  <div className="text-right">
+                    <p className="text-white/60 text-[10px]">Avg Market Price</p>
+                    <p className="text-white font-bold text-lg">KES 450/Ton</p>
+                    <p className="text-green-300 text-xs font-bold">+8% This Week</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-white/60 text-[10px]">Avg Market Price</p>
-                  <p className="text-white font-bold text-lg">KES 450/Ton</p>
-                  <p className="text-green-300 text-xs font-bold">+8% This Week</p>
+                <div className="h-20 mb-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={demandData}>
+                      <defs>
+                        <linearGradient id="demandGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="rgba(255,255,255,0.3)" />
+                          <stop offset="95%" stopColor="rgba(255,255,255,0)" />
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" dataKey="value" stroke="rgba(255,255,255,0.8)" strokeWidth={2} fill="url(#demandGrad)" dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
-              </div>
-              <div className="h-20 mb-3">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={demandData}>
-                    <defs>
-                      <linearGradient id="demandGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="rgba(255,255,255,0.3)" />
-                        <stop offset="95%" stopColor="rgba(255,255,255,0)" />
-                      </linearGradient>
-                    </defs>
-                    <Area type="monotone" dataKey="value" stroke="rgba(255,255,255,0.8)" strokeWidth={2} fill="url(#demandGrad)" dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <MapPin size={11} className="text-white/70" />
-                  <span className="text-white/70 text-xs">Best Region: Nairobi</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <MapPin size={11} className="text-white/70" />
+                    <span className="text-white/70 text-xs">Best Region: Nairobi</span>
+                  </div>
+                  <button className="bg-white/20 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 active:scale-95 transition-transform">
+                    View Analytics <ChevronRight size={12} />
+                  </button>
                 </div>
-                <button className="bg-white/20 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 active:scale-95 transition-transform">
-                  View Analytics <ChevronRight size={12} />
-                </button>
               </div>
             </div>
-          </div>
+          ) : farms && farms.length > 0 ? (
+            <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg,#052e16,#16a34a)" }}>
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-green-300 text-sm">🌾</span>
+                      <span className="text-white/80 text-xs font-semibold">YOUR FARM</span>
+                    </div>
+                    <p className="text-white/60 text-[10px]">Active Listing</p>
+                    <p className="text-white text-xl font-bold">{(farms[0] as any).cropType}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white/60 text-[10px]">Funding Progress</p>
+                    <p className="text-green-300 font-bold text-lg">{(farms[0] as any).fundingPercent ?? 0}%</p>
+                    <p className="text-white/60 text-xs">{(farms[0] as any).sharesAvailable ?? 0} shares left</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 mt-2">
+                  <MapPin size={11} className="text-white/70" />
+                  <span className="text-white/70 text-xs">{(farms[0] as any).location} · {(farms[0] as any).name}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-border bg-muted/30 p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Sprout size={22} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-foreground font-bold text-sm">No farm listed yet</p>
+                <p className="text-muted-foreground text-xs mt-0.5 leading-snug">List your farm to see matched buyers and crop pricing insights here.</p>
+              </div>
+            </div>
+          )}
 
           {/* Propose a Crop CTA Banner */}
           <button onClick={() => setShowProposalForm(true)}
@@ -472,43 +508,45 @@ export default function FarmerMarket() {
             </div>
           )}
 
-          {/* Demand Forecast */}
-          <div className="bg-card rounded-2xl border border-border p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="font-semibold text-sm">Demand Forecast</p>
-              <span className="text-[10px] text-muted-foreground">Next 30 days</span>
-            </div>
-            <div className="h-24 mb-3">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={demandData.slice(6)}>
-                  <defs>
-                    <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#16a34a40" />
-                      <stop offset="95%" stopColor="#16a34a00" />
-                    </linearGradient>
-                  </defs>
-                  <Area type="monotone" dataKey="value" stroke="#16a34a" strokeWidth={2} fill="url(#forecastGrad)" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-green-50 rounded-xl p-2.5 text-center">
-                <p className="text-muted-foreground text-[9px]">Demand Score</p>
-                <p className="text-green-700 font-bold text-sm">87/100</p>
-              </div>
-              <div className="bg-green-50 rounded-xl p-2.5 text-center">
-                <p className="text-muted-foreground text-[9px]">Expected Price Increase</p>
-                <p className="text-green-700 font-bold text-sm">+12%</p>
-              </div>
-            </div>
-          </div>
-
+          {/* Demand Forecast — demo only (hardcoded numbers) */}
           {isDemo && (
-            <div className="bg-gradient-to-r from-primary to-green-500 rounded-2xl p-4 text-center">
-              <Award size={24} className="text-white/80 mx-auto mb-2" />
-              <p className="text-white font-bold text-sm">3 Buyers Match Your Harvest</p>
-              <p className="text-white/70 text-xs mt-0.5">Based on your Tomatoes crop · 12.5 tons projected yield</p>
-            </div>
+            <>
+              <div className="bg-card rounded-2xl border border-border p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-semibold text-sm">Demand Forecast</p>
+                  <span className="text-[10px] text-muted-foreground">Next 30 days</span>
+                </div>
+                <div className="h-24 mb-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={demandData.slice(6)}>
+                      <defs>
+                        <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#16a34a40" />
+                          <stop offset="95%" stopColor="#16a34a00" />
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" dataKey="value" stroke="#16a34a" strokeWidth={2} fill="url(#forecastGrad)" dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-green-50 rounded-xl p-2.5 text-center">
+                    <p className="text-muted-foreground text-[9px]">Demand Score</p>
+                    <p className="text-green-700 font-bold text-sm">87/100</p>
+                  </div>
+                  <div className="bg-green-50 rounded-xl p-2.5 text-center">
+                    <p className="text-muted-foreground text-[9px]">Expected Price Increase</p>
+                    <p className="text-green-700 font-bold text-sm">+12%</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-primary to-green-500 rounded-2xl p-4 text-center">
+                <Award size={24} className="text-white/80 mx-auto mb-2" />
+                <p className="text-white font-bold text-sm">3 Buyers Match Your Harvest</p>
+                <p className="text-white/70 text-xs mt-0.5">Based on your Tomatoes crop · 12.5 tons projected yield</p>
+              </div>
+            </>
           )}
         </div>
       )}
