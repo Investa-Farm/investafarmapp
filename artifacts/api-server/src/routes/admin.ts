@@ -512,4 +512,17 @@ router.delete("/admin/clear-database", async (req, res): Promise<void> => {
   res.json({ ok: true, deleted: nonDemoIds.length, message: `Deleted ${nonDemoIds.length} non-demo user(s) and their data. Demo accounts preserved.` });
 });
 
+// Public endpoint — no auth required — exposes safe subset of platform settings to frontend
+router.get("/platform/settings", async (_req, res): Promise<void> => {
+  const s = await loadSettings();
+  res.json({
+    primaryPurchaseFeePct: s.primaryPurchaseFeePct,
+    secondaryTradeFeePct: s.secondaryTradeFeePct,
+    withdrawalFeePct: s.withdrawalFeePct,
+    withdrawalFeeCap: s.withdrawalFeeCap,
+    minInvestmentKES: s.minInvestmentKES,
+    minSharePurchase: s.minSharePurchase,
+  });
+});
+
 export default router;

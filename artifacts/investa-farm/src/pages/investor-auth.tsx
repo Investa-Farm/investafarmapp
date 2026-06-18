@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, TrendingUp, User, Phone, CheckSquare } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, TrendingUp, User, Phone, CheckSquare, ShieldCheck, Smartphone } from "lucide-react";
 import { useLogin, useRegister } from "@workspace/api-client-react";
 import { setToken, storeUser } from "@/lib/auth";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
@@ -33,6 +33,12 @@ export default function InvestorAuth() {
   const [step, setStep] = useState<AuthStep>("auth");
   const [welcomeIdx, setWelcomeIdx] = useState(0);
 
+  const [totpStep, setTotpStep] = useState(false);
+  const [totpCode, setTotpCode] = useState(["", "", "", "", "", ""]);
+  const [tempToken, setTempToken] = useState("");
+  const [trustDevice, setTrustDevice] = useState(false);
+  const totpInputs = useRef<(HTMLInputElement | null)[]>([]);
+
   const login = useLogin();
   const register = useRegister();
 
@@ -41,7 +47,8 @@ export default function InvestorAuth() {
     login.mutate({ data: { email, password } }, {
       onSuccess: (data: any) => {
         if (data.totpRequired) {
-          setError("Two-factor authentication is required. Please contact support.");
+          setTempToken(data.tempToken ?? "");
+          setTotpStep(true);
           return;
         }
         if (!data.user) { setError("Login failed. Please try again."); return; }
@@ -58,6 +65,47 @@ export default function InvestorAuth() {
         setError("Invalid email or password.");
       },
     });
+  };
+
+  const handleTotpChange = (i: number, v: string) => {
+    const digit = v.replace(/\D/g, "").slice(-1);
+    const next = [...totpCode]; next[i] = digit; setTotpCode(next);
+    if (digit && i < 5) totpInputs.current[i + 1]?.focus();
+  };
+  const handleTotpKeyDown = (i: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !totpCode[i] && i > 0) totpInputs.current[i - 1]?.focus();
+  };
+  const handleTotpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const next = [...totpCode];
+    text.split("").forEach((d, i) => { next[i] = d; });
+    setTotpCode(next);
+    totpInputs.current[Math.min(text.length, 5)]?.focus();
+  };
+  const handleTotpSubmit = async () => {
+    const code = totpCode.join("");
+    if (code.length !== 6) { setError("Enter the 6-digit code from your authenticator app"); return; }
+    setError("");
+    try {
+      const r = await fetch("/api/auth/totp/verify-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, tempToken }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Invalid code");
+      if (d.user?.role !== "investor") { setError("This account is not an investor account."); return; }
+      setToken(d.token); storeUser(d.user);
+      if (trustDevice) {
+        const tr = await fetch("/api/auth/totp/trust-device", { method: "POST", headers: { Authorization: `Bearer ${d.token}` } }).catch(() => null);
+        if (tr?.ok) {
+          const td = await tr.json();
+          if (td.deviceToken) localStorage.setItem(`investa_device_trust_${email.toLowerCase().trim()}`, JSON.stringify({ deviceToken: td.deviceToken, until: td.until }));
+        }
+      }
+      setLocation("/market");
+    } catch (err) { setError((err as Error).message); }
   };
 
   const handleRegister = (e: React.FormEvent) => {
@@ -106,6 +154,49 @@ export default function InvestorAuth() {
             <button onClick={() => setStep("investor-type")} className="text-white/50 text-xs underline">Skip intro</button>
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (totpStep) {
+    return (
+      <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-background flex flex-col items-center justify-center px-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full space-y-6">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
+              <Smartphone size={30} className="text-primary" />
+            </div>
+            <h2 className="text-foreground font-bold text-2xl">Two-Factor Auth</h2>
+            <p className="text-muted-foreground text-sm mt-1">Enter the 6-digit code from your authenticator app</p>
+          </div>
+          <div className="bg-card rounded-3xl border border-border p-6 space-y-5 shadow-sm">
+            {error && <div className="bg-destructive/8 border border-destructive/20 rounded-xl px-4 py-3 text-sm text-destructive text-center">{error}</div>}
+            <div className="flex gap-2 justify-center">
+              {totpCode.map((digit, i) => (
+                <input key={i} ref={el => { totpInputs.current[i] = el; }}
+                  type="text" inputMode="numeric" maxLength={1} value={digit}
+                  onChange={e => handleTotpChange(i, e.target.value)}
+                  onKeyDown={e => handleTotpKeyDown(i, e)}
+                  onPaste={handleTotpPaste}
+                  className="w-11 h-14 text-center text-foreground font-bold text-xl bg-muted border border-border rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" />
+              ))}
+            </div>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input type="checkbox" checked={trustDevice} onChange={e => setTrustDevice(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 accent-primary cursor-pointer" />
+              <span className="text-muted-foreground text-xs">Remember this device for <span className="text-foreground font-medium">30 days</span></span>
+            </label>
+            <button onClick={handleTotpSubmit} disabled={totpCode.join("").length !== 6}
+              className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+              <ShieldCheck size={18} /> Verify & Sign In
+            </button>
+          </div>
+          <button onClick={() => { setTotpStep(false); setTotpCode(["","","","","",""]); setError(""); }}
+            className="w-full text-muted-foreground text-sm flex items-center justify-center gap-1.5">
+            <ArrowLeft size={14} /> Back to sign in
+          </button>
+          <p className="text-center text-muted-foreground/60 text-xs">Open Google Authenticator or Authy to find your Investa Farm code.</p>
+        </motion.div>
       </div>
     );
   }

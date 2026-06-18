@@ -4,7 +4,7 @@ import {
   Shield, Users, Tractor, DollarSign, TrendingUp, FileText,
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
   Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2,
-  Settings, Bell, Percent, Coins, MoreHorizontal, ChevronRight, BarChart3
+  Settings, Bell, Percent, Coins, MoreHorizontal, ChevronRight, BarChart3, Trash2
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -355,6 +355,16 @@ export default function AdminDashboard() {
     }
   };
 
+  const deleteUser = async (userId: number, userName: string) => {
+    if (!confirm(`Delete user "${userName}"? This cannot be undone and will remove all their data.`)) return;
+    setActionLoading(userId);
+    try {
+      const r = await fetch(`/api/admin/users/${userId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) { showToast(`User "${userName}" deleted ✓`); fetchUsers(); fetchStats(); }
+      else { const d = await r.json(); showToast(d.error ?? "Delete failed", "error"); }
+    } finally { setActionLoading(null); }
+  };
+
   const changeUserRole = async (userId: number, role: string) => {
     const r = await fetch(`/api/admin/users/${userId}/role`, {
       method: "PATCH",
@@ -407,7 +417,7 @@ export default function AdminDashboard() {
   const activeTabMeta = ALL_TABS.find(t => t.id === tab);
 
   return (
-    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-10">
+    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-24">
       {toast && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg ${toast.type === "success" ? "bg-green-600" : "bg-red-600"}`}>
           {toast.msg}
@@ -452,70 +462,46 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Tab bar — 4 primary + More */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
-        <div className="flex items-stretch">
+      {/* Fixed bottom nav — mobile app style footer */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 max-w-[430px] mx-auto bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        {/* Row 1 */}
+        <div className="grid grid-cols-4">
           {PRIMARY_TABS.map(t => (
-            <button
-              key={t.id}
-              onClick={() => { setTab(t.id); setShowMoreSheet(false); }}
-              className={`flex-1 flex flex-col items-center gap-1 py-3 transition-all relative ${tab === t.id ? "text-primary" : "text-muted-foreground"}`}
-            >
-              <div className={`relative w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${tab === t.id ? `${t.bg} ${t.color}` : "bg-gray-50 text-gray-400"}`}>
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex flex-col items-center gap-0.5 py-2.5 relative transition-all ${tab === t.id ? t.color : "text-gray-400"}`}>
+              <div className={`relative w-8 h-8 rounded-xl flex items-center justify-center transition-all ${tab === t.id ? t.bg : ""}`}>
                 {t.icon}
                 {t.badge != null && t.badge > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
                     {t.badge > 9 ? "9+" : t.badge}
                   </span>
                 )}
               </div>
-              <span className={`text-[10px] font-semibold leading-none ${tab === t.id ? t.color : "text-gray-400"}`}>{t.label}</span>
-              {tab === t.id && <div className="absolute bottom-0 inset-x-2 h-0.5 bg-primary rounded-full" />}
+              <span className="text-[9px] font-semibold leading-none">{t.label}</span>
+              {tab === t.id && <div className="absolute top-0 inset-x-3 h-0.5 bg-current rounded-full" />}
             </button>
           ))}
-          {/* More button */}
-          <button
-            onClick={() => setShowMoreSheet(s => !s)}
-            className={`flex-1 flex flex-col items-center gap-1 py-3 transition-all relative ${SECONDARY_TABS.some(t => t.id === tab) ? "text-primary" : "text-muted-foreground"}`}
-          >
-            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${SECONDARY_TABS.some(t => t.id === tab) ? "bg-primary/10 text-primary" : "bg-gray-50 text-gray-400"}`}>
-              <MoreHorizontal size={18} />
-            </div>
-            <span className={`text-[10px] font-semibold leading-none ${SECONDARY_TABS.some(t => t.id === tab) ? "text-primary" : "text-gray-400"}`}>More</span>
-          </button>
         </div>
-
-        {/* Secondary tabs dropdown */}
-        {showMoreSheet && (
-          <div className="border-t border-gray-100 bg-gray-50 px-3 py-3 grid grid-cols-4 gap-2">
-            {SECONDARY_TABS.map(t => (
-              <button
-                key={t.id}
-                onClick={() => { setTab(t.id); setShowMoreSheet(false); }}
-                className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl transition-all ${tab === t.id ? `${t.bg} ring-2 ring-offset-1 ring-primary/30` : "bg-white border border-gray-100"}`}
-              >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${tab === t.id ? t.color : "text-gray-400"}`}>
-                  {t.icon}
-                </div>
-                <span className={`text-[10px] font-semibold leading-none ${tab === t.id ? t.color : "text-gray-500"}`}>{t.label}</span>
+        {/* Divider */}
+        <div className="h-px bg-gray-100 mx-3" />
+        {/* Row 2 */}
+        <div className="grid grid-cols-4">
+          {SECONDARY_TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex flex-col items-center gap-0.5 py-2.5 relative transition-all ${tab === t.id ? t.color : "text-gray-400"}`}>
+              <div className={`relative w-8 h-8 rounded-xl flex items-center justify-center transition-all ${tab === t.id ? t.bg : ""}`}>
+                {t.icon}
                 {t.badge != null && t.badge > 0 && (
-                  <span className="text-[9px] font-bold text-red-500">{t.badge} pending</span>
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                    {t.badge > 9 ? "9+" : t.badge}
+                  </span>
                 )}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Active tab label strip */}
-        {activeTabMeta && (
-          <div className={`flex items-center gap-2 px-4 py-1.5 border-t border-gray-100 ${activeTabMeta.bg}`}>
-            <span className={`${activeTabMeta.color}`}>{activeTabMeta.icon && <span className="text-sm">{activeTabMeta.icon}</span>}</span>
-            <p className={`text-xs font-bold ${activeTabMeta.color}`}>{activeTabMeta.label}</p>
-            {activeTabMeta.badge != null && activeTabMeta.badge > 0 && (
-              <span className="ml-auto text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">{activeTabMeta.badge} pending</span>
-            )}
-          </div>
-        )}
+              </div>
+              <span className="text-[9px] font-semibold leading-none">{t.label}</span>
+              {tab === t.id && <div className="absolute top-0 inset-x-3 h-0.5 bg-current rounded-full" />}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="px-4 pt-4 space-y-4">
@@ -749,6 +735,15 @@ export default function AdminDashboard() {
                     <p className="text-indigo-600 text-[11px] font-medium flex items-center gap-1">
                       <Shield size={11} /> Full admin access — can log in to this dashboard
                     </p>
+                  </div>
+                )}
+                {/* Delete user */}
+                {u.role !== "admin" && (
+                  <div className="border-t border-border px-4 py-2">
+                    <button onClick={() => deleteUser(u.id, u.name)} disabled={actionLoading === u.id}
+                      className="flex items-center gap-1.5 text-red-500 text-[11px] font-semibold hover:text-red-700 transition-colors disabled:opacity-50">
+                      <Trash2 size={11} /> Delete account
+                    </button>
                   </div>
                 )}
               </div>

@@ -18,6 +18,36 @@ const RegisterBody = z.object({
 
 const router: IRouter = Router();
 
+// ─── In-memory rate limiters ────────────────────────────────────────────────
+// Key: IP address → { count, windowStart }
+const loginAttempts = new Map<string, { count: number; windowStart: number }>();
+const registerAttempts = new Map<string, { count: number; windowStart: number }>();
+
+function getClientIp(req: any): string {
+  return (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+    ?? req.socket?.remoteAddress
+    ?? "unknown";
+}
+
+function checkRateLimit(map: Map<string, { count: number; windowStart: number }>, ip: string, maxRequests: number, windowMs: number): boolean {
+  const now = Date.now();
+  const entry = map.get(ip);
+  if (!entry || now - entry.windowStart > windowMs) {
+    map.set(ip, { count: 1, windowStart: now });
+    return true; // allowed
+  }
+  if (entry.count >= maxRequests) return false; // blocked
+  entry.count++;
+  return true; // allowed
+}
+
+// Cleanup old entries every 10 minutes to prevent memory leak
+setInterval(() => {
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  loginAttempts.forEach((v, k) => { if (v.windowStart < cutoff) loginAttempts.delete(k); });
+  registerAttempts.forEach((v, k) => { if (v.windowStart < cutoff) registerAttempts.delete(k); });
+}, 10 * 60 * 1000);
+
 const DEMO_EMAILS = new Set([
   "john.farmer@investafarm.com",
   "david.investor@investafarm.com",
@@ -69,6 +99,13 @@ function generateOtp(): string {
 }
 
 router.post("/auth/register", async (req, res): Promise<void> => {
+  const ip = getClientIp(req);
+  // Rate limit: max 5 registrations per IP per hour
+  if (!checkRateLimit(registerAttempts, ip, 5, 60 * 60 * 1000)) {
+    res.status(429).json({ error: "Too many registration attempts from this network. Please try again in an hour." });
+    return;
+  }
+
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -76,6 +113,15 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   }
   const { email: rawEmail, password, name, role } = parsed.data;
   const email = rawEmail.toLowerCase().trim();
+
+  // Block disposable/spam email patterns
+  const spamDomains = ["mailinator.com","guerrillamail.com","tempmail.com","throwam.com","yopmail.com","10minutemail.com","fakeinbox.com","trashmail.com","dispostable.com","maildrop.cc"];
+  const domain = email.split("@")[1]?.toLowerCase() ?? "";
+  if (spamDomains.includes(domain)) {
+    res.status(400).json({ error: "Disposable email addresses are not allowed. Please use a real email." });
+    return;
+  }
+
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (existing) {
     res.status(400).json({ error: "Email already registered" });
@@ -181,6 +227,13 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {
+  const ip = getClientIp(req);
+  // Rate limit: max 10 login attempts per IP per 15 minutes
+  if (!checkRateLimit(loginAttempts, ip, 10, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "Too many login attempts. Please wait 15 minutes before trying again." });
+    return;
+  }
+
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
