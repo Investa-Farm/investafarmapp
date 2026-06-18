@@ -162,6 +162,7 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
 
   useEffect(() => {
     const pending = localStorage.getItem(TOUR_STATE_KEY);
+    let resumed = false;
     if (pending) {
       try {
         const { step, role: pendingRole } = JSON.parse(pending);
@@ -169,15 +170,18 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
           localStorage.removeItem(TOUR_STATE_KEY);
           setIdx(step);
           setOpen(true);
-          return;
+          resumed = true;
         }
       } catch { localStorage.removeItem(TOUR_STATE_KEY); }
     }
-    const seen = localStorage.getItem(`${TOUR_KEY}_${role}`);
-    if (!seen) {
-      const t = setTimeout(() => { setIdx(0); setHighlightRect(null); setOpen(true); }, 2200);
-      return () => clearTimeout(t);
+    if (!resumed) {
+      const seen = localStorage.getItem(`${TOUR_KEY}_${role}`);
+      if (!seen) {
+        const t = setTimeout(() => { setIdx(0); setHighlightRect(null); setOpen(true); }, 2200);
+        return () => clearTimeout(t);
+      }
     }
+    return undefined;
   }, [role]);
 
   useEffect(() => {

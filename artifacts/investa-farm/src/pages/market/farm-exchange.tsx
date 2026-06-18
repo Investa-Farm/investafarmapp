@@ -207,8 +207,8 @@ export default function FarmExchange() {
                 <Sparkline data={sparkData} color={isUp ? "#16a34a" : "#dc2626"} height={60} />
               </div>
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div><p className="text-muted-foreground">7D High</p><p className="font-bold text-green-600">{formatAmount(Math.max(...sparkData.map(d=>d.value)))}</p></div>
-                <div><p className="text-muted-foreground">7D Low</p><p className="font-bold text-red-500">{formatAmount(Math.min(...sparkData.map(d=>d.value)))}</p></div>
+                <div><p className="text-muted-foreground">7D High</p><p className="font-bold text-green-600">{formatAmount(Math.max(...(sparkData as number[])))}</p></div>
+                <div><p className="text-muted-foreground">7D Low</p><p className="font-bold text-red-500">{formatAmount(Math.min(...(sparkData as number[])))}</p></div>
                 <div><p className="text-muted-foreground">Change</p><p className={`font-bold ${isUp?"text-green-600":"text-red-500"}`}>{isUp?"+":""}{(farm.changePercent??0).toFixed(2)}%</p></div>
               </div>
             </div>
@@ -384,7 +384,7 @@ export default function FarmExchange() {
         />
       )}
 
-      <BottomNav />
+      <BottomNav role="investor" />
     </div>
   );
 }

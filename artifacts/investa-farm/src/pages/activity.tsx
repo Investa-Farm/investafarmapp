@@ -222,7 +222,7 @@ export default function Activity() {
                   <p className="text-muted-foreground text-xs mt-1">Your transactions will appear here once you invest.</p>
                 </div>
               )
-              : transactions?.map((tx) => {
+              : transactions?.map((tx: any) => {
                   const cfg = typeConfig[tx.type as keyof typeof typeConfig] ?? typeConfig.buy;
                   const Icon = cfg.icon;
                   const date = new Date(tx.createdAt);

@@ -1194,7 +1194,7 @@ export default function MarketHome() {
               demandColor: Math.abs(l.changePercent ?? 0) > 2 ? "text-green-600 bg-green-50" : "text-primary bg-primary/5",
               farms: 1,
               change: l.changePercent ?? 0,
-            }))).map(crop => {
+            }))).map((crop: any) => {
               const isWatchlisted = watchlisted.has(crop.id);
               return (
                 <div key={crop.id} className={`bg-card rounded-2xl border overflow-hidden transition-all ${isWatchlisted ? "border-primary/40 shadow-lg shadow-green-500/8" : "border-border"}`}>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useListSecondaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, ChevronRight, BellRing, ShoppingBag, BookOpen, Plus, Minus, ChevronDown, ChevronUp, BarChart2, Info, ExternalLink, Map } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, ChevronRight, BellRing, ShoppingBag, BookOpen, Plus, Minus, ChevronDown, ChevronUp, BarChart2, Info, ExternalLink, Map as MapIcon } from "lucide-react";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { useLocation } from "wouter";
@@ -185,7 +185,11 @@ export default function SecondaryMarket() {
     onSuccess: () => refetchOrders(),
   });
 
-  const allFarms = listings ? [...new Map((listings as Listing[]).map(l => [l.farmId, { id: l.farmId, name: l.farmName, price: l.pricePerShare }])).values()] : [];
+  const allFarms = listings ? (() => {
+    const m = new globalThis.Map<number, {id: number; name: string; price: number}>();
+    for (const l of listings as Listing[]) m.set(l.farmId, { id: l.farmId, name: l.farmName, price: l.pricePerShare });
+    return [...m.values()];
+  })() : [];
 
   const activeMyListings = myListings.filter(l => l.isActive !== false);
   const inactiveMyListings = myListings.filter(l => l.isActive === false);
@@ -794,7 +798,7 @@ export default function SecondaryMarket() {
                   onClick={() => { setMoreListing(null); setLocation(`/market/exchange/${moreListing.farmId}`); }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-border text-foreground text-sm font-semibold active:scale-95 transition-all"
                 >
-                  <Map size={14} /> Farm Map
+                  <MapIcon size={14} /> Farm Map
                 </button>
                 <button
                   onClick={(e) => { setAlertListing(moreListing); setMoreListing(null); }}

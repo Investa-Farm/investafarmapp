@@ -247,7 +247,7 @@ export default function CommunityPortfolios() {
       </div>
 
       {copyTarget && <CopyModal portfolio={copyTarget} onClose={() => setCopyTarget(null)} />}
-      <BottomNav />
+      <BottomNav role="investor" />
     </div>
   );
 }

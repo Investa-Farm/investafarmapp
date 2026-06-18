@@ -84,6 +84,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
       const t = setTimeout(() => resetAndClose(), 2500);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [step]);
 
   if (!listing) return null;

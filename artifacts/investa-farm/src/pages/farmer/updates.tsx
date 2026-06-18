@@ -61,7 +61,7 @@ export default function FarmerUpdates() {
               <select data-testid="select-farm" value={farmId ?? ""} onChange={e => setFarmId(Number(e.target.value))}
                 required className="w-full border border-border rounded-xl px-3 py-2.5 text-sm text-foreground bg-background focus:outline-none focus:border-primary">
                 <option value="">Select farm</option>
-                {farms?.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                {farms?.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
               <input data-testid="input-update-title" value={title} onChange={e => setTitle(e.target.value)}
                 placeholder="Update title" required
@@ -90,7 +90,7 @@ export default function FarmerUpdates() {
                 <p className="text-muted-foreground text-xs mt-1">Post your first farm update using the + button above.</p>
               </div>
             )
-            : updates?.map((u) => (
+            : updates?.map((u: any) => (
               <div key={u.id} data-testid={`update-card-${u.id}`} className="bg-card rounded-2xl border border-border overflow-hidden">
                 {u.imageUrl && <img src={u.imageUrl} alt={u.title} className="w-full h-44 object-cover" />}
                 <div className="p-4">

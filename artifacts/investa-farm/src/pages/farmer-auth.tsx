@@ -121,7 +121,7 @@ export default function FarmerAuth() {
     if (!agreed) { setError("Please accept the Terms & Privacy Policy to continue."); return; }
     const name = fullName || email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     register.mutate({ data: { email, password, name, role: "farmer" } }, {
-      onSuccess: (data) => {
+      onSuccess: (data: any) => {
         setToken(data.token); storeUser(data.user);
         setLocation(`/verify-otp?email=${encodeURIComponent(email)}`);
       },

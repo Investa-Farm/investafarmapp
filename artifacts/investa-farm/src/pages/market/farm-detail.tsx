@@ -243,10 +243,10 @@ export default function FarmDetail() {
       const r = await fetch("/api/news");
       const all: NewsItem[] = await r.json().catch(() => []);
       const crop = farm?.cropType?.toLowerCase() ?? "";
-      const keywords = crop.split(/\s+/).filter(w => w.length > 3);
+      const keywords = crop.split(/\s+/).filter((w: string) => w.length > 3);
       return all.map((item: NewsItem) => ({
         ...item,
-        cropRelevance: keywords.some(k =>
+        cropRelevance: keywords.some((k: string) =>
           item.title?.toLowerCase().includes(k) || item.summary?.toLowerCase().includes(k)
         ) ? 1 : 0,
       })).sort((a, b) => (b.cropRelevance ?? 0) - (a.cropRelevance ?? 0));
