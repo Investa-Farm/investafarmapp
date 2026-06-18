@@ -2,13 +2,15 @@ import { useState, useMemo } from "react";
 import { useListPrimaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES } from "@/lib/auth";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { getCropImage, CROP_IMAGES } from "@/lib/crops";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
+import { PriceAlertModal } from "@/components/price-alert-modal";
+import { InvestmentCalculator } from "@/components/investment-calculator";
 
 // --- Risk helpers ---
 const HIGH_RISK_CROPS = new Set(["coffee", "avocado", "tobacco", "horticulture"]);
@@ -92,6 +94,10 @@ export default function PrimaryMarket() {
   const [investOpen, setInvestOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
+  const [alertListing, setAlertListing] = useState<Listing | null>(null);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [calcListing, setCalcListing] = useState<Listing | null>(null);
+  const [calcOpen, setCalcOpen] = useState(false);
 
   const filteredListings = useMemo(() => {
     if (!listings) return [];
@@ -303,12 +309,28 @@ export default function PrimaryMarket() {
                           )}
                         </div>
 
-                        <button
-                          onClick={(e) => handleBuyClick(e, listing as Listing)}
-                          className="w-full bg-primary text-white font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform"
-                        >
-                          Invest in {listing.cropType} →
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setCalcListing(listing as Listing); setCalcOpen(true); }}
+                            className="w-10 h-10 rounded-xl border border-border bg-muted flex items-center justify-center active:scale-95 transition-transform flex-shrink-0"
+                            title="Investment Calculator"
+                          >
+                            <Calculator size={16} className="text-muted-foreground" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setAlertListing(listing as Listing); setAlertOpen(true); }}
+                            className="w-10 h-10 rounded-xl border border-green-200 bg-green-50 flex items-center justify-center active:scale-95 transition-transform flex-shrink-0"
+                            title="Set Price Alert"
+                          >
+                            <BellRing size={16} className="text-green-600" />
+                          </button>
+                          <button
+                            onClick={(e) => handleBuyClick(e, listing as Listing)}
+                            className="flex-1 bg-primary text-white font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform"
+                          >
+                            Invest in {listing.cropType} →
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -318,6 +340,8 @@ export default function PrimaryMarket() {
       </div>
 
       <InvestModal open={investOpen} onClose={() => setInvestOpen(false)} listing={selectedListing} />
+      <PriceAlertModal open={alertOpen} onClose={() => setAlertOpen(false)} listing={alertListing} />
+      <InvestmentCalculator open={calcOpen} onClose={() => setCalcOpen(false)} listing={calcListing} />
       <BottomNav role="investor" />
     </div>
   );

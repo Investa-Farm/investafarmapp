@@ -145,7 +145,9 @@ export default function Portfolio() {
   const [sellOpen, setSellOpen] = useState(false);
   const [shareHolding, setShareHolding] = useState<Holding | null>(null);
   const [period, setPeriod] = useState<Period>("1W");
-  const [activeTab, setActiveTab] = useState<"holdings" | "broker">("holdings");
+  const [activeTab, setActiveTab] = useState<"holdings" | "broker">(() =>
+    window.location.hash === "#broker" ? "broker" : "holdings"
+  );
   const [brokerEnabled, setBrokerEnabled] = useState(() => localStorage.getItem("investa_broker_mode") === "true");
   const [copied, setCopied] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -212,7 +214,7 @@ export default function Portfolio() {
     setTimeout(() => setAcctCopied(false), 2000);
   };
 
-  const brokerLink = `https://investafarm.co.ke/broker/${user?.id ?? ""}`;
+  const brokerLink = `https://app.investafarm.com/portfolio`;
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(brokerLink).catch(() => {});
     setCopied(true);
@@ -857,7 +859,7 @@ export default function Portfolio() {
         onClose={() => setShareHolding(null)}
         title={shareHolding?.farmName ?? ""}
         text={shareHolding ? `🌱 I'm invested in ${shareHolding.farmName} on Investa Farm! ${shareHolding.cropType} · ${shareHolding.location} · Earn up to +22% returns` : ""}
-        url="https://investafarm.co.ke"
+        url="https://app.investafarm.com/portfolio"
       />
 
       {/* Stock Broker Unlock Popup */}

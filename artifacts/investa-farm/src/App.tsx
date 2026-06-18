@@ -1,5 +1,5 @@
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { getToken, getStoredUser } from "@/lib/auth";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { CurrencyProvider } from "@/lib/currency";
+import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
 import Landing from "@/pages/landing";
 import FarmerAuth from "@/pages/farmer-auth";
@@ -338,6 +339,47 @@ function Router() {
   );
 }
 
+function PwaInstallBanner() {
+  const [prompt, setPrompt] = useState<any>(null);
+  const [dismissed, setDismissed] = useState(() => !!localStorage.getItem("investa_pwa_dismissed"));
+
+  useEffect(() => {
+    const handler = (e: Event) => { e.preventDefault(); setPrompt(e); };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  if (!prompt || dismissed) return null;
+
+  const install = async () => {
+    prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    if (outcome === "accepted") { setPrompt(null); localStorage.setItem("investa_pwa_dismissed", "1"); }
+    else setDismissed(true);
+  };
+
+  const dismiss = () => { setDismissed(true); localStorage.setItem("investa_pwa_dismissed", "1"); };
+
+  return (
+    <div className="fixed bottom-20 left-0 right-0 z-[70] px-4 max-w-[430px] mx-auto">
+      <div className="bg-[#052e16] rounded-2xl shadow-2xl flex items-center gap-3 px-4 py-3 border border-green-800">
+        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
+          <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-bold text-sm leading-tight">Install Investa Farm</p>
+          <p className="text-white/60 text-[10px]">Add to home screen for fast access</p>
+        </div>
+        <button onClick={install}
+          className="bg-primary text-white text-xs font-bold px-3 py-2 rounded-xl flex-shrink-0 active:scale-95 transition-transform">
+          Install
+        </button>
+        <button onClick={dismiss} className="text-white/50 text-lg leading-none flex-shrink-0">×</button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -349,6 +391,7 @@ function App() {
           <Toaster />
           <SonnerToaster position="top-center" richColors={false} />
           <PriceAlertWatcher />
+          <PwaInstallBanner />
         </TooltipProvider>
       </CurrencyProvider>
     </QueryClientProvider>

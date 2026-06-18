@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useListSecondaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, ChevronRight, BellRing, ShoppingBag, BookOpen, Plus, Minus, ChevronDown, ChevronUp, BarChart2 } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, ChevronRight, BellRing, ShoppingBag, BookOpen, Plus, Minus, ChevronDown, ChevronUp, BarChart2, Info, ExternalLink, Map } from "lucide-react";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { useLocation } from "wouter";
@@ -112,6 +112,7 @@ export default function SecondaryMarket() {
   const [tab, setTab] = useState<"market" | "mine" | "orders">("market");
   const [cropFilter, setCropFilter] = useState<string>("all");
   const [expandedCrop, setExpandedCrop] = useState<string | null>(null);
+  const [moreListing, setMoreListing] = useState<Listing | null>(null);
   const token = getToken();
   const qc = useQueryClient();
 
@@ -401,6 +402,13 @@ export default function SecondaryMarket() {
                                   </span>
                                 )}
                                 <div className="flex items-center gap-1.5 mt-0.5">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setMoreListing(listing); }}
+                                    title="More details"
+                                    className="w-7 h-7 rounded-lg border border-border flex items-center justify-center active:scale-95 transition-transform hover:bg-primary/5 hover:border-primary/30"
+                                  >
+                                    <Info size={11} className="text-muted-foreground" />
+                                  </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setAlertListing(listing); }}
                                     title="Set price alert"
@@ -724,6 +732,85 @@ export default function SecondaryMarket() {
               setCancelListing(null);
             }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* "More Details" bottom sheet */}
+      <AnimatePresence>
+        {moreListing && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
+              onClick={() => setMoreListing(null)} />
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed inset-x-0 bottom-0 z-[61] max-w-[430px] mx-auto bg-white rounded-t-3xl shadow-2xl px-5 pt-5 pb-10"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <img src={getCropImage(moreListing.cropType)} alt={moreListing.cropType}
+                    className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                  <div>
+                    <p className="text-foreground font-bold text-base leading-tight">{moreListing.farmName}</p>
+                    <p className="text-muted-foreground text-xs">{moreListing.cropType} · {moreListing.location}</p>
+                  </div>
+                </div>
+                <button onClick={() => setMoreListing(null)}
+                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Stats grid */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {[
+                  { label: "Price / Share", val: formatKES(moreListing.pricePerShare), cls: "text-foreground" },
+                  { label: "Shares Listed", val: moreListing.sharesAvailable.toLocaleString(), cls: "text-foreground" },
+                  { label: "Market Change", val: `${moreListing.changePercent >= 0 ? "+" : ""}${moreListing.changePercent.toFixed(2)}%`, cls: moreListing.changePercent >= 0 ? "text-green-600" : "text-red-500" },
+                  { label: "Est. Mid-Season", val: "+10%", cls: "text-orange-500" },
+                  { label: "Est. Full Season", val: "+22%", cls: "text-green-600" },
+                  { label: "Status", val: "Active Resale", cls: "text-primary" },
+                ].map(({ label, val, cls }) => (
+                  <div key={label} className="bg-muted/50 rounded-xl p-3">
+                    <p className="text-muted-foreground text-[10px]">{label}</p>
+                    <p className={`font-bold text-sm ${cls}`}>{val}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Broker fee note */}
+              <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 mb-4 flex items-start gap-2">
+                <span className="text-base">🤝</span>
+                <div>
+                  <p className="text-violet-700 font-semibold text-xs">1% Broker Fee Applies</p>
+                  <p className="text-violet-600 text-[10px]">A 1% platform fee is charged on secondary market trades to support market liquidity.</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setMoreListing(null); setLocation(`/market/exchange/${moreListing.farmId}`); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-border text-foreground text-sm font-semibold active:scale-95 transition-all"
+                >
+                  <Map size={14} /> Farm Map
+                </button>
+                <button
+                  onClick={(e) => { setAlertListing(moreListing); setMoreListing(null); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-green-200 bg-green-50 text-green-700 text-sm font-semibold active:scale-95 transition-all"
+                >
+                  <BellRing size={14} /> Alert
+                </button>
+                <button
+                  onClick={(e: React.MouseEvent) => { handleBuyClick(e, moreListing); setMoreListing(null); }}
+                  className="flex-1 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 transition-all"
+                >
+                  BUY
+                </button>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 

@@ -138,7 +138,25 @@ Rank the top 3 best-fit farms. Consider crop risk, market momentum (changePercen
     res.json({ matches });
   } catch (err) {
     console.error("[AI_MATCH]", (err as Error).message);
-    res.status(503).json({ error: "AI matching temporarily unavailable. Please try again." });
+    // Fallback: heuristic local ranking when AI is unavailable
+    const riskMap: Record<string, number> = { low: 1, medium: 5, high: 9 };
+    const userRisk = riskMap[((riskTolerance ?? "medium") as string).toLowerCase()] ?? 5;
+    const scored = listingsSummary.map(l => {
+      const volatility = Math.abs(l.changePercent);
+      const riskScore = volatility > 5 ? 8 : volatility > 2 ? 5 : 2;
+      const riskMatch = 10 - Math.abs(riskScore - userRisk);
+      const cropMatch = (preferredCrops ?? []).length === 0 ? 5 : (preferredCrops!.map(c => c.toLowerCase()).includes(l.cropType.toLowerCase()) ? 10 : 2);
+      const momentum = l.changePercent > 0 ? 5 : 0;
+      const matchScore = Math.round(Math.min(100, (riskMatch * 5 + cropMatch * 3 + momentum * 2)));
+      return {
+        ...l,
+        matchScore,
+        matchReason: `${l.cropType} farm with ${l.changePercent >= 0 ? "positive" : "mixed"} market momentum. Heuristic match (AI unavailable).`,
+        expectedReturnLow: 10,
+        expectedReturnHigh: 22,
+      };
+    }).sort((a, b) => b.matchScore - a.matchScore).slice(0, 3);
+    res.json({ matches: scored });
   }
 });
 

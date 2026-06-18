@@ -871,6 +871,11 @@ export default function MarketHome() {
                                             <span className="text-muted-foreground/40 text-[10px]">·</span>
                                             <RiskBadge level={risk} />
                                           </div>
+                                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                            <span className="text-[9px] bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded-full">⚡ +10% mid</span>
+                                            <span className="text-[9px] bg-emerald-100 text-emerald-700 font-semibold px-1.5 py-0.5 rounded-full">🌾 +22% full</span>
+                                            <span className="text-[9px] text-muted-foreground">{listing.sharesAvailable} shares</span>
+                                          </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                                           <div className="w-16">
@@ -1223,13 +1228,13 @@ export default function MarketHome() {
                             return n;
                           });
                         }}
-                        className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${isWatchlisted ? "bg-primary border-primary text-white" : "border-border text-foreground"}`}>
+                        className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${isWatchlisted ? "bg-primary border-primary text-white" : "border-green-200 bg-green-50 text-green-700"}`}>
                         <BookmarkPlus size={13} />
                         {isWatchlisted ? "Watching" : "Watch"}
                       </button>
                       <button
                         onClick={() => fetchInsight(crop)}
-                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold transition-all active:scale-95">
+                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-green-200 bg-green-50 text-green-700 text-xs font-semibold transition-all active:scale-95">
                         <Lightbulb size={13} />
                         Why?
                       </button>

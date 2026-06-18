@@ -183,7 +183,9 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                         <div className="flex items-center gap-3">
                           <button onClick={() => setQuantity(q => Math.max(1, q - 5))}
                             className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center text-foreground text-lg font-bold active:scale-90 transition-transform">−</button>
-                          <input type="number" value={quantity} onChange={e => setQuantity(Math.max(1, Math.min(listing.sharesAvailable, Number(e.target.value))))}
+                          <input type="number" value={quantity} min={1}
+                            onChange={e => { const v = Number(e.target.value); setQuantity(v < 1 ? 1 : Math.min(listing.sharesAvailable, v)); }}
+                            onFocus={e => e.target.select()}
                             className="flex-1 text-center text-foreground font-bold text-xl border border-border rounded-xl py-2.5 focus:outline-none focus:border-primary" />
                           <button onClick={() => setQuantity(q => Math.min(listing.sharesAvailable, q + 5))}
                             className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center text-foreground text-lg font-bold active:scale-90 transition-transform">+</button>

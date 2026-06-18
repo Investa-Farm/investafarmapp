@@ -353,7 +353,8 @@ export default function Profile() {
 
         {/* Broker badge card */}
         {isBroker ? (
-          <div className="rounded-2xl p-3.5 border border-yellow-300 bg-gradient-to-r from-yellow-50 to-amber-50 flex items-center gap-3">
+          <button onClick={() => setLocation("/portfolio#broker")}
+            className="w-full rounded-2xl p-3.5 border border-yellow-300 bg-gradient-to-r from-yellow-50 to-amber-50 flex items-center gap-3 text-left active:scale-[0.98] transition-transform">
             <div className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center flex-shrink-0">
               <Star size={20} className="text-yellow-600" fill="currentColor" />
             </div>
@@ -362,9 +363,10 @@ export default function Profile() {
               <p className="text-yellow-700 text-xs mt-0.5">Portfolio ≥ KES 500K · Bulk orders & priority listings unlocked</p>
             </div>
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-yellow-400 text-yellow-900">ACTIVE</span>
-          </div>
+          </button>
         ) : (
-          <div className="rounded-2xl p-3.5 border border-border bg-card flex items-center gap-3">
+          <button onClick={() => setLocation("/portfolio#broker")}
+            className="w-full rounded-2xl p-3.5 border border-border bg-card flex items-center gap-3 text-left active:scale-[0.98] transition-transform">
             <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
               <Zap size={20} className="text-muted-foreground" />
             </div>
@@ -381,7 +383,7 @@ export default function Profile() {
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
               {Math.round((portfolioValue / BROKER_THRESHOLD) * 100)}%
             </span>
-          </div>
+          </button>
         )}
 
         {/* AI Smart Match card */}

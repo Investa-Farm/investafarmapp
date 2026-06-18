@@ -107,7 +107,7 @@ export function PortfolioWizard({ onClose, onCreated }: PortfolioWizardProps) {
           </div>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-5 pt-4 pb-8">
+        <div className="overflow-y-auto flex-1 px-5 pt-4 pb-20">
           <AnimatePresence mode="wait">
             {/* Step 1: Name */}
             {step === "name" && (
