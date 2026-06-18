@@ -74,6 +74,18 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
     },
   });
 
+  const resetAndClose = () => {
+    onClose();
+    setTimeout(() => { setStep("configure"); setQuantity(10); setExitType("full_season"); setPaymentMethod(null); }, 400);
+  };
+
+  useEffect(() => {
+    if (step === "done") {
+      const t = setTimeout(() => resetAndClose(), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [step]);
+
   if (!listing) return null;
 
   const isDemo = isDemoAccount();
@@ -107,18 +119,6 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
       },
     });
   };
-
-  const resetAndClose = () => {
-    onClose();
-    setTimeout(() => { setStep("configure"); setQuantity(10); setExitType("full_season"); setPaymentMethod(null); }, 400);
-  };
-
-  useEffect(() => {
-    if (step === "done") {
-      const t = setTimeout(() => resetAndClose(), 2500);
-      return () => clearTimeout(t);
-    }
-  }, [step]);
 
   const handleProceedToReview = () => {
     if (!isKycVerified) { setKycOpen(true); return; }
