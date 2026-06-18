@@ -30,6 +30,7 @@ import rainfallRouter from "./rainfall";
 import portfolioRoiRouter from "./portfolio-roi";
 import totpRouter from "./totp";
 import transactionsRouter from "./transactions";
+import farmerHealthRouter from "./farmer-health";
 
 const router: IRouter = Router();
 
@@ -63,5 +64,6 @@ router.use(rainfallRouter);
 router.use(portfolioRoiRouter);
 router.use(totpRouter);
 router.use(transactionsRouter);
+router.use(aiRateLimit, farmerHealthRouter);
 
 export default router;

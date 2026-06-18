@@ -224,6 +224,32 @@ export default function FarmerDashboard() {
           </div>
         </div>
 
+        {/* Farm Health Dashboard CTA */}
+        <button
+          onClick={() => setLocation("/farmer/health")}
+          className="w-full bg-gradient-to-r from-emerald-600 to-green-500 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-md shadow-green-200 dark:shadow-green-900/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-xl">🌿</span>
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm">Farm Health Dashboard</p>
+                <p className="text-white/75 text-xs mt-0.5">Live weather · NDVI · Rainfall · AI tips</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {farmHealth != null && (
+                <div className="bg-white/20 rounded-xl px-2.5 py-1 text-center">
+                  <p className="text-white font-black text-lg leading-none">{farmHealth}</p>
+                  <p className="text-white/70 text-[8px] font-semibold">SCORE</p>
+                </div>
+              )}
+              <ChevronRight size={16} className="text-white/70" />
+            </div>
+          </div>
+        </button>
+
         {/* Crop Timeline — only show when there's a real active stage */}
         {currentFarm && (
           <div className="bg-card rounded-2xl border border-border p-4">

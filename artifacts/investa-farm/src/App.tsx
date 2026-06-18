@@ -43,6 +43,7 @@ import FarmerKyc from "@/pages/farmer/kyc";
 import LoanApply from "@/pages/farmer/loan-apply";
 import FarmerProfile from "@/pages/farmer/profile";
 import FarmerWallet from "@/pages/farmer/wallet";
+import FarmerHealth from "@/pages/farmer/health";
 
 import CooperativeAuth from "@/pages/cooperative-auth";
 import CooperativeDashboard from "@/pages/cooperative/dashboard";
@@ -302,6 +303,9 @@ function Router() {
       </Route>
       <Route path="/farmer/profile">
         <AuthGuard role="farmer"><FarmerProfile /></AuthGuard>
+      </Route>
+      <Route path="/farmer/health">
+        <AuthGuard role="farmer"><FarmerHealth /></AuthGuard>
       </Route>
 
       {/* Agribusiness routes */}

@@ -270,7 +270,10 @@ export function sanitizeInput(req: Request, _res: Response, next: NextFunction):
     req.body = sanitizeValue(req.body);
   }
   if (req.query && typeof req.query === "object") {
-    (req as any).query = sanitizeValue(req.query);
+    const cleaned = sanitizeValue(req.query) as Record<string, unknown>;
+    for (const key of Object.keys(cleaned)) {
+      (req.query as Record<string, unknown>)[key] = cleaned[key];
+    }
   }
   next();
 }
