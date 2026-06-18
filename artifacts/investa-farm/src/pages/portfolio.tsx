@@ -373,47 +373,71 @@ export default function Portfolio() {
         )}
       </div>
 
+      {/* Quick Actions horizontal scroll */}
+      <div className="mt-3 overflow-x-auto no-scrollbar">
+        <div className="flex gap-2.5 px-4" style={{ width: "max-content" }}>
+          {[
+            { icon: "🛒", label: "Browse Farms", href: "/market/primary" },
+            { icon: "⚡", label: "Exit Holding", onTap: () => {} },
+            { icon: "📊", label: "Trade Shares", href: "/market/secondary" },
+            { icon: "🔔", label: "Set Price Alert", href: "/market" },
+            { icon: "💼", label: "Portfolio Mgr", onTap: () => setActiveTab("broker") },
+          ].map(item => (
+            item.href
+              ? <a key={item.label} href={item.href}
+                  className="flex items-center gap-2 bg-white border border-border rounded-2xl px-3.5 py-2.5 shadow-sm active:scale-95 transition-transform flex-shrink-0">
+                  <span className="text-base leading-none">{item.icon}</span>
+                  <span className="text-foreground font-semibold text-xs whitespace-nowrap">{item.label}</span>
+                </a>
+              : <button key={item.label} onClick={item.onTap}
+                  className="flex items-center gap-2 bg-white border border-border rounded-2xl px-3.5 py-2.5 shadow-sm active:scale-95 transition-transform flex-shrink-0">
+                  <span className="text-base leading-none">{item.icon}</span>
+                  <span className="text-foreground font-semibold text-xs whitespace-nowrap">{item.label}</span>
+                </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Thick section break */}
+      <div className="h-2 bg-muted/40 mt-4" />
+
       {/* Return info banner */}
-      <div className="mx-4 mt-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-3">
-        <p className="text-green-700 text-xs font-semibold mb-2">Exit Options & Payouts</p>
+      <div className="px-4 pt-4">
+        <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <TrendingUp size={10} /> Exit Options &amp; Payouts
+        </p>
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white/70 rounded-xl p-2">
-            <div className="flex items-center gap-1.5">
-              <span>⚡</span>
-              <p className="text-xs font-semibold text-orange-700">Mid-Season</p>
+          <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-3">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-lg">⚡</span>
+              <p className="text-xs font-bold text-orange-700">Mid-Season</p>
             </div>
-            <p className="text-orange-600 font-bold text-sm mt-0.5">+10% base</p>
-            <p className="text-muted-foreground text-[10px]">30–60 days</p>
+            <p className="text-orange-600 font-bold text-base">+10% base</p>
+            <p className="text-muted-foreground text-[10px] mt-0.5">30–60 days</p>
           </div>
-          <div className="bg-white/70 rounded-xl p-2">
-            <div className="flex items-center gap-1.5">
-              <span>🌾</span>
-              <p className="text-xs font-semibold text-green-700">Full Season</p>
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-3">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-lg">🌾</span>
+              <p className="text-xs font-bold text-green-700">Full Season</p>
             </div>
-            <p className="text-green-600 font-bold text-sm mt-0.5">Up to +22%</p>
-            <p className="text-muted-foreground text-[10px]">~6 months</p>
+            <p className="text-green-600 font-bold text-base">Up to +22%</p>
+            <p className="text-muted-foreground text-[10px] mt-0.5">~6 months</p>
           </div>
         </div>
       </div>
 
-      {/* Section divider */}
-      <div className="mx-4 mt-4 mb-1 flex items-center gap-3">
-        <div className="flex-1 h-px bg-border" />
-        <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-widest flex items-center gap-1.5">
-          <TrendingUp size={10} /> Holdings &amp; Management
-        </span>
-        <div className="flex-1 h-px bg-border" />
-      </div>
+      {/* Thick section break */}
+      <div className="h-2 bg-muted/40 mt-4" />
 
       {/* Tab switcher */}
-      <div className="mx-4 mt-2">
+      <div className="px-4 pt-4">
         <div className="flex bg-muted rounded-2xl p-1 gap-1">
           <button onClick={() => setActiveTab("holdings")}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${activeTab === "holdings" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${activeTab === "holdings" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
             📊 My Holdings
           </button>
           <button onClick={() => setActiveTab("broker")}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${activeTab === "broker" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${activeTab === "broker" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
             <Star size={12} /> Portfolio Mgr
           </button>
         </div>
@@ -421,7 +445,7 @@ export default function Portfolio() {
 
       {/* Portfolio Manager tab */}
       {activeTab === "broker" && (
-        <div className="px-4 pt-4 space-y-4">
+        <div className="px-4 pt-3 space-y-4">
 
           {/* Qualification banner */}
           {qualification && !qualification.qualified && (
@@ -647,7 +671,7 @@ export default function Portfolio() {
 
       {/* Holdings tab */}
       {activeTab === "holdings" && (
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-4 pt-3 space-y-3">
         {/* AI Health Card — show when there are holdings */}
         {(holdings as Holding[])?.length > 0 && summary && (
           <PortfolioHealthAI holdings={holdings as Holding[]} summary={summary} />
@@ -673,7 +697,23 @@ export default function Portfolio() {
           </div>
         </button>
 
-        <h2 className="font-semibold text-foreground text-sm">My Holdings</h2>
+        {/* Section header */}
+        <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-4 bg-primary rounded-full" />
+            <h2 className="font-bold text-foreground text-sm">My Holdings</h2>
+            {(holdings as Holding[])?.length > 0 && (
+              <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
+                {(holdings as Holding[]).length}
+              </span>
+            )}
+          </div>
+          {(holdings as Holding[])?.length > 0 && (
+            <span className="text-muted-foreground text-[10px]">
+              {(holdings as Holding[]).filter(h => h.status === "active").length} active
+            </span>
+          )}
+        </div>
         {isLoading
           ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)
           : holdings?.length === 0

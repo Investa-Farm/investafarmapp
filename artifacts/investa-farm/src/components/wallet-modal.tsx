@@ -48,6 +48,7 @@ export function WalletModal({ open, onClose }: Props) {
   const [paystackRef, setPaystackRef] = useState<string | null>(null);
   const [paystackVerifying, setPaystackVerifying] = useState(false);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+  const [paystackAmountKobo, setPaystackAmountKobo] = useState(0);
   const { currency, setCurrency, formatAmount } = useCurrency();
 
   const { data, isLoading, refetch } = useQuery<WalletData>({
@@ -80,6 +81,34 @@ export function WalletModal({ open, onClose }: Props) {
     },
   });
 
+  function loadPaystackScript(): Promise<void> {
+    return new Promise((resolve) => {
+      if ((window as any).PaystackPop) { resolve(); return; }
+      const s = document.createElement("script");
+      s.src = "https://js.paystack.co/v1/inline.js";
+      s.onload = () => resolve();
+      document.head.appendChild(s);
+    });
+  }
+
+  const verifyAndClose = async (ref: string, amtKobo: number) => {
+    setPaystackVerifying(true);
+    try {
+      const r = await fetch("/api/wallet/paystack/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reference: ref, amount: amtKobo / 100 }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Not confirmed yet");
+      qc.invalidateQueries({ queryKey: ["wallet"] });
+      setModal(null); setAmount(""); setPaystackRef(null);
+      setSuccess("💰 Payment confirmed! Funds added to your wallet.");
+      setTimeout(() => { setSuccess(null); onClose(); }, 2500);
+    } catch (err) { alert((err as Error).message); }
+    finally { setPaystackVerifying(false); }
+  };
+
   const initPaystack = useMutation({
     mutationFn: async (amt: number) => {
       const r = await fetch("/api/wallet/paystack/initialize", {
@@ -90,31 +119,38 @@ export function WalletModal({ open, onClose }: Props) {
       if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
       return r.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data: { reference: string; publicKey: string; email: string; amountKobo: number }) => {
       setPaystackRef(data.reference);
-      setIframeUrl(data.authorizationUrl);
-      // Paystack blocks iframes — open directly in browser
-      window.open(data.authorizationUrl, "_blank", "noopener,noreferrer");
+      setPaystackAmountKobo(data.amountKobo);
+      if (!data.publicKey) {
+        // No public key configured — fall back to verify-only flow
+        return;
+      }
+      try {
+        await loadPaystackScript();
+        const handler = (window as any).PaystackPop.setup({
+          key: data.publicKey,
+          email: data.email,
+          amount: data.amountKobo,
+          ref: data.reference,
+          currency: "KES",
+          callback: (response: { reference: string }) => {
+            void verifyAndClose(response.reference, data.amountKobo);
+          },
+          onClose: () => {
+            // User dismissed popup — keep paystackRef so they can manually verify
+          },
+        });
+        handler.openIframe();
+      } catch {
+        // Inline script failed — keep paystackRef for manual verify
+      }
     },
   });
 
   const verifyPaystack = async () => {
     if (!paystackRef) return;
-    setPaystackVerifying(true);
-    try {
-      const r = await fetch("/api/wallet/paystack/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reference: paystackRef }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error ?? "Not confirmed yet");
-      qc.invalidateQueries({ queryKey: ["wallet"] });
-      setModal(null); setAmount(""); setPaystackRef(null);
-      setSuccess("Payment confirmed! Funds added to your wallet.");
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) { alert((err as Error).message); }
-    finally { setPaystackVerifying(false); }
+    await verifyAndClose(paystackRef, paystackAmountKobo);
   };
 
   const balance = parseFloat(data?.wallet.balance ?? "0");

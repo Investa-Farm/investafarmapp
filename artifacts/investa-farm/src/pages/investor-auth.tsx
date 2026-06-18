@@ -18,6 +18,19 @@ const WELCOME_STEPS = [
   { icon: "💰", title: "Earn & Exit", body: "Choose Mid-Season exit (+10%) in 30-60 days, or hold to Full Season for up to +28% returns at harvest." },
 ];
 
+const PHONE_CODES = [
+  { code: "+254", flag: "🇰🇪", name: "Kenya" },
+  { code: "+255", flag: "🇹🇿", name: "Tanzania" },
+  { code: "+256", flag: "🇺🇬", name: "Uganda" },
+  { code: "+250", flag: "🇷🇼", name: "Rwanda" },
+  { code: "+251", flag: "🇪🇹", name: "Ethiopia" },
+  { code: "+27",  flag: "🇿🇦", name: "South Africa" },
+  { code: "+234", flag: "🇳🇬", name: "Nigeria" },
+  { code: "+44",  flag: "🇬🇧", name: "UK" },
+  { code: "+1",   flag: "🇺🇸", name: "USA" },
+  { code: "+971", flag: "🇦🇪", name: "UAE" },
+];
+
 export default function InvestorAuth() {
   const [, setLocation] = useLocation();
   const [tab, setTab] = useState<"login" | "register">("login");
@@ -25,6 +38,7 @@ export default function InvestorAuth() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneCode, setPhoneCode] = useState("+254");
   const [investAmount, setInvestAmount] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -112,7 +126,8 @@ export default function InvestorAuth() {
     e.preventDefault(); setError("");
     if (!agreed) { setError("Please accept the Terms & Privacy Policy to continue."); return; }
     const name = fullName || email.split("@")[0]!.replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-    register.mutate({ data: { email, password, name, role: "investor" } }, {
+    const fullPhone = phone.trim() ? `${phoneCode}${phone.trim().replace(/^0/, "")}` : undefined;
+    register.mutate({ data: { email, password, name, role: "investor", ...(fullPhone ? { phone: fullPhone } : {}) } as any }, {
       onSuccess: (data: any) => {
         setToken(data.token); storeUser(data.user);
         if (data.requiresOtp) {
@@ -272,7 +287,31 @@ export default function InvestorAuth() {
                 <form onSubmit={handleRegister} className="space-y-4">
                   <IField label="Full Name" id="name" type="text" value={fullName} set={setFullName} placeholder="e.g. David Mwangi" icon={<User size={15} />} />
                   <IField label="Email address" id="email" type="email" value={email} set={setEmail} placeholder="investor@example.com" icon={<Mail size={15} />} />
-                  <IField label="Phone Number" id="phone" type="tel" value={phone} set={setPhone} placeholder="+254 7xx xxx xxx" icon={<Phone size={15} />} />
+                  {/* Phone with country code */}
+                  <div className="space-y-1.5">
+                    <label className="text-foreground/60 text-xs font-semibold uppercase tracking-wider">Phone Number</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={phoneCode}
+                        onChange={e => setPhoneCode(e.target.value)}
+                        className="border border-border rounded-xl px-2 py-3 text-sm bg-gray-50 focus:outline-none focus:border-primary appearance-none w-[88px] flex-shrink-0 text-center font-medium"
+                      >
+                        {PHONE_CODES.map(c => (
+                          <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                        ))}
+                      </select>
+                      <div className="relative flex-1">
+                        <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={e => setPhone(e.target.value)}
+                          placeholder={phoneCode === "+254" ? "7XX XXX XXX" : "Phone number"}
+                          className="w-full border border-border rounded-xl pl-10 pr-4 py-3 text-foreground bg-gray-50 text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-foreground/60 text-xs font-semibold uppercase tracking-wider">Investment Range (KES)</label>
                     <div className="grid grid-cols-3 gap-2">

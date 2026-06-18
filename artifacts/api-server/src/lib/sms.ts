@@ -47,3 +47,39 @@ export async function sendWelcomeSms(phone: string, name: string): Promise<void>
 export async function sendOtpSms(phone: string, code: string): Promise<void> {
   await sendSms(phone, `Your Investa Farm verification code is: ${code}. Valid for 10 minutes. Do not share.`);
 }
+
+export async function sendWalletTopupSms(phone: string, amount: number, newBalance: number): Promise<void> {
+  await sendSms(
+    phone,
+    `InvestaFarm: KES ${amount.toLocaleString("en-KE")} added to your wallet. New balance: KES ${newBalance.toLocaleString("en-KE")}. app.investafarm.com`
+  );
+}
+
+export async function sendWithdrawalSms(phone: string, amount: number, fee: number): Promise<void> {
+  await sendSms(
+    phone,
+    `InvestaFarm: KES ${amount.toLocaleString("en-KE")} withdrawal to M-Pesa initiated. Fee: KES ${fee.toFixed(0)}. Expect funds within 1-2 business days.`
+  );
+}
+
+export async function sendInvestmentSms(phone: string, farmName: string, shares: number, amount: number): Promise<void> {
+  await sendSms(
+    phone,
+    `InvestaFarm: You bought ${shares} shares in ${farmName} for KES ${amount.toLocaleString("en-KE")}. Track your investment at app.investafarm.com`
+  );
+}
+
+export async function sendFarmerCreditSms(phone: string, name: string, amount: number, reason: string): Promise<void> {
+  const firstName = name.split(" ")[0];
+  await sendSms(
+    phone,
+    `Hi ${firstName}, InvestaFarm: KES ${amount.toLocaleString("en-KE")} credited to your wallet. Reason: ${reason}. app.investafarm.com`
+  );
+}
+
+export async function sendVoucherSms(phone: string, code: string, farmName: string): Promise<void> {
+  await sendSms(
+    phone,
+    `InvestaFarm: Your voucher code ${code} for ${farmName} is ready. Redeem at app.investafarm.com`
+  );
+}
