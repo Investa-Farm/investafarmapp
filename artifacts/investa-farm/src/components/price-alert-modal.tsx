@@ -83,7 +83,7 @@ export function PriceAlertModal({ open, onClose, listing }: Props) {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-50 flex items-end justify-center"
+        <motion.div className="fixed inset-0 z-[70] flex items-end justify-center"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <div className="absolute inset-0 bg-black/50" onClick={onClose} />
           <motion.div className="relative w-full max-w-[430px] bg-background rounded-t-3xl"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield } from "lucide-react";
 import { formatKES, formatChange, getToken, isDemoAccount } from "@/lib/auth";
@@ -110,6 +110,13 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
     onClose();
     setTimeout(() => { setStep("configure"); setQuantity(10); setExitType("full_season"); setPaymentMethod(null); }, 400);
   };
+
+  useEffect(() => {
+    if (step === "done") {
+      const t = setTimeout(() => resetAndClose(), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [step]);
 
   const handleProceedToReview = () => {
     if (!isKycVerified) { setKycOpen(true); return; }

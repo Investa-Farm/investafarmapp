@@ -196,8 +196,7 @@ export default function PrimaryMarket() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-xs text-foreground truncate leading-tight">{listing.farmName}</p>
-                          <p className="text-muted-foreground text-[10px] truncate">{listing.cropType}</p>
-                          <p className="text-muted-foreground text-[10px] truncate">{listing.location}</p>
+                          <p className="text-muted-foreground text-[10px] truncate">{listing.cropType} · {listing.location}</p>
                         </div>
                       </div>
 

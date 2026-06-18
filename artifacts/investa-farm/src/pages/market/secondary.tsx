@@ -320,7 +320,7 @@ export default function SecondaryMarket() {
                 <div key={crop} className="rounded-2xl border overflow-hidden shadow-sm" style={{ borderColor: isUp ? "rgba(22,163,74,0.25)" : undefined, background: "var(--card)" }}>
                   {/* Crop group header */}
                   <button
-                    className="w-full flex items-center gap-3 p-2.5 active:bg-green-50/50 transition-colors"
+                    className="w-full flex items-center gap-3 p-2.5 active:bg-muted/40 transition-colors"
                     onClick={() => setExpandedCrop(isExpanded ? null : crop)}
                   >
                     <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
