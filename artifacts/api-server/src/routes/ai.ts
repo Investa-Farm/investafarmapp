@@ -234,4 +234,132 @@ Write exactly 2 sentences: a yield forecast mentioning Kenyan agricultural condi
   }
 });
 
+// ─── POST /ai/farm-insights ─────────────────────────────────────────────────
+// Returns 5 concise, actionable AI recommendations for a farmer
+router.post("/ai/farm-insights", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { cropType, location, growthStage, farmHealth, harvestDays, fundsRaised, fundingPercent } = req.body as {
+    cropType?: string; location?: string; growthStage?: string; farmHealth?: number;
+    harvestDays?: number; fundsRaised?: number; fundingPercent?: number;
+  };
+
+  const cacheKey = `farm-insights:${cropType}:${growthStage}:${farmHealth}:${harvestDays}`;
+  if (cache.has(cacheKey)) {
+    res.json({ insights: JSON.parse(cache.get(cacheKey)!) });
+    return;
+  }
+
+  const prompt = `You are an expert Kenyan agricultural advisor for Investa Farm.
+
+FARM DATA:
+- Crop: ${cropType ?? "Unknown"}
+- Location: ${location ?? "Kenya"}
+- Growth stage: ${growthStage ?? "vegetative"}
+- Farm health score: ${farmHealth ?? 75}/100
+- Days to harvest: ${harvestDays ?? 90}
+- Funds raised: KES ${(fundsRaised ?? 0).toLocaleString()}
+- Funding progress: ${fundingPercent ?? 0}%
+
+Generate exactly 5 short, specific, actionable insights for this Kenyan farmer. Each insight must be under 20 words and highly specific to their crop and stage. Format as JSON only:
+
+{"insights":[{"type":"weather","icon":"🌤","tip":"..."},{"type":"market","icon":"📊","tip":"..."},{"type":"crop","icon":"🌱","tip":"..."},{"type":"funding","icon":"💰","tip":"..."},{"type":"risk","icon":"⚠️","tip":"..."}]}`;
+
+  try {
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env["GROQ_API_KEY"] ?? ""}`,
+      },
+      body: JSON.stringify({
+        model: "llama3-8b-8192",
+        messages: [
+          { role: "system", content: "Output ONLY valid JSON. No markdown, no explanation." },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 400,
+        temperature: 0.4,
+      }),
+    });
+
+    if (!resp.ok) throw new Error(`Groq ${resp.status}`);
+    const data = await resp.json() as { choices: Array<{ message: { content: string } }> };
+    const raw = data.choices[0]?.message?.content?.trim() ?? "{}";
+    const jsonStr = raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(jsonStr) as { insights?: Array<{ type: string; icon: string; tip: string }> };
+    const insights = parsed.insights ?? [];
+
+    cache.set(cacheKey, JSON.stringify(insights));
+    setTimeout(() => cache.delete(cacheKey), 60 * 60 * 1000); // 1h cache
+
+    res.json({ insights });
+  } catch (err) {
+    console.error("[AI_FARM_INSIGHTS]", (err as Error).message);
+    // Heuristic fallback
+    const stage = (growthStage ?? "").toLowerCase();
+    const crop = (cropType ?? "crop").toLowerCase();
+    const fallback = [
+      { type: "crop",    icon: "🌱", tip: stage === "planting" ? `Water ${crop} deeply at planting to establish roots.` : `Monitor ${crop} for pests at ${stage} stage.` },
+      { type: "weather", icon: "🌤", tip: "Check NDVI scores weekly — rainfall patterns shifting in Kenya." },
+      { type: "market",  icon: "📊", tip: `${crop.charAt(0).toUpperCase()+crop.slice(1)} prices typically rise closer to harvest — hold for better exit.` },
+      { type: "funding", icon: "💰", tip: fundingPercent && fundingPercent < 50 ? "Share your farm listing with local farmer networks to attract investors." : "Funding is strong — focus on yield quality to maximize investor returns." },
+      { type: "risk",    icon: "⚠️", tip: `Protect ${crop} against post-harvest losses — secure dry storage early.` },
+    ];
+    res.json({ insights: fallback });
+  }
+});
+
+// ─── GET /ai/portfolio-health ────────────────────────────────────────────────
+// Returns a 1-line AI summary of portfolio health
+router.post("/ai/portfolio-health", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { totalValue, totalInvested, holdings, gainLossPercent, crops } = req.body as {
+    totalValue?: number; totalInvested?: number; holdings?: number;
+    gainLossPercent?: number; crops?: string[];
+  };
+
+  const cacheKey = `portfolio-health:${user.id}:${Math.round((gainLossPercent ?? 0) * 10)}`;
+  if (cache.has(cacheKey)) {
+    res.json({ summary: cache.get(cacheKey) });
+    return;
+  }
+
+  const isProfit = (gainLossPercent ?? 0) >= 0;
+  const prompt = `Investa Farm — 1-sentence portfolio health insight for a Kenyan investor.
+Portfolio: KES ${(totalValue ?? 0).toLocaleString()} value, ${holdings ?? 0} holdings, ${gainLossPercent?.toFixed(1) ?? 0}% overall return.
+Crops: ${(crops ?? []).join(", ") || "mixed"}.
+Write exactly 1 sentence: a specific recommendation for this portfolio. Plain text only. Max 25 words.`;
+
+  try {
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env["GROQ_API_KEY"] ?? ""}` },
+      body: JSON.stringify({
+        model: "llama3-8b-8192",
+        messages: [
+          { role: "system", content: "Write exactly 1 sentence. No bullets, no markdown." },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 60,
+        temperature: 0.5,
+      }),
+    });
+    if (!resp.ok) throw new Error(`Groq ${resp.status}`);
+    const data = await resp.json() as { choices: Array<{ message: { content: string } }> };
+    const summary = data.choices[0]?.message?.content?.trim() ?? "";
+    cache.set(cacheKey, summary);
+    setTimeout(() => cache.delete(cacheKey), 30 * 60 * 1000);
+    res.json({ summary });
+  } catch {
+    const fallback = isProfit
+      ? `Your portfolio is growing — consider diversifying into high-ROI coffee or avocado to boost returns.`
+      : `Market dip detected — this is an opportunity to average down on stable crops like maize or beans.`;
+    res.json({ summary: fallback });
+  }
+});
+
 export default router;

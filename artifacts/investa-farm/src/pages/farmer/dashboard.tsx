@@ -13,6 +13,7 @@ import { LoanModal } from "@/components/loan-modal";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { InlineMicBot } from "@/components/ai-assistant";
+import { FarmerAiInsights } from "@/components/farmer-ai-insights";
 
 type GroupInfo = { id: number; name: string; registrationNumber: string; county: string; memberCount: number; status: string } | null;
 
@@ -225,6 +226,17 @@ export default function FarmerDashboard() {
             )}
           </div>
         </div>
+
+        {/* AI Farmer Insights */}
+        <FarmerAiInsights
+          cropType={currentFarm?.cropType}
+          location={currentFarm?.location}
+          growthStage={dashboard?.growthStage}
+          farmHealth={farmHealth ?? undefined}
+          harvestDays={dashboard?.harvestDays ?? undefined}
+          fundsRaised={dashboard?.fundsRaised ?? undefined}
+          fundingPercent={dashboard?.fundingPercent ?? undefined}
+        />
 
         {/* Farm Health Dashboard CTA */}
         <button

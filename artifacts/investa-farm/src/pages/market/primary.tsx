@@ -12,6 +12,7 @@ import { getCropImage, CROP_IMAGES } from "@/lib/crops";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { InvestmentCalculator } from "@/components/investment-calculator";
+import { AiSectionBot } from "@/components/ai-section-bot";
 
 // --- Risk helpers ---
 const HIGH_RISK_CROPS = new Set(["coffee", "avocado", "tobacco", "horticulture"]);
@@ -330,7 +331,13 @@ export default function PrimaryMarket() {
                         </div>
 
                         <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-3">
-                          <p className="text-green-700 text-[10px] font-semibold mb-2">💰 Return Calculator (100 shares)</p>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-green-700 text-[10px] font-semibold">💰 Return Calculator (100 shares)</p>
+                            <AiSectionBot
+                              label="this farm's returns"
+                              context={`Farm: ${listing.farmName}, crop: ${listing.cropType}, Kenya. Price per share: KES ${listing.pricePerShare}. Market momentum: ${listing.changePercent}%. Risk level: ${getRiskLevel(listing.cropType, listing.changePercent)}. Expected ROI: ${targetRoi}%. Should I invest in this farm?`}
+                            />
+                          </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <p className="text-muted-foreground text-[9px]">⚡ Mid-Season (+10%)</p>

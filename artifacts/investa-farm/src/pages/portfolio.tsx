@@ -20,6 +20,8 @@ import { PortfolioHealthAI } from "@/components/portfolio-health-ai";
 import { getCropImage } from "@/lib/crops";
 import { ReinvestmentSettings } from "@/components/reinvestment-settings";
 import { useCurrency } from "@/lib/currency";
+import { PortfolioAiInsight } from "@/components/portfolio-ai-insight";
+import { AiSectionBot } from "@/components/ai-section-bot";
 
 function useCountUp(target: number, duration = 900) {
   const [current, setCurrent] = useState(0);
@@ -672,6 +674,17 @@ export default function Portfolio() {
       {/* Holdings tab */}
       {activeTab === "holdings" && (
       <div className="px-4 pt-3 space-y-3">
+        {/* AI portfolio health 1-liner insight */}
+        {(holdings as Holding[])?.length > 0 && summary && (
+          <PortfolioAiInsight
+            totalValue={summary.totalValue}
+            totalInvested={summary.totalInvested}
+            holdings={summary.holdings}
+            gainLossPercent={summary.overallGainLossPercent}
+            crops={(holdings as Holding[]).map(h => h.cropType).filter(Boolean)}
+          />
+        )}
+
         {/* AI Health Card — show when there are holdings */}
         {(holdings as Holding[])?.length > 0 && summary && (
           <PortfolioHealthAI holdings={holdings as Holding[]} summary={summary} />
@@ -731,6 +744,10 @@ export default function Portfolio() {
                 {(holdings as Holding[]).length}
               </span>
             )}
+            <AiSectionBot
+              label="my holdings"
+              context={`Investor portfolio with ${(holdings as Holding[])?.length ?? 0} holdings in Kenyan farms. Overall return: ${summary?.overallGainLossPercent?.toFixed(1) ?? 0}%. Crops: ${[...new Set((holdings as Holding[])?.map(h => h.cropType) ?? [])].join(", ")}. What should I focus on to grow returns?`}
+            />
           </div>
           {(holdings as Holding[])?.length > 0 && (
             <span className="text-muted-foreground text-[10px]">

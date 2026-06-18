@@ -655,6 +655,10 @@ export default function MarketHome() {
                   >
                     <TrendingDown size={9} /> Decliners
                   </button>
+                  <AiSectionBot
+                    label="market movers"
+                    context="Kenyan farm investment market: what causes a farm's share price to move up or down, and what does it mean for my investment strategy?"
+                  />
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-0.5">
