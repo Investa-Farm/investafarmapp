@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, TrendingUp, CheckCircle2, ExternalLink, Loader2, Wallet } from "lucide-react";
+import { X, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Wallet, CheckCircle2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGetPortfolioSummary } from "@workspace/api-client-react";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import farmBgSrc from "@assets/IMG_8016_1781250402404.jpeg";
+import { PaymentSheet } from "@/components/payment-sheet";
 
 type WalletData = {
   wallet: { id: number; balance: string; currency: string; updatedAt: string };
@@ -45,10 +46,6 @@ export function WalletModal({ open, onClose }: Props) {
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("+254");
   const [success, setSuccess] = useState<string | null>(null);
-  const [paystackRef, setPaystackRef] = useState<string | null>(null);
-  const [paystackVerifying, setPaystackVerifying] = useState(false);
-  const [iframeUrl, setIframeUrl] = useState<string | null>(null);
-  const [paystackAmountKobo, setPaystackAmountKobo] = useState(0);
   const { currency, setCurrency, formatAmount } = useCurrency();
 
   const { data, isLoading, refetch } = useQuery<WalletData>({
@@ -80,78 +77,6 @@ export function WalletModal({ open, onClose }: Props) {
       setTimeout(() => setSuccess(null), 4000);
     },
   });
-
-  function loadPaystackScript(): Promise<void> {
-    return new Promise((resolve) => {
-      if ((window as any).PaystackPop) { resolve(); return; }
-      const s = document.createElement("script");
-      s.src = "https://js.paystack.co/v1/inline.js";
-      s.onload = () => resolve();
-      document.head.appendChild(s);
-    });
-  }
-
-  const verifyAndClose = async (ref: string, amtKobo: number) => {
-    setPaystackVerifying(true);
-    try {
-      const r = await fetch("/api/wallet/paystack/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reference: ref, amount: amtKobo / 100 }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error ?? "Not confirmed yet");
-      qc.invalidateQueries({ queryKey: ["wallet"] });
-      setModal(null); setAmount(""); setPaystackRef(null);
-      setSuccess("💰 Payment confirmed! Funds added to your wallet.");
-      setTimeout(() => { setSuccess(null); onClose(); }, 2500);
-    } catch (err) { alert((err as Error).message); }
-    finally { setPaystackVerifying(false); }
-  };
-
-  const initPaystack = useMutation({
-    mutationFn: async (amt: number) => {
-      const r = await fetch("/api/wallet/paystack/initialize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: amt }),
-      });
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
-      return r.json();
-    },
-    onSuccess: async (data: { reference: string; publicKey: string; email: string; amountKobo: number }) => {
-      setPaystackRef(data.reference);
-      setPaystackAmountKobo(data.amountKobo);
-      if (!data.publicKey) {
-        // No public key configured — fall back to verify-only flow
-        return;
-      }
-      try {
-        await loadPaystackScript();
-        const handler = (window as any).PaystackPop.setup({
-          key: data.publicKey,
-          email: data.email,
-          amount: data.amountKobo,
-          ref: data.reference,
-          currency: "KES",
-          callback: (response: { reference: string }) => {
-            void verifyAndClose(response.reference, data.amountKobo);
-          },
-          onClose: () => {
-            // User dismissed popup — keep paystackRef so they can manually verify
-          },
-        });
-        handler.openIframe();
-      } catch {
-        // Inline script failed — keep paystackRef for manual verify
-      }
-    },
-  });
-
-  const verifyPaystack = async () => {
-    if (!paystackRef) return;
-    await verifyAndClose(paystackRef, paystackAmountKobo);
-  };
 
   const balance = parseFloat(data?.wallet.balance ?? "0");
   const txs = (data?.transactions ?? []).slice(0, 8);
@@ -343,157 +268,75 @@ export function WalletModal({ open, onClose }: Props) {
               </div>
             </div>
 
-            {/* Deposit/Withdraw sub-modal */}
+            {/* Withdraw sub-modal */}
             <AnimatePresence>
-              {modal && (
+              {modal === "withdraw" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   className="absolute inset-0 z-10 flex items-end justify-center bg-black/50"
-                  onClick={(e) => { if (e.target === e.currentTarget) { setModal(null); setPaystackRef(null); } }}>
+                  onClick={(e) => { if (e.target === e.currentTarget) setModal(null); }}>
                   <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                     transition={{ type: "spring", damping: 30, stiffness: 300 }}
                     className="w-full bg-white rounded-t-3xl p-6 space-y-4 border-t-4 border-primary overflow-y-auto"
                     style={{ maxHeight: "82dvh" }}>
                     <div className="flex items-center justify-between">
-                      <h3 className="text-foreground font-bold text-lg">
-                        {modal === "deposit" ? "💳 Add Funds via Paystack" : "🏦 Withdraw to M-Pesa"}
-                      </h3>
-                      <button onClick={() => { setModal(null); setPaystackRef(null); }} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">✕</button>
+                      <h3 className="text-foreground font-bold text-lg">🏦 Withdraw to M-Pesa</h3>
+                      <button onClick={() => setModal(null)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">✕</button>
                     </div>
-
-                    {modal === "deposit" && !paystackRef && (
-                      <>
-                        {initPaystack.isError ? (
-                          <div className="space-y-3">
-                            <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-                              <p className="text-red-700 font-semibold text-sm">Payment Gateway Unavailable</p>
-                              <p className="text-red-600 text-xs mt-1">{(initPaystack.error as Error).message}</p>
-                            </div>
-                            <button onClick={() => initPaystack.reset()} className="w-full border border-border text-foreground font-semibold py-3 rounded-xl text-sm active:scale-95">↩ Try Again</button>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="bg-primary/5 border border-primary/20 rounded-xl p-3">
-                              <p className="text-primary text-xs">Pay via <strong>Paystack</strong> — M-Pesa, Visa, Mastercard, or bank transfer. Funds credited instantly.</p>
-                            </div>
-                            <div>
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Amount (KES)</label>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">KES</span>
-                                <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={100} placeholder="e.g. 5000"
-                                  className="w-full border border-border rounded-xl pl-12 pr-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
-                              </div>
-                              <div className="flex gap-2 mt-2 flex-wrap">
-                                {QUICK_AMOUNTS.map(a => (
-                                  <button key={a} type="button" onClick={() => setAmount(String(a))}
-                                    className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${amount === String(a) ? "bg-primary text-white border-primary" : "border-border text-muted-foreground"}`}>
-                                    {formatKES(a)}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <button onClick={() => initPaystack.mutate(parseFloat(amount))}
-                              disabled={initPaystack.isPending || !amount || parseFloat(amount) < 100}
-                              className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
-                              {initPaystack.isPending ? <Loader2 size={16} className="animate-spin" /> : <ExternalLink size={16} />}
-                              {initPaystack.isPending ? "Opening Paystack…" : "Pay with Paystack"}
-                            </button>
-                          </>
-                        )}
-                      </>
-                    )}
-
-                    {modal === "deposit" && paystackRef && (
-                      <div className="space-y-4">
-                        {/* Step indicator */}
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex-shrink-0">1</div>
-                          <p className="text-sm text-foreground font-medium">Complete your payment on Paystack</p>
-                        </div>
-
-                        {/* Open in browser button */}
-                        {iframeUrl && (
-                          <button
-                            onClick={() => window.open(iframeUrl, "_blank", "noopener,noreferrer")}
-                            className="w-full bg-primary text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md shadow-primary/20"
-                          >
-                            <ExternalLink size={18} />
-                            Open Paystack Payment Page
-                          </button>
-                        )}
-
-                        {/* Reference info */}
-                        <div className="bg-muted/60 border border-border rounded-xl px-4 py-3 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <p className="text-muted-foreground text-xs">Reference</p>
-                            <p className="text-foreground text-xs font-mono font-bold">{paystackRef.slice(0, 20)}…</p>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <p className="text-muted-foreground text-xs">Security</p>
-                            <p className="text-primary/70 text-xs">🔒 256-bit SSL</p>
-                          </div>
-                        </div>
-
-                        {/* Step 2 */}
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-muted border border-border text-foreground text-xs font-bold flex-shrink-0">2</div>
-                          <p className="text-sm text-muted-foreground">Once paid, come back and tap the button below</p>
-                        </div>
-
-                        <button onClick={() => { setIframeUrl(null); verifyPaystack(); }} disabled={paystackVerifying}
-                          className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60 shadow-md shadow-green-600/20">
-                          {paystackVerifying ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                          {paystackVerifying ? "Verifying payment…" : "I've Completed Payment"}
-                        </button>
+                    <form onSubmit={(e) => { e.preventDefault(); const amt = parseFloat(amount); if (!amt || amt < 100 || !phone.trim()) return; withdrawMutation.mutate({ amt, phoneNum: phoneCode + phone.trim() }); }} className="space-y-4">
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                        <p className="text-amber-700 text-xs">Available: <strong>{formatKES(balance)}</strong>. Sent to M-Pesa within 1–2 business days.</p>
                       </div>
-                    )}
-
-                    {modal === "withdraw" && (
-                      <form onSubmit={(e) => { e.preventDefault(); const amt = parseFloat(amount); if (!amt || amt < 100 || !phone.trim()) return; withdrawMutation.mutate({ amt, phoneNum: phoneCode + phone.trim() }); }} className="space-y-4">
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                          <p className="text-amber-700 text-xs">Available: <strong>{formatKES(balance)}</strong>. Sent to M-Pesa within 1–2 business days.</p>
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Mobile Money Number</label>
-                          <div className="flex gap-2">
-                            <select value={phoneCode} onChange={e => setPhoneCode(e.target.value)}
-                              className="border border-border rounded-xl px-2 py-3 text-sm bg-white focus:outline-none focus:border-primary appearance-none w-[90px] flex-shrink-0 text-center font-medium">
-                              {MPESA_CODES.map(c => (
-                                <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
-                              ))}
-                            </select>
-                            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                              placeholder={phoneCode === "+254" ? "7XXXXXXXX" : "Phone number"} required
-                              className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Amount (KES)</label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">KES</span>
-                            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={100} max={balance} placeholder="e.g. 5000"
-                              className="w-full border border-border rounded-xl pl-12 pr-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
-                          </div>
-                          <div className="flex gap-2 mt-2 flex-wrap">
-                            {QUICK_AMOUNTS.filter(a => a <= balance).map(a => (
-                              <button key={a} type="button" onClick={() => setAmount(String(a))}
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${amount === String(a) ? "bg-primary text-white border-primary" : "border-border text-muted-foreground"}`}>
-                                {formatKES(a)}
-                              </button>
+                      <div>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Mobile Money Number</label>
+                        <div className="flex gap-2">
+                          <select value={phoneCode} onChange={e => setPhoneCode(e.target.value)}
+                            className="border border-border rounded-xl px-2 py-3 text-sm bg-white focus:outline-none focus:border-primary appearance-none w-[90px] flex-shrink-0 text-center font-medium">
+                            {MPESA_CODES.map(c => (
+                              <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
                             ))}
-                          </div>
+                          </select>
+                          <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                            placeholder={phoneCode === "+254" ? "7XXXXXXXX" : "Phone number"} required
+                            className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
                         </div>
-                        <button type="submit" disabled={withdrawMutation.isPending || !amount || !phone.trim()}
-                          className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
-                          {withdrawMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownLeft size={16} />}
-                          {withdrawMutation.isPending ? "Processing…" : "Confirm Withdrawal"}
-                        </button>
-                        {withdrawMutation.isError && <p className="text-red-500 text-xs text-center">{(withdrawMutation.error as Error).message}</p>}
-                      </form>
-                    )}
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Amount (KES)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">KES</span>
+                          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={100} max={balance} placeholder="e.g. 5000"
+                            className="w-full border border-border rounded-xl pl-12 pr-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
+                        </div>
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          {QUICK_AMOUNTS.filter(a => a <= balance).map(a => (
+                            <button key={a} type="button" onClick={() => setAmount(String(a))}
+                              className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${amount === String(a) ? "bg-primary text-white border-primary" : "border-border text-muted-foreground"}`}>
+                              {formatKES(a)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <button type="submit" disabled={withdrawMutation.isPending || !amount || !phone.trim()}
+                        className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
+                        {withdrawMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownLeft size={16} />}
+                        {withdrawMutation.isPending ? "Processing…" : "Confirm Withdrawal"}
+                      </button>
+                      {withdrawMutation.isError && <p className="text-red-500 text-xs text-center">{(withdrawMutation.error as Error).message}</p>}
+                    </form>
                   </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Deposit — full-screen PaymentSheet */}
+            <PaymentSheet
+              open={modal === "deposit"}
+              onClose={() => setModal(null)}
+              onSuccess={(amt) => {
+                setSuccess(`💰 KES ${amt.toLocaleString()} added to your wallet!`);
+                setTimeout(() => setSuccess(null), 4000);
+              }}
+            />
           </motion.div>
         </motion.div>
       )}

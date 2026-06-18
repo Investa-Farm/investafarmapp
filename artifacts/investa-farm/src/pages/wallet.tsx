@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
-import { ArrowDownLeft, ArrowUpRight, Plus, TrendingUp, RefreshCw, Loader2, ArrowLeft, CheckCircle2, ExternalLink, Wallet, CreditCard, Copy, Check } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Plus, TrendingUp, RefreshCw, Loader2, ArrowLeft, CheckCircle2, Wallet, CreditCard, Copy, Check } from "lucide-react";
+// CheckCircle2 used in success toast below
+import { PaymentSheet } from "@/components/payment-sheet";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGetPortfolioSummary } from "@workspace/api-client-react";
@@ -33,25 +35,10 @@ export default function InvestorWallet() {
   const token = getToken();
   const user = getStoredUser();
   const qc = useQueryClient();
-  const [modal, setModal] = useState<"deposit" | "withdraw" | "paystack" | null>(null);
+  const [modal, setModal] = useState<"deposit" | "withdraw" | null>(null);
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
-  const [paystackRef, setPaystackRef] = useState<string | null>(null);
-  const [paystackVerifying, setPaystackVerifying] = useState(false);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlRef = params.get("reference") ?? params.get("trxref");
-    const localRef = localStorage.getItem("paystack_pending_ref");
-    const ref = urlRef ?? localRef;
-    if (ref) {
-      localStorage.removeItem("paystack_pending_ref");
-      setPaystackRef(ref);
-      setModal("paystack");
-      if (urlRef) window.history.replaceState({}, "", "/wallet");
-    }
-  }, []);
   const [stellarCopied, setStellarCopied] = useState(false);
   const { currency, setCurrency, formatAmount } = useCurrency();
 
@@ -110,44 +97,6 @@ export default function InvestorWallet() {
       setTimeout(() => setSuccess(null), 4000);
     },
   });
-
-  const initPaystack = useMutation({
-    mutationFn: async (amt: number) => {
-      const r = await fetch("/api/wallet/paystack/initialize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: amt }),
-      });
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
-      return r.json();
-    },
-    onSuccess: (data) => {
-      localStorage.setItem("paystack_pending_ref", data.reference);
-      window.location.href = data.authorizationUrl;
-    },
-  });
-
-  const verifyPaystack = async () => {
-    if (!paystackRef) return;
-    setPaystackVerifying(true);
-    try {
-      const r = await fetch("/api/wallet/paystack/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reference: paystackRef }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error ?? "Not confirmed yet");
-      qc.invalidateQueries({ queryKey: ["wallet"] });
-      setModal(null); setAmount(""); setPaystackRef(null);
-      setSuccess("Payment confirmed! Funds added to your wallet.");
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) {
-      alert((err as Error).message);
-    } finally {
-      setPaystackVerifying(false);
-    }
-  };
 
   const balance = parseFloat(data?.wallet.balance ?? "0");
   const txs = data?.transactions ?? [];
@@ -310,7 +259,7 @@ export default function InvestorWallet() {
         )}
 
         <div className="grid grid-cols-2 gap-3 mt-3">
-          <button onClick={() => { setModal("paystack"); setAmount(""); }}
+          <button onClick={() => { setModal("deposit"); setAmount(""); }}
             className="bg-primary text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md shadow-primary/20">
             <Plus size={16} /> Add Funds
           </button>
@@ -384,135 +333,70 @@ export default function InvestorWallet() {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Deposit — PaymentSheet */}
+      <PaymentSheet
+        open={modal === "deposit"}
+        onClose={() => setModal(null)}
+        onSuccess={(amt) => {
+          setSuccess(`💰 KES ${amt.toLocaleString()} added to your wallet!`);
+          setTimeout(() => setSuccess(null), 5000);
+        }}
+      />
+
+      {/* Withdraw modal */}
       <AnimatePresence>
-        {modal && (
+        {modal === "withdraw" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
-            onClick={(e) => { if (e.target === e.currentTarget) { setModal(null); setPaystackRef(null); } }}>
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50"
+            onClick={(e) => { if (e.target === e.currentTarget) setModal(null); }}>
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="w-full max-w-[430px] bg-white rounded-t-3xl p-6 space-y-4 border-t-4 border-primary">
+              className="w-full max-w-[430px] bg-background rounded-t-3xl p-6 space-y-4 border-t-4 border-primary">
               <div className="flex items-center justify-between">
-                <h3 className="text-foreground font-bold text-lg">
-                  {modal === "paystack" ? "💳 Add Funds via Paystack" : "🏦 Withdraw to M-Pesa"}
-                </h3>
-                <button onClick={() => { setModal(null); setPaystackRef(null); }} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">✕</button>
+                <h3 className="text-foreground font-bold text-lg">🏦 Withdraw to M-Pesa</h3>
+                <button onClick={() => setModal(null)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">✕</button>
               </div>
-
-              {modal === "paystack" && !paystackRef && (
-                <>
-                  {initPaystack.isError ? (
-                    <div className="space-y-3">
-                      <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-                        <p className="text-red-700 font-semibold text-sm">Payment Gateway Unavailable</p>
-                        <p className="text-red-600 text-xs mt-1 leading-relaxed">
-                          {(initPaystack.error as Error).message}
-                        </p>
-                      </div>
-                      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                        <p className="text-amber-800 font-semibold text-sm mb-1">💡 Alternative Options</p>
-                        <ul className="text-amber-700 text-xs space-y-1.5">
-                          <li>• M-Pesa send money: <strong>0700 000 000</strong> — acc: <strong>InvestaFarm</strong></li>
-                          <li>• Email receipt to: <strong>support@investafarm.co.ke</strong></li>
-                        </ul>
-                      </div>
-                      <button onClick={() => initPaystack.reset()} className="w-full border border-border text-foreground font-semibold py-3 rounded-xl text-sm active:scale-95">↩ Try Again</button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="bg-primary/5 border border-primary/20 rounded-xl p-3">
-                        <p className="text-primary text-xs">Pay securely via <strong>Paystack</strong> — M-Pesa, Visa, Mastercard, or bank transfer. Funds credited instantly.</p>
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Amount (KES)</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">KES</span>
-                          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={100} placeholder="e.g. 5000" required
-                            className="w-full border border-border rounded-xl pl-12 pr-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
-                        </div>
-                        <div className="flex gap-2 mt-2 flex-wrap">
-                          {QUICK_AMOUNTS.map(a => (
-                            <button key={a} type="button" onClick={() => setAmount(String(a))}
-                              className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${amount === String(a) ? "bg-primary text-white border-primary" : "border-border text-muted-foreground"}`}>
-                              {formatKES(a)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <button onClick={() => initPaystack.mutate(parseFloat(amount))}
-                        disabled={initPaystack.isPending || !amount || parseFloat(amount) < 100}
-                        className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60">
-                        {initPaystack.isPending ? <Loader2 size={16} className="animate-spin" /> : <ExternalLink size={16} />}
-                        {initPaystack.isPending ? "Opening Paystack…" : "Pay with Paystack"}
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-
-              {modal === "paystack" && paystackRef && (
-                <div className="space-y-4">
-                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
-                    <p className="text-primary font-semibold text-sm">Payment Window Opened</p>
-                    <p className="text-primary/70 text-xs mt-1">Complete your payment, then click below to confirm.</p>
-                    <p className="text-muted-foreground text-[10px] mt-1 font-mono">Ref: {paystackRef}</p>
-                  </div>
-                  <button onClick={verifyPaystack} disabled={paystackVerifying}
-                    className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
-                    {paystackVerifying ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                    {paystackVerifying ? "Verifying…" : "I've Completed Payment"}
-                  </button>
-                  <button onClick={() => window.open(`https://checkout.paystack.com/${paystackRef}`, "_blank")}
-                    className="w-full border border-border text-foreground font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm active:scale-95">
-                    <ExternalLink size={14} /> Reopen Payment Window
-                  </button>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const amt = parseFloat(amount);
+                if (!amt || amt < 100) return;
+                if (!phone.trim()) return;
+                withdrawMutation.mutate({ amt, phoneNum: "+254" + phone.trim() });
+              }} className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <p className="text-amber-700 text-xs">Available: <strong>{formatKES(balance)}</strong>. Funds will be sent to your M-Pesa within 1–2 business days.</p>
                 </div>
-              )}
-
-              {modal === "withdraw" && (
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  const amt = parseFloat(amount);
-                  if (!amt || amt < 100) return;
-                  if (!phone.trim()) return;
-                  withdrawMutation.mutate({ amt, phoneNum: phone.trim() });
-                }} className="space-y-4">
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                    <p className="text-amber-700 text-xs">Available: <strong>{formatKES(balance)}</strong>. Funds will be sent to the M-Pesa number below within 1–2 business days.</p>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">M-Pesa Phone Number</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">+254</span>
+                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="7XXXXXXXX" required
+                      className="w-full border border-border rounded-xl pl-14 pr-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">M-Pesa Phone Number</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">+254</span>
-                      <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="7XXXXXXXX" required
-                        className="w-full border border-border rounded-xl pl-14 pr-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
-                    </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Amount (KES)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">KES</span>
+                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={100} max={balance} placeholder="e.g. 5000" required
+                      className="w-full border border-border rounded-xl pl-12 pr-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Amount (KES)</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">KES</span>
-                      <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={100} max={balance} placeholder="e.g. 5000" required
-                        className="w-full border border-border rounded-xl pl-12 pr-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
-                    </div>
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      {QUICK_AMOUNTS.filter(a => a <= balance).map(a => (
-                        <button key={a} type="button" onClick={() => setAmount(String(a))}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${amount === String(a) ? "bg-primary text-white border-primary" : "border-border text-muted-foreground"}`}>
-                          {formatKES(a)}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {[1000, 5000, 10000, 25000].filter(a => a <= balance).map(a => (
+                      <button key={a} type="button" onClick={() => setAmount(String(a))}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${amount === String(a) ? "bg-primary text-white border-primary" : "border-border text-muted-foreground"}`}>
+                        {formatKES(a)}
+                      </button>
+                    ))}
                   </div>
-                  <button type="submit" disabled={withdrawMutation.isPending || !amount || !phone.trim()}
-                    className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
-                    {withdrawMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownLeft size={16} />}
-                    {withdrawMutation.isPending ? "Processing…" : "Confirm Withdrawal"}
-                  </button>
-                  {withdrawMutation.isError && <p className="text-red-500 text-xs text-center">{(withdrawMutation.error as Error).message}</p>}
-                </form>
-              )}
+                </div>
+                <button type="submit" disabled={withdrawMutation.isPending || !amount || !phone.trim()}
+                  className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
+                  {withdrawMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownLeft size={16} />}
+                  {withdrawMutation.isPending ? "Processing…" : "Confirm Withdrawal"}
+                </button>
+                {withdrawMutation.isError && <p className="text-red-500 text-xs text-center">{(withdrawMutation.error as Error).message}</p>}
+              </form>
             </motion.div>
           </motion.div>
         )}
