@@ -250,7 +250,7 @@ router.post("/wallet/paystack/verify", async (req, res): Promise<void> => {
       paid = result.paid;
       amount = result.amount;
     } catch {
-      if (clientAmount && Number(clientAmount) > 0) { paid = true; amount = Number(clientAmount); }
+      res.status(502).json({ error: "Could not verify payment with Paystack. Please wait a moment and try again." }); return;
     }
     if (!paid) { res.status(402).json({ error: "Payment not confirmed yet" }); return; }
 

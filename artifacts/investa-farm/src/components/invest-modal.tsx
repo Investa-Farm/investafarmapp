@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield, Wallet } from "lucide-react";
 import { formatKES, formatChange, getToken, isDemoAccount } from "@/lib/auth";
 import { getCropImage } from "@/lib/crops";
-import { PaymentModal } from "./payment-modal";
 import { useBuyShares, getListPrimaryMarketQueryKey, getGetFarmQueryKey } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { InvestorKycModal } from "./investor-kyc-modal";
@@ -48,8 +47,6 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const [step, setStep] = useState<"configure" | "review" | "pay" | "done">("configure");
   const [exitType, setExitType] = useState<ExitType>("full_season");
   const [quantity, setQuantity] = useState(10);
-  const [payOpen, setPayOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [kycOpen, setKycOpen] = useState(false);
   const [, setLocation] = useLocation();
   const buyShares = useBuyShares();
@@ -76,7 +73,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
 
   const resetAndClose = () => {
     onClose();
-    setTimeout(() => { setStep("configure"); setQuantity(10); setExitType("full_season"); setPaymentMethod(null); }, 400);
+    setTimeout(() => { setStep("configure"); setQuantity(10); setExitType("full_season"); }, 400);
   };
 
   useEffect(() => {
@@ -99,18 +96,6 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const hasEnoughBalance = walletBalance >= total;
 
   const handlePayFromWallet = () => {
-    buyShares.mutate({ data: { listingId: listing.id, quantity, exitType } }, {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListPrimaryMarketQueryKey() });
-        qc.invalidateQueries({ queryKey: getGetFarmQueryKey(listing.farmId) });
-        qc.invalidateQueries({ queryKey: ["wallet-balance"] });
-        setStep("done");
-      },
-    });
-  };
-
-  const handlePaySuccess = (method: string) => {
-    setPaymentMethod(method);
     buyShares.mutate({ data: { listingId: listing.id, quantity, exitType } }, {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListPrimaryMarketQueryKey() });
@@ -358,15 +343,6 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
           </div>
         )}
       </AnimatePresence>
-
-      <PaymentModal
-        open={payOpen}
-        onClose={() => setPayOpen(false)}
-        onSuccess={handlePaySuccess}
-        amount={total}
-        description={`${quantity} shares — ${listing.farmName}`}
-        ctaLabel="Invest"
-      />
 
       <InvestorKycModal
         open={kycOpen}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2, Loader2, DollarSign } from "lucide-react";
 import { formatKES } from "@/lib/auth";
-import { PaymentModal } from "./payment-modal";
+import { PaymentSheet } from "./payment-sheet";
 import { getToken } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -21,10 +21,11 @@ const REPAY_OPTIONS = [
 ];
 
 export function RepayModal({ open, onClose, loan }: RepayModalProps) {
-  const [step, setStep] = useState<"choose" | "pay" | "done">("choose");
+  const [step, setStep] = useState<"choose" | "pay" | "processing" | "done">("choose");
   const [option, setOption] = useState(0);
   const [customAmount, setCustomAmount] = useState("");
   const [payOpen, setPayOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const qc = useQueryClient();
 
   if (!loan) return null;
@@ -37,21 +38,31 @@ export function RepayModal({ open, onClose, loan }: RepayModalProps) {
     ? (parseFloat(customAmount) || 0)
     : totalOwed * selectedOption.multiplier;
 
-  const handlePaySuccess = async () => {
+  const handlePaySuccess = async (topUpAmount: number) => {
+    setPayOpen(false);
+    setStep("processing");
+    setError(null);
     try {
-      await fetch(`/api/loans/repay/${loan.id}`, {
+      const r = await fetch(`/api/loans/repay/${loan.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ amount: payAmount }),
       });
-    } catch {}
-    qc.invalidateQueries({ queryKey: ["loan-apps"] });
-    setStep("done");
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Repayment failed");
+      qc.invalidateQueries({ queryKey: ["loan-apps"] });
+      qc.invalidateQueries({ queryKey: ["wallet"] });
+      qc.invalidateQueries({ queryKey: ["wallet-balance"] });
+      setStep("done");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Repayment failed");
+      setStep("choose");
+    }
   };
 
   const resetAndClose = () => {
     onClose();
-    setTimeout(() => { setStep("choose"); setOption(0); setCustomAmount(""); }, 400);
+    setTimeout(() => { setStep("choose"); setOption(0); setCustomAmount(""); setError(null); }, 400);
   };
 
   return (
@@ -78,7 +89,6 @@ export function RepayModal({ open, onClose, loan }: RepayModalProps) {
                 <AnimatePresence mode="wait">
                   {step === "choose" && (
                     <motion.div key="choose" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-                      {/* Loan summary */}
                       <div className="grid grid-cols-3 gap-2">
                         {[
                           { label: "Principal", val: formatKES(principal) },
@@ -91,6 +101,12 @@ export function RepayModal({ open, onClose, loan }: RepayModalProps) {
                           </div>
                         ))}
                       </div>
+
+                      {error && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                          <p className="text-red-700 text-xs">{error}</p>
+                        </div>
+                      )}
 
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Repayment Option</p>
                       {REPAY_OPTIONS.map((opt, i) => (
@@ -123,6 +139,16 @@ export function RepayModal({ open, onClose, loan }: RepayModalProps) {
                     </motion.div>
                   )}
 
+                  {step === "processing" && (
+                    <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-10 flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Loader2 size={32} className="text-primary animate-spin" />
+                      </div>
+                      <p className="text-foreground font-bold text-base">Recording Repayment…</p>
+                      <p className="text-muted-foreground text-sm text-center">Please wait while we update your loan status</p>
+                    </motion.div>
+                  )}
+
                   {step === "done" && (
                     <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-8 flex flex-col items-center gap-4">
                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }}>
@@ -147,13 +173,10 @@ export function RepayModal({ open, onClose, loan }: RepayModalProps) {
         )}
       </AnimatePresence>
 
-      <PaymentModal
+      <PaymentSheet
         open={payOpen}
         onClose={() => setPayOpen(false)}
-        onSuccess={() => { setPayOpen(false); handlePaySuccess(); }}
-        amount={payAmount}
-        description={`Loan repayment · ${loan.purpose.replace("_", " ")}`}
-        ctaLabel="Repay"
+        onSuccess={handlePaySuccess}
       />
     </>
   );
