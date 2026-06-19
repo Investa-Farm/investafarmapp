@@ -126,10 +126,10 @@ async function fetchOpenMeteo(lat: number, lng: number): Promise<{ dates: string
   const pastJson = pastRes?.ok ? await pastRes.json().catch(() => null) : null;
   const forecastJson = forecastRes?.ok ? await forecastRes.json().catch(() => null) : null;
 
-  const pastDates: string[] = pastJson?.daily?.time ?? [];
-  const pastRain: number[] = (pastJson?.daily?.rain_sum ?? []).map((v: number | null) => v ?? 0);
-  const forecastDates: string[] = forecastJson?.daily?.time ?? [];
-  const forecastRain: number[] = (forecastJson?.daily?.rain_sum ?? []).map((v: number | null) => v ?? 0);
+  const pastDates: string[] = (pastJson as any)?.daily?.time ?? [];
+  const pastRain: number[] = ((pastJson as any)?.daily?.rain_sum ?? []).map((v: number | null) => v ?? 0);
+  const forecastDates: string[] = (forecastJson as any)?.daily?.time ?? [];
+  const forecastRain: number[] = ((forecastJson as any)?.daily?.rain_sum ?? []).map((v: number | null) => v ?? 0);
 
   return {
     dates: [...pastDates, ...forecastDates],

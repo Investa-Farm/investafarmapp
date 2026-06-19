@@ -92,14 +92,30 @@ The `render.yaml` is pre-configured. Render will:
 | `GOOGLE_SMTP_USER` | `mosesochiengopiyo@gmail.com` |
 | `GOOGLE_SMTP_PASS` | Gmail App Password (see below) |
 | `RESEND_API_KEY` | Resend API key (alternative to Gmail SMTP) |
-| `PAYSTACK_SECRET_KEY` | `sk_live_...` from Paystack dashboard |
-| `PAYSTACK_PUBLIC_KEY` | `pk_live_...` from Paystack dashboard |
-| `GROQ_API_KEY` | Groq API key for AI farm insights |
+| `PAYSTACK_SECRET_KEY` | `sk_live_...` from Paystack dashboard → [paystack.com](https://dashboard.paystack.com/#/settings/developer) |
+| `PAYSTACK_PUBLIC_KEY` | `pk_live_...` from Paystack dashboard → Settings → API Keys & Webhooks |
+| `CIRCLE_API_KEY` | `TEST_API_KEY:keyId:keySecret` from [console.circle.com](https://console.circle.com) → API Keys |
+| `GROQ_API_KEY` | Groq API key from [console.groq.com](https://console.groq.com/keys) — AI farm insights + news |
 | `VAPID_PRIVATE_KEY` | `W4d_A-f1wGaBtbH8nzrPGfCxTCqYkHo5AJxsJG0ssLU` |
 | `STELLAR_ISSUER_SECRET_KEY` | Stellar issuer secret key for custodial wallets |
 | `ALLOWED_ORIGINS` | Your Render app URL e.g. `https://investa-farm.onrender.com` |
-| `BREVO_API_KEY` | (Optional) Brevo key for SMS OTP on signup |
+| `BREVO_API_KEY` | (Optional) Brevo key for SMS OTP on signup → [brevo.com](https://app.brevo.com/settings/keys/api) |
 | `KYC_ADMIN_PASSWORD` | (Optional) Password for sub-admin KYC-only login |
+| `USDC_DEPOSIT_ADDRESS` | (Optional) Your Circle Polygon USDC receiving address — override the default |
+| `SENTINEL_HUB_CLIENT_ID` | (Optional) Sentinel Hub OAuth client ID for real satellite NDVI tiles → [apps.sentinel-hub.com](https://apps.sentinel-hub.com/dashboard/) |
+| `SENTINEL_HUB_CLIENT_SECRET` | (Optional) Sentinel Hub OAuth client secret (same dashboard) |
+
+### Where to get each API key
+
+| Service | Sign-up URL | What it does |
+|---|---|---|
+| **Paystack** | [paystack.com/signup](https://paystack.com/signup) | M-Pesa STK push + card payments in Kenya (KES) |
+| **Circle** | [console.circle.com](https://console.circle.com) | USDC stablecoin deposits from crypto wallets |
+| **Groq** | [console.groq.com](https://console.groq.com) | AI-powered farm insights, news summarisation |
+| **Resend** | [resend.com](https://resend.com) | Transactional emails (welcome, OTP, dividends) |
+| **Brevo** | [brevo.com](https://brevo.com) | SMS OTP on signup (optional) |
+| **Sentinel Hub** | [apps.sentinel-hub.com](https://apps.sentinel-hub.com/dashboard/) | Free 30-day trial satellite NDVI imagery |
+| **Stellar** | [stellar.org/developers](https://developers.stellar.org/) | Custodial wallets — use Testnet for development |
 
 4. Already hardcoded in `render.yaml` (no action needed):
    - `NODE_ENV=production`, `PORT=8080`, `BASE_PATH=/`

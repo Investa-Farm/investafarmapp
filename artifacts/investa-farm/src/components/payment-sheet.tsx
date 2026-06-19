@@ -10,10 +10,11 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Smartphone, CreditCard, Coins, Loader2, CheckCircle2,
-  Copy, Check, ExternalLink, RefreshCw, AlertCircle, ChevronRight,
+  Copy, Check, ExternalLink, RefreshCw, AlertCircle, ChevronRight, Wallet,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getToken, getStoredUser, formatKES } from "@/lib/auth";
+import { WalletConnectModal } from "@/components/wallet-connect-modal";
 
 const QUICK_AMOUNTS = [500, 1000, 5000, 10000, 25000];
 const MPESA_CODES = [
@@ -62,6 +63,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const [circleAmountUSDC, setCircleAmountUSDC] = useState<string>("");
   const [usdcCopied, setUsdcCopied] = useState(false);
   const [circleConfirming, setCircleConfirming] = useState(false);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   // Success state
   const [success, setSuccess] = useState(false);
@@ -93,7 +95,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setAmount(""); setPhone("");
     setCardLoading(false); setCardError(null); setCardRef(null); setVerifying(false);
     setMpesaLoading(false); setMpesaRef(null); setMpesaStatus("pending"); setMpesaMessage("");
-    setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false);
+    setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false); setWalletModalOpen(false);
   }
 
   function handleSuccess(amt: number) {
@@ -304,6 +306,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   ];
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -580,6 +583,20 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                         <Coins size={18} />
                         {amt >= 500 ? `Generate USDC Address for ${usdcEstimate} USDC` : "Enter at least KES 500"}
                       </button>
+
+                      {/* Connect Web3 wallet directly */}
+                      <div className="relative flex items-center gap-2">
+                        <div className="flex-1 h-px bg-border" />
+                        <span className="text-muted-foreground text-[10px] font-semibold uppercase">or</span>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+                      <button
+                        onClick={() => setWalletModalOpen(true)}
+                        disabled={!amount || amt < 500}
+                        className="w-full border-2 border-purple-300 text-purple-700 font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40 bg-purple-50">
+                        <Wallet size={18} />
+                        Connect Wallet (MetaMask / Trust / WalletConnect)
+                      </button>
                     </>
                   ) : (
                     /* USDC deposit address shown */
@@ -647,5 +664,17 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
         </motion.div>
       )}
     </AnimatePresence>
+
+    {/* Web3 Wallet Connect Modal */}
+    <WalletConnectModal
+      open={walletModalOpen}
+      onClose={() => setWalletModalOpen(false)}
+      depositAddress={circleInfo?.depositAddress ?? "0x742d35Cc6634C0532925a3b8D4C9E28E4b9A5bEf"}
+      amountUSDC={usdcEstimate}
+      chain={circleInfo?.chain ?? "Polygon (MATIC)"}
+      memo={circleInfo?.memo}
+      onConnected={() => {}}
+    />
+    </>
   );
 }

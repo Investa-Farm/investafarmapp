@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,10 +6,12 @@ import {
   ArrowLeft, Leaf, CloudRain, Wind, Thermometer, Droplets, Sun, Moon,
   Sparkles, ShieldCheck, AlertTriangle, CheckCircle, RefreshCw, TrendingUp,
   BarChart2, Bug, Calendar, CalendarDays, ChevronRight, Droplet, CloudSun, CloudSnow,
+  Satellite, ExternalLink, Map,
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { BottomNav } from "@/components/bottom-nav";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import "leaflet/dist/leaflet.css";
 
 // ─── Open-Meteo types ─────────────────────────────────────────────────────────
 type WeatherRes = {
@@ -63,6 +65,111 @@ function HealthRing({ score, size = 120 }: { score: number; size?: number }) {
       <div className="absolute flex flex-col items-center">
         <span className="text-2xl font-black text-foreground">{score}</span>
         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Satellite / NDVI Map component ──────────────────────────────────────────
+function SatelliteNdviMap({ lat, lng, ndvi, farmName }: { lat: number; lng: number; ndvi: number; farmName?: string }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) return;
+    let isMounted = true;
+
+    import("leaflet").then((L) => {
+      if (!isMounted || !mapRef.current) return;
+      // Fix default marker icons
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({ iconRetinaUrl: "", iconUrl: "", shadowUrl: "" });
+
+      const map = L.map(mapRef.current, {
+        center: [lat, lng],
+        zoom: 14,
+        zoomControl: false,
+        scrollWheelZoom: false,
+        dragging: true,
+        touchZoom: true,
+        attributionControl: false,
+      });
+      mapInstanceRef.current = map;
+
+      // Esri World Imagery (satellite) — free, no API key
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19,
+      }).addTo(map);
+
+      // NDVI colour: green → yellow → red
+      const ndviColor = ndvi >= 0.65 ? "#16a34a" : ndvi >= 0.5 ? "#65a30d" : ndvi >= 0.35 ? "#ca8a04" : "#dc2626";
+      const ndviOpacity = 0.35;
+
+      // Farm boundary circle — radius ≈ 150m to give a farm-sized overlay
+      L.circle([lat, lng], {
+        radius: 220,
+        color: ndviColor,
+        fillColor: ndviColor,
+        fillOpacity: ndviOpacity,
+        weight: 2,
+        opacity: 0.9,
+      }).addTo(map);
+
+      // Custom farm marker
+      const farmIcon = L.divIcon({
+        className: "",
+        html: `<div style="background:${ndviColor};width:28px;height:28px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;">🌿</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      });
+      const marker = L.marker([lat, lng], { icon: farmIcon }).addTo(map);
+      if (farmName) {
+        marker.bindTooltip(farmName, { permanent: false, direction: "top", offset: [0, -16], className: "leaflet-farm-tooltip" });
+      }
+
+      // Small attribution
+      L.control.attribution({ position: "bottomright", prefix: "" })
+        .addAttribution('<span style="font-size:9px;opacity:0.6">Esri Satellite</span>')
+        .addTo(map);
+
+      setMapLoaded(true);
+    });
+
+    return () => {
+      isMounted = false;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [lat, lng, ndvi, farmName]);
+
+  const ndviStatus = ndvi >= 0.65 ? "Excellent" : ndvi >= 0.5 ? "Good" : ndvi >= 0.35 ? "Fair" : "Low";
+  const ndviColor = ndvi >= 0.65 ? "text-emerald-600 bg-emerald-100" : ndvi >= 0.5 ? "text-lime-700 bg-lime-100" : ndvi >= 0.35 ? "text-amber-700 bg-amber-100" : "text-red-600 bg-red-100";
+  const googleMapsUrl = `https://www.google.com/maps/@${lat},${lng},300m/data=!3m1!1e3`;
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-border shadow-sm">
+      {/* Map */}
+      <div ref={mapRef} style={{ height: 180, width: "100%" }} className="bg-muted/30">
+        {!mapLoaded && (
+          <div className="h-full flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+      </div>
+      {/* Footer bar */}
+      <div className="bg-card px-3 py-2 flex items-center gap-2">
+        <Satellite size={13} className="text-primary flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] text-muted-foreground leading-none">Live Satellite View · NDVI {ndvi.toFixed(2)}</p>
+        </div>
+        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${ndviColor}`}>{ndviStatus}</span>
+        <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer"
+          className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+          <ExternalLink size={11} className="text-muted-foreground" />
+        </a>
       </div>
     </div>
   );
@@ -471,6 +578,21 @@ export default function FarmerHealth() {
               </div>
             )}
             <p className="text-[9px] text-muted-foreground mt-2.5 text-center">Refreshes every 2 hours · Powered by Groq AI</p>
+          </motion.div>
+
+          {/* ── Satellite Farm Map ── */}
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.19 }}
+            className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+            <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+              <div className="w-7 h-7 rounded-lg bg-sky-100 flex items-center justify-center">
+                <Satellite size={14} className="text-sky-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold">Satellite Farm Map</p>
+                <p className="text-[10px] text-muted-foreground">Live imagery · NDVI vegetation overlay</p>
+              </div>
+            </div>
+            <SatelliteNdviMap lat={lat} lng={lng} ndvi={ndvi} farmName={farm?.name} />
           </motion.div>
 
           {/* ── Growth stage + quick actions ── */}

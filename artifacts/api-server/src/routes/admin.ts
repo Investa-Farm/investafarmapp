@@ -75,7 +75,7 @@ router.post("/admin/kyc/:userId/remind", async (req, res): Promise<void> => {
   const userId = parseInt(req.params.userId, 10);
   if (!userId) { res.status(400).json({ error: "Invalid userId" }); return; }
   try {
-    await createInAppNotification(userId, "kyc_reminder", "📋 KYC Action Required", "Please complete your identity verification (KYC) to unlock full investment access.", "/profile");
+    await createInAppNotification(userId, "kyc_reminder", "📋 KYC Action Required", "Please complete your identity verification (KYC) to unlock full investment access.");
     await sendPushToUser(userId, { title: "📋 KYC Reminder", body: "Complete your KYC verification to unlock full access.", url: "/profile" }).catch(() => {});
     res.json({ ok: true });
   } catch (err) {
@@ -138,10 +138,9 @@ router.delete("/admin/users/:id", async (req, res): Promise<void> => {
     db.delete(kycDocumentsTable).where(eq(kycDocumentsTable.userId, id)),
     db.delete(investmentsTable).where(eq(investmentsTable.investorId, id)),
     db.delete(walletTransactionsTable).where(eq(walletTransactionsTable.userId, id)),
-    db.delete(marketListingsTable).where(eq(marketListingsTable.farmerId, id)),
     db.delete(notificationsTable).where(eq(notificationsTable.userId, id)),
     db.delete(dividendsTable).where(eq(dividendsTable.investorId, id)),
-    db.delete(transactionsTable).where(eq(transactionsTable.investorId, id)),
+    db.delete(transactionsTable).where(eq(transactionsTable.userId, id)),
     db.delete(walletsTable).where(eq(walletsTable.userId, id)),
     db.delete(loanApplicationsTable).where(eq(loanApplicationsTable.farmerId, id)),
   ]);
@@ -485,6 +484,7 @@ router.put("/admin/settings", async (req, res): Promise<void> => {
     secondaryTradeFeePct: Number(body.secondaryTradeFeePct ?? current.secondaryTradeFeePct),
     minInvestmentKES: Number(body.minInvestmentKES ?? current.minInvestmentKES),
     minSharePurchase: Number(body.minSharePurchase ?? current.minSharePurchase),
+    priceAlertThresholdPct: Number(body.priceAlertThresholdPct ?? current.priceAlertThresholdPct),
   };
   saveSettings(updated);
   res.json({ ok: true, settings: updated });
@@ -544,15 +544,15 @@ router.delete("/admin/clear-database", async (req, res): Promise<void> => {
   // Delete related data first (no cascade FK in postgres by default here)
   if (nonDemoIds.length > 0) {
     await db.delete(walletTransactionsTable).where(notInArray(walletTransactionsTable.userId, demoIds));
-    await db.delete(investmentsTable).where(notInArray(investmentsTable.userId, demoIds));
+    await db.delete(investmentsTable).where(notInArray(investmentsTable.investorId, demoIds));
     await db.delete(kycDocumentsTable).where(notInArray(kycDocumentsTable.userId, demoIds));
     await db.delete(notificationsTable).where(notInArray(notificationsTable.userId, demoIds));
     await db.delete(walletsTable).where(notInArray(walletsTable.userId, demoIds));
-    await db.delete(loanApplicationsTable).where(notInArray(loanApplicationsTable.userId, demoIds));
+    await db.delete(loanApplicationsTable).where(notInArray(loanApplicationsTable.farmerId, demoIds));
     await db.delete(transactionsTable).where(notInArray(transactionsTable.userId, demoIds));
 
     // Delete farms + associated listings for non-demo farmers
-    const nonDemoFarms = await db.select({ id: farmsTable.id }).from(farmsTable).where(notInArray(farmsTable.userId, demoIds));
+    const nonDemoFarms = await db.select({ id: farmsTable.id }).from(farmsTable).where(notInArray(farmsTable.farmerId, demoIds));
     if (nonDemoFarms.length > 0) {
       const { inArray } = await import("drizzle-orm");
       const nonDemoFarmIds = nonDemoFarms.map(f => f.id);

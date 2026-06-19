@@ -44,7 +44,7 @@ export async function initializePayment(opts: {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as any).message ?? `Paystack error ${res.status}`);
   }
-  const body = await res.json();
+  const body = await res.json() as any;
   return {
     authorizationUrl: body.data.authorization_url,
     accessCode: body.data.access_code,
@@ -59,7 +59,7 @@ export async function verifyTransaction(reference: string): Promise<{ status: st
     headers: headers(),
   });
   if (!res.ok) throw new Error("Verification failed");
-  const body = await res.json();
+  const body = await res.json() as any;
   const data = body.data;
   return {
     status: data.status,
@@ -95,7 +95,7 @@ export async function initiateMpesaCharge(opts: {
       mobile_money: { phone, provider: "mpesa" },
     }),
   });
-  const body = await res.json();
+  const body = await res.json() as any;
   if (!res.ok) {
     throw new Error(body.message ?? "M-Pesa charge failed");
   }
@@ -114,7 +114,7 @@ export async function checkChargeStatus(reference: string): Promise<{ status: st
     headers: headers(),
   });
   if (!res.ok) throw new Error("Status check failed");
-  const body = await res.json();
+  const body = await res.json() as any;
   const data = body.data ?? {};
   return {
     status: data.status ?? "pending",

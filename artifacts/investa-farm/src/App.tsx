@@ -358,6 +358,22 @@ function Router() {
 function PwaInstallBanner() {
   const [prompt, setPrompt] = useState<any>(null);
   const [dismissed, setDismissed] = useState(() => !!localStorage.getItem("investa_pwa_dismissed"));
+  const [isIos, setIsIos] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showIosTip, setShowIosTip] = useState(false);
+
+  useEffect(() => {
+    const ua = window.navigator.userAgent;
+    const ios = /iphone|ipad|ipod/i.test(ua);
+    const standalone = (window.navigator as any).standalone === true;
+    setIsIos(ios);
+    setIsStandalone(standalone);
+    if (ios && !standalone && !localStorage.getItem("investa_pwa_dismissed")) {
+      const t = setTimeout(() => setShowIosTip(true), 3000);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => { e.preventDefault(); setPrompt(e); };
@@ -365,6 +381,51 @@ function PwaInstallBanner() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
+  const dismiss = () => {
+    setDismissed(true);
+    setShowIosTip(false);
+    localStorage.setItem("investa_pwa_dismissed", "1");
+  };
+
+  // iOS: show "Add to Home Screen" guide
+  if (isIos && !isStandalone && showIosTip && !dismissed) {
+    return (
+      <div className="fixed bottom-20 left-0 right-0 z-[70] px-4 max-w-[430px] mx-auto">
+        <div className="bg-[#052e16] rounded-2xl shadow-2xl border border-green-700 overflow-hidden">
+          <div className="px-4 pt-3 pb-1 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
+              <div>
+                <p className="text-white font-bold text-sm leading-tight">Add to Home Screen</p>
+                <p className="text-white/60 text-[10px]">Install Investa Farm on your iPhone</p>
+              </div>
+            </div>
+            <button onClick={dismiss} className="text-white/50 text-xl leading-none w-7 h-7 flex items-center justify-center">×</button>
+          </div>
+          <div className="px-4 pb-4 space-y-2 mt-2">
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+              <span className="text-base">1️⃣</span>
+              <p className="text-white/80 text-xs">Tap the <strong className="text-white">Share</strong> button <span className="text-white">⎋</span> at the bottom of Safari</p>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+              <span className="text-base">2️⃣</span>
+              <p className="text-white/80 text-xs">Scroll down and tap <strong className="text-white">"Add to Home Screen"</strong></p>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+              <span className="text-base">3️⃣</span>
+              <p className="text-white/80 text-xs">Tap <strong className="text-white">Add</strong> — Investa Farm will appear on your home screen!</p>
+            </div>
+          </div>
+        </div>
+        {/* Arrow pointing down to Safari toolbar */}
+        <div className="flex justify-center mt-1">
+          <div className="w-3 h-3 bg-[#052e16] rotate-45 border-b border-r border-green-700" />
+        </div>
+      </div>
+    );
+  }
+
+  // Android / Chrome: native install prompt
   if (!prompt || dismissed) return null;
 
   const install = async () => {
@@ -374,23 +435,21 @@ function PwaInstallBanner() {
     else setDismissed(true);
   };
 
-  const dismiss = () => { setDismissed(true); localStorage.setItem("investa_pwa_dismissed", "1"); };
-
   return (
     <div className="fixed bottom-20 left-0 right-0 z-[70] px-4 max-w-[430px] mx-auto">
-      <div className="bg-[#052e16] rounded-2xl shadow-2xl flex items-center gap-3 px-4 py-3 border border-green-800">
-        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
-          <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
+      <div className="bg-[#052e16] rounded-2xl shadow-2xl flex items-center gap-3 px-4 py-3.5 border border-green-700">
+        <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
+          <img src={logoSrc} alt="Investa Farm" className="h-8 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-bold text-sm leading-tight">Install Investa Farm</p>
-          <p className="text-white/60 text-[10px]">Add to home screen for fast access</p>
+          <p className="text-white/60 text-[10px]">Add to home screen — fast access, no browser</p>
         </div>
         <button onClick={install}
-          className="bg-primary text-white text-xs font-bold px-3 py-2 rounded-xl flex-shrink-0 active:scale-95 transition-transform">
-          Install
+          className="bg-[#16a34a] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex-shrink-0 active:scale-95 transition-transform shadow-lg shadow-green-900/40">
+          Install Now
         </button>
-        <button onClick={dismiss} className="text-white/50 text-lg leading-none flex-shrink-0">×</button>
+        <button onClick={dismiss} className="text-white/50 text-xl leading-none flex-shrink-0 w-7 flex items-center justify-center">×</button>
       </div>
     </div>
   );

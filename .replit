@@ -21,7 +21,7 @@ RESEND_API_KEY = "re_HXqYRPpF_4ZhZrmf3Cc8EhPdwP529qYLYno"
 RESEND_FROM_EMAIL = "Investa Farm <onboarding@app.investafarm.com>"
 PORT = "8080"
 NODE_ENV = "development"
-CIRCLE_API_KEY = "5475e280393ad0a637bf832487560ada:e75105f0b2a560d48312ccfb2c6dd5f8"
+CIRCLE_API_KEY = "TEST_API_KEY:cf3b7f684a4982f87231c9f765e10637:7a772723c66438dc9d2542ef546cabd9"
 
 [workflows]
 runButton = "Project"
