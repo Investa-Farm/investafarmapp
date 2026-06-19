@@ -3,7 +3,7 @@
  *
  * Tabs:
  *   M-Pesa  — Paystack STK push → user approves on phone → polls status
- *   Card    — Paystack Inline (access_code) → in-page iframe → verify
+ *   Card    — Stripe Payment Element → in-page card form → confirm
  *   USDC    — Circle USDC on-chain deposit address + manual confirm
  */
 import { useState, useEffect, useRef } from "react";
@@ -42,10 +42,13 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("+254");
 
-  // Paystack card state
-  const [cardLoading, setCardLoading] = useState(false);
+  // Stripe card state
+  const [stripeStep, setStripeStep] = useState<"idle" | "loading" | "form" | "confirming">("idle");
+  const [stripeIntentId, setStripeIntentId] = useState<string | null>(null);
   const [cardError, setCardError] = useState<string | null>(null);
-  const [cardRef, setCardRef] = useState<string | null>(null);
+  const stripeInstanceRef = useRef<any>(null);
+  const stripeElementsRef = useRef<any>(null);
+  const stripeContainerRef = useRef<HTMLDivElement | null>(null);
   const [verifying, setVerifying] = useState(false);
 
   // Paystack M-Pesa state
@@ -93,7 +96,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
 
   function resetAll() {
     setAmount(""); setPhone("");
-    setCardLoading(false); setCardError(null); setCardRef(null); setVerifying(false);
+    setStripeStep("idle"); setStripeIntentId(null); setCardError(null); setVerifying(false);
+    stripeInstanceRef.current = null; stripeElementsRef.current = null;
     setMpesaLoading(false); setMpesaRef(null); setMpesaStatus("pending"); setMpesaMessage("");
     setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false); setWalletModalOpen(false);
   }
@@ -106,91 +110,90 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setTimeout(() => { setSuccess(false); onClose(); }, 2200);
   }
 
-  // ─── PAYSTACK CARD ──────────────────────────────────────────────────────────
-  async function loadPaystackScript(): Promise<void> {
+  // ─── STRIPE CARD ────────────────────────────────────────────────────────────
+  async function loadStripeJs(publicKey: string): Promise<any> {
+    if ((window as any).Stripe) return (window as any).Stripe(publicKey);
     return new Promise((resolve, reject) => {
-      if ((window as any).PaystackPop) { resolve(); return; }
+      const existing = document.querySelector('script[src="https://js.stripe.com/v3/"]');
+      if (existing) {
+        existing.addEventListener("load", () => resolve((window as any).Stripe(publicKey)));
+        return;
+      }
       const s = document.createElement("script");
-      s.src = "https://js.paystack.co/v1/inline.js";
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error("Failed to load Paystack script"));
+      s.src = "https://js.stripe.com/v3/";
+      s.onload = () => resolve((window as any).Stripe(publicKey));
+      s.onerror = () => reject(new Error("Failed to load Stripe.js"));
       document.head.appendChild(s);
     });
   }
 
-  async function handleCardPay() {
+  async function handleStripeInit() {
     const amt = parseFloat(amount);
     if (!amt || amt < 100) return;
-    setCardLoading(true); setCardError(null);
+    setStripeStep("loading");
+    setCardError(null);
     try {
-      const r = await fetch("/api/wallet/paystack/initialize", {
+      const r = await fetch("/api/wallet/stripe/create-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ amount: amt }),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(data.error ?? "Failed to initialize payment");
+      if (!r.ok) throw new Error(data.error ?? "Failed to create payment");
 
-      setCardRef(data.reference);
+      setStripeIntentId(data.intentId);
 
-      if (!data.configured || !data.publicKey) {
-        // Demo mode: show manual verify button
-        setCardLoading(false);
-        return;
-      }
+      const stripe = await loadStripeJs(data.publicKey);
+      stripeInstanceRef.current = stripe;
 
-      await loadPaystackScript();
-      const PopAPI = (window as any).PaystackPop;
+      const elements = stripe.elements({
+        clientSecret: data.clientSecret,
+        appearance: { theme: "stripe", variables: { colorPrimary: "#16a34a", borderRadius: "12px" } },
+      });
+      stripeElementsRef.current = elements;
 
-      if (data.accessCode && PopAPI?.newTransaction) {
-        // Paystack Popup v2 — preferred: uses access_code, creates in-page iframe
-        PopAPI.newTransaction({
-          key: data.publicKey,
-          accessCode: data.accessCode,
-          onSuccess: async (tx: { reference: string }) => {
-            await verifyCard(tx.reference ?? data.reference, data.amountKobo);
-          },
-          onLoad: () => setCardLoading(false),
-          onError: (e: Error) => { setCardError(e.message ?? "Payment error"); setCardLoading(false); },
-          onCancel: () => { setCardLoading(false); },
-        });
-      } else if (PopAPI?.setup) {
-        // Paystack Popup v1 — fallback
-        const handler = PopAPI.setup({
-          key: data.publicKey,
-          email: data.email,
-          amount: data.amountKobo,
-          ref: data.reference,
-          currency: "KES",
-          callback: async (resp: { reference: string }) => {
-            await verifyCard(resp.reference, data.amountKobo);
-          },
-          onClose: () => { setCardLoading(false); },
-        });
-        handler.openIframe();
-      } else {
-        setCardLoading(false);
-      }
+      setStripeStep("form");
+
+      // Mount after React has rendered the container div
+      requestAnimationFrame(() => {
+        if (stripeContainerRef.current) {
+          const paymentEl = elements.create("payment");
+          paymentEl.mount(stripeContainerRef.current);
+        }
+      });
     } catch (err) {
       setCardError((err as Error).message);
-      setCardLoading(false);
+      setStripeStep("idle");
     }
   }
 
-  async function verifyCard(ref: string, amtKobo: number) {
-    setVerifying(true);
+  async function handleStripeConfirm() {
+    if (!stripeInstanceRef.current || !stripeElementsRef.current || !stripeIntentId) return;
+    setStripeStep("confirming");
+    setCardError(null);
     try {
-      const r = await fetch("/api/wallet/paystack/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reference: ref, amount: amtKobo / 100 }),
+      const { error, paymentIntent } = await stripeInstanceRef.current.confirmPayment({
+        elements: stripeElementsRef.current,
+        confirmParams: { return_url: window.location.href },
+        redirect: "if_required",
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error ?? "Not confirmed");
-      handleSuccess(amtKobo / 100);
-    } catch (e) {
-      setCardError((e as Error).message);
-    } finally { setVerifying(false); }
+      if (error) throw new Error(error.message ?? "Card payment failed");
+      if (paymentIntent?.status === "succeeded") {
+        const r = await fetch("/api/wallet/stripe/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ intentId: stripeIntentId }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? "Wallet credit failed");
+        handleSuccess(parseFloat(amount));
+      } else {
+        throw new Error("Payment incomplete. Status: " + paymentIntent?.status);
+      }
+    } catch (err) {
+      setCardError((err as Error).message);
+      setStripeStep("form");
+    }
   }
 
   // ─── PAYSTACK MPESA ─────────────────────────────────────────────────────────
@@ -366,8 +369,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                 ))}
               </div>
 
-              {/* Amount input (shared) */}
-              {!mpesaRef && !circleIntentId && (
+              {/* Amount input (shared — hide when Stripe form is active) */}
+              {!mpesaRef && !circleIntentId && !(tab === "card" && stripeStep !== "idle") && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
                     Amount (KES)
@@ -481,64 +484,68 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                 </div>
               )}
 
-              {/* ─── CARD TAB ──────────────────────────────────────────────── */}
+              {/* ─── CARD TAB (Stripe) ─────────────────────────────────────── */}
               {tab === "card" && (
                 <div className="space-y-4">
-                  {!cardRef ? (
-                    <>
-                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-start gap-2.5">
-                        <span className="text-xl">💳</span>
-                        <div>
-                          <p className="text-blue-800 font-semibold text-xs">Visa, Mastercard & Bank Transfer</p>
-                          <p className="text-blue-600 text-xs mt-0.5">Secure checkout powered by Paystack. A payment window will open in-app.</p>
-                        </div>
-                      </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-start gap-2.5">
+                    <span className="text-xl">💳</span>
+                    <div>
+                      <p className="text-blue-800 font-semibold text-xs">Visa, Mastercard & more</p>
+                      <p className="text-blue-600 text-xs mt-0.5">Secure checkout powered by Stripe. Your card details are encrypted end-to-end.</p>
+                    </div>
+                  </div>
 
+                  {stripeStep === "idle" && (
+                    <>
                       {cardError && (
                         <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
                           <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
                           <p className="text-red-700 text-xs">{cardError}</p>
                         </div>
                       )}
-
                       <button
-                        onClick={handleCardPay}
-                        disabled={cardLoading || !amount || amt < 100}
+                        onClick={handleStripeInit}
+                        disabled={!amount || amt < 100}
                         className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-blue-600/20">
-                        {cardLoading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
-                        {cardLoading ? "Opening Paystack…" : `Pay ${formatKES(amt)}`}
+                        <CreditCard size={18} />
+                        {amt >= 100 ? `Pay ${formatKES(amt)} by Card` : "Enter at least KES 100"}
                       </button>
-
-                      {/* Payment method logos */}
                       <div className="flex items-center justify-center gap-3 pt-1">
-                        {["VISA", "MC", "M-Pesa", "Bank"].map(m => (
+                        {["VISA", "MC", "Amex", "Stripe"].map(m => (
                           <span key={m} className="text-[9px] font-bold bg-muted border border-border px-2 py-1 rounded text-muted-foreground">{m}</span>
                         ))}
                       </div>
                     </>
-                  ) : (
-                    /* card ref set but popup not opened (no public key configured) */
+                  )}
+
+                  {stripeStep === "loading" && (
+                    <div className="py-10 flex flex-col items-center gap-3">
+                      <Loader2 size={28} className="animate-spin text-blue-600" />
+                      <p className="text-sm text-muted-foreground">Initialising secure payment…</p>
+                    </div>
+                  )}
+
+                  {(stripeStep === "form" || stripeStep === "confirming") && (
                     <div className="space-y-4">
-                      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center space-y-2">
-                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto">
-                          <AlertCircle size={22} className="text-amber-600" />
+                      <div ref={stripeContainerRef} className="min-h-[120px]" />
+                      {cardError && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                          <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                          <p className="text-red-700 text-xs">{cardError}</p>
                         </div>
-                        <p className="text-amber-800 font-bold text-sm">Paystack not configured</p>
-                        <p className="text-amber-600 text-xs">Add your PAYSTACK_PUBLIC_KEY and PAYSTACK_SECRET_KEY in the environment secrets to enable card payments.</p>
-                      </div>
-                      <div className="bg-muted/60 rounded-xl px-4 py-2 flex items-center justify-between">
-                        <p className="text-muted-foreground text-xs">Reference</p>
-                        <p className="text-foreground text-xs font-mono">{cardRef.slice(0, 22)}…</p>
-                      </div>
+                      )}
                       <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => { setCardRef(null); setCardError(null); }}
+                        <button
+                          onClick={() => { setStripeStep("idle"); setCardError(null); stripeElementsRef.current = null; stripeInstanceRef.current = null; }}
                           className="border border-border text-foreground font-semibold py-3 rounded-2xl text-sm active:scale-95">
                           ← Back
                         </button>
-                        <button onClick={() => verifyCard(cardRef, amt * 100)} disabled={verifying}
-                          className="bg-primary text-white font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-60">
-                          {verifying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                          Verify
+                        <button
+                          onClick={handleStripeConfirm}
+                          disabled={stripeStep === "confirming"}
+                          className="bg-blue-600 text-white font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-60 shadow-sm">
+                          {stripeStep === "confirming" ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                          {stripeStep === "confirming" ? "Processing…" : "Pay Now"}
                         </button>
                       </div>
                     </div>
@@ -657,7 +664,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
               {/* Security footer */}
               <div className="flex items-center justify-center gap-1.5 pt-1">
                 <span className="text-[10px] text-muted-foreground/60">🔒</span>
-                <p className="text-[10px] text-muted-foreground/60">256-bit SSL · Paystack PCI-DSS · Circle regulated</p>
+                <p className="text-[10px] text-muted-foreground/60">256-bit SSL · Stripe PCI-DSS L1 · Circle regulated</p>
               </div>
             </div>
           </motion.div>

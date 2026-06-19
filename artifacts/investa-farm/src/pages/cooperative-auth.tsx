@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, Building2, Loader2, CheckCircle2, MapPin, Phone, CheckSquare, Users, Package } from "lucide-react";
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, Building2, Loader2, CheckCircle2, MapPin, Phone, CheckSquare, Users, Package, Briefcase } from "lucide-react";
 import { setToken, storeUser } from "@/lib/auth";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import coopBg from "@assets/pexels-nc-farm-bureau-mark-27083566_1778315943106.jpg";
@@ -37,7 +37,7 @@ const WELCOME_STEPS = [
   { icon: "💼", title: "Co-Financing Programs", body: "Co-invest alongside Investa Farm on large farm projects and earn returns as a partner institution." },
 ];
 
-type CoopSubType = "farmers_connect" | "input_provider" | null;
+type CoopSubType = "farmers_connect" | "input_provider" | "sales_agent" | null;
 
 export default function CooperativeAuth() {
   const [, setLocation] = useLocation();
@@ -78,7 +78,11 @@ export default function CooperativeAuth() {
       setToken(data.token);
       storeUser(data.user);
       if (subType) localStorage.setItem("investa_coop_sub_type", subType);
-      setLocation("/cooperative/dashboard");
+      if (subType === "sales_agent") {
+        setLocation("/sales-agent/dashboard");
+      } else {
+        setLocation("/cooperative/dashboard");
+      }
     } catch {
       setError("Connection error. Please check your internet and try again.");
       setLoading(false);
@@ -94,7 +98,7 @@ export default function CooperativeAuth() {
       const r = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name, role: "cooperative" }),
+        body: JSON.stringify({ email, password, name, role: subType === "sales_agent" ? "agribusiness" : "cooperative" }),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -106,14 +110,20 @@ export default function CooperativeAuth() {
       storeUser(data.user);
       if (subType) localStorage.setItem("investa_coop_sub_type", subType);
       localStorage.setItem("investa_org_type", orgType);
-      setLocation(`/verify-otp?email=${encodeURIComponent(email)}`);
+      if (subType === "sales_agent") {
+        setLocation(`/verify-otp?email=${encodeURIComponent(email)}&next=/sales-agent/dashboard`);
+      } else {
+        setLocation(`/verify-otp?email=${encodeURIComponent(email)}`);
+      }
     } catch {
       setError("Connection error. Please check your internet and try again.");
       setLoading(false);
     }
   };
 
-  const orgTypes = subType === "farmers_connect" ? FARMERS_CONNECT_ORG_TYPES : INPUT_PROVIDER_ORG_TYPES;
+  const orgTypes = subType === "farmers_connect" ? FARMERS_CONNECT_ORG_TYPES
+    : subType === "input_provider" ? INPUT_PROVIDER_ORG_TYPES
+    : [{ value: "sales_agent", label: "🤝 Field Sales Agent" }];
 
   if (welcomeStep !== null && welcomeStep < WELCOME_STEPS.length) {
     const ws = WELCOME_STEPS[welcomeStep];
@@ -159,6 +169,7 @@ export default function CooperativeAuth() {
               className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
               {subType === "farmers_connect" ? <Users size={28} className="text-white" /> :
                subType === "input_provider" ? <Package size={28} className="text-white" /> :
+               subType === "sales_agent" ? <Briefcase size={28} className="text-white" /> :
                <Building2 size={28} className="text-white" />}
             </motion.div>
             <div className="flex-1">
@@ -166,7 +177,8 @@ export default function CooperativeAuth() {
               <p className="text-white/60 text-sm mt-0.5">
                 {subType === "farmers_connect" ? "Farmers Connect Cooperative" :
                  subType === "input_provider" ? "Input Provider / Agribusiness" :
-                 "Cooperatives · Distributors · Agribusiness"}
+                 subType === "sales_agent" ? "Sales Agent · Field Onboarding" :
+                 "Cooperatives · Distributors · Sales Agents"}
               </p>
             </div>
             <img src={logoSrc} alt="Investa Farm" className="h-8 w-auto opacity-60" style={{ filter: "brightness(0) invert(1)" }} />
@@ -204,7 +216,7 @@ export default function CooperativeAuth() {
 
                 <button
                   onClick={() => { setSubType("input_provider"); setOrgType("distributor"); }}
-                  className="w-full p-5 rounded-2xl border-2 border-blue-500 bg-blue-50 text-left active:scale-95 transition-all group"
+                  className="w-full mb-3 p-5 rounded-2xl border-2 border-blue-500 bg-blue-50 text-left active:scale-95 transition-all group"
                 >
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center flex-shrink-0 shadow-md">
@@ -222,6 +234,26 @@ export default function CooperativeAuth() {
                   </div>
                 </button>
 
+                <button
+                  onClick={() => { setSubType("sales_agent"); setOrgType("sales_agent"); }}
+                  className="w-full p-5 rounded-2xl border-2 border-amber-500 bg-amber-50 text-left active:scale-95 transition-all group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                      <Briefcase size={22} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-foreground font-bold text-base">Sales Agent</p>
+                      <p className="text-muted-foreground text-sm mt-0.5 leading-relaxed">Investa Farm field agent — onboard farmers via referral links, submit crop proposals, and earn commission on funded farms.</p>
+                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                        {["Crop Proposals", "Farmer Onboarding", "Commission"].map(tag => (
+                          <span key={tag} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+
                 <div className="mt-6 pt-4 border-t border-border">
                   <button
                     onClick={() => { setSubType("farmers_connect"); setEmail("demo.coop@investafarm.com"); setPassword("password123"); setTab("signin"); }}
@@ -233,12 +265,20 @@ export default function CooperativeAuth() {
             ) : (
               <motion.div key="auth-form" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}>
                 {/* Account type badge */}
-                <div className={`flex items-center gap-2 mb-5 px-4 py-2.5 rounded-2xl ${subType === "farmers_connect" ? "bg-[#16a34a]/10 border border-[#16a34a]/20" : "bg-blue-50 border border-blue-200"}`}>
-                  {subType === "farmers_connect"
-                    ? <Users size={14} className="text-[#16a34a] flex-shrink-0" />
-                    : <Package size={14} className="text-blue-600 flex-shrink-0" />}
-                  <p className={`text-xs font-semibold ${subType === "farmers_connect" ? "text-[#16a34a]" : "text-blue-700"}`}>
-                    {subType === "farmers_connect" ? "Farmers Connect Cooperative" : "Input Provider / Agribusiness"}
+                <div className={`flex items-center gap-2 mb-5 px-4 py-2.5 rounded-2xl ${
+                  subType === "farmers_connect" ? "bg-[#16a34a]/10 border border-[#16a34a]/20" :
+                  subType === "sales_agent" ? "bg-amber-50 border border-amber-200" :
+                  "bg-blue-50 border border-blue-200"}`}>
+                  {subType === "farmers_connect" ? <Users size={14} className="text-[#16a34a] flex-shrink-0" /> :
+                   subType === "sales_agent" ? <Briefcase size={14} className="text-amber-600 flex-shrink-0" /> :
+                   <Package size={14} className="text-blue-600 flex-shrink-0" />}
+                  <p className={`text-xs font-semibold ${
+                    subType === "farmers_connect" ? "text-[#16a34a]" :
+                    subType === "sales_agent" ? "text-amber-700" :
+                    "text-blue-700"}`}>
+                    {subType === "farmers_connect" ? "Farmers Connect Cooperative" :
+                     subType === "sales_agent" ? "Sales Agent · Field Onboarding" :
+                     "Input Provider / Agribusiness"}
                   </p>
                   <button onClick={() => setSubType(null)} className="ml-auto text-muted-foreground text-[10px] underline">Change</button>
                 </div>

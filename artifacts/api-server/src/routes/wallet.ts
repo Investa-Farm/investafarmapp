@@ -13,6 +13,7 @@ import {
 import { notifyUser } from "../lib/push";
 import { sendWalletTopupSms, sendWithdrawalSms } from "../lib/sms";
 import { isCircleConfigured, getKesUsdcRate, createPaymentIntent, getPaymentIntentStatus, getStaticUsdcAddress } from "../lib/circle";
+import { createPaymentIntent as stripeCreateIntent, retrievePaymentIntent, isConfigured as isStripeConfigured, STRIPE_PUBLIC_KEY, constructWebhookEvent } from "../lib/stripe";
 
 const router: IRouter = Router();
 
@@ -362,6 +363,89 @@ router.get("/security/limits", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   res.json(getUserVelocitySummary(user.id));
+});
+
+// ─── STRIPE ROUTES ───────────────────────────────────────────────────────────
+
+// GET /wallet/stripe/config — returns Stripe publishable key (safe to expose)
+router.get("/wallet/stripe/config", async (_req, res): Promise<void> => {
+  res.json({ publicKey: STRIPE_PUBLIC_KEY, configured: isStripeConfigured() });
+});
+
+// POST /wallet/stripe/create-intent — create a PaymentIntent
+router.post("/wallet/stripe/create-intent", financialRateLimit, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const amount = Number(req.body.amount);
+  if (!amount || amount < 100 || amount > 1_000_000) {
+    res.status(400).json({ error: "Amount must be between KES 100 and KES 1,000,000." }); return;
+  }
+  const check = checkDepositVelocity(user.id, amount);
+  if (!check.ok) { res.status(400).json({ error: check.error }); return; }
+  if (!isStripeConfigured()) {
+    res.status(503).json({ error: "Card payments not configured. Please use M-Pesa or USDC." }); return;
+  }
+  try {
+    const { clientSecret, id } = await stripeCreateIntent({ amountKES: amount, userId: user.id, email: user.email });
+    res.json({ clientSecret, intentId: id, publicKey: STRIPE_PUBLIC_KEY });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed to create payment intent";
+    res.status(502).json({ error: msg });
+  }
+});
+
+// POST /wallet/stripe/confirm — credit wallet after Stripe confirms payment
+router.post("/wallet/stripe/confirm", financialRateLimit, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { intentId, amount: clientAmount } = req.body;
+  if (!intentId) { res.status(400).json({ error: "Payment intent ID required" }); return; }
+  try {
+    const intent = await retrievePaymentIntent(intentId);
+    if (intent.status !== "succeeded") {
+      res.status(402).json({ error: "Payment not confirmed yet. Please complete the card payment first." }); return;
+    }
+    if (String(intent.metadata?.userId) !== String(user.id)) {
+      res.status(403).json({ error: "Payment intent does not belong to this account" }); return;
+    }
+    const amount = intent.amount / 100; // convert from minor units to KES
+    const reference = `STRIPE-${intentId}`;
+    const result = await creditWallet(user.id, amount, reference, "Card top-up via Stripe");
+    if ((result as any).alreadyCredited) { res.json({ alreadyCredited: true, wallet: result.wallet }); return; }
+    recordDeposit(user.id, amount);
+    notifyUser(user.id, "wallet_credit", "💰 Card Payment Confirmed!", `KES ${amount.toLocaleString("en-KE")} added to your wallet.`, "/wallet").catch(() => {});
+    res.json({ success: true, ...result });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Confirmation failed";
+    res.status(502).json({ error: msg });
+  }
+});
+
+// POST /wallet/stripe/webhook — Stripe webhook for async payment events
+router.post("/wallet/stripe/webhook", async (req, res): Promise<void> => {
+  const sig = req.headers["stripe-signature"] as string | undefined;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+  let event: any;
+  if (sig && webhookSecret) {
+    try {
+      const { constructWebhookEvent } = await import("../lib/stripe");
+      event = constructWebhookEvent(JSON.stringify(req.body), sig, webhookSecret);
+    } catch {
+      res.status(400).json({ error: "Invalid webhook signature" }); return;
+    }
+  } else {
+    event = req.body;
+  }
+  if ((event as any).type === "payment_intent.succeeded") {
+    const intent = (event as any).data?.object as any;
+    const userId = parseInt(intent?.metadata?.userId ?? "0", 10);
+    const amount = (intent?.amount ?? 0) / 100;
+    const reference = `STRIPE-${intent?.id}`;
+    if (userId && amount > 0) {
+      await creditWallet(userId, amount, reference, "Card top-up via Stripe (webhook)").catch(() => {});
+    }
+  }
+  res.sendStatus(200);
 });
 
 export default router;

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, notInArray } from "drizzle-orm";
-import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable } from "@workspace/db";
+import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail } from "../lib/email";
 import { sendPushToUser, createInAppNotification } from "../lib/push";
@@ -126,36 +126,54 @@ router.delete("/admin/users/:id", async (req, res): Promise<void> => {
   const ok = await requireAdmin(req, res);
   if (!ok) return;
   const id = Number(req.params["id"]);
+  if (!id || isNaN(id)) { res.status(400).json({ error: "Invalid user ID" }); return; }
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   if (user.role === "admin") { res.status(403).json({ error: "Cannot delete admin accounts" }); return; }
 
-  // Cascade-delete all related records before removing the user
-  const userFarms = await db.select({ id: farmsTable.id }).from(farmsTable).where(eq(farmsTable.farmerId, id));
-  const farmIds = userFarms.map(f => f.id);
+  try {
+    // Cascade-delete all related records before removing the user
+    const userFarms = await db.select({ id: farmsTable.id }).from(farmsTable).where(eq(farmsTable.farmerId, id));
+    const farmIds = userFarms.map(f => f.id);
 
-  await Promise.all([
-    db.delete(kycDocumentsTable).where(eq(kycDocumentsTable.userId, id)),
-    db.delete(investmentsTable).where(eq(investmentsTable.investorId, id)),
-    db.delete(walletTransactionsTable).where(eq(walletTransactionsTable.userId, id)),
-    db.delete(notificationsTable).where(eq(notificationsTable.userId, id)),
-    db.delete(dividendsTable).where(eq(dividendsTable.investorId, id)),
-    db.delete(transactionsTable).where(eq(transactionsTable.userId, id)),
-    db.delete(walletsTable).where(eq(walletsTable.userId, id)),
-    db.delete(loanApplicationsTable).where(eq(loanApplicationsTable.farmerId, id)),
-  ]);
+    // Delete user-linked records in parallel — each wrapped in catch so one missing table won't abort the rest
+    await Promise.allSettled([
+      db.delete(kycDocumentsTable).where(eq(kycDocumentsTable.userId, id)),
+      db.delete(investmentsTable).where(eq(investmentsTable.investorId, id)),
+      db.delete(walletTransactionsTable).where(eq(walletTransactionsTable.userId, id)),
+      db.delete(notificationsTable).where(eq(notificationsTable.userId, id)),
+      db.delete(dividendsTable).where(eq(dividendsTable.investorId, id)),
+      db.delete(transactionsTable).where(eq(transactionsTable.userId, id)),
+      db.delete(escrowWalletsTable).where(eq(escrowWalletsTable.userId, id)),
+      db.delete(walletsTable).where(eq(walletsTable.userId, id)),
+      db.delete(loanApplicationsTable).where(eq(loanApplicationsTable.farmerId, id)),
+      db.delete(priceAlertsTable).where(eq(priceAlertsTable.userId, id)),
+      db.delete(pushSubscriptionsTable).where(eq(pushSubscriptionsTable.userId, id)),
+      db.delete(orderBookTable).where(eq(orderBookTable.investorId, id)),
+      db.delete(watchlistTable).where(eq(watchlistTable.userId, id)),
+      db.delete(stellarAccountsTable).where(eq(stellarAccountsTable.userId, id)),
+      db.delete(reinvestmentRulesTable).where(eq(reinvestmentRulesTable.userId, id)),
+      db.delete(otpCodesTable).where(eq(otpCodesTable.userId, id)),
+      db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, id)),
+    ]);
 
-  if (farmIds.length > 0) {
-    for (const farmId of farmIds) {
-      await db.delete(farmUpdatesTable).where(eq(farmUpdatesTable.farmId, farmId));
-      await db.delete(investmentsTable).where(eq(investmentsTable.farmId, farmId));
-      await db.delete(marketListingsTable).where(eq(marketListingsTable.farmId, farmId));
+    if (farmIds.length > 0) {
+      for (const farmId of farmIds) {
+        await Promise.allSettled([
+          db.delete(farmUpdatesTable).where(eq(farmUpdatesTable.farmId, farmId)),
+          db.delete(investmentsTable).where(eq(investmentsTable.farmId, farmId)),
+          db.delete(marketListingsTable).where(eq(marketListingsTable.farmId, farmId)),
+        ]);
+      }
+      await db.delete(farmsTable).where(eq(farmsTable.farmerId, id));
     }
-    await db.delete(farmsTable).where(eq(farmsTable.farmerId, id));
-  }
 
-  await db.delete(usersTable).where(eq(usersTable.id, id));
-  res.json({ ok: true });
+    await db.delete(usersTable).where(eq(usersTable.id, id));
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Delete failed";
+    res.status(500).json({ error: `Failed to delete user: ${msg}` });
+  }
 });
 
 router.get("/admin/stats", async (req, res): Promise<void> => {

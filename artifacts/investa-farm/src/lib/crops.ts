@@ -6,8 +6,8 @@ import teaImg      from "@assets/IMG_8017_1781250392113.jpeg";
 import avocadoImg  from "@assets/IMG_8004_1781255323883.jpeg";
 import wheatImg    from "@assets/IMG_8005_1781255323884.jpeg";
 
-// Corn/maize field — proper crop photo (replaces person-with-phone placeholder)
-import cornFieldImg from "@assets/pexels-livier-garcia-645743-1459331_1778315943105.jpg";
+// Corn/maize field — proper crop photo
+import cornFieldImg from "@assets/pexels-corn-field-547034_maize.jpg";
 
 // Crop-specific photos from Pexels
 import beansImg       from "@assets/pexels-ana-vieira-1110685065-33068285_1781331189485.jpg";

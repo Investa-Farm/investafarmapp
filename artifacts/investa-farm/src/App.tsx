@@ -49,6 +49,7 @@ import CropProposal from "@/pages/farmer/crop-proposal";
 
 import CooperativeAuth from "@/pages/cooperative-auth";
 import CooperativeDashboard from "@/pages/cooperative/dashboard";
+import SalesAgentDashboard from "@/pages/sales-agent/dashboard";
 
 import AgribusinessDashboard from "@/pages/agribusiness/dashboard";
 import AgribusinessOrders from "@/pages/agribusiness/orders";
@@ -318,6 +319,11 @@ function Router() {
       </Route>
       <Route path="/farmer/totp">
         <AuthGuard role="farmer"><FarmerTotp /></AuthGuard>
+      </Route>
+
+      {/* Sales Agent routes */}
+      <Route path="/sales-agent/dashboard">
+        <AuthGuard role="agribusiness"><SalesAgentDashboard /></AuthGuard>
       </Route>
 
       {/* Agribusiness routes */}
