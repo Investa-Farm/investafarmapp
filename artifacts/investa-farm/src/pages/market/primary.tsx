@@ -14,6 +14,33 @@ import { PriceAlertModal } from "@/components/price-alert-modal";
 import { InvestmentCalculator } from "@/components/investment-calculator";
 import { AiSectionBot } from "@/components/ai-section-bot";
 
+// --- AI insight snippet per farm ---
+const AI_INSIGHTS: Record<string, string[]> = {
+  maize:       ["Strong demand from millers this season", "Favourable rainfall boosts yield outlook"],
+  tomatoes:    ["Urban demand up 18% · good entry point", "Processing contracts driving price stability"],
+  coffee:      ["Global arabica prices rising steadily", "Export premiums widening for AA grade"],
+  tea:         ["Auction volumes solid · steady income", "Rainfall adequate for top-grade flush"],
+  beans:       ["Short supply across Rift Valley now", "High-protein demand pushing farmgate price"],
+  avocado:     ["EU export window opens next quarter", "Hass variety premium over 22% this cycle"],
+  dairy:       ["Processor intake prices up 8% YoY", "Feed cost stabilising · margins improving"],
+  poultry:     ["Flock disease burden easing region-wide", "Table-egg premium sustained through Q3"],
+  wheat:       ["Milling demand stable · secure offtake", "Import competition easing · local prices firm"],
+  rice:        ["Mwea yields above 5-year average", "Government strategic reserve buying active"],
+  sunflower:   ["Edible oil deficit supports farmgate price", "Contract farming schemes expanding"],
+  kale:        ["Urban market demand consistently high", "Short cycle crop · fast capital recycling"],
+  cabbage:     ["Supermarket chain offtake agreements firm", "Cool-season conditions ideal this month"],
+  greenhouse:  ["Year-round harvest smooths revenue curve", "Export-quality veg fetching 2.4× farmgate"],
+};
+
+function getAiInsight(cropType: string, changePercent: number, id: number): string {
+  const key = (cropType ?? "").toLowerCase();
+  const pool = AI_INSIGHTS[key] ?? [
+    changePercent > 0 ? "Positive price momentum · watch for entry" : "Price consolidating · monitor closely",
+    "AI models show stable seasonal demand",
+  ];
+  return pool[id % pool.length];
+}
+
 // --- Risk helpers ---
 const HIGH_RISK_CROPS = new Set(["coffee", "avocado", "tobacco", "horticulture"]);
 const MOD_RISK_CROPS  = new Set(["tea", "wheat", "tomatoes", "potatoes", "onions"]);
@@ -106,9 +133,10 @@ function getListingCoords(location: string): [number, number] {
   return [-1.2921, 36.8219];
 }
 
-function getMiniMapUrl(location: string): string {
+function getMiniMapIframeSrc(location: string): string {
   const [lat, lng] = getListingCoords(location);
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=10&size=400x120&markers=${lat},${lng},red-marker-m`;
+  const d = 0.22;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${(lng - d).toFixed(4)}%2C${(lat - d * 0.75).toFixed(4)}%2C${(lng + d).toFixed(4)}%2C${(lat + d * 0.75).toFixed(4)}&layer=mapnik&marker=${lat.toFixed(4)}%2C${lng.toFixed(4)}`;
 }
 
 type Listing = {
@@ -213,6 +241,7 @@ export default function PrimaryMarket() {
                 const isExpanded = expandedId === listing.id;
                 const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
                 const seasonHistory = generateSeasonHistory(listing.pricePerShare, listing.changePercent);
+                const aiInsight = getAiInsight(listing.cropType, listing.changePercent, listing.id);
 
                 return (
                   <div key={listing.id} data-testid={`primary-listing-${listing.id}`}
@@ -228,6 +257,10 @@ export default function PrimaryMarket() {
                         <div className="min-w-0">
                           <p className="font-bold text-xs text-foreground truncate leading-tight">{listing.farmName}</p>
                           <p className="text-muted-foreground text-[10px] truncate">{listing.cropType} · {listing.location}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[9px] font-bold text-violet-600">🤖 AI</span>
+                            <span className="text-[9px] text-muted-foreground truncate">{aiInsight}</span>
+                          </div>
                         </div>
                       </div>
 
@@ -286,10 +319,22 @@ export default function PrimaryMarket() {
                     {/* Expanded details */}
                     {isExpanded && (
                       <div className="border-t border-border px-4 pb-4 pt-3 space-y-3">
-                        {/* Farm image + chart side by side */}
+                        {/* Mini map + chart side by side */}
                         <div className="flex gap-3 items-stretch">
-                          <div className="w-28 flex-shrink-0 rounded-xl overflow-hidden">
-                            <img src={imgSrc} alt={listing.farmName} className="w-full h-full object-cover" style={{ minHeight: 110 }} />
+                          {/* Map thumbnail */}
+                          <div className="w-28 flex-shrink-0 rounded-xl overflow-hidden border border-border relative bg-[#e8ead2]" style={{ minHeight: 110 }}>
+                            <iframe
+                              src={getMiniMapIframeSrc(listing.location)}
+                              className="w-full h-full border-0 pointer-events-none"
+                              style={{ minHeight: 110 }}
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                              title={`${listing.location} map`}
+                            />
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/55 to-transparent px-1.5 py-1 flex items-center gap-0.5">
+                              <MapPin size={8} className="text-white flex-shrink-0" />
+                              <span className="text-white text-[8px] font-semibold truncate">{listing.location}</span>
+                            </div>
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold text-foreground mb-1">Today's Price</p>
@@ -333,21 +378,6 @@ export default function PrimaryMarket() {
                             <span className="text-[9px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                               Min: {formatAmount(listing.pricePerShare * 10)} (10 shares)
                             </span>
-                          </div>
-                        </div>
-
-                        {/* Mini farm location map */}
-                        <div className="overflow-hidden rounded-xl border border-border relative" style={{ height: 110 }}>
-                          <img
-                            src={getMiniMapUrl(listing.location)}
-                            alt={`${listing.farmName} location map`}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                          />
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent px-2 py-1.5 flex items-center gap-1">
-                            <MapPin size={10} className="text-white flex-shrink-0" />
-                            <span className="text-white text-[9px] font-semibold truncate">{listing.location}, Kenya</span>
                           </div>
                         </div>
 

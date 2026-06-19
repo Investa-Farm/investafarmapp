@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BarChart2, Briefcase, Activity, User, Home, ShoppingCart, DollarSign, MoreHorizontal, Handshake, Package, Newspaper } from "lucide-react";
+import { BarChart2, Briefcase, Activity, User, Home, MoreHorizontal, Handshake, Package, ClipboardList } from "lucide-react";
 
 interface NavItem { label: string; path: string; icon: React.ElementType; }
 
@@ -11,11 +11,9 @@ const investorNav: NavItem[] = [
 ];
 
 const farmerNav: NavItem[] = [
-  { label: "Home",     path: "/farmer",              icon: Home        },
-  { label: "News",     path: "/farmer/news",         icon: Newspaper   },
-  { label: "Market",   path: "/farmer/market",       icon: ShoppingCart },
-  { label: "Earnings", path: "/farmer/operations",   icon: DollarSign  },
-  { label: "More",     path: "/farmer/profile",      icon: MoreHorizontal },
+  { label: "Home",      path: "/farmer",              icon: Home            },
+  { label: "Track",     path: "/farmer/operations",   icon: ClipboardList   },
+  { label: "More",      path: "/farmer/profile",      icon: MoreHorizontal  },
 ];
 
 const agribusinessNav: NavItem[] = [
@@ -42,10 +40,10 @@ export function BottomNav({ role }: { role: "farmer" | "investor" | "agribusines
               <button
                 data-testid={`nav-${label.toLowerCase().replace(/ /g, "-")}`}
                 data-tour={label === "Portfolio" ? "nav-portfolio" : undefined}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${isActive ? "text-primary" : "text-muted-foreground"}`}
               >
-                <Icon size={role === "farmer" ? 19 : 20} strokeWidth={isActive ? 2.5 : 1.8} />
-                <span className={`text-[9px] font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                <Icon size={role === "farmer" ? 21 : 20} strokeWidth={isActive ? 2.5 : 1.8} />
+                <span className={`text-[10px] font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
                   {label}
                 </span>
               </button>

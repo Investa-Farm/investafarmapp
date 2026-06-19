@@ -252,7 +252,7 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
             exit={{ opacity: 0 }}
           >
             <div
-              className="absolute inset-0 pointer-events-auto"
+              className="absolute inset-0 pointer-events-auto bg-black/25"
               onClick={dismiss}
             />
 
@@ -278,17 +278,17 @@ export function AppTour({ role = "investor", onAskAI }: Props) {
             {/* Tour card */}
             <motion.div
               key={idx}
-              initial={{ opacity: 0, y: 12, scale: 0.96 }}
+              initial={{ opacity: 0, y: 20, scale: 0.85 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.97 }}
-              transition={{ duration: 0.25, type: "spring", damping: 22 }}
+              exit={{ opacity: 0, y: -12, scale: 0.92 }}
+              transition={{ type: "spring", damping: 18, stiffness: 280 }}
               style={cardPositionStyle}
               className="pointer-events-auto"
               onClick={e => e.stopPropagation()}
             >
               {/* Grass green border wrapper */}
-              <div className="rounded-2xl p-[1.5px] bg-gradient-to-r from-green-600 to-green-700">
-                <div className="bg-white rounded-[14px] overflow-hidden">
+              <div className="rounded-2xl p-[1.5px] bg-gradient-to-r from-green-600 to-green-700 shadow-2xl shadow-green-900/30">
+                <div className="bg-white/95 backdrop-blur-md rounded-[14px] overflow-hidden">
                   {/* Grass green header strip */}
                   <div className={`bg-gradient-to-r ${GREEN_GRADIENT} px-4 py-3 flex items-center justify-between`}>
                     <div className="flex items-center gap-2.5">

@@ -309,7 +309,7 @@ export default function FarmDetail() {
   const chartData = (farm.priceHistory as any[])?.map((p: any) => ({ date: String(p.date).split("T")[0].slice(5), price: Number(p.price) })) ?? [];
   const currentStageIdx = GROWTH_STAGES.findIndex(s => s.key === (growth?.stage ?? "growing"));
   const [mapLat, mapLng] = getKenyaCoords(farm.location ?? "");
-  const osmUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${(mapLng - 0.025).toFixed(4)}%2C${(mapLat - 0.018).toFixed(4)}%2C${(mapLng + 0.025).toFixed(4)}%2C${(mapLat + 0.018).toFixed(4)}&layer=mapnik&marker=${mapLat.toFixed(4)}%2C${mapLng.toFixed(4)}`;
+  const osmUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${(mapLng - 0.18).toFixed(4)}%2C${(mapLat - 0.13).toFixed(4)}%2C${(mapLng + 0.18).toFixed(4)}%2C${(mapLat + 0.13).toFixed(4)}&layer=mapnik&marker=${mapLat.toFixed(4)}%2C${mapLng.toFixed(4)}`;
 
   return (
     <div className="app-shell pb-28 page-enter" data-testid="farm-detail">
@@ -793,13 +793,15 @@ export default function FarmDetail() {
                   <span className="text-[10px] text-[#16a34a] font-semibold uppercase tracking-wide">GPS Verified</span>
                 </div>
               </div>
-              <div className="relative" style={{ height: 260 }}>
+              <div className="relative bg-[#e8ead2]" style={{ height: 260 }}>
                 <iframe
                   src={osmUrl}
                   width="100%"
                   height="260"
                   style={{ border: 0, display: "block" }}
                   loading="lazy"
+                  referrerPolicy="no-referrer"
+                  allowFullScreen
                   title={`Map — ${farm.location}`}
                 />
                 <div className="absolute bottom-3 left-3 pointer-events-none">

@@ -283,9 +283,12 @@ router.post("/farmer/market/connect", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const { buyerName, cropType, quantity } = req.body as { buyerName?: string; cropType?: string; quantity?: number };
+  const { buyerName, cropType, quantity, targetFarmerId } = req.body as {
+    buyerName?: string; cropType?: string; quantity?: number; targetFarmerId?: number;
+  };
   if (!buyerName) { res.status(400).json({ error: "buyerName required" }); return; }
 
+  // Notify the requesting farmer (confirmation)
   await db.insert(notificationsTable).values({
     userId: user.id,
     type: "buyer_connect",
@@ -293,6 +296,24 @@ router.post("/farmer/market/connect", async (req, res): Promise<void> => {
     body: `Your connection request to ${buyerName} for ${cropType ?? "your crop"} (${quantity ?? "?"} tons) has been submitted. They will contact you within 24 hours.`,
     isRead: false,
   }).catch(() => {});
+
+  // If connecting FROM agribusiness TO a specific farmer, push-notify the farmer
+  if (targetFarmerId && targetFarmerId !== user.id) {
+    await db.insert(notificationsTable).values({
+      userId: targetFarmerId,
+      type: "input_connection",
+      title: `📦 Input Supply Offer — ${buyerName}`,
+      body: `${buyerName} wants to supply inputs for your ${cropType ?? "farm"}. Tap to review and accept or decline.`,
+      isRead: false,
+    }).catch(() => {});
+
+    notifyUser(
+      targetFarmerId,
+      "input_connection",
+      `📦 Input Supply Offer`,
+      `${buyerName} wants to supply inputs for your ${cropType ?? "farm"}. Open the app to review.`,
+    ).catch(() => {});
+  }
 
   res.json({ success: true, message: `Connection request sent to ${buyerName}. They will reach out within 24 hours.` });
 });

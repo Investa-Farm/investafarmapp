@@ -121,9 +121,10 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
 
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="relative w-full max-w-[430px] bg-white rounded-t-3xl overflow-hidden shadow-2xl max-h-[90dvh] overflow-y-auto">
+              className="relative w-full max-w-[430px] bg-white rounded-t-3xl shadow-2xl flex flex-col"
+              style={{ maxHeight: "92dvh" }}>
 
-              <div className="sticky top-0 bg-white border-b border-border px-5 pt-5 pb-3 flex items-center justify-between z-10">
+              <div className="flex-shrink-0 bg-white border-b border-border px-5 pt-5 pb-3 flex items-center justify-between rounded-t-3xl z-10">
                 <div className="flex items-center gap-2">
                   {step === "review" && (
                     <button onClick={() => setStep("configure")} className="text-muted-foreground mr-1">
@@ -140,7 +141,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                 </button>
               </div>
 
-              <div className="px-5 pt-4 pb-8 space-y-4">
+              <div className="px-5 pt-4 pb-10 space-y-4 overflow-y-auto flex-1" style={{ paddingBottom: "max(2.5rem, env(safe-area-inset-bottom, 0px) + 1.5rem)" }}>
                 {/* KYC gate banner */}
                 {!isKycVerified && (
                   <button onClick={() => setKycOpen(true)}

@@ -253,23 +253,25 @@ function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
           <div className="bg-green-400 h-0.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
         <div className="space-y-1">
-          {steps.filter(s => !s.done).map((step, i) => (
-            <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-white/10 cursor-pointer active:bg-white/15 transition-all"
-              onClick={step.action}>
-              <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-[7px] font-bold">{i + 1}</span>
+          {steps.map((step, i) => (
+            step.done ? (
+              <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-green-900/30">
+                <div className="w-4 h-4 rounded-full bg-green-400 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 size={9} className="text-white" />
+                </div>
+                <p className="text-green-300 text-[11px] line-through flex-1">{step.label}</p>
+                <span className="text-[9px] font-bold text-green-400">✓ Done</span>
               </div>
-              <p className="text-white text-[11px] font-medium flex-1">{step.label}</p>
-              <span className="text-[9px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full">{step.cta} →</span>
-            </div>
-          ))}
-          {steps.filter(s => s.done).map((step, i) => (
-            <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-1 opacity-40">
-              <div className="w-4 h-4 rounded-full bg-green-400 flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 size={9} className="text-white" />
+            ) : (
+              <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-white/10 cursor-pointer active:bg-white/15 transition-all"
+                onClick={step.action}>
+                <div className="w-4 h-4 rounded-full bg-white/25 flex items-center justify-center flex-shrink-0 border border-white/30">
+                  <span className="text-white text-[7px] font-bold">{i + 1}</span>
+                </div>
+                <p className="text-white text-[11px] font-medium flex-1">{step.label}</p>
+                <span className="text-[9px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full">{step.cta} →</span>
               </div>
-              <p className="text-white text-[11px] line-through">{step.label}</p>
-            </div>
+            )
           ))}
         </div>
       </div>

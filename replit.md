@@ -92,8 +92,11 @@ The `render.yaml` is pre-configured. Render will:
 | `GOOGLE_SMTP_USER` | `mosesochiengopiyo@gmail.com` |
 | `GOOGLE_SMTP_PASS` | Gmail App Password (see below) |
 | `RESEND_API_KEY` | Resend API key (alternative to Gmail SMTP) |
-| `PAYSTACK_SECRET_KEY` | `sk_live_...` from Paystack dashboard → [paystack.com](https://dashboard.paystack.com/#/settings/developer) |
+| `PAYSTACK_SECRET_KEY` | `sk_live_...` from Paystack dashboard → [paystack.com](https://dashboard.paystack.com/#/settings/developer) — M-Pesa STK push only |
 | `PAYSTACK_PUBLIC_KEY` | `pk_live_...` from Paystack dashboard → Settings → API Keys & Webhooks |
+| `STRIPE_SECRET_KEY` | `sk_live_...` from [Stripe dashboard](https://dashboard.stripe.com/apikeys) → API keys → Secret key |
+| `STRIPE_PUBLIC_KEY` | `pk_live_...` from [Stripe dashboard](https://dashboard.stripe.com/apikeys) → API keys → Publishable key |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_...` from Stripe dashboard → Developers → Webhooks → your endpoint → Signing secret |
 | `CIRCLE_API_KEY` | `TEST_API_KEY:keyId:keySecret` from [console.circle.com](https://console.circle.com) → API Keys |
 | `GROQ_API_KEY` | Groq API key from [console.groq.com](https://console.groq.com/keys) — AI farm insights + news |
 | `VAPID_PRIVATE_KEY` | `W4d_A-f1wGaBtbH8nzrPGfCxTCqYkHo5AJxsJG0ssLU` |
@@ -109,7 +112,8 @@ The `render.yaml` is pre-configured. Render will:
 
 | Service | Sign-up URL | What it does |
 |---|---|---|
-| **Paystack** | [paystack.com/signup](https://paystack.com/signup) | M-Pesa STK push + card payments in Kenya (KES) |
+| **Paystack** | [paystack.com/signup](https://paystack.com/signup) | M-Pesa STK push in Kenya (KES) |
+| **Stripe** | [dashboard.stripe.com](https://dashboard.stripe.com) | Card payments (Visa/Mastercard/Apple Pay) globally |
 | **Circle** | [console.circle.com](https://console.circle.com) | USDC stablecoin deposits from crypto wallets |
 | **Groq** | [console.groq.com](https://console.groq.com) | AI-powered farm insights, news summarisation |
 | **Resend** | [resend.com](https://resend.com) | Transactional emails (welcome, OTP, dividends) |
