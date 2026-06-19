@@ -10,12 +10,12 @@ const router = Router();
  * Returns rainfall data + yield impact for a farm.
  * Public endpoint (no auth required — data is non-sensitive).
  */
-router.get("/farms/:id/rainfall", async (req: Request, res: Response) => {
-  const farmId = parseInt(req.params["id"] ?? "0");
-  if (!farmId) return res.status(400).json({ error: "Invalid farm id" });
+router.get("/farms/:id/rainfall", async (req: Request, res: Response): Promise<void> => {
+  const farmId = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!farmId) { res.status(400).json({ error: "Invalid farm id" }); return; }
 
   const [farm] = await db.select().from(farmsTable).where(eq(farmsTable.id, farmId));
-  if (!farm) return res.status(404).json({ error: "Farm not found" });
+  if (!farm) { res.status(404).json({ error: "Farm not found" }); return; }
 
   const [lat, lng] = getKenyaCoords(farm.location ?? "");
   const data = await getRainfallData(lat, lng, farm.cropType ?? "maize");

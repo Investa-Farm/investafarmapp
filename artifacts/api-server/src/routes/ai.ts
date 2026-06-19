@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { getCurrentUser } from "./auth";
-import { db, marketListingsTable } from "@workspace/db";
+import { db, marketListingsTable, farmsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -70,9 +70,22 @@ router.post("/ai/match", async (req, res): Promise<void> => {
   };
 
   const listings = await db
-    .select()
+    .select({
+      id: marketListingsTable.id,
+      farmId: marketListingsTable.farmId,
+      listingType: marketListingsTable.listingType,
+      sharesAvailable: marketListingsTable.sharesAvailable,
+      pricePerShare: marketListingsTable.pricePerShare,
+      isActive: marketListingsTable.isActive,
+      farmName: farmsTable.name,
+      cropType: farmsTable.cropType,
+      changePercent: farmsTable.changePercent,
+      location: farmsTable.location,
+      farmStatus: farmsTable.status,
+    })
     .from(marketListingsTable)
-    .where(eq(marketListingsTable.status, "active"))
+    .innerJoin(farmsTable, eq(marketListingsTable.farmId, farmsTable.id))
+    .where(eq(marketListingsTable.isActive, 1))
     .limit(15);
 
   if (listings.length === 0) {

@@ -5,7 +5,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
 import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Moon } from "lucide-react";
 import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { FARMER_HERO_IMAGE } from "@/lib/crops";
 import { KycModal } from "@/components/kyc-modal";
@@ -41,7 +41,7 @@ export default function FarmerDashboard() {
     localStorage.setItem("investa_theme", next ? "dark" : "light");
   };
 
-  const { data: dashboard, isLoading } = useGetFarmerDashboard({ query: { refetchInterval: 30000 } });
+  const { data: dashboard, isLoading } = useGetFarmerDashboard({ query: { queryKey: ["farmer-dashboard"], refetchInterval: 30000 } });
   const { data: updates } = useListFarmUpdates();
   const { data: farms } = useGetMyFarms();
 

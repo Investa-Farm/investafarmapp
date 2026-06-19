@@ -291,7 +291,7 @@ router.post("/farmer/market/connect", async (req, res): Promise<void> => {
     type: "buyer_connect",
     title: "Buyer Connection Request Sent",
     body: `Your connection request to ${buyerName} for ${cropType ?? "your crop"} (${quantity ?? "?"} tons) has been submitted. They will contact you within 24 hours.`,
-    isRead: 0,
+    isRead: false,
   }).catch(() => {});
 
   res.json({ success: true, message: `Connection request sent to ${buyerName}. They will reach out within 24 hours.` });

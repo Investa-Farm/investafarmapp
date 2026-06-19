@@ -232,7 +232,7 @@ router.get("/farmer/health", async (req, res): Promise<void> => {
     recentUpdates: recentUpdates.map(u => ({
       id: u.id,
       title: u.title,
-      content: u.content,
+      content: u.description,
       createdAt: u.createdAt.toISOString(),
     })),
   });

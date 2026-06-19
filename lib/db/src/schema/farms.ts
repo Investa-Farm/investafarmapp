@@ -23,6 +23,7 @@ export const farmsTable = pgTable("farms", {
   currentPrice: numeric("current_price", { precision: 15, scale: 2 }).notNull(),
   latitude: numeric("latitude", { precision: 10, scale: 6 }),
   longitude: numeric("longitude", { precision: 10, scale: 6 }),
+  riskScore: numeric("risk_score", { precision: 5, scale: 2 }).default("5"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

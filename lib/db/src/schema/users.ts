@@ -14,6 +14,8 @@ export const usersTable = pgTable("users", {
   accountNumber: text("account_number").unique(),
   totpSecret: text("totp_secret"),
   totpEnabled: boolean("totp_enabled").default(false).notNull(),
+  phone: text("phone"),
+  county: text("county"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

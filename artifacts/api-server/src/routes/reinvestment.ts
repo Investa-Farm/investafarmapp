@@ -77,13 +77,12 @@ router.post("/reinvestment/simulate", async (req, res): Promise<void> => {
   const riskMin = rule.riskTolerance === "low" ? 8 : rule.riskTolerance === "moderate" ? 5 : 1;
   const riskMax = rule.riskTolerance === "low" ? 10 : rule.riskTolerance === "moderate" ? 8 : 10;
 
+  const whereClause = cropFilter
+    ? and(cropFilter, gte(farmsTable.riskScore, String(riskMin)))
+    : gte(farmsTable.riskScore, String(riskMin));
+
   const farms = await db.select().from(farmsTable)
-    .where(
-      and(
-        cropFilter,
-        gte(farmsTable.riskScore, riskMin),
-      )
-    )
+    .where(whereClause)
     .limit(rule.maxFarms * 3)
     .orderBy(desc(farmsTable.riskScore));
 
