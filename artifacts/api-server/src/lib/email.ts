@@ -219,46 +219,79 @@ function emailWrapper(content: string, preheader = "") {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${APP_NAME}</title>
+  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
-<body style="margin:0;padding:0;background-color:#f0fdf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${preheader}</div>` : ""}
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0fdf4;padding:24px 0;">
-    <tr><td align="center">
-      <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(22,163,74,0.10);">
+<body style="margin:0;padding:0;background-color:#f0fdf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#f0fdf4;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>` : ""}
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:linear-gradient(160deg,#f0fdf4 0%,#dcfce7 100%);padding:32px 0 48px;">
+    <tr><td align="center" style="padding:0 16px;">
+      <table width="580" cellpadding="0" cellspacing="0" role="presentation" style="max-width:580px;width:100%;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(5,46,22,0.14),0 2px 8px rgba(5,46,22,0.08);">
 
-        <!-- Header — grass green -->
+        <!-- Premium header -->
         <tr>
-          <td style="background:linear-gradient(135deg,${GRASS_DARK} 0%,${GRASS_GREEN} 100%);padding:32px 40px 24px;text-align:center;">
+          <td style="background:linear-gradient(135deg,${GRASS_DARK} 0%,#14532d 45%,${GRASS_GREEN} 100%);padding:36px 40px 28px;text-align:center;position:relative;">
+            <!-- Decorative top stripe -->
+            <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#86efac,#4ade80,#16a34a,#4ade80,#86efac);"></div>
             ${LOGO_SVG}
+            <!-- Separator line -->
+            <div style="margin:16px auto 0;width:60px;height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent);border-radius:2px;"></div>
+          </td>
+        </tr>
+
+        <!-- Gold accent bar -->
+        <tr>
+          <td style="background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);padding:6px 40px;">
+            <p style="color:#1c1917;font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin:0;text-align:center;">Africa's Leading Farm Investment Platform</p>
           </td>
         </tr>
 
         <!-- Content -->
         ${content}
 
-        <!-- Footer -->
+        <!-- Premium divider before footer -->
         <tr>
-          <td style="background:#f0fdf4;padding:20px 40px 24px;border-top:1px solid #bbf7d0;">
-            <table width="100%" cellpadding="0" cellspacing="0">
+          <td style="padding:0 40px;">
+            <div style="height:1px;background:linear-gradient(90deg,transparent,#bbf7d0,transparent);"></div>
+          </td>
+        </tr>
+
+        <!-- Premium footer -->
+        <tr>
+          <td style="background:linear-gradient(180deg,#f0fdf4 0%,#dcfce7 100%);padding:24px 40px 28px;">
+            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
               <tr>
-                <td style="text-align:center;padding-bottom:10px;">
+                <td style="text-align:center;padding-bottom:14px;">
                   <a href="https://chat.whatsapp.com/BWfnSpL4GTl0EsFpuPMKOK"
-                    style="display:inline-block;background:#25D366;color:#ffffff;font-size:11px;font-weight:700;text-decoration:none;padding:7px 18px;border-radius:20px;margin-bottom:4px;">
+                    style="display:inline-block;background:linear-gradient(135deg,#16a34a,#15803d);color:#ffffff;font-size:11px;font-weight:700;text-decoration:none;padding:8px 22px;border-radius:20px;box-shadow:0 2px 8px rgba(22,163,74,0.25);">
                     💬 Join our WhatsApp Community
                   </a>
                 </td>
               </tr>
               <tr>
+                <td style="text-align:center;padding-bottom:6px;">
+                  <a href="https://app.investafarm.com" style="display:inline-block;margin:0 6px;color:${GRASS_GREEN};font-size:10px;font-weight:600;text-decoration:none;">Open App</a>
+                  <span style="color:#d1d5db;font-size:10px;">·</span>
+                  <a href="https://app.investafarm.com/market" style="display:inline-block;margin:0 6px;color:${GRASS_GREEN};font-size:10px;font-weight:600;text-decoration:none;">Browse Market</a>
+                  <span style="color:#d1d5db;font-size:10px;">·</span>
+                  <a href="https://app.investafarm.com/portfolio" style="display:inline-block;margin:0 6px;color:${GRASS_GREEN};font-size:10px;font-weight:600;text-decoration:none;">My Portfolio</a>
+                </td>
+              </tr>
+              <tr>
+                <td style="text-align:center;padding:8px 0 4px;">
+                  <div style="width:32px;height:2px;background:linear-gradient(90deg,#16a34a,#4ade80);border-radius:2px;margin:0 auto;"></div>
+                </td>
+              </tr>
+              <tr>
                 <td>
-                  <p style="color:#6b7280;font-size:11px;margin:0 0 4px 0;text-align:center;">
+                  <p style="color:#6b7280;font-size:11px;margin:0 0 4px 0;text-align:center;font-weight:500;">
                     <strong style="color:#374151;">Investa Farm Ltd</strong> · Nairobi, Kenya
                   </p>
                   <p style="color:#9ca3af;font-size:10px;margin:0 0 3px 0;text-align:center;">
                     Regulated by the Capital Markets Authority of Kenya &nbsp;·&nbsp;
-                    <a href="mailto:investafarm@proton.me" style="color:${GRASS_GREEN};text-decoration:none;">investafarm@proton.me</a>
+                    <a href="mailto:investafarm@proton.me" style="color:${GRASS_GREEN};text-decoration:none;font-weight:600;">investafarm@proton.me</a>
                   </p>
-                  <p style="color:#d1d5db;font-size:10px;margin:0;text-align:center;">
-                    This is an automated message. Please do not reply directly to this email. &nbsp;·&nbsp;
+                  <p style="color:#d1d5db;font-size:10px;margin:4px 0 0 0;text-align:center;">
+                    Automated notification — do not reply &nbsp;·&nbsp;
                     <a href="#" style="color:#9ca3af;text-decoration:none;">Unsubscribe</a>
                   </p>
                 </td>

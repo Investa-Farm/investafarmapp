@@ -393,39 +393,56 @@ function PwaInstallBanner() {
     localStorage.setItem("investa_pwa_dismissed", "1");
   };
 
-  // iOS: show "Add to Home Screen" guide
+  // iOS: "Install Now" guide for Safari
   if (isIos && !isStandalone && showIosTip && !dismissed) {
     return (
-      <div className="fixed bottom-20 left-0 right-0 z-[70] px-4 max-w-[430px] mx-auto">
-        <div className="bg-[#052e16] rounded-2xl shadow-2xl border border-green-700 overflow-hidden">
-          <div className="px-4 pt-3 pb-1 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
+      <div className="fixed bottom-0 left-0 right-0 z-[70] px-3 pb-4 max-w-[430px] mx-auto">
+        <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ background: "linear-gradient(135deg,#052e16 0%,#14532d 60%,#166534 100%)", border: "1px solid rgba(134,239,172,0.25)" }}>
+          {/* Header */}
+          <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                <img src={logoSrc} alt="Investa Farm" className="h-9 w-9 object-contain" />
+              </div>
               <div>
-                <p className="text-white font-bold text-sm leading-tight">Add to Home Screen</p>
-                <p className="text-white/60 text-[10px]">Install Investa Farm on your iPhone</p>
+                <p className="text-white font-black text-sm leading-tight tracking-tight">Install Now</p>
+                <p className="text-green-300/80 text-[10px] font-medium">Add Investa Farm to your iPhone</p>
               </div>
             </div>
-            <button onClick={dismiss} className="text-white/50 text-xl leading-none w-7 h-7 flex items-center justify-center">×</button>
+            <button onClick={dismiss} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white/60 text-lg leading-none">×</button>
           </div>
-          <div className="px-4 pb-4 space-y-2 mt-2">
-            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-              <span className="text-base">1️⃣</span>
-              <p className="text-white/80 text-xs">Tap the <strong className="text-white">Share</strong> button <span className="text-white">⎋</span> at the bottom of Safari</p>
+          {/* Steps */}
+          <div className="px-4 py-3 space-y-2">
+            <div className="flex items-center gap-3 bg-white/10 rounded-xl px-3 py-2.5">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/30 border border-blue-400/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm">⎋</span>
+              </div>
+              <p className="text-white/90 text-xs leading-snug">Tap the <strong className="text-white">Share</strong> button at the bottom of Safari</p>
             </div>
-            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-              <span className="text-base">2️⃣</span>
-              <p className="text-white/80 text-xs">Scroll down and tap <strong className="text-white">"Add to Home Screen"</strong></p>
+            <div className="flex items-center gap-3 bg-white/10 rounded-xl px-3 py-2.5">
+              <div className="w-7 h-7 rounded-lg bg-green-500/30 border border-green-400/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm">＋</span>
+              </div>
+              <p className="text-white/90 text-xs leading-snug">Scroll down and tap <strong className="text-white">"Add to Home Screen"</strong></p>
             </div>
-            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-              <span className="text-base">3️⃣</span>
-              <p className="text-white/80 text-xs">Tap <strong className="text-white">Add</strong> — Investa Farm will appear on your home screen!</p>
+            <div className="flex items-center gap-3 bg-white/10 rounded-xl px-3 py-2.5">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/30 border border-amber-400/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm">✓</span>
+              </div>
+              <p className="text-white/90 text-xs leading-snug">Tap <strong className="text-white">Add</strong> — the app appears on your home screen instantly</p>
             </div>
+          </div>
+          {/* CTA row */}
+          <div className="px-4 pb-4 flex items-center gap-2">
+            <div className="flex-1 text-center bg-white rounded-xl py-2.5 shadow-lg active:scale-95 transition-transform">
+              <p className="text-[#052e16] font-black text-xs tracking-tight">📲 Install Now — It's Free</p>
+            </div>
+            <button onClick={dismiss} className="text-white/40 text-[10px] px-2">Later</button>
           </div>
         </div>
-        {/* Arrow pointing down to Safari toolbar */}
+        {/* Down-arrow pointing to Safari toolbar */}
         <div className="flex justify-center mt-1">
-          <div className="w-3 h-3 bg-[#052e16] rotate-45 border-b border-r border-green-700" />
+          <div className="w-3 h-3 rotate-45 border-b border-r" style={{ background: "#166534", borderColor: "rgba(134,239,172,0.25)" }} />
         </div>
       </div>
     );

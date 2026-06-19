@@ -3,22 +3,37 @@
   "short_name": "InvestaFarm",
   "description": "Farm investment platform — buy and sell agricultural shares in Kenya",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0f3d1a",
+  "background_color": "#052e16",
   "theme_color": "#16a34a",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "categories": ["finance", "business"],
   "icons": [
     {
-      "src": "/logo.png",
-      "sizes": "512x512",
+      "src": "/favicon.png",
+      "sizes": "48x48",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo.png",
-      "sizes": "512x512",
+      "src": "/favicon.png",
+      "sizes": "72x72",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/favicon.png",
@@ -31,6 +46,46 @@
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Investor Market",
+      "short_name": "Market",
+      "description": "Browse farm investment opportunities",
+      "url": "/market",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Portfolio",
+      "short_name": "Portfolio",
+      "description": "View your investment portfolio",
+      "url": "/portfolio",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
     }
   ]
 }
