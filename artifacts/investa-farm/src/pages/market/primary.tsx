@@ -83,6 +83,31 @@ function generateSeasonHistory(basePrice: number, changePercent: number) {
   }));
 }
 
+// --- Kenya location coordinates for mini-map ---
+const KE_COORDS: Record<string, [number, number]> = {
+  nairobi: [-1.2921, 36.8219], nakuru: [-0.3031, 36.0800], kisumu: [-0.1022, 34.7617],
+  meru: [0.0467, 37.6490], eldoret: [0.5200, 35.2699], narok: [-1.0824, 35.8706],
+  nyeri: [-0.4166, 36.9500], kakamega: [0.2827, 34.7519], kitale: [1.0154, 35.0062],
+  thika: [-1.0332, 37.0693], laikipia: [0.2000, 36.7000], muranga: [-0.7190, 37.1499],
+  embu: [-0.5317, 37.4500], machakos: [-1.5177, 37.2634], kiambu: [-1.1691, 36.8356],
+  nyandarua: [-0.1830, 36.3672], kajiado: [-1.8520, 36.7764], bomet: [-0.7876, 35.3437],
+  kericho: [-0.3686, 35.2862], siaya: [0.0617, 34.2422], busia: [0.4609, 34.1109],
+  turkana: [3.1200, 35.6000], wajir: [1.7473, 40.0573],
+};
+
+function getListingCoords(location: string): [number, number] {
+  const loc = location.toLowerCase();
+  for (const [key, coords] of Object.entries(KE_COORDS)) {
+    if (loc.includes(key.replace(/_/g, " ")) || loc.includes(key)) return coords;
+  }
+  return [-1.2921, 36.8219];
+}
+
+function getMiniMapUrl(location: string): string {
+  const [lat, lng] = getListingCoords(location);
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=10&size=400x120&markers=${lat},${lng},red-marker-m`;
+}
+
 type Listing = {
   id: number; farmId: number; farmName: string; cropType: string;
   location: string; pricePerShare: number; sharesAvailable: number;
@@ -294,6 +319,21 @@ export default function PrimaryMarket() {
                             <span className="text-[9px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                               Min: {formatAmount(listing.pricePerShare * 10)} (10 shares)
                             </span>
+                          </div>
+                        </div>
+
+                        {/* Mini farm location map */}
+                        <div className="overflow-hidden rounded-xl border border-border relative" style={{ height: 110 }}>
+                          <img
+                            src={getMiniMapUrl(listing.location)}
+                            alt={`${listing.farmName} location map`}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent px-2 py-1.5 flex items-center gap-1">
+                            <MapPin size={10} className="text-white flex-shrink-0" />
+                            <span className="text-white text-[9px] font-semibold truncate">{listing.location}, Kenya</span>
                           </div>
                         </div>
 

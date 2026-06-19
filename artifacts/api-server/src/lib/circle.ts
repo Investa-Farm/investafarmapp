@@ -11,12 +11,19 @@ const CIRCLE_API_KEY = process.env.CIRCLE_API_KEY ?? "";
 const BASE = "https://api.circle.com/v1";
 
 export function isCircleConfigured(): boolean {
-  return CIRCLE_API_KEY.length > 10;
+  // Circle v2 API key format: TEST_API_KEY:keyId:keySecret (three colon-separated parts)
+  return CIRCLE_API_KEY.length > 10 && CIRCLE_API_KEY.split(":").length >= 2;
+}
+
+function getCircleApiKey(): string {
+  // If the key has the three-part format (TEST_API_KEY:id:secret), use the first part as the Bearer token
+  const parts = CIRCLE_API_KEY.split(":");
+  return parts.length >= 3 ? parts.slice(0, 1).join(":") : CIRCLE_API_KEY;
 }
 
 function headers() {
   return {
-    Authorization: `Bearer ${CIRCLE_API_KEY}`,
+    Authorization: `Bearer ${getCircleApiKey()}`,
     "Content-Type": "application/json",
     Accept: "application/json",
   };

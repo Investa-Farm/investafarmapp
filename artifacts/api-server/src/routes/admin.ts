@@ -33,7 +33,7 @@ router.post("/admin/login", async (req, res): Promise<void> => {
 
   // 1. Master password check (no email required)
   if (password === process.env["ADMIN_PASSWORD"] || password === "admin2024!") {
-    res.json({ ok: true, token: Buffer.from("admin-session:" + Date.now()).toString("base64") });
+    res.json({ ok: true, token: Buffer.from("admin-session:master:" + Date.now()).toString("base64"), isMaster: true });
     return;
   }
 
@@ -44,7 +44,7 @@ router.post("/admin/login", async (req, res): Promise<void> => {
     if (user && user.role === "admin") {
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (valid) {
-        res.json({ ok: true, token: Buffer.from("admin-session:" + Date.now()).toString("base64"), name: user.name });
+        res.json({ ok: true, token: Buffer.from("admin-session:sub:" + Date.now()).toString("base64"), name: user.name, isMaster: false });
         return;
       }
     }
@@ -66,6 +66,21 @@ router.post("/admin/login-kyc", async (req, res): Promise<void> => {
     return;
   }
   res.json({ ok: true, token: Buffer.from("kyc-admin-session:" + Date.now()).toString("base64"), kycOnly: true });
+});
+
+// POST /api/admin/kyc/:userId/remind — send KYC completion push notification
+router.post("/admin/kyc/:userId/remind", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const userId = parseInt(req.params.userId, 10);
+  if (!userId) { res.status(400).json({ error: "Invalid userId" }); return; }
+  try {
+    await createInAppNotification(userId, "kyc_reminder", "📋 KYC Action Required", "Please complete your identity verification (KYC) to unlock full investment access.", "/profile");
+    await sendPushToUser(userId, { title: "📋 KYC Reminder", body: "Complete your KYC verification to unlock full access.", url: "/profile" }).catch(() => {});
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to send reminder" });
+  }
 });
 
 router.post("/admin/create-admin", async (req, res): Promise<void> => {

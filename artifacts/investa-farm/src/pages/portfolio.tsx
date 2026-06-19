@@ -148,8 +148,8 @@ export default function Portfolio() {
   const [sellOpen, setSellOpen] = useState(false);
   const [shareHolding, setShareHolding] = useState<Holding | null>(null);
   const [period, setPeriod] = useState<Period>("1W");
-  const [activeTab, setActiveTab] = useState<"holdings" | "broker">(() =>
-    window.location.hash === "#broker" ? "broker" : "holdings"
+  const [activeTab, setActiveTab] = useState<"overview" | "holdings">(() =>
+    window.location.hash === "#holdings" ? "holdings" : "overview"
   );
   const [brokerEnabled, setBrokerEnabled] = useState(() => localStorage.getItem("investa_broker_mode") === "true");
   const [copied, setCopied] = useState(false);
@@ -275,6 +275,24 @@ export default function Portfolio() {
         )}
       </div>
 
+      {/* ── Tab switcher ── */}
+      <div className="px-4 pt-4">
+        <div className="flex bg-muted rounded-2xl p-1 gap-1">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${activeTab === "overview" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            📈 Overview
+          </button>
+          <button
+            onClick={() => setActiveTab("holdings")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${activeTab === "holdings" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            🌾 My Holdings
+          </button>
+        </div>
+      </div>
+
+      {activeTab === "overview" && (<>
+
       {/* ── Performance Chart ── */}
       <div className="mx-4 mt-4 bg-white border border-border rounded-2xl overflow-hidden">
         <div className="px-4 pt-4 pb-2 flex items-center justify-between">
@@ -383,7 +401,7 @@ export default function Portfolio() {
             { icon: "⚡", label: "Exit Holding", onTap: () => { const first = (holdings as Holding[])?.find(h => h.status === "active"); if (first) { setActiveTab("holdings"); handleExitClick(first); } else setActiveTab("holdings"); } },
             { icon: "📊", label: "Trade Shares", href: "/market/secondary" },
             { icon: "🔔", label: "Set Price Alert", href: "/market" },
-            { icon: "💼", label: "Portfolio Mgr", onTap: () => setActiveTab("broker") },
+            { icon: "💼", label: "Portfolio Mgr", onTap: () => setActiveTab("holdings") },
           ].map(item => (
             item.href
               ? <a key={item.label} href={item.href}
@@ -431,22 +449,10 @@ export default function Portfolio() {
       {/* Thick section break */}
       <div className="h-2 bg-muted/40 mt-4" />
 
-      {/* Tab switcher */}
-      <div className="px-4 pt-4">
-        <div className="flex bg-muted rounded-2xl p-1 gap-1">
-          <button onClick={() => setActiveTab("holdings")}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${activeTab === "holdings" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            📊 My Holdings
-          </button>
-          <button onClick={() => setActiveTab("broker")}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${activeTab === "broker" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            <Star size={12} /> Portfolio Mgr
-          </button>
-        </div>
-      </div>
+      </>)}
 
-      {/* Portfolio Manager tab */}
-      {activeTab === "broker" && (
+      {/* Portfolio Manager + Holdings tab */}
+      {activeTab === "holdings" && (
         <div className="px-4 pt-3 space-y-4">
 
           {/* Qualification banner */}

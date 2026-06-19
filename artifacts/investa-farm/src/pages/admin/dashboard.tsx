@@ -90,6 +90,7 @@ export default function AdminDashboard() {
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [clearDbLoading, setClearDbLoading] = useState(false);
   const [kycOnly, setKycOnly] = useState(false);
+  const [isMasterAdmin, setIsMasterAdmin] = useState(false);
 
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
@@ -98,15 +99,21 @@ export default function AdminDashboard() {
   useEffect(() => {
     const auth = sessionStorage.getItem("admin_auth");
     if (!auth) { setLocation("/admin"); return; }
-    // Detect KYC-only sub-admin token
+    // Detect token type
     try {
       const tok = sessionStorage.getItem("admin_token") ?? "";
       const decoded = atob(tok);
       if (decoded.startsWith("kyc-admin-session:")) {
         setKycOnly(true);
         setTab("kyc");
+      } else if (decoded.includes(":master:")) {
+        setIsMasterAdmin(true);
       }
-    } catch {}
+      // sub-admin tokens contain ":sub:" — they get full nav but restricted KYC actions
+    } catch {
+      // Regular JWT admin user — treat as master
+      setIsMasterAdmin(true);
+    }
     fetchStats();
   }, []);
 
@@ -334,6 +341,20 @@ export default function AdminDashboard() {
         showToast(status === "approved" ? "Document approved ✓" : "Document rejected");
         fetchKyc();
       }
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const sendKycReminder = async (userId: number) => {
+    setActionLoading(userId);
+    try {
+      const r = await fetch(`/api/admin/kyc/${userId}/remind`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (r.ok) showToast("KYC reminder sent ✓");
+      else showToast("Failed to send reminder", "error");
     } finally {
       setActionLoading(null);
     }
@@ -616,7 +637,8 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Add Admin Banner */}
+            {/* Add Admin Banner — master admin only */}
+            {isMasterAdmin && (
             <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl p-3.5 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
@@ -632,6 +654,7 @@ export default function AdminDashboard() {
                 <UserPlus size={12} /> Add Admin
               </button>
             </div>
+            )}
 
             <div className="space-y-2">
               <div className="relative">
@@ -699,15 +722,25 @@ export default function AdminDashboard() {
                 </div>
                 {u.role !== "admin" && u.kycStatus !== "approved" && (
                   <div className="border-t border-border px-4 py-2.5 flex gap-2">
-                    <button onClick={() => approveUser(u.id, true)} disabled={actionLoading === u.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
-                      <CheckCircle2 size={13} />
-                      {actionLoading === u.id ? "Processing…" : "Approve KYC"}
-                    </button>
-                    <button onClick={() => approveUser(u.id, false)} disabled={actionLoading === u.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
-                      <XCircle size={13} /> Reject
-                    </button>
+                    {isMasterAdmin ? (
+                      <>
+                        <button onClick={() => approveUser(u.id, true)} disabled={actionLoading === u.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
+                          <CheckCircle2 size={13} />
+                          {actionLoading === u.id ? "Processing…" : "Approve KYC"}
+                        </button>
+                        <button onClick={() => approveUser(u.id, false)} disabled={actionLoading === u.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
+                          <XCircle size={13} /> Reject
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => sendKycReminder(u.id)} disabled={actionLoading === u.id}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
+                        <Bell size={13} />
+                        {actionLoading === u.id ? "Sending…" : "Send KYC Reminder"}
+                      </button>
+                    )}
                   </div>
                 )}
                 {u.role !== "admin" && u.kycStatus === "approved" && (
@@ -800,15 +833,25 @@ export default function AdminDashboard() {
                 </div>
                 {doc.status === "pending" && (
                   <div className="border-t border-border px-4 py-2.5 flex gap-2">
-                    <button onClick={() => approveKycDoc(doc.id, "approved")} disabled={actionLoading === doc.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
-                      <CheckCircle2 size={13} />
-                      {actionLoading === doc.id ? "…" : "Approve"}
-                    </button>
-                    <button onClick={() => approveKycDoc(doc.id, "rejected")} disabled={actionLoading === doc.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
-                      <XCircle size={13} /> Reject
-                    </button>
+                    {isMasterAdmin ? (
+                      <>
+                        <button onClick={() => approveKycDoc(doc.id, "approved")} disabled={actionLoading === doc.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
+                          <CheckCircle2 size={13} />
+                          {actionLoading === doc.id ? "…" : "Approve"}
+                        </button>
+                        <button onClick={() => approveKycDoc(doc.id, "rejected")} disabled={actionLoading === doc.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
+                          <XCircle size={13} /> Reject
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => sendKycReminder(doc.userId)} disabled={actionLoading === doc.userId}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
+                        <Bell size={13} />
+                        {actionLoading === doc.userId ? "Sending…" : "Send KYC Reminder"}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

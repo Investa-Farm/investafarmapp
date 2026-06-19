@@ -1,0 +1,545 @@
+# Investa Farm Farmer Journey & Platform Specification
+
+Build the farmer experience as a complete farm financing and agricultural investment ecosystem, not as a traditional loan application.
+
+## Farmer Registration
+
+Create a multi-step onboarding flow.
+
+### Personal Information
+
+Required Fields:
+
+* Full Name
+* National ID Number
+* Phone Number
+* Email Address
+* Gender
+* Date of Birth
+
+### Location Information
+
+Required Fields:
+
+* Country
+* County
+* Sub-County
+* Ward
+* Village
+* Nearest Trading Center
+* Nearest Landmark
+* GPS Coordinates (Auto Capture)
+* Pin Farm Location on Map
+
+Purpose:
+
+* Farm mapping
+* Satellite analysis
+* Risk assessment
+* Extension support
+* Investor transparency
+
+---
+
+## KYC Verification
+
+Farmer uploads:
+
+* ID Front
+* ID Back
+* Selfie Verification
+
+Optional:
+
+* Title Deed
+* Lease Agreement
+* Cooperative Membership
+
+Statuses:
+
+* Pending Verification
+* Verified
+* Rejected
+
+---
+
+## Credit Scoring Engine
+
+Automatically generate:
+
+### Identity Score
+
+Based on:
+
+* KYC verification
+* Contact verification
+
+### Farm Score
+
+Based on:
+
+* Acreage
+* Historical performance
+* Satellite imagery
+* Crop suitability
+
+### Risk Score
+
+Based on:
+
+* Weather
+* Crop type
+* Historical yields
+* Market demand
+
+Output:
+
+Funding Eligibility
+
+Example:
+
+Funding Limit:
+$2,500
+
+Farmer Score:
+82/100
+
+---
+
+# Crop Proposal Module
+
+Create a separate page called:
+
+## Crop Proposal
+
+Farmer submits a production proposal.
+
+Fields:
+
+### Crop Information
+
+* Crop Type
+* Crop Variety
+* Acreage
+* Planting Date
+* Harvest Date
+
+### Funding Request
+
+Budget Builder:
+
+* Seeds
+* Fertilizer
+* Pesticides
+* Irrigation
+* Labor
+* Transport
+* Other Costs
+
+System automatically calculates:
+
+Total Funding Required
+
+### Revenue Projection
+
+* Expected Yield
+* Expected Market Price
+* Projected Revenue
+
+### Supporting Documents
+
+* Farm Photos
+* Previous Harvest Records
+* Buyer Intent Letter (Optional)
+
+Submit Proposal.
+
+---
+
+# Market Page
+
+Once approved, proposals automatically appear on a page called:
+
+## Market
+
+Investors discover opportunities here.
+
+Each listing shows:
+
+* Crop Type
+* Farm Location
+* Satellite Score
+* Risk Score
+* Funding Goal
+* Amount Raised
+* Investor Count
+* Expected Revenue
+
+Example:
+
+Tomatoes
+
+Funding Goal:
+$1,000
+
+Raised:
+$650
+
+65% Funded
+
+Display funding progress bars.
+
+---
+
+# Approval Workflow
+
+Internal Admin Review
+
+Checklist:
+
+* KYC Complete
+* Farm Verified
+* Credit Score Generated
+* Satellite Verification Complete
+* Proposal Approved
+
+Statuses:
+
+* Pending
+* Approved
+* Rejected
+
+---
+
+# Funding Phase
+
+Once approved:
+
+Farm listing goes live.
+
+Investors purchase farm shares.
+
+Example:
+
+100 Shares
+
+$10 per Share
+
+Funding Goal:
+$1,000
+
+Display real-time funding progress.
+
+---
+
+# Funding Completion Workflow
+
+When funding reaches 100%:
+
+Automatically trigger:
+
+### SMS Notification
+
+### Email Notification
+
+### Push Notification
+
+Message:
+
+Congratulations. Your farm has been fully funded. Please select your preferred input provider.
+
+---
+
+# Voucher Generation
+
+Automatically generate a voucher.
+
+Example:
+
+INV-2026-TOM-001
+
+Send voucher through:
+
+* SMS
+* Email
+* App Notification
+
+Store voucher inside dashboard.
+
+---
+
+# Input Provider Selection
+
+After full funding:
+
+Display homepage popup.
+
+Title:
+
+Select Input Provider
+
+Options:
+
+* Kenya Seed
+* Simlaw Seeds
+* Yara
+* Local Agrovet Partners
+
+Farmer selects supplier.
+
+---
+
+# Input Redemption
+
+Farmer visits supplier.
+
+Provides:
+
+* Voucher Code
+* ID Number
+
+Supplier dashboard verifies voucher.
+
+Approved inputs released.
+
+Examples:
+
+* Seeds
+* Fertilizer
+* Crop Protection
+* Irrigation Equipment
+
+---
+
+# Fund Allocation Engine
+
+Do NOT release all funds as cash.
+
+Example:
+
+Funding Raised:
+$1,000
+
+Allocation:
+
+Inputs:
+$600
+
+Labor:
+$250
+
+Operations:
+$100
+
+Reserve:
+$50
+
+Inputs go directly to suppliers.
+
+Cash allocation goes to farmer wallet.
+
+---
+
+# Wallet System
+
+Each farmer gets a wallet.
+
+Wallet can receive:
+
+* Funding allocations
+* Harvest earnings
+* Incentives
+* Bonuses
+
+Wallet Features:
+
+* Balance
+* Transaction History
+* Withdraw
+* Transfer
+* Bank Account Link
+* Mobile Money Link
+
+---
+
+# Farm Operations Dashboard
+
+Homepage changes after funding.
+
+Display:
+
+* Active Crop
+* Growth Stage
+* Farm Health Score
+* Weather Forecast
+* Expected Harvest Date
+* Investor Count
+* Expected Revenue
+
+---
+
+# Satellite Monitoring
+
+Integrate:
+
+* Farm Mapping
+* NDVI Crop Monitoring
+* Vegetation Analysis
+* Weather Intelligence
+* Risk Alerts
+
+Display scores and updates in real time.
+
+---
+
+# Market Access Module
+
+Create page:
+
+## Market Access
+
+Offtakers submit purchase offers.
+
+Display:
+
+Buyer Name
+
+Price per Ton
+
+Quantity Required
+
+Delivery Date
+
+Farmer can:
+
+* Accept
+* Reject
+* Negotiate
+
+---
+
+# Harvest Management
+
+Create page:
+
+## Harvest Center
+
+Track:
+
+* Harvest Progress
+* Quantity Harvested
+* Revenue Generated
+* Pending Deliveries
+
+---
+
+# Settlement Engine
+
+After produce is sold:
+
+System calculates revenue distribution.
+
+Example:
+
+Revenue:
+$10,000
+
+Farmer:
+55%
+
+Investors:
+20%
+
+Investa Farm:
+25%
+
+Automatically generate payout instructions.
+
+---
+
+# Circle Integration
+
+Use Circle for:
+
+* Wallets
+* USDC balances
+* Deposits
+* Withdrawals
+* Revenue payouts
+
+Every farmer and investor receives a wallet automatically.
+
+---
+
+# Paystack Integration
+
+Use Paystack for:
+
+* Deposits
+* Card Payments
+* Bank Transfers
+* Mobile Money
+
+Successful payments should automatically credit wallets.
+
+---
+
+# Stellar Integration
+
+Use Stellar for:
+
+* Farm Share Creation
+* Ownership Tracking
+* Secondary Market Trading
+* Revenue Entitlements
+
+Each farm should be represented as a tradeable agricultural asset.
+
+---
+
+# Notifications
+
+Support:
+
+* SMS
+* Email
+* Push Notifications
+* In-App Notifications
+
+Trigger notifications for:
+
+* Registration
+* Verification
+* Proposal Approval
+* Funding Progress
+* Funding Completion
+* Voucher Issuance
+* Input Collection
+* Market Offers
+* Harvest Updates
+* Revenue Distribution
+
+---
+
+# Farmer Reputation System
+
+Track:
+
+* Funding History
+* Harvest Success Rate
+* Revenue Generated
+* Investor Satisfaction
+* Farm Performance
+
+Generate:
+
+Farmer Rating
+
+Example:
+
+4.8/5 Stars
+
+Season Score:
+95/100
+
+Higher scores increase future funding eligibility and investor visibility.
