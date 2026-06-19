@@ -7,7 +7,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator, MapPin, Users 
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
-import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
+import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getCropImage, CROP_IMAGES } from "@/lib/crops";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { PriceAlertModal } from "@/components/price-alert-modal";
@@ -75,12 +75,15 @@ function getTargetRoi(cropType: string, changePercent: number): number {
 }
 
 function generateSeasonHistory(basePrice: number, changePercent: number) {
-  const months = ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
-  const annualisedTrend = changePercent / 100;
-  return months.map((month, i) => ({
-    month,
-    value: Math.round(basePrice * (0.88 + (i / 8) * 0.25 + annualisedTrend * (i / 8))),
-  }));
+  const times = ["6am", "8am", "10am", "12pm", "2pm", "4pm", "6pm", "8pm"];
+  const trend = changePercent / 100;
+  return times.map((time, i) => {
+    const noise = (Math.sin(i * 1.7) * 0.04 + Math.cos(i * 0.9) * 0.03);
+    return {
+      time,
+      value: Math.round(basePrice * (0.92 + (i / 8) * 0.18 + trend * (i / 8) + noise)),
+    };
+  });
 }
 
 // --- Kenya location coordinates for mini-map ---
@@ -283,26 +286,37 @@ export default function PrimaryMarket() {
                     {/* Expanded details */}
                     {isExpanded && (
                       <div className="border-t border-border px-4 pb-4 pt-3 space-y-3">
-                        <p className="text-xs font-semibold text-foreground">Season Performance</p>
-                        <div className="h-24">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={seasonHistory}>
-                              <defs>
-                                <linearGradient id={`grad-${listing.id}`} x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#16a34a40" />
-                                  <stop offset="95%" stopColor="#16a34a00" />
-                                </linearGradient>
-                              </defs>
-                              <Tooltip
-                                formatter={(v: number) => [formatKES(v), "Price"]}
-                                labelFormatter={(l) => l}
-                                contentStyle={{ fontSize: 10, borderRadius: 8, border: "1px solid #e5e7eb" }}
-                              />
-                              <Area type="monotone" dataKey="value"
-                                stroke="#16a34a" strokeWidth={2}
-                                fill={`url(#grad-${listing.id})`} dot={false} />
-                            </AreaChart>
-                          </ResponsiveContainer>
+                        {/* Farm image + chart side by side */}
+                        <div className="flex gap-3 items-stretch">
+                          <div className="w-28 flex-shrink-0 rounded-xl overflow-hidden">
+                            <img src={imgSrc} alt={listing.farmName} className="w-full h-full object-cover" style={{ minHeight: 110 }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-foreground mb-1">Today's Price</p>
+                            <div style={{ height: 110 }}>
+                              <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={seasonHistory} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                                  <defs>
+                                    <linearGradient id={`grad-${listing.id}`} x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor={isUp ? "#16a34a40" : "#dc262640"} />
+                                      <stop offset="95%" stopColor={isUp ? "#16a34a00" : "#dc262600"} />
+                                    </linearGradient>
+                                  </defs>
+                                  <XAxis dataKey="time" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval={1} />
+                                  <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} width={38}
+                                    tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+                                  <Tooltip
+                                    formatter={(v: number) => [formatKES(v), "KES"]}
+                                    labelFormatter={(l) => l}
+                                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", fontWeight: 600 }}
+                                  />
+                                  <Area type="monotone" dataKey="value"
+                                    stroke={isUp ? "#16a34a" : "#dc2626"} strokeWidth={2}
+                                    fill={`url(#grad-${listing.id})`} dot={{ fill: isUp ? "#16a34a" : "#dc2626", r: 2 }} />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
                         </div>
 
                         {/* Location + shares info */}

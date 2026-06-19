@@ -45,6 +45,7 @@ import FarmerProfile from "@/pages/farmer/profile";
 import FarmerWallet from "@/pages/farmer/wallet";
 import FarmerHealth from "@/pages/farmer/health";
 import FarmerTotp from "@/pages/farmer/totp";
+import CropProposal from "@/pages/farmer/crop-proposal";
 
 import CooperativeAuth from "@/pages/cooperative-auth";
 import CooperativeDashboard from "@/pages/cooperative/dashboard";
@@ -311,6 +312,9 @@ function Router() {
       </Route>
       <Route path="/farmer/health">
         <AuthGuard role="farmer"><FarmerHealth /></AuthGuard>
+      </Route>
+      <Route path="/farmer/crop-proposal">
+        <AuthGuard role="farmer"><CropProposal /></AuthGuard>
       </Route>
       <Route path="/farmer/totp">
         <AuthGuard role="farmer"><FarmerTotp /></AuthGuard>

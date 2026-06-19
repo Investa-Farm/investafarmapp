@@ -429,7 +429,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
 
                       <button
                         onClick={handleMpesaPay}
-                        disabled={mpesaLoading || !amount || amt < 10 || phone.length < 9}
+                        disabled={mpesaLoading || !amount || amt < 10 || (phone.replace(/^0/, "").length < 9)}
                         className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-green-600/20">
                         {mpesaLoading ? <Loader2 size={18} className="animate-spin" /> : <Smartphone size={18} />}
                         {mpesaLoading ? "Sending STK Push…" : `Pay ${formatKES(amt)} via M-Pesa`}

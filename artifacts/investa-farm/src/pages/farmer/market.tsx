@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useGetMyFarms, useListPrimaryMarket } from "@workspace/api-client-react";
+import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, isDemoAccount, getToken } from "@/lib/auth";
 import { Bell, Filter, TrendingUp, Star, MessageCircle, CheckCircle2, Clock, ChevronRight, ChevronDown, MapPin, Award, FileText, DollarSign, Package, Leaf, ShieldCheck, Plus, X, Sprout, Calendar, Maximize2 } from "lucide-react";
@@ -109,7 +110,8 @@ interface MsgState {
 }
 
 export default function FarmerMarket() {
-  const [tab, setTab] = useState<"offers" | "contracts" | "inputs">("offers");
+  const [, setLocation] = useLocation();
+  const [tab, setTab] = useState<"offers" | "contracts" | "inputs" | "health" | "news">("offers");
   const [selectedOffer, setSelectedOffer] = useState<(typeof BUYER_OFFERS)[0] | null>(null);
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
   const [connectToast, setConnectToast] = useState<string | null>(null);
@@ -252,15 +254,85 @@ export default function FarmerMarket() {
           </div>
         </div>
 
-        <div className="flex bg-white/15 border border-white/20 rounded-xl p-1 gap-1">
-          {(["offers", "inputs", "contracts"] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${tab === t ? "bg-white text-foreground shadow-sm" : "text-white/80"}`}>
-              {t === "offers" ? "🏪 Buyers" : t === "inputs" ? "🌱 Inputs" : "📋 Contracts"}
+        <div className="flex bg-white/15 border border-white/20 rounded-xl p-1 gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          {(["offers", "inputs", "contracts", "health", "news"] as const).map(t => (
+            <button key={t} onClick={() => setTab(t as any)}
+              className={`flex-shrink-0 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all ${tab === t ? "bg-white text-foreground shadow-sm" : "text-white/80"}`}>
+              {t === "offers" ? "🏪 Buyers" : t === "inputs" ? "🌱 Inputs" : t === "contracts" ? "📋 Contracts" : t === "health" ? "🌿 Health" : "📰 News"}
             </button>
           ))}
         </div>
       </div>
+
+      {/* ── Health Tab ── */}
+      {tab === ("health" as any) && (
+        <div className="px-4 pt-4 pb-6 space-y-4">
+          <div className="bg-gradient-to-r from-emerald-600 to-green-500 rounded-2xl p-4 text-white flex items-center justify-between">
+            <div>
+              <p className="text-white/80 text-xs font-semibold">Farm Health Dashboard</p>
+              <p className="text-white font-bold text-base mt-0.5">Live weather, NDVI & AI tips</p>
+              <p className="text-white/70 text-xs mt-1">Full details and charts on the health page</p>
+            </div>
+            <button onClick={() => setLocation("/farmer/health")}
+              className="bg-white/20 rounded-xl px-3 py-2 text-white text-xs font-bold active:scale-95 transition-transform flex items-center gap-1.5">
+              Open <ChevronRight size={13} />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { emoji: "🌡️", label: "Temperature", value: "24 °C", sub: "Feels like 26 °C" },
+              { emoji: "💧", label: "Humidity", value: "68%", sub: "Ideal for crops" },
+              { emoji: "🌧️", label: "Rainfall", value: "12 mm", sub: "This week" },
+              { emoji: "🌿", label: "NDVI Score", value: "0.68", sub: "Excellent" },
+            ].map(({ emoji, label, value, sub }) => (
+              <div key={label} className="bg-card rounded-2xl border border-border p-3">
+                <div className="text-xl mb-1">{emoji}</div>
+                <p className="text-muted-foreground text-[10px]">{label}</p>
+                <p className="text-foreground font-bold text-base">{value}</p>
+                <p className="text-primary text-[10px] font-medium">{sub}</p>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setLocation("/farmer/health")}
+            className="w-full border border-primary text-primary font-semibold py-3 rounded-xl text-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
+            <Leaf size={15} /> Full Health Dashboard
+          </button>
+        </div>
+      )}
+
+      {/* ── News Tab ── */}
+      {tab === ("news" as any) && (
+        <div className="px-4 pt-4 pb-6 space-y-3">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-semibold">Farm News</p>
+            <button onClick={() => setLocation("/farmer/news")}
+              className="text-primary text-xs font-semibold active:scale-95 transition-transform flex items-center gap-1">
+              More <ChevronRight size={13} />
+            </button>
+          </div>
+          {[
+            { icon: "🌾", title: "Maize Prices Up 12% — Best Week in 3 Months", tag: "Grains", date: "Today", color: "bg-amber-50 border-amber-200 text-amber-700" },
+            { icon: "🥑", title: "Kenya Avocado Exports Hit Record High", tag: "Export", date: "Yesterday", color: "bg-green-50 border-green-200 text-green-700" },
+            { icon: "🛡️", title: "Crop Insurance Subsidies — Apply at Huduma Centre", tag: "Policy", date: "This week", color: "bg-blue-50 border-blue-200 text-blue-700" },
+            { icon: "💧", title: "KMD Issues Weather Advisory — Long Rains Forecast", tag: "Weather", date: "Today", color: "bg-sky-50 border-sky-200 text-sky-700" },
+          ].map((item, i) => (
+            <div key={i} className="bg-card rounded-2xl border border-border p-3.5 flex items-start gap-3">
+              <div className="text-2xl flex-shrink-0">{item.icon}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-foreground text-sm font-semibold leading-snug">{item.title}</p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${item.color}`}>{item.tag}</span>
+                  <span className="text-muted-foreground text-[10px]">{item.date}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+          <button onClick={() => setLocation("/farmer/news")}
+            className="w-full border border-border text-foreground font-semibold py-3 rounded-xl text-sm active:scale-95 transition-transform">
+            View All News →
+          </button>
+        </div>
+      )}
 
       {tab === "offers" && (
         <div className="px-4 pt-4 space-y-4">

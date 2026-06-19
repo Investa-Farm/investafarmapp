@@ -3,9 +3,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
-import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, Users, ShieldCheck, LogOut, MapPin, TrendingUp, CalendarDays, AlertCircle, Moon, Settings } from "lucide-react";
+import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Moon } from "lucide-react";
 import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { FARMER_HERO_IMAGE } from "@/lib/crops";
 import { KycModal } from "@/components/kyc-modal";
@@ -13,7 +13,6 @@ import { LoanModal } from "@/components/loan-modal";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { InlineMicBot } from "@/components/ai-assistant";
-import { FarmerAiInsights } from "@/components/farmer-ai-insights";
 
 type GroupInfo = { id: number; name: string; registrationNumber: string; county: string; memberCount: number; status: string } | null;
 
@@ -172,95 +171,21 @@ export default function FarmerDashboard() {
       </div>
 
       <div className="px-5 pt-4 space-y-4">
-        {/* Stats grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-card rounded-2xl border border-border p-3.5 shadow-sm">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-[10px]">Projected Harvest Revenue</p>
-              <TrendingUp size={13} className="text-green-500" />
-            </div>
-            <p className="text-foreground font-bold text-lg">{dashboard ? formatKES(dashboard.farmValue) : "—"}</p>
-            <p className="text-green-600 text-[10px] font-medium">{dashboard?.weekChangePercent ? `+${dashboard.weekChangePercent}% this week` : "Pending data"}</p>
-          </div>
-          <div className="bg-card rounded-2xl border border-border p-3.5 shadow-sm">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-[10px]">Harvest In</p>
-              <CalendarDays size={13} className="text-primary" />
-            </div>
-            {dashboard?.harvestDays != null ? (
-              <>
-                <p className="text-foreground font-bold text-lg">{dashboard.harvestDays} Days</p>
-                <p className="text-primary text-[10px] font-medium">{CROP_STAGES[Math.min(currentStageIndex, 4)]?.label ?? "—"} stage</p>
-              </>
-            ) : (
-              <>
-                <p className="text-foreground font-bold text-lg">—</p>
-                <p className="text-muted-foreground text-[10px]">No active crop</p>
-              </>
-            )}
-          </div>
-          <div className="bg-card rounded-2xl border border-border p-3.5 shadow-sm">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-[10px]">Your Estimated Share</p>
-              <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">55%</span>
-            </div>
-            <p className="text-foreground font-bold text-lg">{dashboard ? formatKES(farmerShare) : "—"}</p>
-            <p className="text-muted-foreground text-[10px]">After investor split</p>
-          </div>
-          <div className="bg-card rounded-2xl border border-border p-3.5 shadow-sm">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-[10px]">Funds Raised</p>
-              <Users size={13} className="text-blue-500" />
-            </div>
-            <p className="text-foreground font-bold text-lg">{dashboard ? formatKES(dashboard.fundsRaised ?? 0) : "—"}</p>
-            <div className="flex items-center justify-between mt-0.5">
-              <p className="text-muted-foreground text-[10px]">{dashboard?.totalInvestors ?? 0} investors</p>
-              {(dashboard?.fundingPercent ?? 0) > 0 && (
-                <span className="text-primary text-[9px] font-bold">{dashboard?.fundingPercent}% funded</span>
-              )}
-            </div>
-            {(dashboard?.fundingPercent ?? 0) > 0 && (
-              <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${Math.min(dashboard?.fundingPercent ?? 0, 100)}%` }} />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* AI Farmer Insights */}
-        <FarmerAiInsights
-          cropType={currentFarm?.cropType}
-          location={currentFarm?.location}
-          growthStage={dashboard?.growthStage}
-          farmHealth={farmHealth ?? undefined}
-          harvestDays={dashboard?.harvestDays ?? undefined}
-          fundsRaised={dashboard?.fundsRaised ?? undefined}
-          fundingPercent={dashboard?.fundingPercent ?? undefined}
-        />
-
-        {/* Farm Health Dashboard CTA */}
+        {/* Apply for Funding CTA */}
         <button
-          onClick={() => setLocation("/farmer/health")}
-          className="w-full bg-gradient-to-r from-emerald-600 to-green-500 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-md shadow-green-200 dark:shadow-green-900/30">
+          onClick={() => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); }}
+          className="w-full bg-gradient-to-r from-primary to-green-500 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-md shadow-primary/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-xl">🌿</span>
+              <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                <DollarSign size={22} className="text-white" />
               </div>
               <div>
-                <p className="text-white font-bold text-sm">Farm Health Dashboard</p>
-                <p className="text-white/75 text-xs mt-0.5">Live weather · NDVI · Rainfall · AI tips</p>
+                <p className="text-white font-bold text-base">Apply for Funding</p>
+                <p className="text-white/75 text-xs mt-0.5">List your farm shares on the investor market</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {farmHealth != null && (
-                <div className="bg-white/20 rounded-xl px-2.5 py-1 text-center">
-                  <p className="text-white font-black text-lg leading-none">{farmHealth}</p>
-                  <p className="text-white/70 text-[8px] font-semibold">SCORE</p>
-                </div>
-              )}
-              <ChevronRight size={16} className="text-white/70" />
-            </div>
+            <ChevronRight size={18} className="text-white/70" />
           </div>
         </button>
 
@@ -345,53 +270,6 @@ export default function FarmerDashboard() {
           </div>
         )}
 
-        {/* Quick access */}
-        <div className="grid grid-cols-4 gap-2">
-          <button
-            onClick={() => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); }}
-            className={`rounded-2xl p-3 text-center cursor-pointer active:scale-95 transition-transform relative ${
-              kycApproved >= 1
-                ? "bg-primary/5 border border-primary/20"
-                : "bg-gray-50 border border-gray-200 opacity-60"
-            }`}
-          >
-            <DollarSign size={18} className={`mx-auto mb-1 ${kycApproved >= 1 ? "text-primary" : "text-gray-400"}`} />
-            <p className="text-foreground text-[10px] font-medium">Funding</p>
-            {loans.length > 0
-              ? <p className="text-primary text-[9px] font-bold mt-0.5">{loans.length} apps</p>
-              : kycApproved === 0
-                ? <p className="text-amber-600 text-[9px] font-bold mt-0.5">KYC first</p>
-                : <p className="text-primary text-[9px] font-bold mt-0.5">Apply</p>
-            }
-          </button>
-          <button onClick={() => setKycOpen(true)}
-            className={`rounded-2xl p-3 text-center cursor-pointer active:scale-95 transition-transform relative ${
-              kycApproved >= 1
-                ? "bg-green-50 border border-green-100"
-                : "bg-amber-50 border-2 border-amber-300 animate-pulse"
-            }`}>
-            <ShieldCheck size={18} className={`mx-auto mb-1 ${kycApproved >= 1 ? "text-primary" : "text-amber-600"}`} />
-            <p className={`text-[10px] font-medium ${kycApproved >= 1 ? "text-foreground" : "text-amber-800 font-bold"}`}>KYC</p>
-            {kycDocs.length > 0
-              ? <p className={`text-[9px] font-bold mt-0.5 ${kycApproved >= 1 ? "text-primary" : "text-amber-600"}`}>{kycApproved}/{kycDocs.length} ✓</p>
-              : <p className="text-amber-600 text-[9px] font-bold mt-0.5">Required</p>}
-          </button>
-          <Link href="/farmer/updates">
-            <div className="bg-card border border-border rounded-2xl p-3 text-center cursor-pointer active:scale-95 transition-transform">
-              <Settings size={18} className="text-primary mx-auto mb-1" />
-              <p className="text-foreground text-[10px] font-medium">Updates</p>
-              <p className="text-muted-foreground text-[9px] mt-0.5">Field logs</p>
-            </div>
-          </Link>
-          <button
-            onClick={() => setHarvestOpen(true)}
-            className="rounded-2xl p-3 text-center cursor-pointer active:scale-95 transition-transform bg-amber-50 border border-amber-200"
-          >
-            <Wheat size={18} className="text-amber-600 mx-auto mb-1" />
-            <p className="text-amber-800 text-[10px] font-bold">Harvest</p>
-            <p className="text-amber-600 text-[9px] mt-0.5">Record sale</p>
-          </button>
-        </div>
       </div>
 
       {/* Farmer platform guide */}

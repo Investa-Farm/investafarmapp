@@ -179,8 +179,7 @@ function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
   const user = getStoredUser();
   const [, setLocation] = useLocation();
   const [dismissed, setDismissed] = useState(() => !!localStorage.getItem("investa_checklist_dismissed"));
-
-  if (dismissed) return null;
+  const [minimized, setMinimized] = useState(() => !!localStorage.getItem("investa_checklist_minimized"));
 
   const isEmailVerified = (user as any)?.emailVerified !== false;
   const kycStatus = (user as any)?.kycStatus ?? "none";
@@ -189,13 +188,16 @@ function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
   const hasInvested = !!localStorage.getItem("investa_first_investment");
 
   const steps = [
-    { label: "Verify your email",      done: isEmailVerified,  action: () => setLocation("/verify-otp"),     cta: "Verify" },
-    { label: "Complete KYC",           done: isKycDone,        action: () => setLocation("/profile"),         cta: "Upload" },
-    { label: "Fund your wallet",       done: isWalletFunded,   action: () => setLocation("/wallet"),          cta: "Add Funds" },
-    { label: "Make your first investment", done: hasInvested,  action: () => setLocation("/market/primary"), cta: "Browse" },
+    { label: "Verify email",    done: isEmailVerified,  action: () => setLocation("/verify-otp"),     cta: "Verify" },
+    { label: "Complete KYC",    done: isKycDone,        action: () => setLocation("/profile"),         cta: "Upload" },
+    { label: "Fund wallet",     done: isWalletFunded,   action: () => setLocation("/wallet"),          cta: "Add Funds" },
+    { label: "First investment",done: hasInvested,      action: () => setLocation("/market/primary"),  cta: "Browse" },
   ];
 
   const doneCount = steps.filter(s => s.done).length;
+
+  if (dismissed) return null;
+
   if (doneCount === steps.length) {
     localStorage.setItem("investa_checklist_dismissed", "1");
     return null;
@@ -203,46 +205,70 @@ function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
 
   const pct = Math.round((doneCount / steps.length) * 100);
 
-  return (
-    <div className="mx-4 mt-3">
-      <div className="bg-gradient-to-br from-[#052e16] to-[#166534] rounded-2xl p-4 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-white/5 -translate-y-8 translate-x-8" />
-        <button onClick={() => { setDismissed(true); localStorage.setItem("investa_checklist_dismissed", "1"); }}
-          className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white/15 flex items-center justify-center">
-          <X size={10} className="text-white" />
+  const handleMinimize = () => {
+    const next = !minimized;
+    setMinimized(next);
+    if (next) localStorage.setItem("investa_checklist_minimized", "1");
+    else localStorage.removeItem("investa_checklist_minimized");
+  };
+
+  if (minimized) {
+    return (
+      <div className="mx-4 mt-2">
+        <button onClick={handleMinimize}
+          className="w-full flex items-center gap-2.5 bg-gradient-to-r from-[#052e16] to-[#166534] rounded-xl px-3 py-2 text-white">
+          <div className="w-5 h-5 rounded-full border border-white/40 flex items-center justify-center flex-shrink-0">
+            <span className="text-[8px] font-bold">{doneCount}/{steps.length}</span>
+          </div>
+          <span className="text-xs font-semibold flex-1 text-left">Getting Started — {pct}% complete</span>
+          <div className="w-16 bg-white/20 rounded-full h-1">
+            <div className="bg-green-400 h-1 rounded-full" style={{ width: `${pct}%` }} />
+          </div>
+          <ChevronDown size={12} className="text-white/70 flex-shrink-0" />
         </button>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wider">Getting Started</p>
-            <p className="text-white font-bold text-sm">{doneCount}/{steps.length} steps complete</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-4 mt-2">
+      <div className="bg-gradient-to-br from-[#052e16] to-[#166534] rounded-xl p-3 text-white relative overflow-hidden">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-white/70 text-[10px] font-semibold uppercase tracking-wider">Getting Started</span>
+            <span className="text-white/60 text-[10px]">{doneCount}/{steps.length}</span>
           </div>
-          <div className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center relative">
-            <svg className="absolute inset-0 w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-              <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
-              <circle cx="18" cy="18" r="14" fill="none" stroke="#4ade80" strokeWidth="3"
-                strokeDasharray={`${pct * 0.88} 88`} strokeLinecap="round" />
-            </svg>
-            <span className="text-white text-[9px] font-bold">{pct}%</span>
+          <div className="flex items-center gap-1">
+            <button onClick={handleMinimize}
+              className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center" title="Minimize">
+              <Minus size={8} className="text-white" />
+            </button>
+            <button onClick={() => { setDismissed(true); localStorage.setItem("investa_checklist_dismissed", "1"); }}
+              className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center" title="Dismiss">
+              <X size={8} className="text-white" />
+            </button>
           </div>
         </div>
-        {/* Progress bar */}
-        <div className="w-full bg-white/20 rounded-full h-1 mb-3">
-          <div className="bg-green-400 h-1 rounded-full transition-all" style={{ width: `${pct}%` }} />
+        <div className="w-full bg-white/20 rounded-full h-0.5 mb-2">
+          <div className="bg-green-400 h-0.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
-        <div className="space-y-1.5">
-          {steps.map((step, i) => (
-            <div key={i} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-all ${!step.done ? "bg-white/10 cursor-pointer active:bg-white/15" : "opacity-50"}`}
-              onClick={!step.done ? step.action : undefined}>
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${step.done ? "bg-green-400" : "bg-white/20"}`}>
-                {step.done
-                  ? <CheckCircle2 size={11} className="text-white" />
-                  : <span className="text-white text-[8px] font-bold">{i + 1}</span>
-                }
+        <div className="space-y-1">
+          {steps.filter(s => !s.done).map((step, i) => (
+            <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-white/10 cursor-pointer active:bg-white/15 transition-all"
+              onClick={step.action}>
+              <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-[7px] font-bold">{i + 1}</span>
               </div>
-              <p className={`text-xs flex-1 ${step.done ? "line-through text-white/50" : "text-white font-medium"}`}>{step.label}</p>
-              {!step.done && (
-                <span className="text-[9px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full">{step.cta} →</span>
-              )}
+              <p className="text-white text-[11px] font-medium flex-1">{step.label}</p>
+              <span className="text-[9px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full">{step.cta} →</span>
+            </div>
+          ))}
+          {steps.filter(s => s.done).map((step, i) => (
+            <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-1 opacity-40">
+              <div className="w-4 h-4 rounded-full bg-green-400 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 size={9} className="text-white" />
+              </div>
+              <p className="text-white text-[11px] line-through">{step.label}</p>
             </div>
           ))}
         </div>
