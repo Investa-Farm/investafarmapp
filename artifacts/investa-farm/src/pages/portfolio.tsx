@@ -1038,7 +1038,7 @@ export default function Portfolio() {
                     localStorage.setItem("investa_broker_mode", "true");
                     localStorage.setItem("investa_broker_unlocked", "true");
                     setBrokerUnlockOpen(false);
-                    setActiveTab("broker");
+                    setActiveTab("holdings");
                   }}
                   className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform mb-3">
                   🚀 Activate Broker Profile

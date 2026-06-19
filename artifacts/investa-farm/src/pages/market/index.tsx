@@ -10,7 +10,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
-import { formatChange, getToken, formatKES, isDemoAccount } from "@/lib/auth";
+import { formatChange, getToken, formatKES, isDemoAccount, getStoredUser } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
 import { getCropImage, CROP_IMAGES } from "@/lib/crops";
@@ -173,6 +173,82 @@ function getRiskLevel(cropType: string, changePercent: number): RiskLevel {
   if (HIGH_RISK_CROPS.has(crop) || Math.abs(changePercent) > 5) return "High";
   if (MOD_RISK_CROPS.has(crop) || Math.abs(changePercent) > 2) return "Moderate";
   return "Low";
+}
+
+function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
+  const user = getStoredUser();
+  const [, setLocation] = useLocation();
+  const [dismissed, setDismissed] = useState(() => !!localStorage.getItem("investa_checklist_dismissed"));
+
+  if (dismissed) return null;
+
+  const isEmailVerified = (user as any)?.emailVerified !== false;
+  const kycStatus = (user as any)?.kycStatus ?? "none";
+  const isKycDone = kycStatus === "approved";
+  const isWalletFunded = walletBalance !== undefined && parseFloat(walletBalance ?? "0") > 0;
+  const hasInvested = !!localStorage.getItem("investa_first_investment");
+
+  const steps = [
+    { label: "Verify your email",      done: isEmailVerified,  action: () => setLocation("/verify-otp"),     cta: "Verify" },
+    { label: "Complete KYC",           done: isKycDone,        action: () => setLocation("/profile"),         cta: "Upload" },
+    { label: "Fund your wallet",       done: isWalletFunded,   action: () => setLocation("/wallet"),          cta: "Add Funds" },
+    { label: "Make your first investment", done: hasInvested,  action: () => setLocation("/market/primary"), cta: "Browse" },
+  ];
+
+  const doneCount = steps.filter(s => s.done).length;
+  if (doneCount === steps.length) {
+    localStorage.setItem("investa_checklist_dismissed", "1");
+    return null;
+  }
+
+  const pct = Math.round((doneCount / steps.length) * 100);
+
+  return (
+    <div className="mx-4 mt-3">
+      <div className="bg-gradient-to-br from-[#052e16] to-[#166534] rounded-2xl p-4 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-white/5 -translate-y-8 translate-x-8" />
+        <button onClick={() => { setDismissed(true); localStorage.setItem("investa_checklist_dismissed", "1"); }}
+          className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white/15 flex items-center justify-center">
+          <X size={10} className="text-white" />
+        </button>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wider">Getting Started</p>
+            <p className="text-white font-bold text-sm">{doneCount}/{steps.length} steps complete</p>
+          </div>
+          <div className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center relative">
+            <svg className="absolute inset-0 w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
+              <circle cx="18" cy="18" r="14" fill="none" stroke="#4ade80" strokeWidth="3"
+                strokeDasharray={`${pct * 0.88} 88`} strokeLinecap="round" />
+            </svg>
+            <span className="text-white text-[9px] font-bold">{pct}%</span>
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div className="w-full bg-white/20 rounded-full h-1 mb-3">
+          <div className="bg-green-400 h-1 rounded-full transition-all" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="space-y-1.5">
+          {steps.map((step, i) => (
+            <div key={i} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-all ${!step.done ? "bg-white/10 cursor-pointer active:bg-white/15" : "opacity-50"}`}
+              onClick={!step.done ? step.action : undefined}>
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${step.done ? "bg-green-400" : "bg-white/20"}`}>
+                {step.done
+                  ? <CheckCircle2 size={11} className="text-white" />
+                  : <span className="text-white text-[8px] font-bold">{i + 1}</span>
+                }
+              </div>
+              <p className={`text-xs flex-1 ${step.done ? "line-through text-white/50" : "text-white font-medium"}`}>{step.label}</p>
+              {!step.done && (
+                <span className="text-[9px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full">{step.cta} →</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function RiskBadge({ level }: { level: RiskLevel }) {
@@ -514,7 +590,7 @@ export default function MarketHome() {
               title="Farm Map">
               <Map size={15} className="text-foreground" />
             </button>
-            <button onClick={() => setNotifOpen(true)}
+            <button onClick={() => setLocation("/notifications")}
               className="w-8 h-8 rounded-full bg-card flex items-center justify-center relative border border-border shadow-sm">
               <Bell size={15} className="text-foreground" />
               {unreadCount > 0 && (
@@ -595,6 +671,9 @@ export default function MarketHome() {
           );
         })()}
       </AnimatePresence>
+
+      {/* ── Investor Onboarding Checklist (dismissible, shows for new users) ── */}
+      <InvestorChecklist walletBalance={walletBalance} />
 
       {/* Section tabs */}
       <div className="px-4 pt-3">

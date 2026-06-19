@@ -58,6 +58,7 @@ import FundManagerDashboard from "@/pages/market/fund-dashboard";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 import FaqPage from "@/pages/faq";
+import NotificationsPage from "@/pages/notifications";
 import NotFound from "@/pages/not-found";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -258,6 +259,9 @@ function Router() {
       </Route>
       <Route path="/wallet">
         <AuthGuard role="investor"><InvestorWallet /></AuthGuard>
+      </Route>
+      <Route path="/notifications">
+        <AuthGuard role="investor"><NotificationsPage /></AuthGuard>
       </Route>
 
       {/* Cooperative routes */}

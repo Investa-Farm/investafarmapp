@@ -446,8 +446,12 @@ export default function AdminDashboard() {
   const ALL_TABS = [...PRIMARY_TABS, ...SECONDARY_TABS];
   const activeTabMeta = ALL_TABS.find(t => t.id === tab);
 
+  const [moreSheetOpen, setMoreSheetOpen] = useState(false);
+
+  const goTab = (t: Tab) => { setTab(t); setMoreSheetOpen(false); };
+
   return (
-    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-6">
+    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-24">
       {toast && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg ${toast.type === "success" ? "bg-green-600" : "bg-red-600"}`}>
           {toast.msg}
@@ -492,25 +496,15 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Horizontal scrollable top tab bar */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
-        <div className="flex overflow-x-auto scrollbar-none px-3 py-2 gap-1">
-          {(kycOnly ? ALL_TABS.filter(t => t.id === "kyc") : ALL_TABS).map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all relative ${
-                tab === t.id ? `${t.bg} ${t.color}` : "text-gray-500 bg-gray-50"
-              }`}>
-              <span className="flex-shrink-0">{t.icon}</span>
-              {t.label}
-              {t.badge != null && t.badge > 0 && (
-                <span className="ml-0.5 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
-                  {t.badge > 9 ? "9+" : t.badge}
-                </span>
-              )}
-            </button>
-          ))}
+      {/* Active tab label pill */}
+      {activeTabMeta && (
+        <div className="px-4 pt-3 pb-1">
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full ${activeTabMeta.bg} ${activeTabMeta.color} text-xs font-bold`}>
+            <span>{activeTabMeta.icon}</span>
+            <span>{activeTabMeta.label}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="px-4 pt-4 space-y-4">
 
@@ -1452,6 +1446,111 @@ export default function AdminDashboard() {
                 className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2">
                 {addAdminLoading ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
                 {addAdminLoading ? "Creating…" : "Create Admin Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MOBILE BOTTOM NAV ── */}
+      {!kycOnly && (
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-200 z-[60] safe-area-pb">
+          <div className="grid grid-cols-5 h-16">
+            {[
+              { id: "overview" as Tab,      label: "Overview",  Icon: BarChart3,  badge: 0 },
+              { id: "users" as Tab,         label: "Users",     Icon: Users,      badge: 0 },
+              { id: "kyc" as Tab,           label: "KYC",       Icon: FileText,   badge: stats?.pendingKyc ?? 0 },
+              { id: "transactions" as Tab,  label: "Activity",  Icon: Activity,   badge: 0 },
+            ].map(({ id, label, Icon, badge }) => (
+              <button key={id} onClick={() => goTab(id)}
+                className={`flex flex-col items-center justify-center gap-0.5 relative transition-colors ${tab === id && !moreSheetOpen ? "text-indigo-600" : "text-gray-400"}`}>
+                <div className="relative">
+                  <Icon size={20} strokeWidth={tab === id && !moreSheetOpen ? 2.5 : 1.8} />
+                  {badge > 0 && (
+                    <span className="absolute -top-1 -right-1.5 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                      {badge > 9 ? "9+" : badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[9px] font-semibold">{label}</span>
+                {tab === id && !moreSheetOpen && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-indigo-600 rounded-full" />
+                )}
+              </button>
+            ))}
+            {/* More button */}
+            <button onClick={() => setMoreSheetOpen(s => !s)}
+              className={`flex flex-col items-center justify-center gap-0.5 relative transition-colors ${moreSheetOpen ? "text-indigo-600" : "text-gray-400"}`}>
+              <LayoutGrid size={20} strokeWidth={moreSheetOpen ? 2.5 : 1.8} />
+              <span className="text-[9px] font-semibold">More</span>
+              {moreSheetOpen && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-indigo-600 rounded-full" />
+              )}
+            </button>
+          </div>
+        </nav>
+      )}
+
+      {/* KYC-only bottom nav */}
+      {kycOnly && (
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-200 z-[60]">
+          <div className="flex items-center justify-center h-16">
+            <div className="flex items-center gap-2 text-amber-600">
+              <FileText size={20} />
+              <span className="text-sm font-bold">KYC Review Mode</span>
+            </div>
+          </div>
+        </nav>
+      )}
+
+      {/* ── MORE SHEET ── */}
+      {moreSheetOpen && (
+        <div className="fixed inset-0 z-[55]" onClick={() => setMoreSheetOpen(false)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-full max-w-[430px]"
+            onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-t-3xl px-5 pt-4 pb-6 shadow-2xl">
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">More Tools</p>
+              <div className="grid grid-cols-2 gap-3">
+                {SECONDARY_TABS.map(t => (
+                  <button key={t.id} onClick={() => goTab(t.id)}
+                    className={`flex items-center gap-3 p-3.5 rounded-2xl border transition-all active:scale-95 ${
+                      tab === t.id ? `${t.bg} border-transparent` : "bg-gray-50 border-gray-100"
+                    }`}>
+                    <div className={`w-9 h-9 rounded-xl ${t.bg} flex items-center justify-center ${t.color}`}>
+                      {t.icon}
+                    </div>
+                    <div className="text-left">
+                      <p className={`text-xs font-bold ${tab === t.id ? t.color : "text-foreground"}`}>{t.label}</p>
+                      {t.badge != null && t.badge > 0 && (
+                        <p className="text-[9px] text-red-500 font-semibold">{t.badge} pending</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {isMasterAdmin && (
+                <button onClick={() => { setAddAdminOpen(true); setMoreSheetOpen(false); }}
+                  className="mt-3 w-full flex items-center gap-3 p-3.5 rounded-2xl border border-indigo-100 bg-indigo-50 active:scale-95 transition-all">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <UserPlus size={16} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-indigo-700">Add Sub-Admin</p>
+                    <p className="text-[9px] text-indigo-500">Create admin account</p>
+                  </div>
+                </button>
+              )}
+              <button onClick={() => { handleLogout(); setMoreSheetOpen(false); }}
+                className="mt-3 w-full flex items-center gap-3 p-3.5 rounded-2xl border border-red-100 bg-red-50 active:scale-95 transition-all">
+                <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center text-red-500">
+                  <LogOut size={16} />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-red-600">Sign Out</p>
+                  <p className="text-[9px] text-red-400">Log out of admin panel</p>
+                </div>
               </button>
             </div>
           </div>

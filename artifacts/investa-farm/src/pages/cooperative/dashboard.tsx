@@ -1,9 +1,182 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRight, LogOut, BarChart3, Globe, Phone, Camera, Package, ShoppingCart, Truck, Star, TrendingUp, Key, RefreshCw, Plus, Trash2, Upload, UserPlus, Handshake, Link } from "lucide-react";
+import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRight, LogOut, BarChart3, Globe, Phone, Camera, Package, ShoppingCart, Truck, Star, TrendingUp, Key, RefreshCw, Plus, Trash2, Upload, UserPlus, Handshake, Link, QrCode, Search, CheckCircle2, XCircle, Clock, ScanLine, AlertTriangle, MapPin, Leaf } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clearToken, getStoredUser, getToken } from "@/lib/auth";
+
+const DEMO_FARMERS = [
+  { id: 1, name: "James Mwangi",    county: "Nakuru",   crop: "Maize",    status: "active",  funded: true,  joined: "Jan 2026" },
+  { id: 2, name: "Grace Njeri",     county: "Kiambu",   crop: "Tomatoes", status: "active",  funded: true,  joined: "Feb 2026" },
+  { id: 3, name: "Samuel Otieno",   county: "Kisumu",   crop: "Rice",     status: "pending", funded: false, joined: "Mar 2026" },
+  { id: 4, name: "Fatuma Hassan",   county: "Mombasa",  crop: "Cassava",  status: "active",  funded: true,  joined: "Mar 2026" },
+  { id: 5, name: "Peter Kamau",     county: "Murang'a", crop: "Coffee",   status: "active",  funded: true,  joined: "Apr 2026" },
+  { id: 6, name: "Alice Wambui",    county: "Nyeri",    crop: "Tea",      status: "pending", funded: false, joined: "May 2026" },
+  { id: 7, name: "Hassan Abdi",     county: "Garissa",  crop: "Sorghum",  status: "active",  funded: false, joined: "May 2026" },
+  { id: 8, name: "Beatrice Achieng",county: "Siaya",    crop: "Beans",    status: "active",  funded: true,  joined: "Jun 2026" },
+];
+
+const DEMO_VOUCHERS = [
+  { id: "IFV-2026-TOM-001", farmer: "Grace Njeri",    amount: 12500, crop: "Tomatoes", status: "pending",   items: "Seeds · Fertilizer", date: "2026-06-15" },
+  { id: "IFV-2026-MAI-003", farmer: "James Mwangi",   amount: 8400,  crop: "Maize",    status: "fulfilled",  items: "Certified Maize Seed · DAP", date: "2026-06-10" },
+  { id: "IFV-2026-COF-007", farmer: "Peter Kamau",    amount: 22000, crop: "Coffee",   status: "pending",   items: "Seedlings · Fungicide", date: "2026-06-18" },
+  { id: "IFV-2026-RIC-004", farmer: "Samuel Otieno",  amount: 15600, crop: "Rice",     status: "expired",   items: "Paddy Seed · Urea", date: "2026-05-30" },
+  { id: "IFV-2026-CAS-002", farmer: "Fatuma Hassan",  amount: 9800,  crop: "Cassava",  status: "fulfilled",  items: "Cuttings · Pesticide", date: "2026-06-05" },
+];
+
+function VoucherRedemptionTab({ token }: { token: string }) {
+  const [scanCode, setScanCode] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scannedVoucher, setScannedVoucher] = useState<typeof DEMO_VOUCHERS[0] | null>(null);
+  const [scanError, setScanError] = useState("");
+  const [fulfilling, setFulfilling] = useState(false);
+  const [fulfilledIds, setFulfilledIds] = useState<Set<string>>(new Set());
+  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "fulfilled" | "expired">("all");
+
+  const handleScan = async () => {
+    if (!scanCode.trim()) return;
+    setScanning(true); setScanError(""); setScannedVoucher(null);
+    await new Promise(r => setTimeout(r, 800));
+    const found = DEMO_VOUCHERS.find(v => v.id.toLowerCase() === scanCode.trim().toLowerCase());
+    if (found) { setScannedVoucher(found); }
+    else { setScanError("Voucher not found. Check the code and try again."); }
+    setScanning(false);
+  };
+
+  const fulfil = async (id: string) => {
+    setFulfilling(true);
+    await new Promise(r => setTimeout(r, 1000));
+    setFulfilledIds(prev => new Set([...prev, id]));
+    setScannedVoucher(null); setScanCode("");
+    setFulfilling(false);
+  };
+
+  const listed = DEMO_VOUCHERS.filter(v => filterStatus === "all" || v.status === filterStatus);
+  const pendingCount = DEMO_VOUCHERS.filter(v => v.status === "pending").length;
+  const totalRevenue = DEMO_VOUCHERS.filter(v => v.status === "fulfilled").reduce((s, v) => s + v.amount, 0);
+
+  return (
+    <>
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { val: String(pendingCount), label: "Pending", color: "bg-amber-50 text-amber-700 border-amber-200" },
+          { val: String(DEMO_VOUCHERS.filter(v => v.status === "fulfilled").length), label: "Fulfilled", color: "bg-green-50 text-green-700 border-green-200" },
+          { val: `${(totalRevenue / 1000).toFixed(0)}K`, label: "KES Earned", color: "bg-blue-50 text-blue-700 border-blue-200" },
+        ].map(({ val, label, color }) => (
+          <div key={label} className={`rounded-2xl p-3 border text-center ${color}`}>
+            <p className="font-bold text-sm">{val}</p>
+            <p className="text-[10px] opacity-70">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Voucher Scanner */}
+      <div className="bg-white border border-border rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <QrCode size={15} className="text-blue-600" />
+          <p className="text-sm font-semibold">Verify Voucher</p>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <ScanLine size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input type="text" value={scanCode} onChange={e => { setScanCode(e.target.value); setScanError(""); setScannedVoucher(null); }}
+              onKeyDown={e => e.key === "Enter" && handleScan()}
+              placeholder="IFV-2026-TOM-001"
+              className="w-full border border-border rounded-xl pl-8 pr-3 py-2.5 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <button onClick={handleScan} disabled={!scanCode.trim() || scanning}
+            className="bg-blue-600 text-white px-3 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-1.5 active:scale-95">
+            {scanning ? <RefreshCw size={12} className="animate-spin" /> : <Search size={12} />}
+            Verify
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {scanError && (
+            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="mt-3 bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+              <AlertTriangle size={13} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-red-600 text-xs">{scanError}</p>
+            </motion.div>
+          )}
+          {scannedVoucher && (
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className={`mt-3 rounded-2xl border p-4 ${scannedVoucher.status === "pending" ? "bg-green-50 border-green-200" : scannedVoucher.status === "expired" ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}>
+              <div className="flex items-center justify-between mb-2">
+                <code className="text-[10px] font-mono font-bold text-foreground">{scannedVoucher.id}</code>
+                {scannedVoucher.status === "pending" && !fulfilledIds.has(scannedVoucher.id) && (
+                  <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">VALID</span>
+                )}
+                {scannedVoucher.status === "fulfilled" || fulfilledIds.has(scannedVoucher.id) ? (
+                  <span className="text-[9px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">USED</span>
+                ) : scannedVoucher.status === "expired" ? (
+                  <span className="text-[9px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">EXPIRED</span>
+                ) : null}
+              </div>
+              <p className="text-foreground font-semibold text-sm">{scannedVoucher.farmer}</p>
+              <p className="text-muted-foreground text-xs mt-0.5">{scannedVoucher.items}</p>
+              <div className="flex items-center justify-between mt-2.5">
+                <p className="text-foreground font-bold text-base">KES {scannedVoucher.amount.toLocaleString()}</p>
+                {scannedVoucher.status === "pending" && !fulfilledIds.has(scannedVoucher.id) && (
+                  <button onClick={() => fulfil(scannedVoucher.id)} disabled={fulfilling}
+                    className="bg-[#16a34a] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 active:scale-95">
+                    {fulfilling ? <RefreshCw size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
+                    Mark Fulfilled
+                  </button>
+                )}
+              </div>
+              {(fulfilledIds.has(scannedVoucher.id)) && (
+                <p className="text-green-700 text-xs font-semibold mt-2 flex items-center gap-1">
+                  <Check size={11} /> Voucher fulfilled — payment will be credited within 24h
+                </p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Voucher list */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Voucher History</p>
+          <div className="flex gap-1">
+            {(["all","pending","fulfilled"] as const).map(s => (
+              <button key={s} onClick={() => setFilterStatus(s)}
+                className={`text-[9px] font-bold px-2 py-1 rounded-full capitalize transition-all ${filterStatus === s ? "bg-[#16a34a] text-white" : "bg-gray-100 text-gray-500"}`}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          {listed.map(v => {
+            const isFulfilled = v.status === "fulfilled" || fulfilledIds.has(v.id);
+            return (
+              <div key={v.id} className="bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isFulfilled ? "bg-green-100" : v.status === "expired" ? "bg-red-100" : "bg-amber-100"}`}>
+                  {isFulfilled ? <CheckCircle2 size={16} className="text-green-600" /> : v.status === "expired" ? <XCircle size={16} className="text-red-500" /> : <Clock size={16} className="text-amber-600" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-foreground text-xs font-bold truncate">{v.farmer}</p>
+                  <p className="text-muted-foreground text-[9px]">{v.id}</p>
+                  <p className="text-muted-foreground text-[9px] mt-0.5">{v.items}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-foreground text-xs font-bold">KES {(v.amount/1000).toFixed(1)}K</p>
+                  <p className="text-[9px] text-muted-foreground">{v.date}</p>
+                  <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 inline-block ${isFulfilled ? "bg-green-100 text-green-700" : v.status === "expired" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                    {isFulfilled ? "Fulfilled" : v.status === "expired" ? "Expired" : "Pending"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
 
 const API_SNIPPET = `// Investa Farm REST API
 fetch("https://api.investafarm.co.ke/v1/farmers", {
@@ -205,8 +378,24 @@ export default function CooperativeDashboard() {
     coinvest: "Co-Invest",
   };
 
+  const [moreSheetOpen, setMoreSheetOpen] = useState(false);
+  const goTab = (t: TabId) => { setActiveTab(t); setMoreSheetOpen(false); };
+
+  const NAV_TABS: { id: TabId; label: string; emoji: string }[] = isInputProvider
+    ? [
+        { id: "overview",  label: "Home",     emoji: "🏠" },
+        { id: "orders",    label: "Vouchers",  emoji: "🎫" },
+        { id: "api",       label: "API",       emoji: "🔌" },
+      ]
+    : [
+        { id: "overview",  label: "Home",     emoji: "🏠" },
+        { id: "farmers",   label: "Network",  emoji: "👥" },
+        { id: "coinvest",  label: "Co-Invest",emoji: "💰" },
+        { id: "api",       label: "API",       emoji: "🔌" },
+      ];
+
   return (
-    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-10">
+    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-24">
       {/* Header */}
       <div className="hero-header rounded-b-3xl px-5 pt-12 pb-5 text-white overflow-hidden relative">
         <div className="flex items-center justify-between mb-4 relative z-10">
@@ -244,15 +433,6 @@ export default function CooperativeDashboard() {
           ))}
         </div>
 
-        {/* Tab switcher */}
-        <div className="flex gap-1 mt-3 bg-black/20 rounded-xl p-1 relative z-10 overflow-x-auto">
-          {tabs.map(t => (
-            <button key={t} onClick={() => setActiveTab(t)}
-              className={`flex-shrink-0 flex-1 py-1.5 rounded-lg text-[10px] font-semibold capitalize transition-all ${activeTab === t ? "bg-white text-foreground" : "text-white/70"}`}>
-              {tabLabels[t]}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="px-4 pt-4 space-y-4">
@@ -523,45 +703,45 @@ export default function CooperativeDashboard() {
               )}
             </div>
 
-            {/* Linked farmers placeholder */}
-            <div className="bg-white border border-border rounded-2xl p-4 text-center py-8">
-              <Users size={32} className="text-muted-foreground mx-auto mb-3" />
-              <p className="text-foreground font-semibold text-sm">No Farmers Linked Yet</p>
-              <p className="text-muted-foreground text-xs mt-1 mb-4">Import farmers via CSV or share the invitation link above.</p>
-            </div>
-          </>
-        )}
-
-        {/* ── ORDERS TAB (Input Provider only) ── */}
-        {activeTab === "orders" && (
-          <>
-            <div className="bg-white border border-border rounded-2xl p-4 text-center py-10">
-              <ShoppingCart size={32} className="text-muted-foreground mx-auto mb-3" />
-              <p className="text-foreground font-semibold text-sm">No Orders Yet</p>
-              <p className="text-muted-foreground text-xs mt-1 mb-4">Orders from Investa-funded farmers will appear here once your product catalog is live.</p>
-              <button className="bg-[#16a34a] text-white text-sm font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 mx-auto active:scale-95 transition-transform">
-                <Package size={14} /> Set Up Product Catalog <ChevronRight size={14} />
-              </button>
-            </div>
-            <div className="bg-[#16a34a]/5 border border-[#16a34a]/20 rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Truck size={14} className="text-[#16a34a]" />
-                <p className="text-[#16a34a] text-xs font-semibold">How Input Orders Work</p>
+            {/* Linked farmers list */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Your Network ({DEMO_FARMERS.length})</p>
+                <span className="text-[9px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{DEMO_FARMERS.filter(f => f.funded).length} funded</span>
               </div>
-              <div className="space-y-2 mt-2">
-                {[
-                  "Farmer receives a loan & gets an input voucher from Investa Farm",
-                  "Farmer redeems voucher with your business for seeds, fertilizer or tools",
-                  "You fulfil the order and Investa Farm credits your account",
-                ].map((step, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-[#16a34a] text-white flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
-                    <p className="text-[#16a34a]/80 text-xs leading-relaxed">{step}</p>
-                  </div>
+              <div className="space-y-2">
+                {DEMO_FARMERS.map(f => (
+                  <motion.div key={f.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    className="bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-[#16a34a]/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-bold text-[#16a34a]">{f.name.charAt(0)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground text-xs font-bold truncate">{f.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <MapPin size={9} className="text-muted-foreground" />
+                        <span className="text-muted-foreground text-[9px]">{f.county}</span>
+                        <span className="text-border/60">·</span>
+                        <Leaf size={9} className="text-muted-foreground" />
+                        <span className="text-muted-foreground text-[9px]">{f.crop}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full block mb-1 ${f.status === "active" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                        {f.status === "active" ? "Active" : "Pending"}
+                      </span>
+                      {f.funded && <span className="text-[8px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Funded</span>}
+                    </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
           </>
+        )}
+
+        {/* ── ORDERS / VOUCHER TAB (Input Provider only) ── */}
+        {activeTab === "orders" && (
+          <VoucherRedemptionTab token={token ?? ""} />
         )}
 
         {/* ── CO-INVEST TAB (Farmers Connect only) ── */}
@@ -634,6 +814,22 @@ export default function CooperativeDashboard() {
           </>
         )}
       </div>
+
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-200 z-[60]">
+        <div className={`grid h-16 ${NAV_TABS.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
+          {NAV_TABS.map(({ id, label, emoji }) => (
+            <button key={id} onClick={() => goTab(id)}
+              className={`flex flex-col items-center justify-center gap-0.5 relative transition-colors ${activeTab === id ? (isInputProvider ? "text-blue-600" : "text-[#16a34a]") : "text-gray-400"}`}>
+              <span className={`text-lg leading-none ${activeTab === id ? "scale-110" : ""} transition-transform`}>{emoji}</span>
+              <span className="text-[9px] font-semibold">{label}</span>
+              {activeTab === id && (
+                <span className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full ${isInputProvider ? "bg-blue-600" : "bg-[#16a34a]"}`} />
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
