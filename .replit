@@ -14,7 +14,7 @@ BASE_PATH = "/"
 VAPID_PUBLIC_KEY = "BL36T426aOm-MLB77gGSDBvvsvAg679MLHt-dpmJ-SSNls6hqQA9AguxAhIwWmqbrPHsKnqQz8D9kVQaD5qZwfc"
 VAPID_PRIVATE_KEY = "W4d_A-f1wGaBtbH8nzrPGfCxTCqYkHo5AJxsJG0ssLU"
 STELLAR_ISSUER_PUBLIC_KEY = "GDCTQTPZKLTNAXD6LM6AH3IZSJEV6BFB34XQCS4SHTLBN4YWKBIXK3ZJ"
-ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://*.replit.dev"
+ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://f25e92ce-4e61-47b1-b0bc-96f9c3438539-00-1usistiswgj19.spock.replit.dev,https://*.replit.dev"
 MEDIASTACK_API_KEY = "1e30a1be82fd6cba322d03044bfa057d"
 GNEWS_API_KEY = "f315af117cadae7bef4c9f1d4373a9bf"
 RESEND_API_KEY = "re_HXqYRPpF_4ZhZrmf3Cc8EhPdwP529qYLYno"
@@ -22,6 +22,7 @@ RESEND_FROM_EMAIL = "Investa Farm <onboarding@app.investafarm.com>"
 PORT = "8080"
 NODE_ENV = "development"
 CIRCLE_API_KEY = "TEST_API_KEY:cf3b7f684a4982f87231c9f765e10637:7a772723c66438dc9d2542ef546cabd9"
+APP_URL = "https://f25e92ce-4e61-47b1-b0bc-96f9c3438539-00-1usistiswgj19.spock.replit.dev"
 
 [workflows]
 runButton = "Project"
@@ -44,7 +45,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bash start.sh"
+args = "pnpm install && pnpm --filter @workspace/api-server run dev & sleep 8 && PORT=5000 BASE_PATH=/ pnpm --filter @workspace/investa-farm run dev"
 waitForPort = 5000
 
 [[ports]]
