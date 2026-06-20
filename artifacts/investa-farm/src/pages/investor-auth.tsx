@@ -142,7 +142,11 @@ export default function InvestorAuth() {
 
   const handleTypeSelected = (_type: InvestorType) => {
     localStorage.setItem("investa_investor_type", _type);
-    setLocation("/market");
+    if (_type === "fund_manager") {
+      setLocation("/wealth");
+    } else {
+      setLocation("/market");
+    }
   };
 
   if (step === "welcome") {

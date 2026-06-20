@@ -203,7 +203,7 @@ function Router() {
         <GuestGuard><InvestorAuth /></GuestGuard>
       </Route>
       <Route path="/wealth-auth">
-        <GuestGuard><WealthAuth /></GuestGuard>
+        <GuestGuard><InvestorAuth /></GuestGuard>
       </Route>
       <Route path="/login">
         <GuestGuard><Login /></GuestGuard>
