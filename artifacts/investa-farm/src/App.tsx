@@ -56,6 +56,8 @@ import AgribusinessOrders from "@/pages/agribusiness/orders";
 import AgribusinessNetwork from "@/pages/agribusiness/network";
 import AgribusinessProfile from "@/pages/agribusiness/profile";
 import FundManagerDashboard from "@/pages/market/fund-dashboard";
+import WealthAuth from "@/pages/wealth-auth";
+import WealthDashboard from "@/pages/wealth/dashboard";
 
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -181,6 +183,7 @@ function GuestGuard({ children }: { children: React.ReactNode }) {
     if (userRole === "farmer") return <Redirect to="/farmer" />;
     if (userRole === "cooperative") return <Redirect to="/cooperative/dashboard" />;
     if (userRole === "agribusiness") return <Redirect to="/agribusiness" />;
+    if (localStorage.getItem("investa_investor_type") === "fund_manager") return <Redirect to="/wealth" />;
     return <Redirect to="/market" />;
   }
   return <>{children}</>;
@@ -198,6 +201,9 @@ function Router() {
       </Route>
       <Route path="/investor-auth">
         <GuestGuard><InvestorAuth /></GuestGuard>
+      </Route>
+      <Route path="/wealth-auth">
+        <GuestGuard><WealthAuth /></GuestGuard>
       </Route>
       <Route path="/login">
         <GuestGuard><Login /></GuestGuard>
@@ -264,6 +270,11 @@ function Router() {
       </Route>
       <Route path="/notifications">
         <AuthGuard role="investor"><NotificationsPage /></AuthGuard>
+      </Route>
+
+      {/* Wealth Management routes */}
+      <Route path="/wealth">
+        <AuthGuard role="investor"><WealthDashboard /></AuthGuard>
       </Route>
 
       {/* Cooperative routes */}
