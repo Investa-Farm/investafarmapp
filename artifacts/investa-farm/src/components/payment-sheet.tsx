@@ -378,8 +378,12 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">KES</span>
                     <input
-                      type="number" value={amount} onChange={e => setAmount(e.target.value)}
-                      min={tab === "usdc" ? 500 : 100} placeholder={tab === "usdc" ? "500" : "1000"}
+                      type="text" inputMode="decimal" value={amount}
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^0-9.]/g, "");
+                        setAmount(val);
+                      }}
+                      placeholder={tab === "usdc" ? "500" : "1000"}
                       className="w-full border border-border rounded-2xl pl-14 pr-4 py-3.5 text-foreground font-bold text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
@@ -420,8 +424,11 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                               <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
                             ))}
                           </select>
-                          <input type="tel" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ""))}
-                            placeholder="712345678" maxLength={9}
+                          <input type="tel" value={phone} onChange={e => {
+                              const digits = e.target.value.replace(/\D/g, "");
+                              setPhone(digits);
+                            }}
+                            placeholder="712345678" maxLength={10}
                             className="flex-1 border border-border rounded-xl px-4 py-3 text-foreground text-sm font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
                         </div>
                       </div>
