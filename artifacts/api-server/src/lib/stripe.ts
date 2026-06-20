@@ -9,7 +9,7 @@ export function isConfigured() {
 
 function getStripe() {
   if (!isConfigured()) throw new Error("Stripe not configured");
-  return new Stripe(SECRET_KEY, { apiVersion: "2025-04-30" as any });
+  return new Stripe(SECRET_KEY, { apiVersion: "2024-06-20" as any });
 }
 
 export async function createPaymentIntent(opts: {
@@ -18,8 +18,13 @@ export async function createPaymentIntent(opts: {
   email: string;
 }): Promise<{ clientSecret: string; id: string }> {
   const stripe = getStripe();
+  // KES is NOT a zero-decimal currency in Stripe — send in the smallest unit (1 KES = 100 cents)
+  const amountInSmallestUnit = Math.round(opts.amountKES * 100);
+  if (!Number.isInteger(amountInSmallestUnit) || amountInSmallestUnit < 50) {
+    throw new Error("Amount must be a valid number (minimum KES 0.50)");
+  }
   const intent = await stripe.paymentIntents.create({
-    amount: Math.round(opts.amountKES * 100),
+    amount: amountInSmallestUnit,
     currency: "kes",
     metadata: { userId: String(opts.userId), email: opts.email, source: "investa-farm" },
     automatic_payment_methods: { enabled: true },

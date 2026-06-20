@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
-import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Moon } from "lucide-react";
+import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Moon, Wallet, ArrowUpRight, FileText, BarChart2 } from "lucide-react";
 import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
 import { useLocation, Link } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
@@ -78,11 +78,29 @@ export default function FarmerDashboard() {
     },
   });
 
+  const { data: walletData } = useQuery<{ wallet: { balance: string } }>({
+    queryKey: ["wallet"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { wallet: { balance: "0" } };
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
+
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
   const isDemo = isDemoAccount();
   const kycApproved = isDemo ? 1 : kycDocs.filter((d: any) => d.status === "approved").length;
   const currentFarm = farms?.[0];
+  const walletBalance = parseFloat(walletData?.wallet?.balance ?? "0");
+
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning,";
+    if (h < 17) return "Good afternoon,";
+    return "Good evening,";
+  };
   const currentStageIndex = Math.max(0, CROP_STAGES.findIndex(s => s.key === dashboard?.growthStage) ?? 1);
   const farmHealth = dashboard?.growthPercent != null ? Math.round(75 + dashboard.growthPercent * 0.2) : null;
   const farmerShare = dashboard ? Math.round(dashboard.farmValue * 0.55) : 0;
@@ -127,7 +145,7 @@ export default function FarmerDashboard() {
 
           {/* Greeting */}
           <div className="mt-4 mb-3">
-            <p className="text-white/80 text-sm">Good morning,</p>
+            <p className="text-white/80 text-sm">{getGreeting()}</p>
             <h1 className="text-white text-2xl font-bold flex items-center gap-2">
               {user?.name?.split(" ")[0] ?? "Farmer"} <span>👋</span>
               <InlineMicBot section="farmer-dashboard" role="farmer" />
@@ -171,6 +189,38 @@ export default function FarmerDashboard() {
       </div>
 
       <div className="px-5 pt-4 space-y-4">
+        {/* Wallet balance card */}
+        <div className="bg-gradient-to-br from-[#052e16] to-[#166534] rounded-2xl p-4 text-white shadow-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Wallet size={15} className="text-green-300" />
+              <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">My Wallet</p>
+            </div>
+            <Link href="/wallet">
+              <button className="text-green-300 text-[10px] font-bold flex items-center gap-0.5">
+                Manage <ArrowUpRight size={11} />
+              </button>
+            </Link>
+          </div>
+          <p className="text-white font-bold text-2xl">
+            KES {walletBalance.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <p className="text-white/50 text-[10px] mt-0.5">Available balance</p>
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            {[
+              { icon: DollarSign, label: "Apply Loan", action: () => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); } },
+              { icon: FileText, label: "KYC Docs", action: () => setKycOpen(true) },
+              { icon: BarChart2, label: "Market", action: () => setLocation("/market") },
+            ].map(({ icon: Icon, label, action }) => (
+              <button key={label} onClick={action}
+                className="flex flex-col items-center gap-1 py-2 bg-white/10 rounded-xl active:bg-white/20 transition-colors">
+                <Icon size={14} className="text-green-300" />
+                <span className="text-white/80 text-[9px] font-semibold">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Apply for Funding CTA */}
         <button
           onClick={() => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); }}

@@ -5,64 +5,78 @@ import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRig
 import { motion, AnimatePresence } from "framer-motion";
 import { clearToken, getStoredUser, getToken } from "@/lib/auth";
 
-const DEMO_FARMERS = [
-  { id: 1, name: "James Mwangi",    county: "Nakuru",   crop: "Maize",    status: "active",  funded: true,  joined: "Jan 2026" },
-  { id: 2, name: "Grace Njeri",     county: "Kiambu",   crop: "Tomatoes", status: "active",  funded: true,  joined: "Feb 2026" },
-  { id: 3, name: "Samuel Otieno",   county: "Kisumu",   crop: "Rice",     status: "pending", funded: false, joined: "Mar 2026" },
-  { id: 4, name: "Fatuma Hassan",   county: "Mombasa",  crop: "Cassava",  status: "active",  funded: true,  joined: "Mar 2026" },
-  { id: 5, name: "Peter Kamau",     county: "Murang'a", crop: "Coffee",   status: "active",  funded: true,  joined: "Apr 2026" },
-  { id: 6, name: "Alice Wambui",    county: "Nyeri",    crop: "Tea",      status: "pending", funded: false, joined: "May 2026" },
-  { id: 7, name: "Hassan Abdi",     county: "Garissa",  crop: "Sorghum",  status: "active",  funded: false, joined: "May 2026" },
-  { id: 8, name: "Beatrice Achieng",county: "Siaya",    crop: "Beans",    status: "active",  funded: true,  joined: "Jun 2026" },
-];
 
-const DEMO_VOUCHERS = [
-  { id: "IFV-2026-TOM-001", farmer: "Grace Njeri",    amount: 12500, crop: "Tomatoes", status: "pending",   items: "Seeds · Fertilizer", date: "2026-06-15" },
-  { id: "IFV-2026-MAI-003", farmer: "James Mwangi",   amount: 8400,  crop: "Maize",    status: "fulfilled",  items: "Certified Maize Seed · DAP", date: "2026-06-10" },
-  { id: "IFV-2026-COF-007", farmer: "Peter Kamau",    amount: 22000, crop: "Coffee",   status: "pending",   items: "Seedlings · Fungicide", date: "2026-06-18" },
-  { id: "IFV-2026-RIC-004", farmer: "Samuel Otieno",  amount: 15600, crop: "Rice",     status: "expired",   items: "Paddy Seed · Urea", date: "2026-05-30" },
-  { id: "IFV-2026-CAS-002", farmer: "Fatuma Hassan",  amount: 9800,  crop: "Cassava",  status: "fulfilled",  items: "Cuttings · Pesticide", date: "2026-06-05" },
-];
+type LiveVoucher = { id: number; voucherCode: string; amount: number; items: string | null; status: string; farmerName: string; farmerPhone: string | null; createdAt: string };
 
 function VoucherRedemptionTab({ token }: { token: string }) {
+  const qc = useQueryClient();
   const [scanCode, setScanCode] = useState("");
   const [scanning, setScanning] = useState(false);
-  const [scannedVoucher, setScannedVoucher] = useState<typeof DEMO_VOUCHERS[0] | null>(null);
+  const [scannedVoucher, setScannedVoucher] = useState<LiveVoucher | null>(null);
   const [scanError, setScanError] = useState("");
   const [fulfilling, setFulfilling] = useState(false);
-  const [fulfilledIds, setFulfilledIds] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "fulfilled" | "expired">("all");
+
+  const { data: voucherList = [], isLoading: vouchersLoading } = useQuery<LiveVoucher[]>({
+    queryKey: ["live-voucher-orders"],
+    queryFn: async () => {
+      const r = await fetch("/api/agribusiness/voucher-orders", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!token,
+    staleTime: 30_000,
+  });
 
   const handleScan = async () => {
     if (!scanCode.trim()) return;
     setScanning(true); setScanError(""); setScannedVoucher(null);
-    await new Promise(r => setTimeout(r, 800));
-    const found = DEMO_VOUCHERS.find(v => v.id.toLowerCase() === scanCode.trim().toLowerCase());
-    if (found) { setScannedVoucher(found); }
-    else { setScanError("Voucher not found. Check the code and try again."); }
-    setScanning(false);
+    try {
+      const r = await fetch("/api/agribusiness/voucher-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ voucherCode: scanCode.trim() }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Voucher not found");
+      setScannedVoucher(d);
+    } catch (e) {
+      setScanError((e as Error).message);
+    } finally {
+      setScanning(false);
+    }
   };
 
-  const fulfil = async (id: string) => {
+  const fulfil = async (id: number) => {
     setFulfilling(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setFulfilledIds(prev => new Set([...prev, id]));
-    setScannedVoucher(null); setScanCode("");
-    setFulfilling(false);
+    try {
+      const r = await fetch(`/api/agribusiness/voucher-orders/${id}/fulfil`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
+      setScannedVoucher(null); setScanCode("");
+      qc.invalidateQueries({ queryKey: ["live-voucher-orders"] });
+      qc.invalidateQueries({ queryKey: ["voucher-orders"] });
+    } catch (e) {
+      setScanError((e as Error).message);
+    } finally {
+      setFulfilling(false);
+    }
   };
 
-  const listed = DEMO_VOUCHERS.filter(v => filterStatus === "all" || v.status === filterStatus);
-  const pendingCount = DEMO_VOUCHERS.filter(v => v.status === "pending").length;
-  const totalRevenue = DEMO_VOUCHERS.filter(v => v.status === "fulfilled").reduce((s, v) => s + v.amount, 0);
+  const listed = voucherList.filter(v => filterStatus === "all" || v.status === filterStatus);
+  const pendingCount = voucherList.filter(v => v.status === "pending").length;
+  const totalRevenue = voucherList.filter(v => v.status === "fulfilled").reduce((s, v) => s + Number(v.amount), 0);
 
   return (
     <>
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { val: String(pendingCount), label: "Pending", color: "bg-amber-50 text-amber-700 border-amber-200" },
-          { val: String(DEMO_VOUCHERS.filter(v => v.status === "fulfilled").length), label: "Fulfilled", color: "bg-green-50 text-green-700 border-green-200" },
-          { val: `${(totalRevenue / 1000).toFixed(0)}K`, label: "KES Earned", color: "bg-blue-50 text-blue-700 border-blue-200" },
+          { val: vouchersLoading ? "…" : String(pendingCount), label: "Pending", color: "bg-amber-50 text-amber-700 border-amber-200" },
+          { val: vouchersLoading ? "…" : String(voucherList.filter(v => v.status === "fulfilled").length), label: "Fulfilled", color: "bg-green-50 text-green-700 border-green-200" },
+          { val: vouchersLoading ? "…" : `${(totalRevenue / 1000).toFixed(0)}K`, label: "KES Earned", color: "bg-blue-50 text-blue-700 border-blue-200" },
         ].map(({ val, label, color }) => (
           <div key={label} className={`rounded-2xl p-3 border text-center ${color}`}>
             <p className="font-bold text-sm">{val}</p>
@@ -102,23 +116,25 @@ function VoucherRedemptionTab({ token }: { token: string }) {
           )}
           {scannedVoucher && (
             <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className={`mt-3 rounded-2xl border p-4 ${scannedVoucher.status === "pending" ? "bg-green-50 border-green-200" : scannedVoucher.status === "expired" ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}>
+              className={`mt-3 rounded-2xl border p-4 ${scannedVoucher.status === "pending" ? "bg-green-50 border-green-200" : scannedVoucher.status === "fulfilled" ? "bg-gray-50 border-gray-200" : "bg-red-50 border-red-200"}`}>
               <div className="flex items-center justify-between mb-2">
-                <code className="text-[10px] font-mono font-bold text-foreground">{scannedVoucher.id}</code>
-                {scannedVoucher.status === "pending" && !fulfilledIds.has(scannedVoucher.id) && (
+                <code className="text-[10px] font-mono font-bold text-foreground">{scannedVoucher.voucherCode}</code>
+                {scannedVoucher.status === "pending" && (
                   <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">VALID</span>
                 )}
-                {scannedVoucher.status === "fulfilled" || fulfilledIds.has(scannedVoucher.id) ? (
+                {scannedVoucher.status === "fulfilled" && (
                   <span className="text-[9px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">USED</span>
-                ) : scannedVoucher.status === "expired" ? (
+                )}
+                {scannedVoucher.status === "expired" && (
                   <span className="text-[9px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">EXPIRED</span>
-                ) : null}
+                )}
               </div>
-              <p className="text-foreground font-semibold text-sm">{scannedVoucher.farmer}</p>
-              <p className="text-muted-foreground text-xs mt-0.5">{scannedVoucher.items}</p>
+              <p className="text-foreground font-semibold text-sm">{scannedVoucher.farmerName}</p>
+              {scannedVoucher.farmerPhone && <p className="text-muted-foreground text-[10px]">{scannedVoucher.farmerPhone}</p>}
+              {scannedVoucher.items && <p className="text-muted-foreground text-xs mt-0.5">{scannedVoucher.items}</p>}
               <div className="flex items-center justify-between mt-2.5">
-                <p className="text-foreground font-bold text-base">KES {scannedVoucher.amount.toLocaleString()}</p>
-                {scannedVoucher.status === "pending" && !fulfilledIds.has(scannedVoucher.id) && (
+                <p className="text-foreground font-bold text-base">KES {Number(scannedVoucher.amount).toLocaleString("en-KE")}</p>
+                {scannedVoucher.status === "pending" && (
                   <button onClick={() => fulfil(scannedVoucher.id)} disabled={fulfilling}
                     className="bg-[#16a34a] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 active:scale-95">
                     {fulfilling ? <RefreshCw size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
@@ -126,11 +142,6 @@ function VoucherRedemptionTab({ token }: { token: string }) {
                   </button>
                 )}
               </div>
-              {(fulfilledIds.has(scannedVoucher.id)) && (
-                <p className="text-green-700 text-xs font-semibold mt-2 flex items-center gap-1">
-                  <Check size={11} /> Voucher fulfilled — payment will be credited within 24h
-                </p>
-              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -149,22 +160,30 @@ function VoucherRedemptionTab({ token }: { token: string }) {
             ))}
           </div>
         </div>
+        {vouchersLoading ? (
+          <div className="space-y-2">{Array(3).fill(0).map((_, i) => <div key={i} className="h-16 rounded-2xl bg-muted animate-pulse" />)}</div>
+        ) : listed.length === 0 ? (
+          <div className="text-center py-8 bg-white border border-border rounded-2xl">
+            <Package size={24} className="text-muted-foreground mx-auto mb-2" />
+            <p className="text-muted-foreground text-sm">No vouchers found</p>
+          </div>
+        ) : null}
         <div className="space-y-2">
           {listed.map(v => {
-            const isFulfilled = v.status === "fulfilled" || fulfilledIds.has(v.id);
+            const isFulfilled = v.status === "fulfilled";
             return (
               <div key={v.id} className="bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isFulfilled ? "bg-green-100" : v.status === "expired" ? "bg-red-100" : "bg-amber-100"}`}>
                   {isFulfilled ? <CheckCircle2 size={16} className="text-green-600" /> : v.status === "expired" ? <XCircle size={16} className="text-red-500" /> : <Clock size={16} className="text-amber-600" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-foreground text-xs font-bold truncate">{v.farmer}</p>
-                  <p className="text-muted-foreground text-[9px]">{v.id}</p>
-                  <p className="text-muted-foreground text-[9px] mt-0.5">{v.items}</p>
+                  <p className="text-foreground text-xs font-bold truncate">{v.farmerName}</p>
+                  <p className="text-muted-foreground text-[9px] font-mono">{v.voucherCode}</p>
+                  {v.items && <p className="text-muted-foreground text-[9px] mt-0.5">{v.items}</p>}
                 </div>
                 <div className="text-right">
-                  <p className="text-foreground text-xs font-bold">KES {(v.amount/1000).toFixed(1)}K</p>
-                  <p className="text-[9px] text-muted-foreground">{v.date}</p>
+                  <p className="text-foreground text-xs font-bold">KES {(Number(v.amount)/1000).toFixed(1)}K</p>
+                  <p className="text-[9px] text-muted-foreground">{new Date(v.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}</p>
                   <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 inline-block ${isFulfilled ? "bg-green-100 text-green-700" : v.status === "expired" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
                     {isFulfilled ? "Fulfilled" : v.status === "expired" ? "Expired" : "Pending"}
                   </span>
@@ -252,11 +271,16 @@ export default function CooperativeDashboard() {
   const [csvData, setCsvData] = useState<{ headers: string[]; rows: Record<string, string>[] } | null>(null);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvSuccess, setCsvSuccess] = useState<string | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
 
   // Co-investment state
   const [coinvestAmount, setCoinvestAmount] = useState("");
   const [coinvestFarm, setCoinvestFarm] = useState("");
-  const [coinvestSubmitted, setCoinvestSubmitted] = useState(false);
+  const [coinvestMemberCount, setCoinvestMemberCount] = useState("");
+  const [coinvestNotes, setCoinvestNotes] = useState("");
+  const [coinvestSubmitting, setCoinvestSubmitting] = useState(false);
+  const [coinvestSubmitted, setCoinvestSubmitted] = useState<{ referenceId: string; estimatedReturn: string } | null>(null);
+  const [coinvestError, setCoinvestError] = useState<string | null>(null);
 
   // Invitation link
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -307,12 +331,30 @@ export default function CooperativeDashboard() {
 
   const importCSV = async () => {
     if (!csvData || csvData.rows.length === 0) return;
-    setCsvImporting(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setCsvSuccess(`Successfully imported ${csvData.rows.length} farmer${csvData.rows.length !== 1 ? "s" : ""} into your network.`);
-    setCsvImporting(false);
-    setCsvData(null);
-    if (csvRef.current) csvRef.current.value = "";
+    setCsvImporting(true); setCsvError(null);
+    try {
+      const farmers = csvData.rows.map(row => ({
+        name: row.name ?? row.Name ?? "",
+        phone: row.phone ?? row.Phone ?? "",
+        county: row.county ?? row.County ?? "Kenya",
+        email: row.email ?? row.Email ?? "",
+        cropType: row.cropType ?? row.crop ?? row.Crop ?? "",
+      }));
+      const r = await fetch("/api/cooperative/import-farmers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ farmers }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Import failed");
+      setCsvSuccess(d.message ?? `${d.imported} farmers imported.`);
+      setCsvData(null);
+      if (csvRef.current) csvRef.current.value = "";
+    } catch (e) {
+      setCsvError((e as Error).message);
+    } finally {
+      setCsvImporting(false);
+    }
   };
 
   const copyInviteLink = async () => {
@@ -331,6 +373,19 @@ export default function CooperativeDashboard() {
   const tabs: TabId[] = isInputProvider
     ? ["overview", "api", "orders"]
     : ["overview", "api", "farmers", "coinvest"];
+
+  // Cooperative farmer network (real API)
+  type NetworkFarmer = { id: number; name: string; county: string; phone: string; joined: string; status: string; funded: boolean };
+  const { data: networkFarmers = [], isLoading: farmersLoading } = useQuery<NetworkFarmer[]>({
+    queryKey: ["cooperative-farmers"],
+    queryFn: async () => {
+      const r = await fetch("/api/cooperative/farmers", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !isInputProvider && !!token,
+    staleTime: 60_000,
+  });
 
   type VoucherOrder = { id: number; status: string; amount: number };
   const { data: voucherOrders = [] } = useQuery<VoucherOrder[]>({
@@ -668,7 +723,18 @@ export default function CooperativeDashboard() {
               {csvSuccess ? (
                 <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-start gap-2">
                   <Check size={14} className="text-green-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-green-700 text-xs">{csvSuccess}</p>
+                  <div>
+                    <p className="text-green-700 text-xs">{csvSuccess}</p>
+                    <button onClick={() => setCsvSuccess(null)} className="text-green-600 text-[10px] underline mt-1">Import more</button>
+                  </div>
+                </div>
+              ) : csvError ? (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                  <AlertTriangle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-red-600 text-xs">{csvError}</p>
+                    <button onClick={() => { setCsvError(null); setCsvData(null); if (csvRef.current) csvRef.current.value = ""; }} className="text-red-500 text-[10px] underline mt-1">Try again</button>
+                  </div>
                 </div>
               ) : csvData ? (
                 <div className="space-y-3">
@@ -703,38 +769,51 @@ export default function CooperativeDashboard() {
               )}
             </div>
 
-            {/* Linked farmers list */}
+            {/* Linked farmers list — from real API */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Your Network ({DEMO_FARMERS.length})</p>
-                <span className="text-[9px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{DEMO_FARMERS.filter(f => f.funded).length} funded</span>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Your Network ({farmersLoading ? "…" : networkFarmers.length})
+                </p>
+                <span className="text-[9px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                  {networkFarmers.filter(f => f.funded).length} funded
+                </span>
               </div>
-              <div className="space-y-2">
-                {DEMO_FARMERS.map(f => (
-                  <motion.div key={f.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                    className="bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-[#16a34a]/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-[#16a34a]">{f.name.charAt(0)}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-foreground text-xs font-bold truncate">{f.name}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <MapPin size={9} className="text-muted-foreground" />
-                        <span className="text-muted-foreground text-[9px]">{f.county}</span>
-                        <span className="text-border/60">·</span>
-                        <Leaf size={9} className="text-muted-foreground" />
-                        <span className="text-muted-foreground text-[9px]">{f.crop}</span>
+              {farmersLoading ? (
+                <div className="space-y-2">{Array(4).fill(0).map((_, i) => <div key={i} className="h-16 rounded-2xl bg-muted animate-pulse" />)}</div>
+              ) : networkFarmers.length === 0 ? (
+                <div className="text-center py-8 bg-white border border-border rounded-2xl">
+                  <Users size={24} className="text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground text-sm font-medium">No farmers in your network yet</p>
+                  <p className="text-muted-foreground text-xs mt-1">Share your invitation link or import via CSV above</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {networkFarmers.map(f => (
+                    <motion.div key={f.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                      className="bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-[#16a34a]/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-bold text-[#16a34a]">{f.name.charAt(0)}</span>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full block mb-1 ${f.status === "active" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
-                        {f.status === "active" ? "Active" : "Pending"}
-                      </span>
-                      {f.funded && <span className="text-[8px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Funded</span>}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground text-xs font-bold truncate">{f.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <MapPin size={9} className="text-muted-foreground" />
+                          <span className="text-muted-foreground text-[9px]">{f.county}</span>
+                          <span className="text-border/60">·</span>
+                          <span className="text-muted-foreground text-[9px]">Joined {f.joined}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full block mb-1 ${f.status === "active" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                          {f.status === "active" ? "Active" : "Pending"}
+                        </span>
+                        {f.funded && <span className="text-[8px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Funded</span>}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}
@@ -753,7 +832,7 @@ export default function CooperativeDashboard() {
                 <p className="text-sm font-bold">Co-investment Programs</p>
               </div>
               <p className="text-white/70 text-xs leading-relaxed">
-                As a verified cooperative partner, you can co-fund farm seasons alongside Investa Farm's investor network. Pool your members' savings to invest in larger farm opportunities and earn proportional returns.
+                As a verified cooperative partner, you can co-fund farm seasons alongside Investa Farm's investor network. Pool your members' savings to invest in larger farm opportunities and earn proportional returns of <strong className="text-green-300">18–28% per season</strong>.
               </p>
             </div>
 
@@ -779,34 +858,85 @@ export default function CooperativeDashboard() {
 
             {/* Co-investment application */}
             {coinvestSubmitted ? (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-                <Check size={24} className="text-green-600 mx-auto mb-2" />
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
+                <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle2 size={28} className="text-green-600" />
+                </div>
                 <p className="text-green-700 font-bold text-sm">Application Submitted!</p>
-                <p className="text-green-600 text-xs mt-1">Our team will review your co-investment request within 2 business days.</p>
+                <p className="text-green-800 font-mono text-[10px] mt-1 mb-2">{coinvestSubmitted.referenceId}</p>
+                <p className="text-green-600 text-xs">Our team will review within 2 business days.</p>
+                <div className="mt-3 bg-green-100 rounded-xl p-3">
+                  <p className="text-green-700 text-xs font-semibold">Estimated Return</p>
+                  <p className="text-green-800 font-bold text-sm mt-0.5">KES {coinvestSubmitted.estimatedReturn}</p>
+                </div>
+                <button onClick={() => { setCoinvestSubmitted(null); setCoinvestFarm(""); setCoinvestAmount(""); setCoinvestMemberCount(""); setCoinvestNotes(""); }}
+                  className="mt-3 text-[#16a34a] text-xs font-semibold underline">
+                  Submit Another Application
+                </button>
               </div>
             ) : (
               <div className="bg-white border border-border rounded-2xl p-4">
                 <p className="text-sm font-semibold mb-3">Apply for Co-Investment</p>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-1.5">Farm / Crop Type</label>
+                    <label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-1.5">Farm / Crop Type *</label>
                     <input type="text" value={coinvestFarm} onChange={e => setCoinvestFarm(e.target.value)}
                       placeholder="e.g. Maize, Nakuru County"
                       className="w-full border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#16a34a]" />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-1.5">Investment Amount (KES)</label>
+                    <label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-1.5">Investment Amount (KES) *</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">KES</span>
                       <input type="number" value={coinvestAmount} onChange={e => setCoinvestAmount(e.target.value)}
-                        placeholder="500,000"
+                        placeholder="100,000" min="10000"
                         className="w-full border border-border rounded-xl pl-12 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#16a34a]" />
                     </div>
+                    <p className="text-muted-foreground text-[10px] mt-1">Minimum KES 10,000</p>
                   </div>
-                  <button onClick={() => { if (coinvestFarm && coinvestAmount) setCoinvestSubmitted(true); }}
-                    disabled={!coinvestFarm || !coinvestAmount}
-                    className="w-full bg-[#16a34a] text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-transform disabled:opacity-50">
-                    Submit Co-Investment Application
+                  <div>
+                    <label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-1.5">Number of Contributing Members</label>
+                    <input type="number" value={coinvestMemberCount} onChange={e => setCoinvestMemberCount(e.target.value)}
+                      placeholder="e.g. 45"
+                      className="w-full border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#16a34a]" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-1.5">Additional Notes</label>
+                    <textarea value={coinvestNotes} onChange={e => setCoinvestNotes(e.target.value)}
+                      placeholder="Any additional information about your cooperative or investment preference…"
+                      rows={3}
+                      className="w-full border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#16a34a] resize-none" />
+                  </div>
+                  {coinvestError && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                      <AlertTriangle size={13} className="text-red-500 flex-shrink-0" />
+                      <p className="text-red-600 text-xs">{coinvestError}</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={async () => {
+                      const amt = parseFloat(coinvestAmount);
+                      if (!coinvestFarm || !amt || amt < 10000) { setCoinvestError("Please enter a farm description and at least KES 10,000."); return; }
+                      setCoinvestSubmitting(true); setCoinvestError(null);
+                      try {
+                        const r = await fetch("/api/cooperative/coinvest", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ farmDescription: coinvestFarm, amountKes: amt, memberCount: parseInt(coinvestMemberCount) || undefined, notes: coinvestNotes }),
+                        });
+                        const d = await r.json();
+                        if (!r.ok) throw new Error(d.error ?? "Submission failed");
+                        setCoinvestSubmitted({ referenceId: d.referenceId, estimatedReturn: d.estimatedReturn });
+                      } catch (e) {
+                        setCoinvestError((e as Error).message);
+                      } finally {
+                        setCoinvestSubmitting(false);
+                      }
+                    }}
+                    disabled={!coinvestFarm || !coinvestAmount || coinvestSubmitting}
+                    className="w-full bg-[#16a34a] text-white font-bold py-3 rounded-xl text-sm active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2">
+                    {coinvestSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <Handshake size={14} />}
+                    {coinvestSubmitting ? "Submitting…" : "Submit Co-Investment Application"}
                   </button>
                 </div>
               </div>

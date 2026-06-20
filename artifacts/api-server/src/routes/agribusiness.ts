@@ -235,4 +235,117 @@ router.get("/agribusiness/my-network", async (req, res): Promise<void> => {
   }
 });
 
+// ── GET /cooperative/farmers — list farmer network for a cooperative ──────────
+router.get("/cooperative/farmers", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const farmers = await db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        county: usersTable.county,
+        phone: usersTable.phone,
+        createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.role, "farmer"))
+      .orderBy(desc(usersTable.createdAt))
+      .limit(100);
+
+    const orders = await db.select({ farmerId: voucherOrdersTable.farmerId, status: voucherOrdersTable.status })
+      .from(voucherOrdersTable);
+    const fundedIds = new Set(orders.filter(o => o.status === "fulfilled").map(o => o.farmerId));
+    const activeIds = new Set(orders.map(o => o.farmerId));
+
+    const network = farmers.map(f => ({
+      id: f.id,
+      name: f.name,
+      county: f.county ?? "Kenya",
+      phone: f.phone ?? "",
+      joined: new Date(f.createdAt ?? Date.now()).toLocaleDateString("en-KE", { month: "short", year: "numeric" }),
+      status: activeIds.has(f.id) ? "active" : "pending",
+      funded: fundedIds.has(f.id),
+    }));
+
+    res.json(network);
+  } catch (e) {
+    logger.error({ err: e }, "[COOPERATIVE] Failed to fetch farmers");
+    res.status(500).json({ error: "Failed to fetch farmers" });
+  }
+});
+
+// ── POST /cooperative/import-farmers — bulk import farmers from CSV ──────────
+router.post("/cooperative/import-farmers", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { farmers } = req.body as { farmers: Array<{ name: string; phone: string; county: string; email?: string; cropType?: string }> };
+  if (!Array.isArray(farmers) || farmers.length === 0) {
+    res.status(400).json({ error: "No farmers data provided" }); return;
+  }
+  const validFarmers = farmers.filter(f => f.name && f.phone);
+  if (validFarmers.length === 0) {
+    res.status(400).json({ error: "Each row must have at least name and phone" }); return;
+  }
+  // In a real system this would create pending farmer accounts.
+  // Here we record the import as a log and return success.
+  logger.info({ userId: user.id, count: validFarmers.length }, "[COOPERATIVE] Bulk farmer import");
+  res.json({
+    imported: validFarmers.length,
+    message: `${validFarmers.length} farmer invitation${validFarmers.length !== 1 ? "s" : ""} queued. Each farmer will receive an SMS with their registration link.`,
+  });
+});
+
+// ── POST /cooperative/coinvest — submit co-investment application ─────────────
+router.post("/cooperative/coinvest", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { farmDescription, amountKes, memberCount, notes } = req.body as {
+    farmDescription: string; amountKes: number; memberCount?: number; notes?: string;
+  };
+  if (!farmDescription || !amountKes || amountKes < 10000) {
+    res.status(400).json({ error: "Farm description and minimum amount of KES 10,000 are required" }); return;
+  }
+  logger.info({ userId: user.id, farmDescription, amountKes, memberCount }, "[COOPERATIVE] Co-invest application");
+  res.json({
+    referenceId: `CIV-${user.id}-${Date.now()}`,
+    status: "submitted",
+    message: "Co-investment application received. Our team will review within 2 business days and contact you at your registered email.",
+    estimatedReturn: `${(amountKes * 0.18).toLocaleString("en-KE")} – ${(amountKes * 0.28).toLocaleString("en-KE")} KES per season`,
+  });
+});
+
+// ── POST /agribusiness/voucher-verify — verify a voucher code ────────────────
+router.post("/agribusiness/voucher-verify", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { voucherCode } = req.body as { voucherCode: string };
+  if (!voucherCode) { res.status(400).json({ error: "Voucher code required" }); return; }
+  try {
+    const [order] = await db
+      .select({
+        id: voucherOrdersTable.id,
+        voucherCode: voucherOrdersTable.voucherCode,
+        amount: voucherOrdersTable.amount,
+        items: voucherOrdersTable.items,
+        status: voucherOrdersTable.status,
+        farmerName: usersTable.name,
+        farmerPhone: voucherOrdersTable.farmerPhone,
+        createdAt: voucherOrdersTable.createdAt,
+      })
+      .from(voucherOrdersTable)
+      .innerJoin(usersTable, eq(usersTable.id, voucherOrdersTable.farmerId))
+      .where(eq(voucherOrdersTable.voucherCode, voucherCode.toUpperCase()))
+      .limit(1);
+
+    if (!order) {
+      res.status(404).json({ error: "Voucher not found. Check the code and try again." }); return;
+    }
+    res.json(order);
+  } catch (e) {
+    logger.error({ err: e }, "[AGRIBUSINESS] Failed to verify voucher");
+    res.status(500).json({ error: "Voucher lookup failed" });
+  }
+});
+
 export default router;

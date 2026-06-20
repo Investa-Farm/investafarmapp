@@ -383,7 +383,10 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                     <input
                       type="text" inputMode="decimal" value={amount}
                       onChange={e => {
-                        const val = e.target.value.replace(/[^0-9.]/g, "");
+                        const raw = e.target.value.replace(/[^0-9.]/g, "");
+                        // Allow only one decimal point
+                        const parts = raw.split(".");
+                        const val = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : raw;
                         setAmount(val);
                       }}
                       placeholder={tab === "usdc" ? "500" : "1000"}
