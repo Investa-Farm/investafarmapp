@@ -90,11 +90,14 @@ export default function InvestorWallet() {
       if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
       return r.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data: any, vars: any) => {
       qc.invalidateQueries({ queryKey: ["wallet"] });
       setModal(null); setAmount(""); setPhone("");
       setSuccess("Withdrawal initiated to M-Pesa.");
       setTimeout(() => setSuccess(null), 4000);
+      import("@/components/transaction-notification").then(({ showCompletedTransactionFlow }) => {
+        showCompletedTransactionFlow({ type: "withdrawal", amount: vars.amt, label: "Withdrawal", subtitle: "Sending to M-Pesa" });
+      });
     },
   });
 

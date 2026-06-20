@@ -77,6 +77,9 @@ export function HarvestPaymentModal({ open, onClose, onSuccess }: Props) {
       setResult(data);
       setStep("success");
       onSuccess?.(data);
+      import("@/components/transaction-notification").then(({ showCompletedTransactionFlow }) => {
+        showCompletedTransactionFlow({ type: "harvest", amount: investorAmt, label: "Harvest Payout", subtitle: "Investor returns distributed" });
+      });
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Something went wrong");
       setStep("error");

@@ -107,6 +107,9 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     qc.invalidateQueries({ queryKey: ["wallet"] });
     setSuccess(true);
     onSuccess(amt);
+    import("@/components/transaction-notification").then(({ showCompletedTransactionFlow }) => {
+      showCompletedTransactionFlow({ type: "deposit", amount: amt });
+    });
     setTimeout(() => { setSuccess(false); onClose(); }, 2200);
   }
 

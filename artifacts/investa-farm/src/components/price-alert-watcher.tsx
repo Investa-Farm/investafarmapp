@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getToken, getStoredUser } from "@/lib/auth";
+import { showTransactionToast, TxType } from "@/components/transaction-notification";
 import { toast } from "sonner";
 
 type Notification = {
@@ -30,6 +31,20 @@ function markSeen(ids: number[]) {
   } catch { /* silent */ }
 }
 
+function txTypeFromNotif(type: string): TxType | null {
+  if (type === "investment") return "investment";
+  if (type === "deposit" || type === "wallet_funded") return "deposit";
+  if (type === "return" || type === "harvest_payout" || type === "harvest") return "return";
+  if (type === "withdrawal") return "withdrawal";
+  return null;
+}
+
+function extractAmount(body: string): number {
+  const m = body.match(/KES\s*([\d,]+(\.\d+)?)/i) ?? body.match(/([\d,]+(\.\d+)?)/);
+  if (!m) return 0;
+  return parseFloat(m[1].replace(/,/g, ""));
+}
+
 export function PriceAlertWatcher() {
   const token = getToken();
   const user = getStoredUser();
@@ -46,24 +61,51 @@ export function PriceAlertWatcher() {
         if (!r.ok) return;
         const data: Notification[] = await r.json();
         const seen = getSeenIds();
-        const fresh = data.filter(n => !seen.has(n.id) && n.type === "price_alert");
+        const fresh = data.filter(n => !seen.has(n.id));
+
         if (fresh.length > 0) {
           markSeen(fresh.map(n => n.id));
-          fresh.forEach(n => {
-            toast(n.title, {
-              description: n.body,
-              duration: 6000,
-              icon: "📈",
-              classNames: {
-                toast: "!bg-white !border-green-200 !shadow-xl !rounded-2xl",
-                title: "!font-bold !text-foreground !text-sm",
-                description: "!text-muted-foreground !text-xs",
-              },
-            });
-          });
+
+          for (const n of fresh) {
+            const txType = txTypeFromNotif(n.type);
+
+            if (txType) {
+              // Rich Binance-style transaction notification
+              const amount = extractAmount(n.body);
+              showTransactionToast({
+                type: txType,
+                amount: amount > 0 ? amount : n.title,
+                status: "credited",
+                subtitle: n.body.length > 60 ? n.body.slice(0, 60) + "…" : n.body,
+                durationMs: 7000,
+              });
+            } else if (n.type === "price_alert") {
+              // Standard price alert toast
+              toast(n.title, {
+                description: n.body,
+                duration: 6000,
+                icon: "📈",
+                classNames: {
+                  toast: "!bg-white !border-green-200 !shadow-xl !rounded-2xl",
+                  title: "!font-bold !text-foreground !text-sm",
+                  description: "!text-muted-foreground !text-xs",
+                },
+              });
+            } else {
+              // Generic app notification
+              toast(n.title, {
+                description: n.body,
+                duration: 5000,
+                icon: "🔔",
+                classNames: {
+                  toast: "!bg-white !border-border !shadow-xl !rounded-2xl",
+                  title: "!font-bold !text-foreground !text-sm",
+                  description: "!text-muted-foreground !text-xs",
+                },
+              });
+            }
+          }
         }
-        const allNew = data.filter(n => !seen.has(n.id));
-        if (allNew.length > 0) markSeen(allNew.map(n => n.id));
       } catch { /* silent */ }
     };
 
@@ -72,7 +114,7 @@ export function PriceAlertWatcher() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [token, user?.id]);
+  }, [token, (user as any)?.id]);
 
   return null;
 }
