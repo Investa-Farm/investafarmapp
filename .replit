@@ -11,7 +11,7 @@ packages = ["nano"]
 
 [userenv.shared]
 BASE_PATH = "/"
-VAPID_PUBLIC_KEY = "BL36T426aOm-MLB77gGSDBvvsvAg679MLHt-dpmJ-SSNls6hqQA9AguxAhIwWmqbrPHsKnqQz8D9kVQaD5qZwfc"
+VAPID_PUBLIC_KEY = "BPc8VL1NYoU8PbBxnYHN3CsFn_eKIN1ynZVNfSeCSA0Fep0nKC-L9ZkxRyzvTdn-VA_Bs0foga43KKV0XpGbtMQ"
 STELLAR_ISSUER_PUBLIC_KEY = "GDCTQTPZKLTNAXD6LM6AH3IZSJEV6BFB34XQCS4SHTLBN4YWKBIXK3ZJ"
 ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://f25e92ce-4e61-47b1-b0bc-96f9c3438539-00-1usistiswgj19.spock.replit.dev,https://*.replit.dev"
 RESEND_FROM_EMAIL = "Investa Farm <onboarding@app.investafarm.com>"

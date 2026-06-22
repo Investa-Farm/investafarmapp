@@ -197,7 +197,8 @@ function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
   });
 
   // Live portfolio query to detect first investment (avoids never-set localStorage)
-  const { data: portfolioSummary } = useQuery<{ totalInvested?: number; holdings?: unknown[] }>({
+  // Note: portfolio/summary returns holdings as a NUMBER (count), not an array
+  const { data: portfolioSummary } = useQuery<{ totalInvested?: number; holdings?: number }>({
     queryKey: ["portfolio-summary-checklist"],
     queryFn: async () => {
       const r = await fetch("/api/portfolio/summary", { headers: { Authorization: `Bearer ${token}` } });
@@ -211,13 +212,15 @@ function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
   const isKycDone = kycData?.isVerified === true;
   const isWalletFunded = walletBalance !== undefined && parseFloat(walletBalance ?? "0") > 0;
   const hasInvested = !!localStorage.getItem("investa_first_investment") ||
-    (portfolioSummary?.totalInvested !== undefined && (portfolioSummary.totalInvested ?? 0) > 0) ||
-    ((portfolioSummary?.holdings as unknown[])?.length ?? 0) > 0;
+    (portfolioSummary?.totalInvested ?? 0) > 0 ||
+    (portfolioSummary?.holdings ?? 0) > 0;
 
-  // Persist the first-investment flag once detected so checklist stays dismissed
-  if (hasInvested && !localStorage.getItem("investa_first_investment")) {
-    localStorage.setItem("investa_first_investment", "1");
-  }
+  // Persist first-investment flag in effect (not render) to avoid re-render loops
+  useEffect(() => {
+    if (hasInvested && !localStorage.getItem("investa_first_investment")) {
+      localStorage.setItem("investa_first_investment", "1");
+    }
+  }, [hasInvested]);
 
   const steps = [
     { label: "Verify email",    done: isEmailVerified,  action: () => setLocation("/verify-otp"),     cta: "Verify" },

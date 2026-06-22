@@ -15,14 +15,16 @@ router.get("/healthz", async (_req, res): Promise<void> => {
     checks.database = { ok: false, message: (e as Error).message ?? "Query failed" };
   }
 
-  // ── SMTP check ──────────────────────────────────────────────────────────────
+  // ── Email check (SMTP or Resend) ─────────────────────────────────────────────
   const smtpUser = process.env.GOOGLE_SMTP_USER;
   const smtpPass = process.env.GOOGLE_SMTP_PASS;
+  const resendKey = process.env.RESEND_API_KEY;
   if (smtpUser && smtpPass) {
-    checks.smtp = { ok: true, message: `Configured (${smtpUser})` };
+    checks.email = { ok: true, message: `SMTP configured (${smtpUser})` };
+  } else if (resendKey) {
+    checks.email = { ok: true, message: "Resend configured" };
   } else {
-    const missing = [!smtpUser && "GOOGLE_SMTP_USER", !smtpPass && "GOOGLE_SMTP_PASS"].filter(Boolean).join(", ");
-    checks.smtp = { ok: false, message: `Missing env vars: ${missing}` };
+    checks.email = { ok: false, message: "No email provider — set RESEND_API_KEY or GOOGLE_SMTP_USER+PASS" };
   }
 
   // ── Push notifications check ─────────────────────────────────────────────────

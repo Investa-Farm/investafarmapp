@@ -231,8 +231,16 @@ async function fetchRssNews(): Promise<NewsItem[] | null> {
         const source = dash > 0 ? raw.slice(dash + 3).trim() : "News";
         const link = stripHtml(extractXmlTag(block, "link")) || extractXmlTag(block, "guid");
         const pubDate = extractXmlTag(block, "pubDate");
-        const desc = stripHtml(extractXmlTag(block, "description")).slice(0, 200);
-        return buildItem(i, title, source, desc, link, pubDate);
+        // Google News RSS descriptions often duplicate the title + append source name
+        // Strip the source name from the end and prefer a clean description
+        let desc = stripHtml(extractXmlTag(block, "description")).slice(0, 220);
+        // Remove trailing source name (e.g. "Article text Source Name" → "Article text")
+        if (source && source !== "News") {
+          desc = desc.replace(new RegExp(`\\s*[-–]?\\s*${source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i"), "").trim();
+        }
+        // If description is just the title repeated, fall back to empty (buildItem will use title)
+        if (desc.toLowerCase() === title.toLowerCase()) desc = "";
+        return buildItem(i, title, source, desc.slice(0, 200), link, pubDate);
       }).filter(it => it.title.length > 10);
       if (items.length >= 3) return items;
     } catch { continue; }
