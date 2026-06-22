@@ -30,3 +30,4 @@ export * from "./escrow_wallets";
 export * from "./harvest_payments";
 export * from "./platform_revenue";
 export * from "./audit_logs";
+export * from "./app_reviews";

@@ -4,7 +4,7 @@ import {
   Shield, Users, Tractor, DollarSign, TrendingUp, FileText,
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
   Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2,
-  Settings, Bell, Percent, Coins, ChevronRight, BarChart3, Trash2, ExternalLink
+  Settings, Bell, Percent, Coins, ChevronRight, BarChart3, Trash2, ExternalLink, Star, MessageSquare
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -34,7 +34,7 @@ interface TxRecord {
   description: string | null; status: string; createdAt: string;
 }
 
-type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals" | "settings";
+type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals" | "reviews" | "settings";
 
 interface PlatformSettings {
   withdrawalFeePct: number;
@@ -92,6 +92,8 @@ export default function AdminDashboard() {
   const [kycOnly, setKycOnly] = useState(false);
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
   const [viewingDoc, setViewingDoc] = useState<KycDoc | null>(null);
+  const [reviews, setReviews] = useState<{ reviews: any[]; avgRating: number; total: number; distribution: { rating: number; count: number }[] } | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
@@ -126,6 +128,7 @@ export default function AdminDashboard() {
     if (tab === "payouts") fetchPayouts();
     if (tab === "proposals") fetchProposals();
     if (tab === "settings") fetchSettings();
+    if (tab === "reviews") fetchReviews();
   }, [tab]);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -217,6 +220,14 @@ export default function AdminDashboard() {
     } finally {
       setSettingsSaving(false);
     }
+  };
+
+  const fetchReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const r = await fetch("/api/admin/reviews", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setReviews(await r.json());
+    } finally { setReviewsLoading(false); }
   };
 
   const sendBroadcast = async () => {
@@ -442,6 +453,7 @@ export default function AdminDashboard() {
     { id: "transactions", label: "Transactions", icon: <Activity size={18} />,   color: "text-purple-600",  bg: "bg-purple-50" },
     { id: "farms",        label: "Farms",        icon: <Tractor size={18} />,    color: "text-teal-600",    bg: "bg-teal-50" },
     { id: "payouts",      label: "Payouts",      icon: <DollarSign size={18} />, color: "text-orange-600",  bg: "bg-orange-50" },
+    { id: "reviews",      label: "Reviews",      icon: <Star size={18} />,       color: "text-amber-600",   bg: "bg-amber-50" },
     { id: "settings",     label: "Settings",     icon: <Settings size={18} />,   color: "text-gray-600",    bg: "bg-gray-100" },
   ];
   const ALL_TABS = [...PRIMARY_TABS, ...SECONDARY_TABS];
@@ -1209,6 +1221,94 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
+          </>
+        )}
+
+        {/* REVIEWS TAB */}
+        {tab === "reviews" && (
+          <>
+            {reviewsLoading ? (
+              <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-amber-500" /></div>
+            ) : !reviews ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">No reviews data</div>
+            ) : (
+              <>
+                {/* Summary card */}
+                <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-3xl p-5 text-white mb-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                      <Star size={24} className="fill-white text-white" />
+                    </div>
+                    <div>
+                      <p className="text-white/80 text-xs font-medium">Average Rating</p>
+                      <p className="text-4xl font-black leading-none">{reviews.avgRating.toFixed(1)}</p>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <p className="text-white/80 text-xs">Total Reviews</p>
+                      <p className="text-3xl font-black">{reviews.total}</p>
+                    </div>
+                  </div>
+                  {/* Star distribution bars */}
+                  <div className="space-y-1.5">
+                    {[5,4,3,2,1].map(s => {
+                      const entry = reviews.distribution.find(d => d.rating === s);
+                      const cnt = entry?.count ?? 0;
+                      const pct = reviews.total > 0 ? (cnt / reviews.total) * 100 : 0;
+                      return (
+                        <div key={s} className="flex items-center gap-2">
+                          <span className="text-[11px] text-white/70 w-4 shrink-0">{s}★</span>
+                          <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
+                            <div className="h-full bg-white rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-[11px] text-white/70 w-5 text-right shrink-0">{cnt}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Recent reviews list */}
+                {reviews.reviews.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">No reviews yet</div>
+                ) : (
+                  <div className="space-y-3">
+                    {reviews.reviews.map((rv: any) => (
+                      <div key={rv.id} className="bg-white border border-border rounded-2xl p-4 shadow-sm">
+                        <div className="flex items-start gap-3">
+                          <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                            <span className="text-amber-700 font-bold text-sm">{(rv.userName ?? "?")[0]?.toUpperCase()}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-foreground font-semibold text-sm">{rv.userName ?? "Anonymous"}</p>
+                              {rv.context && (
+                                <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">{rv.context}</span>
+                              )}
+                              <span className="text-muted-foreground text-[10px] ml-auto">
+                                {new Date(rv.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+                              </span>
+                            </div>
+                            <p className="text-muted-foreground text-[10px] mb-1.5">{rv.userEmail}</p>
+                            <div className="flex items-center gap-0.5 mb-2">
+                              {[1,2,3,4,5].map(s => (
+                                <Star key={s} size={13} className={`${rv.rating >= s ? "fill-amber-400 text-amber-400" : "text-gray-200"}`} />
+                              ))}
+                              <span className="ml-1 text-xs font-semibold text-foreground">{rv.rating}/5</span>
+                            </div>
+                            {rv.review && (
+                              <div className="bg-gray-50 rounded-xl px-3 py-2 flex items-start gap-2">
+                                <MessageSquare size={12} className="text-muted-foreground mt-0.5 shrink-0" />
+                                <p className="text-foreground text-xs leading-relaxed">{rv.review}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </>
         )}
 

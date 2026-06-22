@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
 import { PriceAlertWatcher } from "@/components/price-alert-watcher";
+import { RateAppModal, useRateAppTrigger } from "@/components/rate-app-modal";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getToken, getStoredUser } from "@/lib/auth";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
@@ -579,6 +580,21 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
+function RateAppWatcher() {
+  const { open, setOpen, maybeTrigger } = useRateAppTrigger();
+  const [loc] = useLocation();
+
+  // Fire on route changes – random, low-probability
+  useEffect(() => {
+    const sensitiveRoutes = ["/market", "/portfolio", "/farmer", "/activity"];
+    if (sensitiveRoutes.some(r => loc.startsWith(r))) {
+      maybeTrigger(loc.replace("/", "").replace(/\//g, "_") || "market");
+    }
+  }, [loc]);
+
+  return <RateAppModal open={open} onClose={() => setOpen(false)} />;
+}
+
 function App() {
   const [splashDone, setSplashDone] = useState(false);
 
@@ -589,6 +605,7 @@ function App() {
           {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
           <WouterRouter base={BASE}>
             <Router />
+            <RateAppWatcher />
           </WouterRouter>
           <Toaster />
           <SonnerToaster position="top-center" richColors={false} />
