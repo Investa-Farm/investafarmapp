@@ -2,40 +2,22 @@
  * PaymentSheet — in-app payment bottom-sheet for Investa Farm
  *
  * Tabs:
- *   M-Pesa  — Paystack STK push → user approves on phone → polls status
- *   Card    — Stripe Payment Element → in-page card form → confirm
- *   USDC    — Circle USDC on-chain deposit address + manual confirm
+ *   Card  — Stripe Payment Element → in-page card form → confirm
+ *   USDC  — Circle USDC on-chain deposit address + manual confirm
  */
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, Smartphone, CreditCard, Coins, Loader2, CheckCircle2,
-  Copy, Check, ExternalLink, RefreshCw, AlertCircle, ChevronRight, Wallet,
+  X, CreditCard, Coins, Loader2, CheckCircle2,
+  Copy, Check, ExternalLink, AlertCircle, ChevronRight, Wallet,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getToken, getStoredUser, formatKES } from "@/lib/auth";
 import { WalletConnectModal } from "@/components/wallet-connect-modal";
 
 const QUICK_AMOUNTS = [500, 1000, 5000, 10000, 25000];
-const MPESA_CODES = [
-  { code: "+254", flag: "🇰🇪", name: "Kenya" },
-  { code: "+255", flag: "🇹🇿", name: "Tanzania" },
-  { code: "+256", flag: "🇺🇬", name: "Uganda" },
-  { code: "+250", flag: "🇷🇼", name: "Rwanda" },
-  { code: "+251", flag: "🇪🇹", name: "Ethiopia" },
-  { code: "+27",  flag: "🇿🇦", name: "South Africa" },
-  { code: "+234", flag: "🇳🇬", name: "Nigeria" },
-  { code: "+233", flag: "🇬🇭", name: "Ghana" },
-  { code: "+263", flag: "🇿🇼", name: "Zimbabwe" },
-  { code: "+260", flag: "🇿🇲", name: "Zambia" },
-  { code: "+265", flag: "🇲🇼", name: "Malawi" },
-  { code: "+258", flag: "🇲🇿", name: "Mozambique" },
-  { code: "+44",  flag: "🇬🇧", name: "UK" },
-  { code: "+1",   flag: "🇺🇸", name: "USA" },
-  { code: "+971", flag: "🇦🇪", name: "UAE" },
-];
 
-type Tab = "mpesa" | "card" | "usdc";
+type Tab = "card" | "usdc";
 
 interface Props {
   open: boolean;
@@ -50,8 +32,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
 
   const [tab, setTab] = useState<Tab>("card");
   const [amount, setAmount] = useState("");
-  const [phone, setPhone] = useState("");
-  const [phoneCode, setPhoneCode] = useState("+254");
 
   // Stripe card state
   const [stripeStep, setStripeStep] = useState<"idle" | "loading" | "form" | "confirming">("idle");
@@ -60,14 +40,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const stripeInstanceRef = useRef<any>(null);
   const stripeElementsRef = useRef<any>(null);
   const stripeContainerRef = useRef<HTMLDivElement | null>(null);
-  const [verifying, setVerifying] = useState(false);
-
-  // Paystack M-Pesa state
-  const [mpesaLoading, setMpesaLoading] = useState(false);
-  const [mpesaRef, setMpesaRef] = useState<string | null>(null);
-  const [mpesaStatus, setMpesaStatus] = useState<string>("pending");
-  const [mpesaMessage, setMpesaMessage] = useState<string>("");
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Circle USDC state
   const [circleInfo, setCircleInfo] = useState<{
@@ -92,29 +64,19 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     }
   }, [tab, circleInfo, token]);
 
-  // Stop polling when unmounted or closed
+  // Reset when sheet closes
   useEffect(() => {
-    if (!open) {
-      clearPoll();
-      resetAll();
-    }
-    return () => clearPoll();
+    if (!open) resetAll();
   }, [open]);
 
-  function clearPoll() {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-  }
-
   function resetAll() {
-    setAmount(""); setPhone("");
-    setStripeStep("idle"); setStripeIntentId(null); setCardError(null); setVerifying(false);
+    setAmount("");
+    setStripeStep("idle"); setStripeIntentId(null); setCardError(null);
     stripeInstanceRef.current = null; stripeElementsRef.current = null;
-    setMpesaLoading(false); setMpesaRef(null); setMpesaStatus("pending"); setMpesaMessage("");
     setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false); setWalletModalOpen(false);
   }
 
   function handleSuccess(amt: number) {
-    clearPoll();
     qc.invalidateQueries({ queryKey: ["wallet"] });
     setSuccess(true);
     onSuccess(amt);
@@ -210,64 +172,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     }
   }
 
-  // ─── PAYSTACK MPESA ─────────────────────────────────────────────────────────
-  async function handleMpesaPay() {
-    const amt = parseFloat(amount);
-    const fullPhone = phoneCode + phone.replace(/^0/, "");
-    if (!amt || amt < 10 || !phone) return;
-    setMpesaLoading(true); setMpesaMessage(""); setMpesaRef(null);
-    try {
-      const r = await fetch("/api/wallet/paystack/mpesa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: amt, phone: fullPhone }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error ?? "M-Pesa failed");
-      setMpesaRef(d.reference);
-      setMpesaStatus(d.status ?? "pay_offline");
-      setMpesaMessage(d.displayText ?? "Check your phone for the M-Pesa prompt");
-      // Start polling
-      pollRef.current = setInterval(() => pollMpesa(d.reference, amt), 5000);
-    } catch (err) {
-      setMpesaMessage((err as Error).message);
-    } finally { setMpesaLoading(false); }
-  }
-
-  async function pollMpesa(ref: string, amt: number) {
-    try {
-      const r = await fetch(`/api/wallet/paystack/status/${encodeURIComponent(ref)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const d = await r.json();
-      setMpesaStatus(d.status ?? "pending");
-      if (d.paid) {
-        clearPoll();
-        handleSuccess(d.amount || amt);
-      } else if (d.status === "failed" || d.status === "declined") {
-        clearPoll();
-        setMpesaMessage("Payment declined. Please try again.");
-      }
-    } catch { /* ignore poll errors */ }
-  }
-
-  async function manualMpesaVerify() {
-    if (!mpesaRef) return;
-    setVerifying(true);
-    try {
-      const r = await fetch("/api/wallet/paystack/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reference: mpesaRef, amount: parseFloat(amount) }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error ?? "Not confirmed yet");
-      handleSuccess(parseFloat(amount));
-    } catch (e) {
-      setMpesaMessage((e as Error).message);
-    } finally { setVerifying(false); }
-  }
-
   // ─── CIRCLE USDC ────────────────────────────────────────────────────────────
   async function createCircleIntent() {
     const amt = parseFloat(amount);
@@ -317,7 +221,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const usdcEstimate = circleInfo ? (amt / circleInfo.kesRate).toFixed(2) : "0.00";
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode; color: string }[] = [
-    { id: "mpesa", label: "M-Pesa", icon: <Smartphone size={15} />, color: "bg-green-600" },
     { id: "card", label: "Card", icon: <CreditCard size={15} />, color: "bg-blue-600" },
     { id: "usdc", label: "USDC", icon: <Coins size={15} />, color: "bg-purple-600" },
   ];
@@ -384,7 +287,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
               </div>
 
               {/* Amount input (shared — hide when Stripe form is active) */}
-              {!mpesaRef && !circleIntentId && !(tab === "card" && stripeStep !== "idle") && (
+              {!circleIntentId && !(tab === "card" && stripeStep !== "idle") && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
                     Amount (KES)
@@ -414,97 +317,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {/* ─── M-PESA TAB ──────────────────────────────────────────── */}
-              {tab === "mpesa" && (
-                <div className="space-y-4">
-                  {!mpesaRef ? (
-                    <>
-                      {/* Info banner */}
-                      <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-start gap-2.5">
-                        <span className="text-xl">📱</span>
-                        <div>
-                          <p className="text-green-800 font-semibold text-xs">Safaricom M-Pesa STK Push</p>
-                          <p className="text-green-600 text-xs mt-0.5">Enter your M-Pesa number — you'll get a payment prompt on your phone to approve.</p>
-                        </div>
-                      </div>
-
-                      {/* Phone input */}
-                      <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">M-Pesa Phone</label>
-                        <div className="flex gap-2">
-                          <select value={phoneCode} onChange={e => setPhoneCode(e.target.value)}
-                            className="border border-border rounded-xl px-2 py-3 text-sm bg-background text-foreground focus:outline-none focus:border-primary">
-                            {MPESA_CODES.map(c => (
-                              <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
-                            ))}
-                          </select>
-                          <input type="tel" value={phone} onChange={e => {
-                              const digits = e.target.value.replace(/\D/g, "");
-                              setPhone(digits);
-                            }}
-                            placeholder="712345678" maxLength={10}
-                            className="flex-1 border border-border rounded-xl px-4 py-3 text-foreground text-sm font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
-                        </div>
-                      </div>
-
-                      {mpesaMessage && !mpesaRef && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-                          <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
-                          <p className="text-red-700 text-xs">{mpesaMessage}</p>
-                        </div>
-                      )}
-
-                      <button
-                        onClick={handleMpesaPay}
-                        disabled={mpesaLoading || !amount || amt < 10 || (phone.replace(/^0/, "").length < 9)}
-                        className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-green-600/20">
-                        {mpesaLoading ? <Loader2 size={18} className="animate-spin" /> : <Smartphone size={18} />}
-                        {mpesaLoading ? "Sending STK Push…" : `Pay ${formatKES(amt)} via M-Pesa`}
-                      </button>
-                    </>
-                  ) : (
-                    /* STK Push sent — waiting for user to approve */
-                    <div className="space-y-4">
-                      <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center space-y-3">
-                        <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-                          <span className="text-3xl">📱</span>
-                        </div>
-                        <div>
-                          <p className="text-green-800 font-bold text-base">Check Your Phone</p>
-                          <p className="text-green-600 text-sm mt-1">{mpesaMessage || "An M-Pesa prompt has been sent to your phone"}</p>
-                        </div>
-                        <div className="flex items-center justify-center gap-2">
-                          {["pending", "send_otp", "pay_offline"].includes(mpesaStatus) ? (
-                            <><Loader2 size={14} className="animate-spin text-green-600" /><span className="text-green-600 text-xs font-semibold">Awaiting payment…</span></>
-                          ) : mpesaStatus === "success" ? (
-                            <><CheckCircle2 size={14} className="text-green-600" /><span className="text-green-600 text-xs font-semibold">Payment received!</span></>
-                          ) : (
-                            <><AlertCircle size={14} className="text-red-500" /><span className="text-red-600 text-xs font-semibold">Payment failed</span></>
-                          )}
-                        </div>
-                        <div className="bg-white/60 rounded-xl p-2">
-                          <p className="text-muted-foreground text-[10px] font-mono">{mpesaRef?.slice(0, 24)}…</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => { clearPoll(); setMpesaRef(null); setMpesaMessage(""); }}
-                          className="border border-border text-foreground font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95">
-                          <RefreshCw size={14} /> Try Again
-                        </button>
-                        <button onClick={manualMpesaVerify} disabled={verifying}
-                          className="bg-primary text-white font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-60">
-                          {verifying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                          I've Paid
-                        </button>
-                      </div>
-
-                      <p className="text-center text-muted-foreground text-[11px]">Auto-confirms in 30–60 seconds · No action needed if you approved the prompt</p>
-                    </div>
-                  )}
                 </div>
               )}
 

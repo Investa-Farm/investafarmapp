@@ -325,9 +325,10 @@ router.post("/wallet/circle/intent", financialRateLimit, async (req, res): Promi
   try {
     const intent = await createPaymentIntent({ amountUSDC, idempotencyKey });
     res.json({ id: intent.id, depositAddress: intent.depositAddress.address, chain: intent.depositAddress.chain, amountUSDC, kesRate, memo: `IF-${user.id}`, configured: true });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Circle payment intent failed";
-    res.status(502).json({ error: msg });
+  } catch (_err: unknown) {
+    // Circle API key malformed or sandbox unreachable — fall back to static address so the UI still works
+    const addressInfo = getStaticUsdcAddress(user.id);
+    res.json({ id: idempotencyKey, depositAddress: addressInfo.address, chain: addressInfo.chain, memo: addressInfo.memo, amountUSDC, kesRate, configured: false });
   }
 });
 
