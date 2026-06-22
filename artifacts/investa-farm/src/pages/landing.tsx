@@ -84,27 +84,27 @@ export default function Landing() {
           </div>
         </button>
 
-        {/* Cooperative / Partner card — full width */}
+        {/* Cooperative / Partner card — full width, same height as others */}
         <motion.button
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.25 }}
           data-testid="card-cooperative"
           onClick={() => setLocation("/cooperative-auth")}
-          className="w-full relative rounded-3xl overflow-hidden h-32 flex items-end active:scale-98 transition-all shadow-md group"
+          className="w-full relative rounded-3xl overflow-hidden h-44 flex items-end active:scale-98 transition-all shadow-md group"
         >
           <img src={coopImg} alt="Cooperative" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
           <div className="relative z-10 p-4 w-full flex items-end justify-between">
             <div className="text-left">
-              <div className="inline-flex items-center gap-1 text-white text-[9px] font-bold px-2 py-0.5 rounded-full mb-1.5 border border-white/30 bg-white/10">
-                🤝 Partners
+              <div className="inline-flex items-center gap-1.5 bg-white text-slate-700 text-[10px] font-bold px-2.5 py-1 rounded-full mb-2">
+                🤝 For Cooperatives
               </div>
-              <p className="text-white font-bold text-base leading-tight">Cooperative &amp; Agribusiness</p>
-              <p className="text-white/70 text-xs">Join our partner network</p>
+              <p className="text-white font-bold text-lg leading-tight">Cooperative &amp; Agribusiness</p>
+              <p className="text-white/80 text-xs">Join network · Connect buyers · Manage members</p>
             </div>
-            <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
-              <ArrowRight size={15} className="text-white" />
+            <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+              <ArrowRight size={16} className="text-white" />
             </div>
           </div>
         </motion.button>

@@ -69,6 +69,26 @@ export function PriceAlertWatcher() {
           for (const n of fresh) {
             const txType = txTypeFromNotif(n.type);
 
+            // Fire a real device push notification if the app is in the foreground
+            // (background push comes from the service worker; this covers the foreground gap)
+            if ("Notification" in window && Notification.permission === "granted") {
+              try {
+                const typeEmojis: Record<string, string> = {
+                  investment_made: "💰", price_alert: "📈", harvest_payout: "💵",
+                  wallet_credit: "💰", farm_fully_funded: "🎉", kyc_approved: "✅",
+                  kyc_rejected: "⚠️", loan_approved: "🏦", new_listing: "🌾",
+                  order_filled: "✅", withdrawal: "🏧",
+                };
+                const emoji = typeEmojis[n.type] ?? "🔔";
+                new Notification(`${emoji} ${n.title}`, {
+                  body: n.body,
+                  icon: "/logo.png",
+                  badge: "/favicon.png",
+                  tag: `investa-${n.id}`,
+                });
+              } catch { /* non-critical */ }
+            }
+
             if (txType) {
               // Rich Binance-style transaction notification
               const amount = extractAmount(n.body);

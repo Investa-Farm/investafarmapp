@@ -177,15 +177,47 @@ function getRiskLevel(cropType: string, changePercent: number): RiskLevel {
 
 function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
   const user = getStoredUser();
+  const token = getToken();
   const [, setLocation] = useLocation();
   const [dismissed, setDismissed] = useState(() => !!localStorage.getItem("investa_checklist_dismissed"));
   const [minimized, setMinimized] = useState(() => !!localStorage.getItem("investa_checklist_minimized"));
 
   const isEmailVerified = (user as any)?.emailVerified !== false;
-  const kycStatus = (user as any)?.kycStatus ?? "none";
-  const isKycDone = kycStatus === "approved";
+
+  // Live KYC status query (avoids stale stored-user data)
+  const { data: kycData } = useQuery<{ isVerified: boolean; approved: number; total: number; allUploaded: boolean }>({
+    queryKey: ["kyc-status-checklist"],
+    queryFn: async () => {
+      const r = await fetch("/api/kyc/status", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { isVerified: false, approved: 0, total: 0, allUploaded: false };
+      return r.json();
+    },
+    staleTime: 30_000,
+    enabled: !!token,
+  });
+
+  // Live portfolio query to detect first investment (avoids never-set localStorage)
+  const { data: portfolioSummary } = useQuery<{ totalInvested?: number; holdings?: unknown[] }>({
+    queryKey: ["portfolio-summary-checklist"],
+    queryFn: async () => {
+      const r = await fetch("/api/portfolio/summary", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return {};
+      return r.json();
+    },
+    staleTime: 30_000,
+    enabled: !!token,
+  });
+
+  const isKycDone = kycData?.isVerified === true;
   const isWalletFunded = walletBalance !== undefined && parseFloat(walletBalance ?? "0") > 0;
-  const hasInvested = !!localStorage.getItem("investa_first_investment");
+  const hasInvested = !!localStorage.getItem("investa_first_investment") ||
+    (portfolioSummary?.totalInvested !== undefined && (portfolioSummary.totalInvested ?? 0) > 0) ||
+    ((portfolioSummary?.holdings as unknown[])?.length ?? 0) > 0;
+
+  // Persist the first-investment flag once detected so checklist stays dismissed
+  if (hasInvested && !localStorage.getItem("investa_first_investment")) {
+    localStorage.setItem("investa_first_investment", "1");
+  }
 
   const steps = [
     { label: "Verify email",    done: isEmailVerified,  action: () => setLocation("/verify-otp"),     cta: "Verify" },

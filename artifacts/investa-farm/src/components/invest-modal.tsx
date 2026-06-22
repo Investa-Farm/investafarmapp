@@ -101,6 +101,8 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
         qc.invalidateQueries({ queryKey: getListPrimaryMarketQueryKey() });
         qc.invalidateQueries({ queryKey: getGetFarmQueryKey(listing.farmId) });
         qc.invalidateQueries({ queryKey: ["wallet-balance"] });
+        qc.invalidateQueries({ queryKey: ["portfolio-summary"] });
+        localStorage.setItem("investa_first_investment", "1");
         import("@/components/transaction-notification").then(({ showCompletedTransactionFlow }) => {
           showCompletedTransactionFlow({ type: "investment", amount: total, label: "Investment", subtitle: listing.farmName });
         });
