@@ -69,7 +69,7 @@ function FarmBoundaryMap({ cropType, location }: { cropType: string; location?: 
 
   const getTileUrl = (x: number, y: number) =>
     mapType === "satellite"
-      ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${y}/${x}`
+      ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${zoom}/${y}/${x}`
       : `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
 
   const tileUrl  = getTileUrl(xTile, yTile);

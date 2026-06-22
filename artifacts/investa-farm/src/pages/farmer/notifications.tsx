@@ -24,6 +24,8 @@ const TYPE_META: Record<string, { emoji: string; color: string; bg: string }> = 
   withdrawal:        { emoji: "🏧", color: "text-red-500",    bg: "bg-red-50"    },
   harvest_payout:    { emoji: "🌾", color: "text-amber-600",  bg: "bg-amber-50"  },
   harvest:           { emoji: "🌾", color: "text-amber-600",  bg: "bg-amber-50"  },
+  dividend_paid:     { emoji: "💸", color: "text-amber-700",  bg: "bg-amber-50"  },
+  dividend:          { emoji: "💸", color: "text-amber-700",  bg: "bg-amber-50"  },
   price_alert:       { emoji: "📊", color: "text-sky-600",    bg: "bg-sky-50"    },
   kyc_approved:      { emoji: "✅", color: "text-green-600",  bg: "bg-green-50"  },
   kyc_rejected:      { emoji: "⚠️", color: "text-red-500",   bg: "bg-red-50"    },

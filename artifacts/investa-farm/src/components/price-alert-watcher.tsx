@@ -40,6 +40,8 @@ function richTypeFromNotif(type: string): RichNotifType {
     return: "harvest_payout",
     harvest_payout: "harvest_payout",
     harvest: "harvest_payout",
+    dividend_paid: "dividend_paid",
+    dividend: "dividend_paid",
     withdrawal: "withdrawal",
     farm_fully_funded: "farm_funded",
     price_alert: "price_alert",
@@ -63,6 +65,7 @@ function urlFromNotif(type: string): string {
   if (type === "investment" || type === "investment_made") return "/portfolio";
   if (type === "deposit" || type === "wallet_funded" || type === "wallet_credit") return "/wallet";
   if (type === "harvest_payout" || type === "harvest" || type === "return") return "/portfolio";
+  if (type === "dividend_paid" || type === "dividend") return "/portfolio";
   if (type === "withdrawal") return "/activity";
   if (type === "price_alert") return "/market";
   if (type === "kyc_approved" || type === "kyc_rejected") return "/profile";
@@ -113,6 +116,7 @@ export function PriceAlertWatcher() {
             try {
               const typeEmojis: Record<string, string> = {
                 investment_made: "💰", price_alert: "📊", harvest_payout: "🌾",
+                dividend_paid: "💸", dividend: "💸",
                 wallet_credit: "💰", farm_fully_funded: "🎉", kyc_approved: "✅",
                 kyc_rejected: "⚠️", loan_approved: "🏦", new_listing: "🌱",
                 order_filled: "✅", withdrawal: "🏧",

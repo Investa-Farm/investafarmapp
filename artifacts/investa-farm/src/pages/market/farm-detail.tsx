@@ -53,19 +53,37 @@ function FarmLeafletMap({ lat, lng, label }: { lat: number; lng: number; label: 
     if (!mapRef.current || instanceRef.current) return;
     import("leaflet").then((L) => {
       if (!mapRef.current || instanceRef.current) return;
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-        iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+
+      const farmIcon = L.divIcon({
+        html: `<div style="width:34px;height:40px;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.35))">
+          <svg xmlns="http://www.w3.org/2000/svg" width="34" height="40" viewBox="0 0 34 40">
+            <circle cx="17" cy="17" r="15" fill="#16a34a" opacity="0.18"/>
+            <circle cx="17" cy="17" r="10" fill="#16a34a"/>
+            <circle cx="17" cy="17" r="4.5" fill="white"/>
+            <line x1="17" y1="27" x2="17" y2="39" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>`,
+        className: "",
+        iconSize: [34, 40],
+        iconAnchor: [17, 40],
+        popupAnchor: [0, -40],
       });
-      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], 12);
+
+      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], 13);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 18,
       }).addTo(map);
-      L.marker([lat, lng]).addTo(map).bindPopup(`<strong>${label}</strong>`).openPopup();
+      L.marker([lat, lng], { icon: farmIcon })
+        .addTo(map)
+        .bindPopup(`<strong style="font-size:13px">${label}</strong>`)
+        .openPopup();
+
       instanceRef.current = map;
+
+      // Invalidate size after animation settles so tiles fully render
+      setTimeout(() => { try { map.invalidateSize(); } catch { /* ignore */ } }, 250);
+      setTimeout(() => { try { map.invalidateSize(); } catch { /* ignore */ } }, 600);
     });
     return () => {
       if (instanceRef.current) {
@@ -75,7 +93,16 @@ function FarmLeafletMap({ lat, lng, label }: { lat: number; lng: number; label: 
     };
   }, [lat, lng, label]);
 
-  return <div ref={mapRef} style={{ height: 260, width: "100%", background: "#e8f4e8" }} />;
+  return (
+    <div ref={mapRef} style={{ height: 260, width: "100%", background: "#e8f4e8" }}>
+      <div style={{
+        position: "absolute", inset: 0, display: "flex", alignItems: "center",
+        justifyContent: "center", color: "#6b7280", fontSize: 12, pointerEvents: "none",
+      }}>
+        Loading map…
+      </div>
+    </div>
+  );
 }
 
 function AiInsightTags({ cropType, changePercent, stage, fundingPercent }: {

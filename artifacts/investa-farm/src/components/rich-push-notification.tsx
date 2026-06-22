@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
 export type RichNotifType =
-  | "investment" | "deposit" | "withdrawal" | "harvest_payout"
+  | "investment" | "deposit" | "withdrawal" | "harvest_payout" | "dividend_paid"
   | "farm_funded" | "price_alert" | "kyc_approved" | "kyc_rejected"
   | "loan_approved" | "new_listing" | "order_filled" | "farm_update"
   | "general";
@@ -28,6 +28,7 @@ const TYPE_META: Record<RichNotifType, { emoji: string; label: string; color: st
   deposit:       { emoji: "💰", label: "Deposit",         color: "#16a34a", bg: "#dcfce7", textColor: "#15803d" },
   withdrawal:    { emoji: "⬆️", label: "Withdrawal",      color: "#ef4444", bg: "#fee2e2", textColor: "#dc2626" },
   harvest_payout:{ emoji: "🌾", label: "Harvest Payout",  color: "#f59e0b", bg: "#fef9c3", textColor: "#b45309" },
+  dividend_paid: { emoji: "💸", label: "Dividend Paid",   color: "#d97706", bg: "#fef3c7", textColor: "#92400e" },
   farm_funded:   { emoji: "🎉", label: "Farm Funded",     color: "#16a34a", bg: "#dcfce7", textColor: "#15803d" },
   price_alert:   { emoji: "📊", label: "Price Alert",     color: "#0ea5e9", bg: "#e0f2fe", textColor: "#0369a1" },
   kyc_approved:  { emoji: "✅", label: "KYC Approved",    color: "#16a34a", bg: "#dcfce7", textColor: "#15803d" },
