@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getToken, getStoredUser } from "@/lib/auth";
-import { showTransactionToast, TxType } from "@/components/transaction-notification";
-import { toast } from "sonner";
+import { showRichNotification, RichNotifType } from "@/components/rich-push-notification";
 
 type Notification = {
   id: number;
@@ -31,18 +30,47 @@ function markSeen(ids: number[]) {
   } catch { /* silent */ }
 }
 
-function txTypeFromNotif(type: string): TxType | null {
-  if (type === "investment") return "investment";
-  if (type === "deposit" || type === "wallet_funded") return "deposit";
-  if (type === "return" || type === "harvest_payout" || type === "harvest") return "return";
-  if (type === "withdrawal") return "withdrawal";
-  return null;
+function richTypeFromNotif(type: string): RichNotifType {
+  const map: Record<string, RichNotifType> = {
+    investment: "investment",
+    investment_made: "investment",
+    deposit: "deposit",
+    wallet_funded: "deposit",
+    wallet_credit: "deposit",
+    return: "harvest_payout",
+    harvest_payout: "harvest_payout",
+    harvest: "harvest_payout",
+    withdrawal: "withdrawal",
+    farm_fully_funded: "farm_funded",
+    price_alert: "price_alert",
+    kyc_approved: "kyc_approved",
+    kyc_rejected: "kyc_rejected",
+    loan_approved: "loan_approved",
+    new_listing: "new_listing",
+    order_filled: "order_filled",
+    farm_update: "farm_update",
+  };
+  return map[type] ?? "general";
 }
 
 function extractAmount(body: string): number {
   const m = body.match(/KES\s*([\d,]+(\.\d+)?)/i) ?? body.match(/([\d,]+(\.\d+)?)/);
   if (!m) return 0;
   return parseFloat(m[1].replace(/,/g, ""));
+}
+
+function urlFromNotif(type: string): string {
+  if (type === "investment" || type === "investment_made") return "/portfolio";
+  if (type === "deposit" || type === "wallet_funded" || type === "wallet_credit") return "/wallet";
+  if (type === "harvest_payout" || type === "harvest" || type === "return") return "/portfolio";
+  if (type === "withdrawal") return "/activity";
+  if (type === "price_alert") return "/market";
+  if (type === "kyc_approved" || type === "kyc_rejected") return "/profile";
+  if (type === "loan_approved") return "/farmer/loans";
+  if (type === "new_listing") return "/market/primary";
+  if (type === "farm_update") return "/portfolio";
+  if (type === "order_filled") return "/market/secondary";
+  return "/";
 }
 
 export function PriceAlertWatcher() {
@@ -63,74 +91,47 @@ export function PriceAlertWatcher() {
         const seen = getSeenIds();
         const fresh = data.filter(n => !seen.has(n.id));
 
-        if (fresh.length > 0) {
-          markSeen(fresh.map(n => n.id));
+        if (fresh.length === 0) return;
+        markSeen(fresh.map(n => n.id));
 
-          for (const n of fresh) {
-            const txType = txTypeFromNotif(n.type);
+        for (const n of fresh) {
+          const richType = richTypeFromNotif(n.type);
+          const amount = extractAmount(n.body);
 
-            // Fire a real device push notification if the app is in the foreground
-            // (background push comes from the service worker; this covers the foreground gap)
-            if ("Notification" in window && Notification.permission === "granted") {
-              try {
-                const typeEmojis: Record<string, string> = {
-                  investment_made: "💰", price_alert: "📈", harvest_payout: "💵",
-                  wallet_credit: "💰", farm_fully_funded: "🎉", kyc_approved: "✅",
-                  kyc_rejected: "⚠️", loan_approved: "🏦", new_listing: "🌾",
-                  order_filled: "✅", withdrawal: "🏧",
-                };
-                const emoji = typeEmojis[n.type] ?? "🔔";
-                new Notification(`${emoji} ${n.title}`, {
-                  body: n.body,
-                  icon: "/logo.png",
-                  badge: "/favicon.png",
-                  tag: `investa-${n.id}`,
-                });
-              } catch { /* non-critical */ }
-            }
+          // Show Binance-style rich in-app notification
+          showRichNotification({
+            type: richType,
+            title: n.title,
+            body: n.body.length > 80 ? n.body.slice(0, 80) + "…" : n.body,
+            amount: amount > 0 ? amount : undefined,
+            url: urlFromNotif(n.type),
+            durationMs: 9000,
+          });
 
-            if (txType) {
-              // Rich Binance-style transaction notification
-              const amount = extractAmount(n.body);
-              showTransactionToast({
-                type: txType,
-                amount: amount > 0 ? amount : n.title,
-                status: "credited",
-                subtitle: n.body.length > 60 ? n.body.slice(0, 60) + "…" : n.body,
-                durationMs: 7000,
+          // Also fire device OS push notification for foreground gap
+          if ("Notification" in window && Notification.permission === "granted") {
+            try {
+              const typeEmojis: Record<string, string> = {
+                investment_made: "💰", price_alert: "📊", harvest_payout: "🌾",
+                wallet_credit: "💰", farm_fully_funded: "🎉", kyc_approved: "✅",
+                kyc_rejected: "⚠️", loan_approved: "🏦", new_listing: "🌱",
+                order_filled: "✅", withdrawal: "🏧",
+              };
+              const emoji = typeEmojis[n.type] ?? "🔔";
+              new Notification(`${emoji} ${n.title}`, {
+                body: n.body,
+                icon: "/logo.png",
+                badge: "/favicon.png",
+                tag: `investa-${n.id}`,
               });
-            } else if (n.type === "price_alert") {
-              // Standard price alert toast
-              toast(n.title, {
-                description: n.body,
-                duration: 6000,
-                icon: "📈",
-                classNames: {
-                  toast: "!bg-white !border-green-200 !shadow-xl !rounded-2xl",
-                  title: "!font-bold !text-foreground !text-sm",
-                  description: "!text-muted-foreground !text-xs",
-                },
-              });
-            } else {
-              // Generic app notification
-              toast(n.title, {
-                description: n.body,
-                duration: 5000,
-                icon: "🔔",
-                classNames: {
-                  toast: "!bg-white !border-border !shadow-xl !rounded-2xl",
-                  title: "!font-bold !text-foreground !text-sm",
-                  description: "!text-muted-foreground !text-xs",
-                },
-              });
-            }
+            } catch { /* non-critical */ }
           }
         }
       } catch { /* silent */ }
     };
 
     setTimeout(poll, 3000);
-    intervalRef.current = setInterval(poll, 60_000);
+    intervalRef.current = setInterval(poll, 45_000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };

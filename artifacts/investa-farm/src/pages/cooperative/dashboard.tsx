@@ -220,9 +220,193 @@ const INPUT_PROVIDER_SERVICES = [
   { icon: "💳", title: "Input Voucher Redemption", desc: "Accept Investa Farm loan vouchers as payment from farmers", badge: "Active" },
   { icon: "📦", title: "Order Management", desc: "Track and fulfil input orders from funded farmers", badge: "Active" },
   { icon: "📊", title: "Sales Analytics", desc: "Reports on voucher redemptions, sales volume and crop coverage", badge: "Active" },
-  { icon: "🚚", title: "Last-Mile Delivery", desc: "Coordinate input delivery to rural farm locations", badge: "Beta" },
+  { icon: "🚚", title: "Last-Mile Delivery", desc: "Coordinate input delivery to rural farm locations", badge: "Active" },
   { icon: "🤝", title: "Supply Chain Finance", desc: "Access working capital financing backed by Investa orders", badge: "Active" },
 ];
+
+type DeliveryStatus = "pending" | "in_transit" | "delivered" | "failed";
+type Delivery = {
+  id: number; voucherCode: string; farmerName: string; farmerPhone: string;
+  location: string; items: string; amountKes: number;
+  status: DeliveryStatus; agent?: string; eta?: string; createdAt: string;
+};
+
+const MOCK_DELIVERIES: Delivery[] = [
+  { id: 1, voucherCode: "IFV-2026-MAI-011", farmerName: "Grace Wanjiku", farmerPhone: "+254712345678", location: "Nakuru, Rift Valley", items: "50kg DAP Fertilizer, 10kg Maize Seed", amountKes: 8500, status: "in_transit", agent: "James Mwangi", eta: "Today 3:00 PM", createdAt: new Date(Date.now() - 3600000).toISOString() },
+  { id: 2, voucherCode: "IFV-2026-TOM-019", farmerName: "Peter Kamau", farmerPhone: "+254798765432", location: "Kiambu, Central", items: "Pesticide Spray (5L), Stakes x200", amountKes: 4200, status: "pending", createdAt: new Date(Date.now() - 7200000).toISOString() },
+  { id: 3, voucherCode: "IFV-2026-WHT-007", farmerName: "Sarah Achieng", farmerPhone: "+254756789012", location: "Trans Nzoia, Western", items: "100kg CAN Fertilizer, 20kg Wheat Seed", amountKes: 12000, status: "delivered", agent: "David Otieno", createdAt: new Date(Date.now() - 86400000).toISOString() },
+  { id: 4, voucherCode: "IFV-2026-POT-003", farmerName: "John Muthuri", farmerPhone: "+254733456789", location: "Meru, Eastern", items: "Potato Seed (50kg)", amountKes: 6000, status: "pending", createdAt: new Date(Date.now() - 10800000).toISOString() },
+];
+
+const DELIVERY_AGENTS = ["James Mwangi", "David Otieno", "Alice Njeri", "Samuel Odhiambo", "Faith Wafula"];
+
+function LastMileDeliveryTab() {
+  const [deliveries, setDeliveries] = useState<Delivery[]>(MOCK_DELIVERIES);
+  const [filterStatus, setFilterStatus] = useState<DeliveryStatus | "all">("all");
+  const [assigningId, setAssigningId] = useState<number | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState("");
+  const [selectedEta, setSelectedEta] = useState("");
+  const [marking, setMarking] = useState<number | null>(null);
+
+  const listed = filterStatus === "all" ? deliveries : deliveries.filter(d => d.status === filterStatus);
+  const pending = deliveries.filter(d => d.status === "pending").length;
+  const inTransit = deliveries.filter(d => d.status === "in_transit").length;
+  const delivered = deliveries.filter(d => d.status === "delivered").length;
+
+  const assignAgent = (id: number) => {
+    if (!selectedAgent) return;
+    setDeliveries(prev => prev.map(d => d.id === id
+      ? { ...d, status: "in_transit" as DeliveryStatus, agent: selectedAgent, eta: selectedEta || "2–4 hours" }
+      : d));
+    setAssigningId(null); setSelectedAgent(""); setSelectedEta("");
+  };
+
+  const markDelivered = async (id: number) => {
+    setMarking(id);
+    await new Promise(r => setTimeout(r, 800));
+    setDeliveries(prev => prev.map(d => d.id === id ? { ...d, status: "delivered" as DeliveryStatus } : d));
+    setMarking(null);
+  };
+
+  const statusConfig: Record<DeliveryStatus, { label: string; color: string; bg: string; dot: string }> = {
+    pending:    { label: "Pending",    color: "text-amber-700", bg: "bg-amber-50 border-amber-200", dot: "bg-amber-400" },
+    in_transit: { label: "In Transit", color: "text-blue-700",  bg: "bg-blue-50 border-blue-200",  dot: "bg-blue-500 animate-pulse" },
+    delivered:  { label: "Delivered",  color: "text-green-700", bg: "bg-green-50 border-green-200", dot: "bg-green-500" },
+    failed:     { label: "Failed",     color: "text-red-700",   bg: "bg-red-50 border-red-200",     dot: "bg-red-400" },
+  };
+
+  return (
+    <>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { val: String(pending),    label: "To Dispatch", color: "bg-amber-50 text-amber-700 border-amber-200" },
+          { val: String(inTransit),  label: "In Transit",  color: "bg-blue-50 text-blue-700 border-blue-200"   },
+          { val: String(delivered),  label: "Delivered",   color: "bg-green-50 text-green-700 border-green-200"},
+        ].map(({ val, label, color }) => (
+          <div key={label} className={`rounded-2xl p-3 border text-center ${color}`}>
+            <p className="font-bold text-base">{val}</p>
+            <p className="text-[10px] opacity-70">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex gap-1.5 flex-wrap">
+        {(["all","pending","in_transit","delivered"] as const).map(s => (
+          <button key={s} onClick={() => setFilterStatus(s)}
+            className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize transition-all ${filterStatus === s ? "bg-[#16a34a] text-white" : "bg-gray-100 text-gray-500"}`}>
+            {s === "all" ? `All (${deliveries.length})` : s === "in_transit" ? "In Transit" : s.charAt(0).toUpperCase() + s.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Delivery cards */}
+      <div className="space-y-3">
+        {listed.map(d => {
+          const cfg = statusConfig[d.status];
+          return (
+            <motion.div key={d.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-white border border-border rounded-2xl overflow-hidden">
+              {/* Card header */}
+              <div className={`px-4 py-2.5 border-b flex items-center justify-between ${cfg.bg}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+                  <span className={`text-[10px] font-bold ${cfg.color}`}>{cfg.label}</span>
+                  {d.eta && d.status === "in_transit" && (
+                    <span className="text-[9px] text-blue-500 font-medium">· ETA: {d.eta}</span>
+                  )}
+                </div>
+                <code className={`text-[9px] font-mono font-bold ${cfg.color}`}>{d.voucherCode}</code>
+              </div>
+
+              {/* Card body */}
+              <div className="px-4 py-3">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <p className="text-foreground font-bold text-sm">{d.farmerName}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <MapPin size={9} className="text-muted-foreground" />
+                      <p className="text-muted-foreground text-[10px]">{d.location}</p>
+                    </div>
+                  </div>
+                  <p className="text-foreground font-bold text-sm flex-shrink-0">KES {d.amountKes.toLocaleString("en-KE")}</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3">
+                  <p className="text-muted-foreground text-[10px] leading-relaxed">📦 {d.items}</p>
+                  {d.farmerPhone && <p className="text-muted-foreground text-[10px] mt-0.5">📞 {d.farmerPhone}</p>}
+                </div>
+
+                {d.agent && (
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[9px] font-bold text-blue-700">
+                      {d.agent.charAt(0)}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Agent: <span className="font-semibold text-foreground">{d.agent}</span></p>
+                  </div>
+                )}
+
+                {/* Actions */}
+                {d.status === "pending" && (
+                  assigningId === d.id ? (
+                    <div className="space-y-2">
+                      <select value={selectedAgent} onChange={e => setSelectedAgent(e.target.value)}
+                        className="w-full border border-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#16a34a]">
+                        <option value="">— Select delivery agent —</option>
+                        {DELIVERY_AGENTS.map(a => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                      <input type="text" value={selectedEta} onChange={e => setSelectedEta(e.target.value)}
+                        placeholder="ETA (e.g. Today 3:00 PM)" className="w-full border border-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500" />
+                      <div className="flex gap-2">
+                        <button onClick={() => { setAssigningId(null); setSelectedAgent(""); }}
+                          className="flex-1 border border-border text-xs font-medium py-2 rounded-xl">Cancel</button>
+                        <button onClick={() => assignAgent(d.id)} disabled={!selectedAgent}
+                          className="flex-1 bg-blue-600 text-white text-xs font-bold py-2 rounded-xl disabled:opacity-50 flex items-center justify-center gap-1.5">
+                          <Truck size={11} /> Assign & Dispatch
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setAssigningId(d.id)}
+                      className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 active:scale-95">
+                      <Truck size={12} /> Assign Delivery Agent
+                    </button>
+                  )
+                )}
+                {d.status === "in_transit" && (
+                  <button onClick={() => markDelivered(d.id)} disabled={marking === d.id}
+                    className="w-full bg-[#16a34a] text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 active:scale-95">
+                    {marking === d.id ? <RefreshCw size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                    {marking === d.id ? "Updating…" : "Mark as Delivered"}
+                  </button>
+                )}
+                {d.status === "delivered" && (
+                  <div className="flex items-center justify-center gap-2 py-1.5 bg-green-50 rounded-xl">
+                    <CheckCircle2 size={13} className="text-green-600" />
+                    <p className="text-green-700 text-xs font-semibold">Delivered successfully</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Route planning card */}
+      <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-4 text-white">
+        <div className="flex items-center gap-2 mb-2">
+          <Truck size={16} className="text-blue-200" />
+          <p className="text-sm font-bold">Route Optimisation</p>
+          <span className="text-[9px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full ml-auto">Coming Soon</span>
+        </div>
+        <p className="text-blue-100 text-xs leading-relaxed">
+          AI-powered route planning will group nearby deliveries and calculate optimal drive routes to reduce fuel costs by up to 35%.
+        </p>
+      </div>
+    </>
+  );
+}
 
 const ORG_TYPE_IMAGES: Record<string, string> = {
   cooperative:  "https://images.unsplash.com/photo-1605000797499-95a51c5269ae?w=200&q=80",
@@ -369,9 +553,9 @@ export default function CooperativeDashboard() {
   const profileImage = ORG_TYPE_IMAGES[orgType] ?? ORG_TYPE_IMAGES.cooperative;
   const services = isInputProvider ? INPUT_PROVIDER_SERVICES : FARMERS_CONNECT_SERVICES;
 
-  type TabId = "overview" | "api" | "farmers" | "orders" | "coinvest";
+  type TabId = "overview" | "api" | "farmers" | "orders" | "coinvest" | "delivery";
   const tabs: TabId[] = isInputProvider
-    ? ["overview", "api", "orders"]
+    ? ["overview", "api", "orders", "delivery"]
     : ["overview", "api", "farmers", "coinvest"];
 
   // Cooperative farmer network (real API)
@@ -431,6 +615,7 @@ export default function CooperativeDashboard() {
     farmers: "Farmers",
     orders: "Orders",
     coinvest: "Co-Invest",
+    delivery: "Delivery",
   };
 
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
@@ -440,6 +625,7 @@ export default function CooperativeDashboard() {
     ? [
         { id: "overview",  label: "Home",     emoji: "🏠" },
         { id: "orders",    label: "Vouchers",  emoji: "🎫" },
+        { id: "delivery",  label: "Delivery",  emoji: "🚚" },
         { id: "api",       label: "API",       emoji: "🔌" },
       ]
     : [
@@ -821,6 +1007,11 @@ export default function CooperativeDashboard() {
         {/* ── ORDERS / VOUCHER TAB (Input Provider only) ── */}
         {activeTab === "orders" && (
           <VoucherRedemptionTab token={token ?? ""} />
+        )}
+
+        {/* ── LAST-MILE DELIVERY TAB (Input Provider only) ── */}
+        {activeTab === "delivery" && (
+          <LastMileDeliveryTab />
         )}
 
         {/* ── CO-INVEST TAB (Farmers Connect only) ── */}
