@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getStoredUser, getToken, clearToken, formatKES } from "@/lib/auth";
 import { useLocation, Link } from "wouter";
-import { Bell, LogOut, Package, Handshake, TrendingUp, Users, ShieldCheck, ChevronRight, MapPin, Star, Copy, Check, Plus, Trash2, ExternalLink } from "lucide-react";
+import { Bell, LogOut, Package, Handshake, TrendingUp, Users, ShieldCheck, ChevronRight, MapPin, Star, Copy, Check, Plus, Trash2, ExternalLink, Home, Share2, DollarSign, UserCircle, Briefcase } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { AppTour } from "@/components/app-tour";
@@ -18,6 +18,7 @@ export default function AgribusinessDashboard() {
   const [activeSection, setActiveSection] = useState<"home" | "catalogue" | "referral" | "commissions" | "network">("home");
   const agribizType = (user as any)?.agribizType ?? localStorage.getItem("investa_agribiz_type") ?? "farmer_connector";
   const isInputSupplier = agribizType === "input_supplier";
+  const isSalesAgent = agribizType === "sales_agent";
 
   // Catalogue state (persisted in localStorage)
   const [products, setProducts] = useState<Product[]>(() => {
@@ -571,6 +572,40 @@ export default function AgribusinessDashboard() {
 
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <AppTour role="agribusiness" />
+
+      {/* Sales Agent footer nav */}
+      {isSalesAgent && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border flex items-center justify-around px-2 pb-safe"
+          style={{ paddingBottom: "env(safe-area-inset-bottom, 12px)", paddingTop: 8 }}>
+          <button onClick={() => setActiveSection("home")}
+            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "home" ? "text-amber-600" : "text-muted-foreground"}`}>
+            <Home size={20} />
+            <span className="text-[10px] font-semibold">Home</span>
+          </button>
+          <button onClick={() => setActiveSection("referral")}
+            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "referral" ? "text-amber-600" : "text-muted-foreground"}`}>
+            <Share2 size={20} />
+            <span className="text-[10px] font-semibold">Refer</span>
+          </button>
+          <button onClick={() => setActiveSection("commissions")}
+            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "commissions" ? "text-amber-600" : "text-muted-foreground"}`}>
+            <DollarSign size={20} />
+            <span className="text-[10px] font-semibold">Earnings</span>
+          </button>
+          <Link href="/agribusiness/network">
+            <button className="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all text-muted-foreground">
+              <Users size={20} />
+              <span className="text-[10px] font-semibold">Network</span>
+            </button>
+          </Link>
+          <Link href="/agribusiness/profile">
+            <button className="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all text-muted-foreground">
+              <UserCircle size={20} />
+              <span className="text-[10px] font-semibold">Profile</span>
+            </button>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

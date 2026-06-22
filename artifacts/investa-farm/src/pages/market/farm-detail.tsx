@@ -352,6 +352,7 @@ export default function FarmDetail() {
           src={getCropImage(farm.cropType, farm.imageUrl)}
           alt={farm.name}
           className="w-full h-full object-cover"
+          onError={e => { (e.currentTarget as HTMLImageElement).src = getCropImage(farm.cropType); }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
         <div className="absolute top-12 left-4 right-4 flex items-center justify-between">

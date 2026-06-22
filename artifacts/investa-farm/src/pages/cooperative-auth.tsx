@@ -201,58 +201,54 @@ export default function CooperativeAuth() {
                 <p className="text-foreground font-bold text-lg mb-1">Choose your account type</p>
                 <p className="text-muted-foreground text-sm mb-6 leading-relaxed">Select the type of organization that best describes you.</p>
 
-                <button
-                  onClick={() => { setSubType("farmers_connect"); setOrgType("cooperative"); }}
-                  className="w-full mb-3 p-5 rounded-2xl border-2 border-[#16a34a] bg-[#16a34a]/5 text-left active:scale-95 transition-all group"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-[#16a34a] flex items-center justify-center flex-shrink-0 shadow-md">
-                      <Users size={22} className="text-white" />
+                {/* Top row: Farmers Connect + Input Providers side by side */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <button
+                    onClick={() => { setSubType("farmers_connect"); setOrgType("cooperative"); }}
+                    className="p-4 rounded-2xl border-2 border-[#16a34a] bg-[#16a34a]/5 text-left active:scale-95 transition-all"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-[#16a34a] flex items-center justify-center mb-3 shadow-md">
+                      <Users size={18} className="text-white" />
                     </div>
-                    <div className="flex-1">
-                      <p className="text-foreground font-bold text-base">Farmers Connect</p>
-                      <p className="text-muted-foreground text-sm mt-0.5 leading-relaxed">Cooperatives & NGOs that manage and connect farmer groups, handle group KYC, and facilitate farm loans.</p>
-                      <div className="flex flex-wrap gap-1.5 mt-2.5">
-                        {["Farmer Cooperatives", "NGOs", "Aggregators"].map(tag => (
-                          <span key={tag} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#16a34a]/10 text-[#16a34a]">{tag}</span>
-                        ))}
-                      </div>
+                    <p className="text-foreground font-bold text-sm leading-tight">Farmers Connect</p>
+                    <p className="text-muted-foreground text-[11px] mt-1 leading-relaxed">Cooperatives & NGOs managing farmer groups</p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {["Cooperatives", "NGOs"].map(tag => (
+                        <span key={tag} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#16a34a]/10 text-[#16a34a]">{tag}</span>
+                      ))}
                     </div>
-                  </div>
-                </button>
+                  </button>
 
-                <button
-                  onClick={() => { setSubType("input_provider"); setOrgType("distributor"); }}
-                  className="w-full mb-3 p-5 rounded-2xl border-2 border-blue-500 bg-blue-50 text-left active:scale-95 transition-all group"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center flex-shrink-0 shadow-md">
-                      <Package size={22} className="text-white" />
+                  <button
+                    onClick={() => { setSubType("input_provider"); setOrgType("distributor"); }}
+                    className="p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-left active:scale-95 transition-all"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center mb-3 shadow-md">
+                      <Package size={18} className="text-white" />
                     </div>
-                    <div className="flex-1">
-                      <p className="text-foreground font-bold text-base">Input Providers</p>
-                      <p className="text-muted-foreground text-sm mt-0.5 leading-relaxed">Agribusinesses and distributors supplying seeds, fertilizer, pesticides, tools, and other farm inputs to farmers.</p>
-                      <div className="flex flex-wrap gap-1.5 mt-2.5">
-                        {["Distributors", "Agribusiness", "Finance"].map(tag => (
-                          <span key={tag} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{tag}</span>
-                        ))}
-                      </div>
+                    <p className="text-foreground font-bold text-sm leading-tight">Input Providers</p>
+                    <p className="text-muted-foreground text-[11px] mt-1 leading-relaxed">Supply seeds, fertilizer & farm inputs</p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {["Distributors", "Agribiz"].map(tag => (
+                        <span key={tag} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">{tag}</span>
+                      ))}
                     </div>
-                  </div>
-                </button>
+                  </button>
+                </div>
 
+                {/* Bottom row: Sales Agent full-width */}
                 <button
                   onClick={() => { setSubType("sales_agent"); setOrgType("sales_agent"); }}
-                  className="w-full p-5 rounded-2xl border-2 border-amber-500 bg-amber-50 text-left active:scale-95 transition-all group"
+                  className="w-full p-4 rounded-2xl border-2 border-amber-500 bg-amber-50 text-left active:scale-95 transition-all"
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center flex-shrink-0 shadow-md">
                       <Briefcase size={22} className="text-white" />
                     </div>
                     <div className="flex-1">
                       <p className="text-foreground font-bold text-base">Sales Agent</p>
                       <p className="text-muted-foreground text-sm mt-0.5 leading-relaxed">Investa Farm field agent — onboard farmers via referral links, submit crop proposals, and earn commission on funded farms.</p>
-                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                      <div className="flex flex-wrap gap-1.5 mt-2">
                         {["Crop Proposals", "Farmer Onboarding", "Commission"].map(tag => (
                           <span key={tag} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{tag}</span>
                         ))}

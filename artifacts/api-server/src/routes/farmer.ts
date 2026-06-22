@@ -373,8 +373,8 @@ router.post("/farmer/voucher-redeem", async (req, res): Promise<void> => {
   const [loan] = await db.select().from(loanApplicationsTable)
     .where(and(eq(loanApplicationsTable.id, loanId), eq(loanApplicationsTable.farmerId, user.id)));
   if (!loan) { res.status(404).json({ error: "Loan not found" }); return; }
-  if (!["approved", "disbursed"].includes(loan.status)) {
-    res.status(400).json({ error: "Loan has no active voucher" }); return;
+  if (loan.status !== "disbursed") {
+    res.status(400).json({ error: "Voucher is only available after the farm is fully funded and disbursed" }); return;
   }
 
   const [agribiz] = await db.select({ id: usersTable.id, name: usersTable.name })

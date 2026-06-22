@@ -491,53 +491,88 @@ function PwaInstallBanner() {
 
 function SplashScreen({ onDone }: { onDone: () => void }) {
   useEffect(() => {
-    const t = setTimeout(onDone, 2000);
+    const t = setTimeout(onDone, 3800);
     return () => clearTimeout(t);
   }, [onDone]);
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
-      style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 45%, #16a34a 100%)" }}
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
+      style={{ background: "#080e09" }}
     >
-      <div style={{ animation: "splash-pop 0.55s cubic-bezier(0.34,1.56,0.64,1) both" }}>
-        <img
-          src={logoSrc}
-          alt="Investa Farm"
-          className="h-24 w-auto select-none"
-          style={{ filter: "brightness(0) invert(1)" }}
-        />
+      {/* Ambient glow layers */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse 70% 50% at 50% 60%, rgba(22,163,74,0.18) 0%, transparent 70%)",
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse 40% 30% at 50% 40%, rgba(134,239,172,0.07) 0%, transparent 60%)",
+      }} />
+      {/* Subtle grid texture */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.035]" style={{
+        backgroundImage: "linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)",
+        backgroundSize: "40px 40px",
+      }} />
+
+      {/* Logo ring */}
+      <div style={{ animation: "splash-pop 0.65s cubic-bezier(0.34,1.56,0.64,1) both" }}>
+        <div className="relative">
+          <div className="absolute -inset-4 rounded-full opacity-30" style={{
+            background: "radial-gradient(circle, rgba(22,163,74,0.5) 0%, transparent 70%)",
+            animation: "splash-pulse 2.5s 0.8s ease-in-out infinite",
+          }} />
+          <div className="w-24 h-24 rounded-3xl flex items-center justify-center relative"
+            style={{ background: "linear-gradient(135deg, rgba(22,163,74,0.15) 0%, rgba(5,46,22,0.4) 100%)", border: "1px solid rgba(22,163,74,0.25)", backdropFilter: "blur(8px)" }}>
+            <img
+              src={logoSrc}
+              alt="Investa Farm"
+              className="h-14 w-auto select-none"
+              style={{ filter: "brightness(0) invert(1)" }}
+            />
+          </div>
+        </div>
       </div>
+
+      {/* Brand name */}
       <p
-        className="text-white/70 text-sm font-medium mt-5 tracking-widest uppercase"
-        style={{ animation: "splash-fade 0.6s 0.4s ease both" }}
+        className="text-white font-bold text-2xl mt-6 tracking-tight"
+        style={{ animation: "splash-fade 0.7s 0.5s ease both", fontFamily: "Space Grotesk, sans-serif", letterSpacing: "-0.01em" }}
       >
         Investa Farm
       </p>
-      <div
-        className="mt-10 flex gap-1.5"
-        style={{ animation: "splash-fade 0.6s 0.7s ease both" }}
+      <p
+        className="text-white/40 text-xs mt-1.5 tracking-widest uppercase"
+        style={{ animation: "splash-fade 0.7s 0.7s ease both" }}
       >
-        {[0, 1, 2].map(i => (
-          <span
-            key={i}
-            className="w-1.5 h-1.5 rounded-full bg-white/60"
-            style={{ animation: `splash-dot 1.2s ${i * 0.2}s ease-in-out infinite` }}
-          />
-        ))}
+        Africa's Farm Investment Platform
+      </p>
+
+      {/* Loading bar */}
+      <div
+        className="mt-10 w-32 h-0.5 rounded-full overflow-hidden"
+        style={{ animation: "splash-fade 0.6s 1s ease both", background: "rgba(255,255,255,0.08)" }}
+      >
+        <div className="h-full rounded-full" style={{
+          background: "linear-gradient(90deg, #16a34a, #4ade80)",
+          animation: "splash-bar 3s 1.1s ease-in-out both",
+        }} />
       </div>
+
       <style>{`
         @keyframes splash-pop {
-          from { opacity: 0; transform: scale(0.7); }
-          to   { opacity: 1; transform: scale(1); }
+          from { opacity: 0; transform: scale(0.6) rotate(-4deg); }
+          to   { opacity: 1; transform: scale(1) rotate(0deg); }
         }
         @keyframes splash-fade {
-          from { opacity: 0; transform: translateY(8px); }
+          from { opacity: 0; transform: translateY(12px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes splash-dot {
-          0%, 100% { opacity: 0.3; transform: scale(0.8); }
-          50%       { opacity: 1;   transform: scale(1.2); }
+        @keyframes splash-pulse {
+          0%, 100% { opacity: 0.25; transform: scale(1); }
+          50%       { opacity: 0.5; transform: scale(1.15); }
+        }
+        @keyframes splash-bar {
+          from { width: 0%; }
+          to   { width: 100%; }
         }
       `}</style>
     </div>

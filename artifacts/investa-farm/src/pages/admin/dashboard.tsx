@@ -4,7 +4,7 @@ import {
   Shield, Users, Tractor, DollarSign, TrendingUp, FileText,
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
   Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2,
-  Settings, Bell, Percent, Coins, ChevronRight, BarChart3, Trash2
+  Settings, Bell, Percent, Coins, ChevronRight, BarChart3, Trash2, ExternalLink
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -91,6 +91,7 @@ export default function AdminDashboard() {
   const [clearDbLoading, setClearDbLoading] = useState(false);
   const [kycOnly, setKycOnly] = useState(false);
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
+  const [viewingDoc, setViewingDoc] = useState<KycDoc | null>(null);
 
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
@@ -816,12 +817,12 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     {doc.fileUrl && (
-                      <a href={doc.fileUrl} target="_blank" rel="noreferrer"
-                        className="ml-2 w-12 h-12 rounded-xl overflow-hidden border border-border flex-shrink-0 bg-gray-100 flex items-center justify-center">
+                      <button onClick={() => setViewingDoc(doc)}
+                        className="ml-2 w-12 h-12 rounded-xl overflow-hidden border-2 border-primary/30 flex-shrink-0 bg-gray-100 flex items-center justify-center active:scale-95 transition-transform">
                         {doc.fileUrl.match(/\.(jpg|jpeg|png|webp)$/i)
                           ? <img src={doc.fileUrl} alt="Doc" className="w-full h-full object-cover" />
-                          : <FileText size={18} className="text-muted-foreground" />}
-                      </a>
+                          : <FileText size={18} className="text-primary" />}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1552,6 +1553,76 @@ export default function AdminDashboard() {
                   <p className="text-[9px] text-red-400">Log out of admin panel</p>
                 </div>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KYC Document Viewer Modal */}
+      {viewingDoc && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setViewingDoc(null)}
+        >
+          <div
+            className="relative w-full max-w-sm bg-background rounded-3xl overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <div>
+                <p className="font-bold text-sm text-foreground">{viewingDoc.docType}</p>
+                <p className="text-muted-foreground text-[10px]">{viewingDoc.userName} · {viewingDoc.userEmail}</p>
+              </div>
+              <button
+                onClick={() => setViewingDoc(null)}
+                className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Document preview */}
+            <div className="bg-gray-100 flex items-center justify-center" style={{ minHeight: 300 }}>
+              {viewingDoc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? (
+                <img
+                  src={viewingDoc.fileUrl}
+                  alt={viewingDoc.docType}
+                  className="w-full object-contain"
+                  style={{ maxHeight: 400 }}
+                />
+              ) : viewingDoc.fileUrl.match(/\.pdf$/i) ? (
+                <iframe
+                  src={viewingDoc.fileUrl}
+                  title={viewingDoc.docType}
+                  className="w-full"
+                  style={{ height: 400, border: "none" }}
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-3 p-8 text-center">
+                  <FileText size={48} className="text-muted-foreground" />
+                  <p className="text-muted-foreground text-sm">Preview not available for this file type</p>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="px-4 py-3 flex gap-2 border-t border-border">
+              <a
+                href={viewingDoc.fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 flex items-center justify-center gap-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-semibold py-2.5 rounded-xl"
+              >
+                <ExternalLink size={13} /> Open in Browser
+              </a>
+              <span className={`flex-1 flex items-center justify-center text-xs font-bold rounded-xl py-2.5 ${
+                viewingDoc.status === "approved" ? "bg-green-100 text-green-700" :
+                viewingDoc.status === "rejected" ? "bg-red-100 text-red-700" :
+                "bg-amber-100 text-amber-700"
+              }`}>
+                {viewingDoc.status === "approved" ? "✓ Approved" : viewingDoc.status === "rejected" ? "✗ Rejected" : "⏳ Pending"}
+              </span>
             </div>
           </div>
         </div>

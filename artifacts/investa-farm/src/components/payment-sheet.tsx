@@ -48,7 +48,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const user = getStoredUser();
   const qc = useQueryClient();
 
-  const [tab, setTab] = useState<Tab>("mpesa");
+  const [tab, setTab] = useState<Tab>("card");
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("+254");
