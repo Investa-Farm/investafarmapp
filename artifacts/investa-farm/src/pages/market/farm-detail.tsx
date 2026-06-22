@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
 import { useGetFarm, getGetFarmQueryKey, useListPrimaryMarket } from "@workspace/api-client-react";
 import { ArrowLeft, TrendingUp, TrendingDown, Users, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles, BarChart2, Navigation, CloudRain, Wind, Thermometer, Droplet, Newspaper, RefreshCw } from "lucide-react";
@@ -10,6 +10,7 @@ import { getCropImage } from "@/lib/crops";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
 import { useQuery } from "@tanstack/react-query";
+import "leaflet/dist/leaflet.css";
 
 type GrowthData = {
   farmId: number; cropType: string;
@@ -42,6 +43,39 @@ function getKenyaCoords(location: string): [number, number] {
     if (lower.includes(key)) return coords;
   }
   return [-1.2921, 36.8219];
+}
+
+function FarmLeafletMap({ lat, lng, label }: { lat: number; lng: number; label: string }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const instanceRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!mapRef.current || instanceRef.current) return;
+    import("leaflet").then((L) => {
+      if (!mapRef.current || instanceRef.current) return;
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+        iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+      });
+      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], 12);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 18,
+      }).addTo(map);
+      L.marker([lat, lng]).addTo(map).bindPopup(`<strong>${label}</strong>`).openPopup();
+      instanceRef.current = map;
+    });
+    return () => {
+      if (instanceRef.current) {
+        instanceRef.current.remove();
+        instanceRef.current = null;
+      }
+    };
+  }, [lat, lng, label]);
+
+  return <div ref={mapRef} style={{ height: 260, width: "100%", background: "#e8f4e8" }} />;
 }
 
 function AiInsightTags({ cropType, changePercent, stage, fundingPercent }: {
@@ -309,7 +343,6 @@ export default function FarmDetail() {
   const chartData = (farm.priceHistory as any[])?.map((p: any) => ({ date: String(p.date).split("T")[0].slice(5), price: Number(p.price) })) ?? [];
   const currentStageIdx = GROWTH_STAGES.findIndex(s => s.key === (growth?.stage ?? "growing"));
   const [mapLat, mapLng] = getKenyaCoords(farm.location ?? "");
-  const osmUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${(mapLng - 0.18).toFixed(4)}%2C${(mapLat - 0.13).toFixed(4)}%2C${(mapLng + 0.18).toFixed(4)}%2C${(mapLat + 0.13).toFixed(4)}&layer=mapnik&marker=${mapLat.toFixed(4)}%2C${mapLng.toFixed(4)}`;
 
   return (
     <div className="app-shell pb-28 page-enter" data-testid="farm-detail">
@@ -793,18 +826,9 @@ export default function FarmDetail() {
                   <span className="text-[10px] text-[#16a34a] font-semibold uppercase tracking-wide">GPS Verified</span>
                 </div>
               </div>
-              <div className="relative bg-[#e8ead2]" style={{ height: 260 }}>
-                <iframe
-                  src={osmUrl}
-                  width="100%"
-                  height="260"
-                  style={{ border: 0, display: "block" }}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  allowFullScreen
-                  title={`Map — ${farm.location}`}
-                />
-                <div className="absolute bottom-3 left-3 pointer-events-none">
+              <div className="relative" style={{ height: 260 }}>
+                <FarmLeafletMap lat={mapLat} lng={mapLng} label={farm.location ?? "Farm Location"} />
+                <div className="absolute bottom-3 left-3 pointer-events-none z-[500]">
                   <div className="bg-black/70 backdrop-blur-sm rounded-xl px-3 py-2">
                     <p className="text-white font-semibold text-xs">{farm.location}</p>
                     <p className="text-white/70 text-[10px]">Lat {mapLat.toFixed(4)}, Lng {mapLng.toFixed(4)}</p>

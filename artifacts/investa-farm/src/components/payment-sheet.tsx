@@ -22,6 +22,17 @@ const MPESA_CODES = [
   { code: "+255", flag: "🇹🇿", name: "Tanzania" },
   { code: "+256", flag: "🇺🇬", name: "Uganda" },
   { code: "+250", flag: "🇷🇼", name: "Rwanda" },
+  { code: "+251", flag: "🇪🇹", name: "Ethiopia" },
+  { code: "+27",  flag: "🇿🇦", name: "South Africa" },
+  { code: "+234", flag: "🇳🇬", name: "Nigeria" },
+  { code: "+233", flag: "🇬🇭", name: "Ghana" },
+  { code: "+263", flag: "🇿🇼", name: "Zimbabwe" },
+  { code: "+260", flag: "🇿🇲", name: "Zambia" },
+  { code: "+265", flag: "🇲🇼", name: "Malawi" },
+  { code: "+258", flag: "🇲🇿", name: "Mozambique" },
+  { code: "+44",  flag: "🇬🇧", name: "UK" },
+  { code: "+1",   flag: "🇺🇸", name: "USA" },
+  { code: "+971", flag: "🇦🇪", name: "UAE" },
 ];
 
 type Tab = "mpesa" | "card" | "usdc";

@@ -26,8 +26,15 @@ const COOP_PHONE_CODES = [
   { code: "+250", flag: "🇷🇼" },
   { code: "+251", flag: "🇪🇹" },
   { code: "+27",  flag: "🇿🇦" },
+  { code: "+234", flag: "🇳🇬" },
+  { code: "+233", flag: "🇬🇭" },
+  { code: "+263", flag: "🇿🇼" },
+  { code: "+260", flag: "🇿🇲" },
+  { code: "+265", flag: "🇲🇼" },
+  { code: "+258", flag: "🇲🇿" },
   { code: "+44",  flag: "🇬🇧" },
   { code: "+1",   flag: "🇺🇸" },
+  { code: "+971", flag: "🇦🇪" },
 ];
 
 const WELCOME_STEPS = [
