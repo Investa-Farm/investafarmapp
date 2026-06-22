@@ -26,9 +26,21 @@ const PHONE_CODES = [
   { code: "+251", flag: "🇪🇹", name: "Ethiopia" },
   { code: "+27",  flag: "🇿🇦", name: "South Africa" },
   { code: "+234", flag: "🇳🇬", name: "Nigeria" },
+  { code: "+233", flag: "🇬🇭", name: "Ghana" },
+  { code: "+263", flag: "🇿🇼", name: "Zimbabwe" },
+  { code: "+260", flag: "🇿🇲", name: "Zambia" },
+  { code: "+265", flag: "🇲🇼", name: "Malawi" },
+  { code: "+258", flag: "🇲🇿", name: "Mozambique" },
+  { code: "+249", flag: "🇸🇩", name: "Sudan" },
+  { code: "+252", flag: "🇸🇴", name: "Somalia" },
+  { code: "+257", flag: "🇧🇮", name: "Burundi" },
+  { code: "+253", flag: "🇩🇯", name: "Djibouti" },
   { code: "+44",  flag: "🇬🇧", name: "UK" },
   { code: "+1",   flag: "🇺🇸", name: "USA" },
   { code: "+971", flag: "🇦🇪", name: "UAE" },
+  { code: "+49",  flag: "🇩🇪", name: "Germany" },
+  { code: "+33",  flag: "🇫🇷", name: "France" },
+  { code: "+31",  flag: "🇳🇱", name: "Netherlands" },
 ];
 
 export default function InvestorAuth() {

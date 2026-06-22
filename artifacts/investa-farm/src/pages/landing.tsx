@@ -6,8 +6,6 @@ import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import farmerImg from "@assets/pexels-safari-consoler-3290243-10963690_1778315943106.jpg";
 import investorImg from "@assets/IMG_8016_1781250402404.jpeg";
 import coopImg from "@assets/pexels-livier-garcia-645743-1459331_1778315943105.jpg";
-import marketImg from "@assets/pexels-aedrian-10653885_1781945539883.jpg";
-
 export default function Landing() {
   const [, setLocation] = useLocation();
   const [tapCount, setTapCount] = useState(0);
@@ -86,58 +84,30 @@ export default function Landing() {
           </div>
         </button>
 
-        {/* Bottom two cards side by side */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Cooperative / Partner card */}
-          <motion.button
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25 }}
-            data-testid="card-cooperative"
-            onClick={() => setLocation("/cooperative-auth")}
-            className="w-full relative rounded-3xl overflow-hidden h-36 flex items-end active:scale-98 transition-all shadow-md group"
-          >
-            <img src={coopImg} alt="Cooperative" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-            <div className="relative z-10 p-3 w-full flex items-end justify-between">
-              <div className="text-left">
-                <div className="inline-flex items-center gap-1 text-white text-[9px] font-bold px-2 py-0.5 rounded-full mb-1.5 border border-white/30 bg-white/10">
-                  🤝 Partners
-                </div>
-                <p className="text-white font-bold text-sm leading-tight">Cooperative</p>
-                <p className="text-white/60 text-[10px]">Join network</p>
+        {/* Cooperative / Partner card — full width */}
+        <motion.button
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+          data-testid="card-cooperative"
+          onClick={() => setLocation("/cooperative-auth")}
+          className="w-full relative rounded-3xl overflow-hidden h-32 flex items-end active:scale-98 transition-all shadow-md group"
+        >
+          <img src={coopImg} alt="Cooperative" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+          <div className="relative z-10 p-4 w-full flex items-end justify-between">
+            <div className="text-left">
+              <div className="inline-flex items-center gap-1 text-white text-[9px] font-bold px-2 py-0.5 rounded-full mb-1.5 border border-white/30 bg-white/10">
+                🤝 Partners
               </div>
-              <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
-                <ArrowRight size={13} className="text-white" />
-              </div>
+              <p className="text-white font-bold text-base leading-tight">Cooperative &amp; Agribusiness</p>
+              <p className="text-white/70 text-xs">Join our partner network</p>
             </div>
-          </motion.button>
-
-          {/* Live Market card */}
-          <motion.button
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.35 }}
-            data-testid="card-market"
-            onClick={() => setLocation("/investor-auth")}
-            className="w-full relative rounded-3xl overflow-hidden h-36 flex items-end active:scale-98 transition-all shadow-md group"
-          >
-            <img src={marketImg} alt="Live Market" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/30 to-transparent" />
-            <div className="relative z-10 p-3 w-full flex items-end justify-between">
-              <div className="text-left">
-                <div className="inline-flex items-center gap-1 text-white text-[9px] font-bold px-2 py-0.5 rounded-full mb-1.5 border border-blue-300/40 bg-blue-500/30">
-                  📊 Market
-                </div>
-                <p className="text-white font-bold text-sm leading-tight">Live Market</p>
-                <p className="text-white/60 text-[10px]">Trade farm shares</p>
-              </div>
-              <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
-                <ArrowRight size={13} className="text-white" />
-              </div>
+            <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+              <ArrowRight size={15} className="text-white" />
             </div>
-          </motion.button>
-        </div>
+          </div>
+        </motion.button>
       </motion.div>
 
       {/* Footer */}

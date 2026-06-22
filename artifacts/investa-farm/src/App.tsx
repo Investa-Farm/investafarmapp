@@ -489,11 +489,69 @@ function PwaInstallBanner() {
   );
 }
 
+function SplashScreen({ onDone }: { onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2000);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
+      style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 45%, #16a34a 100%)" }}
+    >
+      <div style={{ animation: "splash-pop 0.55s cubic-bezier(0.34,1.56,0.64,1) both" }}>
+        <img
+          src={logoSrc}
+          alt="Investa Farm"
+          className="h-24 w-auto select-none"
+          style={{ filter: "brightness(0) invert(1)" }}
+        />
+      </div>
+      <p
+        className="text-white/70 text-sm font-medium mt-5 tracking-widest uppercase"
+        style={{ animation: "splash-fade 0.6s 0.4s ease both" }}
+      >
+        Investa Farm
+      </p>
+      <div
+        className="mt-10 flex gap-1.5"
+        style={{ animation: "splash-fade 0.6s 0.7s ease both" }}
+      >
+        {[0, 1, 2].map(i => (
+          <span
+            key={i}
+            className="w-1.5 h-1.5 rounded-full bg-white/60"
+            style={{ animation: `splash-dot 1.2s ${i * 0.2}s ease-in-out infinite` }}
+          />
+        ))}
+      </div>
+      <style>{`
+        @keyframes splash-pop {
+          from { opacity: 0; transform: scale(0.7); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes splash-fade {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes splash-dot {
+          0%, 100% { opacity: 0.3; transform: scale(0.8); }
+          50%       { opacity: 1;   transform: scale(1.2); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function App() {
+  const [splashDone, setSplashDone] = useState(false);
+
   return (
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
         <TooltipProvider>
+          {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
           <WouterRouter base={BASE}>
             <Router />
           </WouterRouter>
