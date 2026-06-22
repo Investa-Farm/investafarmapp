@@ -13,11 +13,11 @@ packages = ["nano"]
 BASE_PATH = "/"
 VAPID_PUBLIC_KEY = "BPc8VL1NYoU8PbBxnYHN3CsFn_eKIN1ynZVNfSeCSA0Fep0nKC-L9ZkxRyzvTdn-VA_Bs0foga43KKV0XpGbtMQ"
 STELLAR_ISSUER_PUBLIC_KEY = "GDCTQTPZKLTNAXD6LM6AH3IZSJEV6BFB34XQCS4SHTLBN4YWKBIXK3ZJ"
-ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://f25e92ce-4e61-47b1-b0bc-96f9c3438539-00-1usistiswgj19.spock.replit.dev,https://*.replit.dev"
+ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://*.replit.dev,https://*.repl.co"
 RESEND_FROM_EMAIL = "Investa Farm <onboarding@app.investafarm.com>"
 PORT = "8080"
 NODE_ENV = "development"
-APP_URL = "https://f25e92ce-4e61-47b1-b0bc-96f9c3438539-00-1usistiswgj19.spock.replit.dev"
+APP_URL = "https://36582874-02b7-42fb-bb00-ea991c0e35d0-00-4vt8sbmirvno.worf.replit.dev"
 
 [workflows]
 runButton = "Project"
@@ -40,16 +40,12 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pnpm install && pnpm --filter @workspace/api-server run dev & sleep 8 && PORT=5000 BASE_PATH=/ pnpm --filter @workspace/investa-farm run dev"
+args = "bash start.sh"
 waitForPort = 5000
 
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
 
 [[ports]]
 localPort = 8081
