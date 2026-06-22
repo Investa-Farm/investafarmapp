@@ -10,16 +10,40 @@ const router: IRouter = Router();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
+// ── Cost breakdown schema ────────────────────────────────────────────────────
+const CostBreakdownSchema = z.object({
+  landPrep:     z.number().min(0).default(0),
+  seeds:        z.number().min(0).default(0),
+  fertilizer:   z.number().min(0).default(0),
+  pesticides:   z.number().min(0).default(0),
+  labour:       z.number().min(0).default(0),
+  equipment:    z.number().min(0).default(0),
+  irrigation:   z.number().min(0).default(0),
+  transport:    z.number().min(0).default(0),
+  postHarvest:  z.number().min(0).default(0),
+  insurance:    z.number().min(0).default(0),
+  contingency:  z.number().min(0).default(0),
+  total:        z.number().min(0),
+});
+
 const ApplyLoanBody = z.object({
   amount: z.number().positive(),
   purpose: z.enum(["seeds", "fertilizer", "equipment", "irrigation", "labour", "other"]),
-  purposeDetails: z.string().min(10),
+  purposeDetails: z.string().min(5),
   repaymentPeriodMonths: z.number().int().min(1).max(24),
   cropType: z.string().optional(),
   farmId: z.number().optional(),
   groupId: z.number().optional(),
   farmName: z.string().optional(),
   location: z.string().optional(),
+  // New full-proposal fields
+  acreage: z.string().optional(),
+  harvestDate: z.string().optional(),
+  costBreakdown: CostBreakdownSchema.optional(),
+  expectedYieldKg: z.string().optional(),
+  expectedPricePerKg: z.string().optional(),
+  expectedRevenue: z.number().optional(),
+  farmerShare: z.number().optional(),
 });
 
 function generateVoucherCode(id: number, purpose: string): string {
@@ -52,7 +76,15 @@ function formatLoan(a: typeof loanApplicationsTable.$inferSelect, cropType?: str
     submittedAt: a.submittedAt?.toISOString(),
     createdAt: a.createdAt.toISOString(),
     cropType: cropType ?? extractCropType(a.purposeDetails),
-    // Voucher only visible to farmer after farm is fully funded (status: disbursed)
+    cropName: a.cropName ?? undefined,
+    acreage: a.acreage ?? undefined,
+    farmLocation: a.farmLocation ?? undefined,
+    harvestDate: a.harvestDate ?? undefined,
+    costBreakdown: a.costBreakdown ?? undefined,
+    expectedYieldKg: a.expectedYieldKg ?? undefined,
+    expectedPricePerKg: a.expectedPricePerKg ?? undefined,
+    expectedRevenue: a.expectedRevenue ? Number(a.expectedRevenue) : undefined,
+    farmerShare: a.farmerShare ? Number(a.farmerShare) : undefined,
     voucherCode: a.status === "disbursed" ? voucherCode : undefined,
     voucherExpiry: a.status === "disbursed" ? voucherExpiry.toISOString() : undefined,
   };
@@ -66,8 +98,8 @@ function extractCropType(details: string): string | undefined {
 async function aiScoreLoan(opts: {
   cropType: string; amount: number; location: string; purpose: string;
   purposeDetails: string; approvedKycCount: number;
+  acreage?: string; expectedRevenue?: number; costBreakdown?: Record<string, number>;
 }): Promise<{ score: number; summary: string }> {
-  // Local scoring baseline
   let score = 50;
   score += opts.approvedKycCount * 15;
   const stableCrops = ["maize", "wheat", "potatoes", "beans", "dairy", "sunflower", "cassava", "rice", "sorghum", "kale"];
@@ -77,19 +109,30 @@ async function aiScoreLoan(opts: {
   if (volatileCrops.some(c => crop.includes(c))) score -= 5;
   if (opts.amount <= 200_000) score += 10;
   else if (opts.amount > 2_000_000) score -= 10;
+  // Bonus for having detailed cost breakdown
+  if (opts.costBreakdown && Object.keys(opts.costBreakdown).length > 3) score += 8;
+  // Bonus for realistic ROI (revenue > 1.5× amount)
+  if (opts.expectedRevenue && opts.expectedRevenue > opts.amount * 1.5) score += 7;
   score = Math.max(0, Math.min(100, score));
 
   try {
+    const roiLine = opts.expectedRevenue
+      ? `Expected revenue: KES ${opts.expectedRevenue.toLocaleString()}`
+      : "";
+    const costLine = opts.costBreakdown
+      ? `Cost items: ${Object.entries(opts.costBreakdown).filter(([k]) => k !== "total" && k !== "contingency").map(([k, v]) => `${k}=KES${(v as number).toLocaleString()}`).join(", ")}`
+      : "";
     const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: `Score this farm funding application 0-100 for Investa Farm Kenya.
-Crop: ${opts.cropType}, Amount: KES ${opts.amount.toLocaleString()}, Location: ${opts.location}
-Purpose: ${opts.purpose}, Details: ${opts.purposeDetails.slice(0, 120)}
+        messages: [{ role: "user", content: `Score this farm funding proposal 0-100 for Investa Farm Kenya.
+Crop: ${opts.cropType}, Acreage: ${opts.acreage ?? "unknown"}, Amount: KES ${opts.amount.toLocaleString()}, Location: ${opts.location}
+${roiLine}
+${costLine}
 KYC docs approved: ${opts.approvedKycCount}
-Return ONLY valid JSON: {"score": number, "summary": "one sentence reason"}` }],
+Return ONLY valid JSON: {"score": number, "summary": "one sentence risk assessment"}` }],
         temperature: 0.1,
         max_tokens: 80,
       }),
@@ -112,6 +155,7 @@ async function autoCreateFarmAndListing(
   cropType: string,
   farmName: string,
   location: string,
+  description?: string,
 ): Promise<number> {
   const sharePrice = Math.max(100, Math.round(amount / 1000));
   const totalShares = Math.round(amount / sharePrice);
@@ -127,6 +171,8 @@ async function autoCreateFarmAndListing(
     dairy: "https://images.unsplash.com/photo-1518715308788-3005759c9a32?w=400&q=80",
     rice: "https://images.unsplash.com/photo-1536054208835-e0e6df1dc44a?w=400&q=80",
     sunflower: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80",
+    beans: "https://images.unsplash.com/photo-1558618047-f4fb9d04dbd7?w=400&q=80",
+    kale: "https://images.unsplash.com/photo-1524179091875-bf99a9a6af57?w=400&q=80",
   };
   const key = cropType.toLowerCase().split(" ")[0] ?? "maize";
   const imageUrl = CROP_IMAGES[key] ?? "https://images.unsplash.com/photo-1500651230702-0e2d8a49d4ad?w=400&q=80";
@@ -144,7 +190,7 @@ async function autoCreateFarmAndListing(
     changePercent: "0",
     status: "active",
     imageUrl,
-    description: `Farm funded via loan application #${loanId}. Growing ${cropType} in ${location}.`,
+    description: description ?? `Farm funded via loan application #${loanId}. Growing ${cropType} in ${location}.`,
   }).returning();
 
   await db.insert(marketListingsTable).values({
@@ -167,6 +213,7 @@ const RepayLoanBody = z.object({
   amount: z.number().positive(),
 });
 
+// ── GET /loans/applications ──────────────────────────────────────────────────
 router.get("/loans/applications", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -180,11 +227,11 @@ const DEMO_FARMER_EMAILS = new Set([
   "demo.farmer@investafarm.com",
 ]);
 
+// ── POST /loans/apply ────────────────────────────────────────────────────────
 router.post("/loans/apply", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  // KYC gate — must have at least 1 approved doc (waived for demo accounts)
   const kycDocs = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.userId, user.id));
   const approvedKyc = kycDocs.filter(d => d.status === "approved");
   const isDemoFarmer = DEMO_FARMER_EMAILS.has(user.email.toLowerCase());
@@ -195,12 +242,18 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
 
   const parsed = ApplyLoanBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const { amount, purpose, purposeDetails, repaymentPeriodMonths, cropType, farmId, groupId, farmName, location } = parsed.data;
+
+  const {
+    amount, purpose, purposeDetails, repaymentPeriodMonths,
+    cropType, farmId, groupId, farmName, location,
+    acreage, harvestDate, costBreakdown, expectedYieldKg, expectedPricePerKg,
+    expectedRevenue, farmerShare,
+  } = parsed.data;
+
   const resolvedCrop = cropType ?? "Maize";
   const resolvedLocation = location ?? "Nairobi, Kenya";
   const detailsWithCrop = `[crop:${resolvedCrop}] ${purposeDetails}`;
 
-  // AI scoring via Groq
   const aiResult = await aiScoreLoan({
     cropType: resolvedCrop,
     amount,
@@ -208,6 +261,9 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
     purpose,
     purposeDetails,
     approvedKycCount: approvedKyc.length,
+    acreage,
+    expectedRevenue,
+    costBreakdown: costBreakdown as Record<string, number> | undefined,
   }).catch(() => ({ score: 65, summary: "AI score unavailable" }));
 
   const [app] = await db.insert(loanApplicationsTable).values({
@@ -221,13 +277,26 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
     groupId: groupId ?? null,
     submittedAt: new Date(),
     reviewNotes: `AI Score: ${aiResult.score}/100 — ${aiResult.summary}`,
+    cropName: resolvedCrop,
+    acreage: acreage ?? null,
+    farmLocation: resolvedLocation,
+    harvestDate: harvestDate ?? null,
+    costBreakdown: costBreakdown ?? null,
+    expectedYieldKg: expectedYieldKg ?? null,
+    expectedPricePerKg: expectedPricePerKg ?? null,
+    expectedRevenue: expectedRevenue ? String(expectedRevenue) : null,
+    farmerShare: farmerShare ? String(farmerShare) : null,
   }).returning();
 
-  // Auto-create farm + market listing
   const resolvedFarmName = farmName ?? `${user.name.split(" ")[0]}'s ${resolvedCrop} Farm`;
-  const newFarmId = await autoCreateFarmAndListing(user.id, app.id, amount, resolvedCrop, resolvedFarmName, resolvedLocation);
+  const proposalDescription = costBreakdown
+    ? `${resolvedCrop} farm in ${resolvedLocation}. ${acreage ? `${acreage} acres. ` : ""}${expectedRevenue ? `Projected revenue: KES ${expectedRevenue.toLocaleString()}.` : ""}`
+    : undefined;
 
-  // Send contract email to farmer
+  const newFarmId = await autoCreateFarmAndListing(
+    user.id, app.id, amount, resolvedCrop, resolvedFarmName, resolvedLocation, proposalDescription
+  );
+
   sendFundingApplicationEmail(user.email, user.name, {
     amount,
     purpose,
@@ -237,20 +306,20 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
     repaymentMonths: repaymentPeriodMonths,
     aiScore: aiResult.score,
     aiSummary: aiResult.summary,
-  }).catch(() => {/* non-critical */});
+  }).catch(() => {});
 
-  // Push + in-app: farm listing approved
   notifyUser(
     user.id,
     "loan_approved",
-    "✅ Farm Listing Approved!",
-    `${resolvedFarmName} (KES ${amount.toLocaleString()}) is now live on the marketplace for investors. AI Score: ${aiResult.score}/100.`,
+    "✅ Farm Proposal Approved!",
+    `${resolvedFarmName} (KES ${amount.toLocaleString()}) is now live on the marketplace. AI Score: ${aiResult.score}/100.`,
     "/farmer/farm-profile"
   ).catch(() => {});
 
   res.status(201).json({ ...formatLoan(app, resolvedCrop), newFarmId, aiScore: aiResult.score });
 });
 
+// ── POST /loans/repay/:id ────────────────────────────────────────────────────
 router.post("/loans/repay/:id", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }

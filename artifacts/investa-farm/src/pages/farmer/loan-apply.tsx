@@ -1,51 +1,74 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, DollarSign, CheckCircle2, Loader2, Clock, FileText, ChevronRight, ScrollText, Shield, BarChart3, Users, AlertCircle, Sprout, MapPin, CalendarDays, X, Sparkles, ChevronLeft, Zap } from "lucide-react";
+import {
+  ArrowLeft, CheckCircle2, Loader2, Clock, FileText, ChevronLeft,
+  AlertCircle, BarChart3, Users, Shield, DollarSign, Zap, Sparkles,
+  X, TrendingUp, Leaf, Droplets, Truck, Package, Calculator,
+  ChevronRight, ScrollText,
+} from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { getToken, formatKES } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RepayModal } from "@/components/repay-modal";
 import { AnimatePresence, motion } from "framer-motion";
 
+// ── Types ────────────────────────────────────────────────────────────────────
 type LoanApp = {
   id: number; amount: number; purpose: string; purposeDetails: string;
   repaymentPeriodMonths: number; status: string; submittedAt?: string; createdAt: string;
+  cropName?: string; acreage?: string; farmLocation?: string;
+  expectedRevenue?: number; farmerShare?: number;
+  costBreakdown?: CostBreakdown;
 };
 
-const PURPOSES = [
-  { value: "seeds",      label: "🌱 Seeds & Planting" },
-  { value: "fertilizer", label: "🧪 Fertilizer" },
-  { value: "equipment",  label: "🚜 Equipment" },
-  { value: "irrigation", label: "💧 Irrigation" },
-  { value: "labour",     label: "👷 Labour" },
-  { value: "other",      label: "📋 Other" },
+type CostBreakdown = {
+  landPrep: number; seeds: number; fertilizer: number; pesticides: number;
+  labour: number; equipment: number; irrigation: number; transport: number;
+  postHarvest: number; insurance: number; contingency: number; total: number;
+};
+
+// ── Constants ────────────────────────────────────────────────────────────────
+const CROP_OPTIONS = [
+  "Maize","Beans","Coffee","Tea","Avocado","Tomatoes","Kale","Dairy","Poultry",
+  "Rice","Wheat","Sunflower","Cabbage","Greenhouse Vegetables","Potatoes","Onions","Sorghum","Other",
+];
+
+const COST_ITEMS: { key: keyof Omit<CostBreakdown, "contingency" | "total">; label: string; emoji: string; hint: string }[] = [
+  { key: "landPrep",    label: "Land Preparation",           emoji: "🚜", hint: "Clearing, ploughing, harrowing, furrowing" },
+  { key: "seeds",       label: "Seeds & Planting Material",  emoji: "🌱", hint: "Certified seeds, seedlings, cuttings" },
+  { key: "fertilizer",  label: "Fertilizer & Amendments",    emoji: "🧪", hint: "DAP, CAN, organic compost, lime" },
+  { key: "pesticides",  label: "Pesticides & Crop Protection",emoji: "🐛", hint: "Herbicides, fungicides, insecticides" },
+  { key: "labour",      label: "Labour (full season)",        emoji: "👷", hint: "Planting, weeding, harvesting wages" },
+  { key: "equipment",   label: "Equipment & Machinery",       emoji: "⚙️",  hint: "Pump hire, tractor rental, tools" },
+  { key: "irrigation",  label: "Irrigation & Water",          emoji: "💧", hint: "Drip pipes, water pumping, canal fees" },
+  { key: "transport",   label: "Transport & Logistics",        emoji: "🚛", hint: "Produce to market, input delivery" },
+  { key: "postHarvest", label: "Post-Harvest Handling",       emoji: "📦", hint: "Drying, storage, packaging, grading" },
+  { key: "insurance",   label: "Crop Insurance",               emoji: "🛡️",  hint: "Weather & crop failure cover" },
+];
+
+const GUIDE_STEPS = [
+  { icon: Shield,     title: "1. Get Verified",      body: "Upload National ID & Farm docs for KYC approval.",                color: "text-blue-600",   bg: "bg-blue-50"   },
+  { icon: DollarSign, title: "2. Submit Proposal",   body: "Itemise every cost from land prep to harvest.",                  color: "text-primary",    bg: "bg-primary/5" },
+  { icon: Users,      title: "3. Investors Fund You", body: "Your farm is listed on the market. Investors buy shares.",       color: "text-amber-600",  bg: "bg-amber-50"  },
+  { icon: BarChart3,  title: "4. Earn Your 55%",     body: "After harvest, you keep 55% of gross revenue. No upfront fee.",  color: "text-green-600",  bg: "bg-green-50"  },
 ];
 
 const statusConfig: Record<string, { label: string; cls: string }> = {
-  draft:        { label: "Draft",        cls: "badge-pending" },
+  draft:        { label: "Draft",        cls: "badge-pending"   },
   submitted:    { label: "Submitted",    cls: "badge-submitted" },
   under_review: { label: "Under Review", cls: "badge-submitted" },
-  approved:     { label: "Approved",     cls: "badge-approved" },
-  rejected:     { label: "Rejected",     cls: "badge-rejected" },
-  disbursed:    { label: "Disbursed",    cls: "badge-approved" },
+  approved:     { label: "Approved",     cls: "badge-approved"  },
+  rejected:     { label: "Rejected",     cls: "badge-rejected"  },
+  disbursed:    { label: "Disbursed",    cls: "badge-approved"  },
 };
-
-const GUIDE_STEPS = [
-  { icon: Shield,    title: "1. Get Verified",     body: "Upload National ID & Farm Report for KYC approval.",                           color: "text-blue-600",  bg: "bg-blue-50" },
-  { icon: DollarSign, title: "2. Apply for Funding", body: "Choose how much you need and what it's for.",                                color: "text-primary",   bg: "bg-primary/5" },
-  { icon: Users,      title: "3. Investors Fund You", body: "Your farm is listed on the market. Investors buy shares.",                   color: "text-amber-600", bg: "bg-amber-50" },
-  { icon: BarChart3,  title: "4. Earn Your 55%",    body: "After harvest, you keep 55% of gross revenue. No upfront interest.",          color: "text-green-600", bg: "bg-green-50" },
-];
-
-const CROP_OPTIONS = ["Maize","Beans","Coffee","Tea","Avocado","Tomatoes","Kale","Dairy","Poultry","Rice","Wheat","Sunflower","Cabbage","Greenhouse Vegetables","Other"];
 
 const CONTRACT_TEXT = `INVESTA FARM PRODUCTION FUNDING AGREEMENT
 
-This Production Funding Agreement ("Agreement") is entered into between Investa Farm Platform ("Platform") and the applicant Farmer or Farmer Group ("Farmer") upon submission of a funding application.
+This Production Funding Agreement ("Agreement") is entered into between Investa Farm Platform ("Platform") and the applicant Farmer ("Farmer") upon submission of a funding proposal.
 
 1. PLATFORM OBLIGATIONS
 The Platform agrees to:
-• Review and process the funding application within 2 business days
+• Review and process the funding proposal within 2 business days
 • List the farm on the Investa Farm investor exchange upon approval
 • Manage investor relations and share certificates on behalf of the Farmer
 • Disburse approved funds within 5 business days of full funding
@@ -58,44 +81,34 @@ The Farmer agrees to:
 • Post at least ONE (1) field update per month with a photo on the platform
 • Allow Platform inspection visits with 48-hour advance notice
 • Report any crop failure, pest outbreak, or force majeure within 24 hours
+• Use disbursed funds ONLY for the declared cost items in the proposal
 • Not divert disbursed funds to non-declared purposes
 
-3. REVENUE SHARING
+3. COST PROPOSAL COMMITMENT
+The Farmer commits that the itemised budget submitted in the proposal reflects real, planned expenditures. Any material deviation (>20%) in a cost category must be reported to the Platform within 7 days.
+
+4. REVENUE SHARING
 Upon harvest and sale of produce:
 • Farmer receives: 55% of gross harvest revenue
-• Investor pool receives: 45% of gross harvest revenue
-• Platform service fee: 1.5% deducted from the investor pool only
+• Investor pool receives: 44.5% of gross harvest revenue
+• Platform service fee: 0.5% deducted from the investor pool only
 The Farmer is not charged a platform fee on their 55% share.
 
-4. REPAYMENT TERMS
-• Principal repayment from harvest proceeds via M-Pesa or bank transfer
+5. REPAYMENT TERMS
 • Simple interest rate: 8% per annum on the principal
-• Repayment schedule as indicated in the application
+• Repayment from harvest proceeds or wallet within the agreed period
 • No penalty for early repayment
-• In case of crop failure due to proven natural disaster, the Platform will work with the Farmer to restructure repayment
+• In case of proven natural disaster, repayment may be restructured
 
-5. COVENANTS
-• The Farmer warrants that the farm exists, is operational, and all KYC documents are genuine
-• The Farmer shall not list the same farm on any other crowdfunding or funding platform during the term
-• The Farmer shall maintain crop insurance where available
-
-6. TERM AND TERMINATION
-This Agreement is valid from the date of funding application approval until full repayment. The Platform may terminate in case of fraud or material misrepresentation.
+6. COVENANTS
+• The Farmer warrants that the farm exists and all KYC documents are genuine
+• The Farmer shall not list the same farm on any other crowdfunding platform during the term
+• The Farmer shall maintain crop insurance where commercially available
 
 7. GOVERNING LAW
 This Agreement is governed by the laws of the Republic of Kenya.`;
 
-function computeCreditScore(kycApproved: number, cropType: string, acreage: string, amount: string, description: string): number {
-  let score = 600;
-  score += Math.min(kycApproved * 45, 130);
-  if (cropType && cropType !== "Other") score += 25;
-  if (parseFloat(acreage) >= 2) score += 20;
-  if (parseFloat(amount) > 0 && parseFloat(amount) <= 200000) score += 15;
-  if (parseFloat(amount) > 500000) score -= 25;
-  if (description.length > 80) score += 15;
-  return Math.min(Math.max(score, 500), 780);
-}
-
+// ── Credit score gauge ───────────────────────────────────────────────────────
 function ScoreGauge({ score }: { score: number }) {
   const pct = ((score - 300) / (850 - 300)) * 100;
   const color = score >= 700 ? "#16a34a" : score >= 620 ? "#f59e0b" : "#ef4444";
@@ -129,6 +142,50 @@ function ScoreGauge({ score }: { score: number }) {
   );
 }
 
+function computeCreditScore(kycApproved: number, cropType: string, acreage: string, total: number, hasBreakdown: boolean, expectedRevenue: number): number {
+  let score = 600;
+  score += Math.min(kycApproved * 45, 130);
+  if (cropType && cropType !== "Other") score += 25;
+  if (parseFloat(acreage) >= 2) score += 20;
+  if (total > 0 && total <= 200000) score += 15;
+  if (total > 500000) score -= 25;
+  if (hasBreakdown) score += 20;
+  if (expectedRevenue > total * 1.5) score += 15;
+  return Math.min(Math.max(score, 500), 780);
+}
+
+// ── KES input helper ─────────────────────────────────────────────────────────
+function KesInput({ label, hint, emoji, value, onChange }: {
+  label: string; hint: string; emoji: string; value: number; onChange: (v: number) => void;
+}) {
+  const [raw, setRaw] = useState(value > 0 ? String(value) : "");
+  return (
+    <div className="border border-border rounded-2xl p-3 bg-card">
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <p className="text-foreground font-semibold text-xs">{emoji} {label}</p>
+          <p className="text-muted-foreground text-[10px] mt-0.5">{hint}</p>
+        </div>
+        {value > 0 && <span className="text-primary text-[10px] font-bold">{formatKES(value)}</span>}
+      </div>
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-bold">KES</span>
+        <input
+          type="text" inputMode="numeric" value={raw}
+          onChange={e => {
+            const v = e.target.value.replace(/[^0-9]/g, "");
+            setRaw(v);
+            onChange(v ? parseInt(v, 10) : 0);
+          }}
+          placeholder="0"
+          className="w-full border border-border rounded-xl pl-10 pr-3 py-2.5 text-foreground text-sm font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
 export default function LoanApply() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
@@ -136,29 +193,44 @@ export default function LoanApply() {
 
   const [repayLoan, setRepayLoan] = useState<LoanApp | null>(null);
   const [repayOpen, setRepayOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalStep, setModalStep] = useState(1);
+  const [submitDone, setSubmitDone] = useState(false);
+  const [aiScore, setAiScore] = useState(0);
+  const [aiScoring, setAiScoring] = useState(false);
+  const [kycWarning, setKycWarning] = useState(false);
 
-  const [propCropType, setPropCropType] = useState("");
-  const [propAcreage, setPropAcreage]   = useState("");
-  const [propLocation, setPropLocation] = useState("");
-  const [propHarvest, setPropHarvest]   = useState("");
-  const [propDesc, setPropDesc]         = useState("");
+  // Step 1: Farm details
+  const [cropType, setCropType] = useState("");
+  const [acreage, setAcreage] = useState("");
+  const [farmLocation, setFarmLocation] = useState("");
+  const [harvestDate, setHarvestDate] = useState("");
+  const [farmDesc, setFarmDesc] = useState("");
 
-  const [amount, setAmount]               = useState("");
-  const [purpose, setPurpose]             = useState("seeds");
-  const [purposeDetails, setPurposeDetails] = useState("");
-  const [repayment, setRepayment]         = useState(6);
+  // Step 2: Cost breakdown
+  const [costs, setCosts] = useState<Record<string, number>>({
+    landPrep: 0, seeds: 0, fertilizer: 0, pesticides: 0, labour: 0,
+    equipment: 0, irrigation: 0, transport: 0, postHarvest: 0, insurance: 0,
+  });
 
+  // Step 3: Revenue projections
+  const [yieldKg, setYieldKg] = useState("");
+  const [pricePerKg, setPricePerKg] = useState("");
+  const [repaymentMonths, setRepaymentMonths] = useState(6);
+
+  // Contract
   const [agreedToContract, setAgreedToContract] = useState(false);
   const [contractScrolled, setContractScrolled] = useState(false);
   const contractRef = useRef<HTMLDivElement>(null);
 
-  const [kycWarning, setKycWarning] = useState(false);
-
-  const [showModal, setShowModal]   = useState(false);
-  const [modalStep, setModalStep]   = useState(1);
-  const [aiScore, setAiScore]       = useState(0);
-  const [aiScoring, setAiScoring]   = useState(false);
-  const [submitDone, setSubmitDone] = useState(false);
+  // Derived calculations
+  const subtotal = Object.values(costs).reduce((a, b) => a + b, 0);
+  const contingency = Math.round(subtotal * 0.10);
+  const totalAmount = subtotal + contingency;
+  const grossRevenue = (parseFloat(yieldKg) || 0) * (parseFloat(pricePerKg) || 0);
+  const farmerShare = grossRevenue * 0.55;
+  const investorShare = grossRevenue * 0.445;
+  const roi = totalAmount > 0 ? ((farmerShare - totalAmount) / totalAmount) * 100 : 0;
 
   const { data: apps = [], isLoading } = useQuery<LoanApp[]>({
     queryKey: ["loan-apps"],
@@ -179,18 +251,6 @@ export default function LoanApply() {
   const kycApproved = (kycDocs as any[]).filter(d => d.status === "approved").length;
   const kycOk = kycApproved >= 1;
 
-  const propMutation = useMutation({
-    mutationFn: async (body: object) => {
-      const r = await fetch("/api/farmer/market/crop-proposal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-      });
-      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error ?? "Proposal failed"); }
-      return r.json();
-    },
-  });
-
   const apply = useMutation({
     mutationFn: async (body: object) => {
       const r = await fetch("/api/loans/apply", {
@@ -205,7 +265,7 @@ export default function LoanApply() {
       qc.invalidateQueries({ queryKey: ["loan-apps"] });
       qc.invalidateQueries({ queryKey: ["farms"] });
       setSubmitDone(true);
-      setModalStep(5);
+      setModalStep(6);
     },
   });
 
@@ -219,48 +279,53 @@ export default function LoanApply() {
     setShowModal(true);
   };
 
-  const handleContractScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) setContractScrolled(true);
-  };
-
   const canGoNext: Record<number, boolean> = {
-    1: !!propCropType && !!propLocation,
-    2: !!amount && parseFloat(amount) >= 10000 && !!purposeDetails,
-    3: !aiScoring,
-    4: agreedToContract,
+    1: !!cropType && !!farmLocation,
+    2: totalAmount >= 10000,
+    3: (parseFloat(yieldKg) || 0) > 0 && (parseFloat(pricePerKg) || 0) > 0,
+    4: !aiScoring,
+    5: agreedToContract,
   };
 
   const handleNext = async () => {
-    if (modalStep === 2) {
-      setModalStep(3);
+    if (modalStep === 3) {
+      setModalStep(4);
       setAiScoring(true);
-      await new Promise(r => setTimeout(r, 2200));
-      setAiScore(computeCreditScore(kycApproved, propCropType, propAcreage, amount, propDesc));
+      await new Promise(r => setTimeout(r, 2400));
+      setAiScore(computeCreditScore(kycApproved, cropType, acreage, totalAmount, subtotal > 0, grossRevenue));
       setAiScoring(false);
       return;
     }
-    if (modalStep === 4) {
-      await propMutation.mutateAsync({ cropType: propCropType, acreage: parseFloat(propAcreage) || 1, location: propLocation, expectedHarvestDate: propHarvest, description: propDesc || `${propCropType} farm in ${propLocation}` }).catch(() => {});
-      apply.mutate({ amount: parseFloat(amount), purpose, purposeDetails, repaymentPeriodMonths: repayment });
+    if (modalStep === 5) {
+      const costBreakdown = { ...costs, contingency, total: totalAmount };
+      apply.mutate({
+        amount: totalAmount,
+        purpose: "other" as const,
+        purposeDetails: farmDesc || `${cropType} farm in ${farmLocation} — ${acreage || "?"}ac`,
+        repaymentPeriodMonths: repaymentMonths,
+        cropType,
+        location: farmLocation,
+        acreage,
+        harvestDate,
+        costBreakdown,
+        expectedYieldKg: yieldKg,
+        expectedPricePerKg: pricePerKg,
+        expectedRevenue: grossRevenue || undefined,
+        farmerShare: farmerShare || undefined,
+      });
       return;
     }
     setModalStep(s => s + 1);
   };
 
   const handleBack = () => setModalStep(s => Math.max(1, s - 1));
+  const closeModal = () => { setShowModal(false); setModalStep(1); };
 
-  const closeModal = () => {
-    setShowModal(false);
-    setModalStep(1);
-  };
-
-  const monthlyRepayment = amount ? (parseFloat(amount) * 1.08 / repayment) : 0;
-
-  const STEP_LABELS = ["Crop Details", "Funding", "AI Score", "Agreement", "Done!"];
+  const STEP_LABELS = ["Farm Details", "Cost Breakdown", "Revenue Projections", "AI Score", "Agreement", "Done!"];
+  const TOTAL_STEPS = 6;
 
   return (
-    <div className="app-shell pb-20 page-enter" data-testid="loan-apply">
+    <div className="app-shell pb-20 page-enter">
       {/* Header */}
       <div className="hero-header pt-12 pb-5 px-5">
         <div className="flex items-center gap-3">
@@ -287,22 +352,22 @@ export default function LoanApply() {
           </div>
         )}
 
-        {/* Main CTA banner */}
+        {/* Main CTA */}
         <div className="bg-gradient-to-br from-primary to-emerald-700 rounded-3xl p-5 text-white shadow-lg shadow-primary/20">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles size={16} className="text-emerald-200" />
             <p className="text-emerald-100 text-xs font-semibold uppercase tracking-wider">AI-Powered Credit</p>
           </div>
-          <h2 className="font-black text-xl mb-1">Get Your Farm Funded</h2>
-          <p className="text-white/70 text-xs leading-relaxed mb-4">Propose your crop, get an AI credit score, and raise capital from investors in one seamless flow.</p>
-          <div className="flex gap-2 mb-4">
-            {["KES 10K–2M","AI Scoring","5-Step Process"].map(t => (
+          <h2 className="font-black text-xl mb-1">Full-Cost Farm Proposal</h2>
+          <p className="text-white/70 text-xs leading-relaxed mb-3">Submit a detailed budget — every cost from land prep to harvest — get an AI credit score, and raise capital from investors.</p>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {["KES 10K–2M","Itemised Budget","AI Scoring","Revenue Forecast"].map(t => (
               <span key={t} className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/15">{t}</span>
             ))}
           </div>
           <button onClick={handleOpenModal}
             className="w-full bg-white text-primary font-bold py-3.5 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2 text-sm shadow-sm">
-            <Zap size={16} /> Apply for Farm Funding
+            <Zap size={16} /> Submit Farm Proposal
           </button>
         </div>
 
@@ -328,17 +393,17 @@ export default function LoanApply() {
         {/* Revenue split */}
         <div className="bg-card border border-border rounded-2xl p-3.5">
           <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-            <BarChart3 size={13} className="text-primary" /> Revenue Split
+            <BarChart3 size={13} className="text-primary" /> Revenue Split at Harvest
           </p>
           <div className="flex h-3 rounded-full overflow-hidden mb-2 gap-0.5">
             <div className="bg-primary rounded-l-full" style={{ width: "55%" }} />
-            <div className="bg-amber-400" style={{ width: "44%" }} />
-            <div className="bg-muted-foreground/30 rounded-r-full" style={{ width: "1%" }} />
+            <div className="bg-amber-400" style={{ width: "44.5%" }} />
+            <div className="bg-muted-foreground/30 rounded-r-full" style={{ width: "0.5%" }} />
           </div>
           <div className="flex items-center justify-between text-[10px]">
-            <div className="flex items-center gap-1"><div className="w-2 h-2 bg-primary rounded-sm" /><span className="font-semibold">55% You</span></div>
-            <div className="flex items-center gap-1"><div className="w-2 h-2 bg-amber-400 rounded-sm" /><span className="font-semibold">44% Investors</span></div>
-            <div className="flex items-center gap-1"><div className="w-2 h-2 bg-muted-foreground/30 rounded-sm" /><span className="text-muted-foreground">1% Fee</span></div>
+            <div className="flex items-center gap-1"><div className="w-2 h-2 bg-primary rounded-sm" /><span className="font-semibold">55% Farmer</span></div>
+            <div className="flex items-center gap-1"><div className="w-2 h-2 bg-amber-400 rounded-sm" /><span className="font-semibold">44.5% Investors</span></div>
+            <div className="flex items-center gap-1"><div className="w-2 h-2 bg-muted-foreground/30 rounded-sm" /><span className="text-muted-foreground">0.5% Fee</span></div>
           </div>
         </div>
 
@@ -346,32 +411,72 @@ export default function LoanApply() {
         <div className="space-y-2">
           <p className="text-sm font-semibold text-foreground">My Applications ({apps.length})</p>
           {isLoading ? (
-            <div className="text-center py-6 text-muted-foreground text-sm">Loading...</div>
+            <div className="text-center py-6 text-muted-foreground text-sm"><Loader2 size={20} className="animate-spin mx-auto" /></div>
           ) : apps.length === 0 ? (
             <div className="bg-muted/50 rounded-2xl p-6 text-center">
               <FileText size={28} className="text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground text-sm">No applications yet. Start your first application above.</p>
+              <p className="text-muted-foreground text-sm">No applications yet. Submit your first proposal above.</p>
             </div>
           ) : apps.map(app => {
             const cfg = statusConfig[app.status] ?? statusConfig.draft!;
             const canRepay = ["approved","disbursed"].includes(app.status);
+            const breakdown = app.costBreakdown as CostBreakdown | undefined;
             return (
-              <div key={app.id} data-testid={`loan-app-${app.id}`} className="bg-card border border-border rounded-2xl p-4">
+              <div key={app.id} className="bg-card border border-border rounded-2xl p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-foreground font-bold text-base">{formatKES(app.amount)}</p>
                     <p className="text-muted-foreground text-xs mt-0.5">
-                      {PURPOSES.find(p => p.value === app.purpose)?.label ?? app.purpose} · {app.repaymentPeriodMonths}mo
+                      {app.cropName ?? "Farm"} {app.acreage ? `· ${app.acreage}ac` : ""} {app.farmLocation ? `· ${app.farmLocation}` : ""}
                     </p>
                   </div>
                   <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${cfg.cls}`}>{cfg.label}</span>
                 </div>
-                <p className="text-muted-foreground text-xs mt-2 line-clamp-2">{app.purposeDetails}</p>
-                <div className="mt-2.5 bg-muted/50 rounded-xl p-2.5 flex justify-between text-xs">
-                  <div><p className="text-muted-foreground">Total owed</p><p className="font-bold">{formatKES(app.amount * 1.08)}</p></div>
-                  <div className="text-right"><p className="text-muted-foreground">Monthly</p><p className="font-bold">{formatKES(app.amount * 1.08 / app.repaymentPeriodMonths)}</p></div>
+
+                {/* Cost breakdown mini-view */}
+                {breakdown && (
+                  <div className="bg-muted/40 rounded-xl p-2.5 grid grid-cols-3 gap-1.5">
+                    {[
+                      { l: "Land Prep",   v: breakdown.landPrep },
+                      { l: "Seeds",       v: breakdown.seeds },
+                      { l: "Fertilizer",  v: breakdown.fertilizer },
+                      { l: "Labour",      v: breakdown.labour },
+                      { l: "Equipment",   v: breakdown.equipment },
+                      { l: "Transport",   v: breakdown.transport },
+                    ].filter(i => i.v > 0).slice(0, 6).map(i => (
+                      <div key={i.l} className="text-center">
+                        <p className="text-muted-foreground text-[9px]">{i.l}</p>
+                        <p className="text-foreground font-bold text-[10px]">{formatKES(i.v)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Revenue & repayment */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-muted/50 rounded-xl p-2.5">
+                    <p className="text-muted-foreground text-[10px]">Total owed (8% p.a.)</p>
+                    <p className="font-bold text-xs">{formatKES(app.amount * 1.08)}</p>
+                  </div>
+                  <div className="bg-muted/50 rounded-xl p-2.5">
+                    <p className="text-muted-foreground text-[10px]">Monthly</p>
+                    <p className="font-bold text-xs">{formatKES(app.amount * 1.08 / app.repaymentPeriodMonths)}</p>
+                  </div>
+                  {app.expectedRevenue != null && (
+                    <div className="bg-green-50 border border-green-100 rounded-xl p-2.5">
+                      <p className="text-green-700 text-[10px]">Projected Revenue</p>
+                      <p className="font-bold text-xs text-green-800">{formatKES(app.expectedRevenue)}</p>
+                    </div>
+                  )}
+                  {app.farmerShare != null && (
+                    <div className="bg-primary/5 border border-primary/10 rounded-xl p-2.5">
+                      <p className="text-primary text-[10px]">Your 55% Share</p>
+                      <p className="font-bold text-xs text-primary">{formatKES(app.farmerShare)}</p>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center justify-between mt-2">
+
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <Clock size={10} className="text-muted-foreground" />
                     <span className="text-muted-foreground text-[10px]">
@@ -394,62 +499,61 @@ export default function LoanApply() {
       <RepayModal open={repayOpen} onClose={() => setRepayOpen(false)} loan={repayLoan} />
       <BottomNav role="farmer" />
 
-      {/* ─────────────────────────────────────────────────────
-          UNIFIED 5-STEP BOTTOM SHEET MODAL
-      ───────────────────────────────────────────────────── */}
+      {/* ── 6-STEP PROPOSAL MODAL ─────────────────────────────────────────── */}
       <AnimatePresence>
         {showModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[300] flex items-end justify-center"
             style={{ background: "rgba(0,0,0,0.55)" }}
-            onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
+            onClick={e => { if (e.target === e.currentTarget && modalStep < 6) closeModal(); }}>
             <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               className="bg-card w-full max-w-[430px] rounded-t-3xl overflow-hidden flex flex-col"
               style={{ maxHeight: "92dvh" }}>
 
-              {/* Modal header */}
+              {/* Header */}
               <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    {modalStep > 1 && modalStep < 5 && (
+                    {modalStep > 1 && modalStep < 6 && (
                       <button onClick={handleBack} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center -ml-1 mr-0.5">
                         <ChevronLeft size={15} className="text-foreground" />
                       </button>
                     )}
                     <div>
                       <p className="font-bold text-foreground text-sm">{STEP_LABELS[modalStep - 1]}</p>
-                      <p className="text-muted-foreground text-[10px]">Step {modalStep} of 5</p>
+                      <p className="text-muted-foreground text-[10px]">Step {modalStep} of {TOTAL_STEPS}</p>
                     </div>
                   </div>
-                  <button onClick={closeModal} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                    <X size={15} className="text-foreground" />
-                  </button>
+                  {modalStep < 6 && (
+                    <button onClick={closeModal} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                      <X size={15} className="text-foreground" />
+                    </button>
+                  )}
                 </div>
-                {/* Step progress bar */}
                 <div className="flex gap-1">
-                  {[1,2,3,4,5].map(s => (
-                    <div key={s} className={`flex-1 h-1.5 rounded-full transition-all ${s <= modalStep ? "bg-primary" : "bg-muted"}`} />
+                  {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+                    <div key={i} className={`flex-1 h-1.5 rounded-full transition-all ${i + 1 <= modalStep ? "bg-primary" : "bg-muted"}`} />
                   ))}
                 </div>
               </div>
 
-              {/* Modal body — scrollable */}
+              {/* Body */}
               <div className="overflow-y-auto flex-1 px-5 py-5">
 
-                {/* ── STEP 1: Crop Details ── */}
+                {/* ── STEP 1: Farm Details ── */}
                 {modalStep === 1 && (
                   <div className="space-y-4">
                     <div className="text-center mb-2">
                       <div className="text-3xl mb-1">🌾</div>
                       <h3 className="font-bold text-foreground text-base">Tell us about your farm</h3>
-                      <p className="text-muted-foreground text-xs mt-0.5">This creates your farm listing on the investor market</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">This creates your farm listing for investors</p>
                     </div>
 
                     <div>
                       <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Crop Type *</label>
-                      <select value={propCropType} onChange={e => setPropCropType(e.target.value)}
+                      <select value={cropType} onChange={e => setCropType(e.target.value)}
                         className="w-full border border-border rounded-xl px-3.5 py-3 text-sm text-foreground bg-background focus:outline-none focus:border-primary">
                         <option value="">Select a crop…</option>
                         {CROP_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -459,281 +563,356 @@ export default function LoanApply() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Acreage</label>
-                        <input type="number" value={propAcreage} onChange={e => setPropAcreage(e.target.value)}
+                        <input type="number" value={acreage} onChange={e => setAcreage(e.target.value)}
                           placeholder="e.g. 5" min={0.1} step={0.1}
                           className="w-full border border-border rounded-xl px-3.5 py-3 text-sm text-foreground bg-background focus:outline-none focus:border-primary" />
                       </div>
                       <div>
-                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                          <CalendarDays size={10} className="inline mr-0.5" /> Harvest Date
-                        </label>
-                        <input type="month" value={propHarvest} onChange={e => setPropHarvest(e.target.value)}
+                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Harvest Date</label>
+                        <input type="date" value={harvestDate} onChange={e => setHarvestDate(e.target.value)}
+                          min={new Date().toISOString().split("T")[0]}
                           className="w-full border border-border rounded-xl px-3.5 py-3 text-sm text-foreground bg-background focus:outline-none focus:border-primary" />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                        <MapPin size={10} className="inline mr-0.5" /> Farm Location *
-                      </label>
-                      <input type="text" value={propLocation} onChange={e => setPropLocation(e.target.value)}
+                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Farm Location *</label>
+                      <input type="text" value={farmLocation} onChange={e => setFarmLocation(e.target.value)}
                         placeholder="e.g. Nakuru County, Kenya"
                         className="w-full border border-border rounded-xl px-3.5 py-3 text-sm text-foreground bg-background focus:outline-none focus:border-primary" />
                     </div>
 
                     <div>
                       <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Farm Description</label>
-                      <textarea value={propDesc} onChange={e => setPropDesc(e.target.value)} rows={3}
-                        placeholder="Describe your farm, soil, irrigation setup, experience…"
+                      <textarea value={farmDesc} onChange={e => setFarmDesc(e.target.value)}
+                        placeholder="Describe your farm, soil type, water source, experience…"
+                        rows={3}
                         className="w-full border border-border rounded-xl px-3.5 py-3 text-sm text-foreground bg-background focus:outline-none focus:border-primary resize-none" />
-                    </div>
-
-                    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-3">
-                      <p className="text-primary font-semibold text-xs mb-1.5">📋 What you're doing here</p>
-                      <ul className="space-y-1 text-xs text-muted-foreground">
-                        <li className="flex gap-1.5"><CheckCircle2 size={11} className="text-primary mt-0.5 flex-shrink-0" />Creating your farm listing for investors</li>
-                        <li className="flex gap-1.5"><CheckCircle2 size={11} className="text-primary mt-0.5 flex-shrink-0" />Admin reviews and publishes within 1 business day</li>
-                        <li className="flex gap-1.5"><CheckCircle2 size={11} className="text-primary mt-0.5 flex-shrink-0" />You get notified when investors start funding</li>
-                      </ul>
                     </div>
                   </div>
                 )}
 
-                {/* ── STEP 2: Funding Amount ── */}
+                {/* ── STEP 2: Cost Breakdown ── */}
                 {modalStep === 2 && (
-                  <div className="space-y-4">
-                    <div className="text-center mb-2">
+                  <div className="space-y-3">
+                    <div className="text-center mb-1">
                       <div className="text-3xl mb-1">💰</div>
-                      <h3 className="font-bold text-foreground text-base">How much do you need?</h3>
-                      <p className="text-muted-foreground text-xs mt-0.5">KES 10,000 to KES 2,000,000</p>
+                      <h3 className="font-bold text-foreground text-base">Full Cost Breakdown</h3>
+                      <p className="text-muted-foreground text-xs mt-0.5">Enter every cost from land prep to harvest. Leave at 0 if not applicable.</p>
                     </div>
 
-                    <div>
-                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Loan Amount (KES) *</label>
-                      <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">KES</span>
-                        <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={10000} placeholder="e.g. 120,000" required
-                          className="w-full border border-border rounded-xl px-4 py-3 pl-12 text-foreground font-bold text-sm focus:outline-none focus:border-primary bg-background" />
+                    {COST_ITEMS.map(item => (
+                      <KesInput
+                        key={item.key}
+                        label={item.label}
+                        hint={item.hint}
+                        emoji={item.emoji}
+                        value={costs[item.key] ?? 0}
+                        onChange={v => setCosts(prev => ({ ...prev, [item.key]: v }))}
+                      />
+                    ))}
+
+                    {/* Auto totals */}
+                    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-2.5 mt-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="font-bold">{formatKES(subtotal)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Contingency (10%)</span>
+                        <span className="font-semibold text-amber-600">{formatKES(contingency)}</span>
+                      </div>
+                      <div className="border-t border-primary/20 pt-2 flex items-center justify-between">
+                        <span className="text-foreground font-bold">Total Funding Required</span>
+                        <span className="text-primary font-black text-lg">{formatKES(totalAmount)}</span>
                       </div>
                     </div>
 
-                    <div>
-                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Primary Purpose</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {PURPOSES.map(p => (
-                          <button key={p.value} type="button" onClick={() => setPurpose(p.value)}
-                            className={`py-2.5 px-2 rounded-xl border text-[11px] font-medium transition-all text-center ${purpose === p.value ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground bg-background"}`}>
-                            {p.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">How will you use it? *</label>
-                      <textarea value={purposeDetails} onChange={e => setPurposeDetails(e.target.value)} rows={3} required minLength={10}
-                        placeholder="Describe how you'll use the funds…"
-                        className="w-full border border-border rounded-xl px-3.5 py-3 text-sm text-foreground bg-background focus:outline-none focus:border-primary resize-none" />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Repayment Period</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[3,6,9,12].map(m => (
-                          <button key={m} type="button" onClick={() => setRepayment(m)}
-                            className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${repayment === m ? "border-primary bg-primary text-white" : "border-border text-foreground bg-background"}`}>
-                            {m}mo
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {amount && parseFloat(amount) > 0 && (
-                      <div className="bg-muted/50 border border-border rounded-2xl p-3.5 space-y-2">
-                        <p className="text-foreground text-xs font-bold">Loan Summary</p>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div><p className="text-muted-foreground">Principal</p><p className="font-bold text-foreground">{formatKES(parseFloat(amount)||0)}</p></div>
-                          <div><p className="text-muted-foreground">Interest (8% p.a.)</p><p className="font-bold text-foreground">{formatKES((parseFloat(amount)||0)*0.08)}</p></div>
-                          <div><p className="text-muted-foreground">Total Owed</p><p className="font-bold text-foreground">{formatKES((parseFloat(amount)||0)*1.08)}</p></div>
-                          <div><p className="text-muted-foreground">Monthly (est.)</p><p className="font-bold text-primary">{formatKES(monthlyRepayment)}</p></div>
-                        </div>
-                      </div>
+                    {totalAmount > 0 && totalAmount < 10000 && (
+                      <p className="text-red-600 text-xs text-center">Minimum funding request is KES 10,000</p>
                     )}
                   </div>
                 )}
 
-                {/* ── STEP 3: AI Credit Score ── */}
+                {/* ── STEP 3: Revenue Projections ── */}
                 {modalStep === 3 && (
+                  <div className="space-y-4">
+                    <div className="text-center mb-2">
+                      <div className="text-3xl mb-1">📈</div>
+                      <h3 className="font-bold text-foreground text-base">Revenue Projections</h3>
+                      <p className="text-muted-foreground text-xs mt-0.5">Help investors understand your expected returns</p>
+                    </div>
+
+                    <div className="bg-muted/40 rounded-2xl p-3.5 space-y-1">
+                      <p className="text-xs font-semibold text-foreground">Funding requested</p>
+                      <p className="text-primary font-black text-xl">{formatKES(totalAmount)}</p>
+                      <p className="text-muted-foreground text-[10px]">{cropType} · {acreage ? acreage + " acres · " : ""}{farmLocation}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                          Expected Yield
+                        </label>
+                        <div className="relative">
+                          <input type="number" value={yieldKg} onChange={e => setYieldKg(e.target.value)}
+                            placeholder="kg / bags" min={0}
+                            className="w-full border border-border rounded-xl px-3.5 py-3 text-sm text-foreground bg-background focus:outline-none focus:border-primary pr-10" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">kg</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                          Market Price
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-bold">KES</span>
+                          <input type="number" value={pricePerKg} onChange={e => setPricePerKg(e.target.value)}
+                            placeholder="per kg" min={0}
+                            className="w-full border border-border rounded-xl pl-11 pr-3 py-3 text-sm text-foreground bg-background focus:outline-none focus:border-primary" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Revenue summary */}
+                    {grossRevenue > 0 && (
+                      <div className="space-y-2">
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 space-y-3">
+                          <p className="text-green-800 font-bold text-sm flex items-center gap-1.5">
+                            <TrendingUp size={14} /> Revenue Forecast
+                          </p>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Gross Revenue</span>
+                              <span className="font-bold text-green-800">{formatKES(grossRevenue)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Your 55% Share</span>
+                              <span className="font-bold text-primary">{formatKES(farmerShare)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Investor 44.5% Share</span>
+                              <span className="font-semibold text-amber-700">{formatKES(investorShare)}</span>
+                            </div>
+                            <div className="border-t border-green-200 pt-2 flex justify-between text-sm">
+                              <span className="text-muted-foreground">Your Net Profit</span>
+                              <span className={`font-black ${farmerShare - totalAmount >= 0 ? "text-green-700" : "text-red-600"}`}>
+                                {formatKES(farmerShare - totalAmount)}
+                              </span>
+                            </div>
+                            <div className="bg-white/60 rounded-xl p-2 flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">Return on Investment</span>
+                              <span className={`font-black text-sm ${roi >= 0 ? "text-green-700" : "text-red-600"}`}>
+                                {roi >= 0 ? "+" : ""}{roi.toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Repayment period */}
+                    <div>
+                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                        Repayment Period: <span className="text-primary">{repaymentMonths} months</span>
+                      </label>
+                      <input type="range" min={1} max={24} step={1} value={repaymentMonths}
+                        onChange={e => setRepaymentMonths(parseInt(e.target.value))}
+                        className="w-full accent-primary" />
+                      <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                        <span>1 month</span>
+                        <span>Monthly: {formatKES((totalAmount * 1.08) / repaymentMonths)}</span>
+                        <span>24 months</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── STEP 4: AI Score ── */}
+                {modalStep === 4 && (
                   <div className="space-y-5">
                     <div className="text-center">
                       <div className="text-3xl mb-1">🤖</div>
                       <h3 className="font-bold text-foreground text-base">AI Credit Assessment</h3>
-                      <p className="text-muted-foreground text-xs mt-0.5">Analysing your KYC, crop data, and application details…</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">Our AI reviews your full proposal and assigns a credit score</p>
                     </div>
 
                     {aiScoring ? (
-                      <div className="space-y-4">
-                        <div className="bg-muted/50 border border-border rounded-2xl p-6 text-center">
-                          <Loader2 size={28} className="text-primary animate-spin mx-auto mb-3" />
-                          <p className="text-foreground font-semibold text-sm">Running credit analysis…</p>
-                          <p className="text-muted-foreground text-xs mt-1">Checking KYC documents, crop viability, and market conditions</p>
-                        </div>
-                        <div className="space-y-2">
-                          {["KYC document verification","Crop risk assessment","Market price analysis","Repayment capacity check"].map((item, i) => (
-                            <div key={i} className="flex items-center gap-2.5 bg-card border border-border rounded-xl px-3.5 py-2.5">
-                              <Loader2 size={12} className="text-primary animate-spin flex-shrink-0" />
-                              <p className="text-foreground text-xs font-medium">{item}</p>
-                            </div>
+                      <div className="py-8 text-center space-y-3">
+                        <Loader2 size={32} className="animate-spin text-primary mx-auto" />
+                        <p className="text-sm text-muted-foreground">Analysing your proposal…</p>
+                        <div className="flex justify-center gap-1">
+                          {["Crop risk","Cost ratios","ROI check","KYC status"].map((l, i) => (
+                            <span key={l} className="text-[9px] px-2 py-1 bg-primary/10 text-primary rounded-full animate-pulse"
+                              style={{ animationDelay: `${i * 200}ms` }}>{l}</span>
                           ))}
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <div className="bg-card border border-border rounded-3xl p-5">
-                          <ScoreGauge score={aiScore} />
-                        </div>
+                      <>
+                        <ScoreGauge score={aiScore} />
 
                         <div className="space-y-2">
-                          <p className="text-xs font-bold text-foreground">Score Breakdown</p>
                           {[
-                            { label: "KYC Documents", val: Math.min(kycApproved * 45, 130), max: 130, color: "bg-blue-500" },
-                            { label: "Crop Viability", val: propCropType && propCropType !== "Other" ? 25 : 0, max: 25, color: "bg-green-500" },
-                            { label: "Farm Size", val: parseFloat(propAcreage) >= 2 ? 20 : 5, max: 20, color: "bg-emerald-400" },
-                            { label: "Application Quality", val: propDesc.length > 80 ? 15 : 5, max: 15, color: "bg-amber-400" },
+                            { label: "Proposal Completeness", val: Object.values(costs).filter(v => v > 0).length * 10 + "%", good: true },
+                            { label: "Cost-to-Revenue Ratio", val: grossRevenue > 0 ? ((totalAmount / grossRevenue) * 100).toFixed(0) + "%" : "N/A", good: grossRevenue > totalAmount },
+                            { label: "KYC Documents", val: `${kycApproved} approved`, good: kycApproved >= 1 },
+                            { label: "Crop Risk Level", val: ["maize","beans","kale","wheat"].some(c => cropType.toLowerCase().includes(c)) ? "Low" : "Moderate", good: true },
                           ].map(item => (
-                            <div key={item.label}>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs text-foreground">{item.label}</span>
-                                <span className="text-xs font-bold text-foreground">+{item.val}</span>
-                              </div>
-                              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full ${item.color}`} style={{ width: `${(item.val / item.max) * 100}%` }} />
-                              </div>
+                            <div key={item.label} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                              <span className="text-sm text-muted-foreground">{item.label}</span>
+                              <span className={`text-xs font-bold ${item.good ? "text-green-600" : "text-amber-600"}`}>{item.val}</span>
                             </div>
                           ))}
                         </div>
 
-                        <div className={`rounded-2xl border p-3.5 ${aiScore >= 700 ? "bg-green-50 border-green-200" : aiScore >= 620 ? "bg-amber-50 border-amber-200" : "bg-blue-50 border-blue-200"}`}>
-                          <p className={`text-xs font-bold mb-1 ${aiScore >= 700 ? "text-green-700" : aiScore >= 620 ? "text-amber-700" : "text-blue-700"}`}>
-                            {aiScore >= 700 ? "✅ Strong Application" : aiScore >= 620 ? "👍 Good Application" : "💪 Approved — Room to Improve"}
-                          </p>
-                          <p className={`text-[11px] leading-relaxed ${aiScore >= 700 ? "text-green-600" : aiScore >= 620 ? "text-amber-600" : "text-blue-600"}`}>
-                            {aiScore >= 700
-                              ? `Your credit score of ${aiScore} is excellent. Investors are more likely to fund your farm quickly. You may also qualify for a lower platform fee.`
-                              : aiScore >= 620
-                              ? `Your score of ${aiScore} is solid. Upload more KYC documents and add a detailed farm description to strengthen your profile.`
-                              : `Your score of ${aiScore} qualifies you. Improve by adding more approved KYC documents and providing detailed farm information.`}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── STEP 4: Contract ── */}
-                {modalStep === 4 && (
-                  <div className="space-y-3">
-                    <div className="text-center mb-1">
-                      <div className="text-3xl mb-1">📜</div>
-                      <h3 className="font-bold text-foreground text-base">Production Funding Agreement</h3>
-                      <p className="text-muted-foreground text-xs mt-0.5">Read and accept to continue</p>
-                    </div>
-
-                    {apply.isError && (
-                      <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
-                        <AlertCircle size={13} className="text-red-600 flex-shrink-0 mt-0.5" />
-                        <p className="text-red-700 text-xs">{(apply.error as Error)?.message}</p>
-                      </div>
-                    )}
-
-                    {/* Key terms summary */}
-                    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-3.5">
-                      <p className="text-primary font-bold text-xs mb-2">Key Terms at a Glance</p>
-                      <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
-                        <div className="bg-white rounded-xl p-2 border border-border">
-                          <p className="font-black text-primary text-sm">55%</p>
-                          <p className="text-muted-foreground">Your share</p>
-                        </div>
-                        <div className="bg-white rounded-xl p-2 border border-border">
-                          <p className="font-black text-amber-600 text-sm">8%</p>
-                          <p className="text-muted-foreground">Annual interest</p>
-                        </div>
-                        <div className="bg-white rounded-xl p-2 border border-border">
-                          <p className="font-black text-blue-600 text-sm">1×/mo</p>
-                          <p className="text-muted-foreground">Update required</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Scrollable contract */}
-                    <div ref={contractRef} onScroll={handleContractScroll}
-                      className="border border-border rounded-2xl overflow-y-auto px-4 py-3.5 bg-background"
-                      style={{ maxHeight: 200 }}>
-                      <pre className="text-[11px] text-foreground font-sans whitespace-pre-wrap leading-relaxed">{CONTRACT_TEXT}</pre>
-                      {!contractScrolled && (
-                        <div className="sticky bottom-0 flex items-center justify-center gap-1 py-2 text-muted-foreground text-[10px] bg-gradient-to-t from-background to-transparent">
-                          <ChevronRight size={11} className="rotate-90" /> Scroll to read full agreement
-                        </div>
-                      )}
-                    </div>
-
-                    <label className={`flex items-start gap-3 cursor-pointer ${contractScrolled ? "opacity-100" : "opacity-50 pointer-events-none"}`}>
-                      <input type="checkbox" checked={agreedToContract} onChange={e => setAgreedToContract(e.target.checked)}
-                        className="w-4 h-4 accent-primary cursor-pointer mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-foreground leading-snug">
-                        I have read and agree to the Investa Farm Production Funding Agreement, including the 55/45 revenue split and monthly reporting obligations.
-                      </p>
-                    </label>
-                  </div>
-                )}
-
-                {/* ── STEP 5: Success ── */}
-                {modalStep === 5 && (
-                  <div className="text-center space-y-5 py-4">
-                    <div className="text-6xl animate-bounce">🎉</div>
-                    <div>
-                      <h3 className="font-black text-foreground text-xl mb-1">Application Submitted!</h3>
-                      <p className="text-muted-foreground text-sm leading-relaxed">Your farm listing and funding application have been submitted. We'll review within 2 business days.</p>
-                    </div>
-
-                    <div className="bg-card border border-border rounded-3xl p-5 space-y-3">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">AI Credit Score</p>
-                      <ScoreGauge score={aiScore} />
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {["Admin reviews your application","Farm listing goes live on the market","Investors start buying shares","Funds disbursed once fully funded"].map((item, i) => (
-                        <div key={i} className="flex items-center gap-3 bg-card border border-border rounded-xl px-3.5 py-2.5">
-                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <span className="text-primary text-[10px] font-black">{i+1}</span>
+                        <div className="bg-muted/50 rounded-2xl p-3.5">
+                          <p className="text-xs font-semibold text-foreground mb-1">📋 Proposal Summary</p>
+                          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                            <div><span className="text-muted-foreground">Crop: </span><span className="font-semibold">{cropType}</span></div>
+                            <div><span className="text-muted-foreground">Acreage: </span><span className="font-semibold">{acreage || "—"} ac</span></div>
+                            <div><span className="text-muted-foreground">Total Cost: </span><span className="font-semibold">{formatKES(totalAmount)}</span></div>
+                            <div><span className="text-muted-foreground">Proj. Revenue: </span><span className="font-semibold">{grossRevenue > 0 ? formatKES(grossRevenue) : "—"}</span></div>
+                            <div><span className="text-muted-foreground">Repayment: </span><span className="font-semibold">{repaymentMonths} months</span></div>
+                            <div><span className="text-muted-foreground">ROI: </span><span className={`font-semibold ${roi >= 0 ? "text-green-600" : "text-red-500"}`}>{roi.toFixed(1)}%</span></div>
                           </div>
-                          <p className="text-foreground text-xs font-medium">{item}</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* ── STEP 5: Agreement ── */}
+                {modalStep === 5 && (
+                  <div className="space-y-4">
+                    <div className="text-center mb-2">
+                      <div className="text-3xl mb-1"><ScrollText size={32} className="mx-auto text-primary" /></div>
+                      <h3 className="font-bold text-foreground text-base">Production Funding Agreement</h3>
+                      <p className="text-muted-foreground text-xs mt-0.5">Read the full agreement, then confirm to submit your proposal</p>
+                    </div>
+
+                    <div ref={contractRef} onScroll={e => {
+                      const el = e.currentTarget;
+                      if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) setContractScrolled(true);
+                    }}
+                      className="bg-muted/50 rounded-2xl p-4 text-[11px] text-muted-foreground leading-relaxed font-mono whitespace-pre-wrap overflow-y-auto"
+                      style={{ maxHeight: "30vh" }}>
+                      {CONTRACT_TEXT}
+                    </div>
+
+                    {!contractScrolled && (
+                      <p className="text-amber-600 text-[11px] text-center animate-pulse">↓ Scroll to the bottom to accept</p>
+                    )}
+
+                    <label className={`flex items-start gap-3 cursor-pointer ${!contractScrolled ? "opacity-40" : ""}`}>
+                      <input type="checkbox" checked={agreedToContract} disabled={!contractScrolled}
+                        onChange={e => setAgreedToContract(e.target.checked)}
+                        className="w-4 h-4 mt-0.5 rounded border-border accent-primary" />
+                      <div>
+                        <p className="text-foreground text-xs font-semibold">I agree to the Production Funding Agreement</p>
+                        <p className="text-muted-foreground text-[10px] mt-0.5">
+                          I commit to the {formatKES(totalAmount)} budget proposal for {cropType} farming in {farmLocation}. Revenue split: 55% Farmer / 44.5% Investors / 0.5% Platform.
+                        </p>
+                      </div>
+                    </label>
+
+                    {apply.error && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                        <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                        <p className="text-red-700 text-xs">{(apply.error as Error).message}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── STEP 6: Done ── */}
+                {modalStep === 6 && (
+                  <div className="space-y-5 py-4">
+                    <div className="text-center space-y-3">
+                      <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+                        <CheckCircle2 size={40} className="text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-foreground text-xl">Proposal Submitted!</h3>
+                        <p className="text-muted-foreground text-sm mt-1">Your farm is now live on the investor marketplace</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-primary/5 to-emerald-50 border border-primary/20 rounded-2xl p-4 space-y-2">
+                      <p className="text-foreground font-bold text-sm">📋 Proposal Overview</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white/60 rounded-xl p-2.5">
+                          <p className="text-muted-foreground">Crop</p>
+                          <p className="font-bold text-foreground">{cropType}</p>
+                        </div>
+                        <div className="bg-white/60 rounded-xl p-2.5">
+                          <p className="text-muted-foreground">Funding Raised</p>
+                          <p className="font-bold text-primary">{formatKES(totalAmount)}</p>
+                        </div>
+                        <div className="bg-white/60 rounded-xl p-2.5">
+                          <p className="text-muted-foreground">Location</p>
+                          <p className="font-bold text-foreground">{farmLocation}</p>
+                        </div>
+                        {grossRevenue > 0 && (
+                          <div className="bg-white/60 rounded-xl p-2.5">
+                            <p className="text-muted-foreground">Your 55% Share</p>
+                            <p className="font-bold text-green-700">{formatKES(farmerShare)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-foreground">What happens next?</p>
+                      {[
+                        "Your farm is now live on the primary market for investors",
+                        "Investors can buy shares to fund your farm proposal",
+                        "Once fully funded, you receive a digital disbursement voucher",
+                        "Redeem the voucher at agribusiness suppliers for inputs",
+                      ].map((t, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-white text-[9px] font-bold">{i + 1}</span>
+                          </div>
+                          <p className="text-muted-foreground text-xs">{t}</p>
                         </div>
                       ))}
                     </div>
 
+                    <button onClick={() => { closeModal(); setLocation("/farmer/farm-profile"); }}
+                      className="w-full bg-primary text-white font-bold py-4 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2">
+                      <Leaf size={16} /> View My Farm on Market
+                    </button>
                     <button onClick={closeModal}
-                      className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl active:scale-95 transition-all">
-                      View My Applications
+                      className="w-full border border-border text-foreground font-semibold py-3 rounded-2xl active:scale-95 transition-all text-sm">
+                      Back to Dashboard
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Modal footer — action button */}
-              {modalStep < 5 && (
+              {/* Footer — Next button */}
+              {modalStep < 6 && (
                 <div className="px-5 py-4 border-t border-border flex-shrink-0">
                   <button
                     onClick={handleNext}
-                    disabled={!canGoNext[modalStep] || apply.isPending || aiScoring}
-                    className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100">
-                    {apply.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
-                    {apply.isPending ? "Submitting…"
-                      : aiScoring ? "Scoring…"
-                      : modalStep === 4 ? "Submit Application 🚀"
-                      : modalStep === 3 ? "Next: Review Agreement →"
-                      : "Next →"}
+                    disabled={!canGoNext[modalStep] || apply.isPending}
+                    className="w-full bg-primary text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40">
+                    {apply.isPending ? (
+                      <><Loader2 size={18} className="animate-spin" /> Submitting Proposal…</>
+                    ) : modalStep === 5 ? (
+                      <><CheckCircle2 size={18} /> Submit Proposal</>
+                    ) : modalStep === 3 ? (
+                      <><Calculator size={18} /> Run AI Assessment</>
+                    ) : (
+                      <>Continue <ChevronRight size={18} /></>
+                    )}
                   </button>
+                  {modalStep === 2 && totalAmount >= 10000 && (
+                    <p className="text-center text-muted-foreground text-[10px] mt-2">
+                      Requesting {formatKES(totalAmount)} · {COST_ITEMS.filter(i => (costs[i.key] ?? 0) > 0).length} cost items + 10% contingency
+                    </p>
+                  )}
                 </div>
               )}
             </motion.div>
