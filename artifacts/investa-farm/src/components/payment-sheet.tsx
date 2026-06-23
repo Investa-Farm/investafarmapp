@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, CreditCard, Coins, Loader2, CheckCircle2,
-  Copy, Check, ExternalLink, AlertCircle, ChevronRight, Wallet,
+  Copy, Check, ExternalLink, AlertCircle, ChevronRight, Wallet, Smartphone,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getToken, getStoredUser, formatKES } from "@/lib/auth";
@@ -17,7 +17,7 @@ import { WalletConnectModal } from "@/components/wallet-connect-modal";
 
 const QUICK_AMOUNTS = [500, 1000, 5000, 10000, 25000];
 
-type Tab = "card" | "usdc";
+type Tab = "mpesa" | "card" | "usdc";
 
 interface Props {
   open: boolean;
@@ -25,13 +25,29 @@ interface Props {
   onSuccess: (amount: number) => void;
 }
 
+const MPESA_CODES = [
+  { code: "+254", flag: "🇰🇪", name: "Kenya (Safaricom)" },
+  { code: "+255", flag: "🇹🇿", name: "Tanzania" },
+  { code: "+256", flag: "🇺🇬", name: "Uganda" },
+  { code: "+250", flag: "🇷🇼", name: "Rwanda" },
+];
+
 export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const token = getToken();
   const user = getStoredUser();
   const qc = useQueryClient();
 
-  const [tab, setTab] = useState<Tab>("card");
+  const [tab, setTab] = useState<Tab>("mpesa");
   const [amount, setAmount] = useState("");
+
+  // M-Pesa state
+  const [mpesaPhone, setMpesaPhone] = useState("");
+  const [mpesaCode, setMpesaCode] = useState("+254");
+  const [mpesaStep, setMpesaStep] = useState<"idle" | "sending" | "polling" | "done">("idle");
+  const [mpesaRef, setMpesaRef] = useState<string | null>(null);
+  const [mpesaError, setMpesaError] = useState<string | null>(null);
+  const [mpesaConfigured, setMpesaConfigured] = useState(true);
+  const mpesaPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Stripe card state
   const [stripeStep, setStripeStep] = useState<"idle" | "loading" | "form" | "confirming">("idle");
@@ -71,9 +87,69 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
 
   function resetAll() {
     setAmount("");
+    // M-Pesa
+    setMpesaPhone(""); setMpesaStep("idle"); setMpesaRef(null); setMpesaError(null);
+    if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
+    // Stripe
     setStripeStep("idle"); setStripeIntentId(null); setCardError(null);
     stripeInstanceRef.current = null; stripeElementsRef.current = null;
+    // Circle
     setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false); setWalletModalOpen(false);
+  }
+
+  // ─── M-PESA ─────────────────────────────────────────────────────────────────
+  async function handleMpesaSend() {
+    const amt = parseFloat(amount);
+    if (!amt || amt < 100 || !mpesaPhone.trim()) return;
+    setMpesaStep("sending");
+    setMpesaError(null);
+    try {
+      const r = await fetch("/api/wallet/paystack/mpesa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount: amt, phone: mpesaCode + mpesaPhone.trim() }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed to initiate M-Pesa payment");
+      setMpesaRef(d.reference);
+      setMpesaConfigured(d.configured !== false);
+      setMpesaStep("polling");
+
+      // If demo mode, credit immediately after a short delay
+      if (d.configured === false) {
+        setTimeout(() => { handleSuccess(amt); }, 2500);
+        return;
+      }
+
+      // Poll every 4 seconds for up to 2 minutes
+      let polls = 0;
+      mpesaPollRef.current = setInterval(async () => {
+        polls++;
+        if (polls > 30) {
+          clearInterval(mpesaPollRef.current!); mpesaPollRef.current = null;
+          setMpesaError("Payment timed out. Please try again.");
+          setMpesaStep("idle");
+          return;
+        }
+        try {
+          const sr = await fetch(`/api/wallet/paystack/status/${d.reference}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const sd = await sr.json();
+          if (sd.status === "success") {
+            clearInterval(mpesaPollRef.current!); mpesaPollRef.current = null;
+            handleSuccess(amt);
+          } else if (sd.status === "failed") {
+            clearInterval(mpesaPollRef.current!); mpesaPollRef.current = null;
+            setMpesaError("Payment failed. Please try again.");
+            setMpesaStep("idle");
+          }
+        } catch { /* keep polling */ }
+      }, 4000);
+    } catch (err) {
+      setMpesaError((err as Error).message);
+      setMpesaStep("idle");
+    }
   }
 
   function handleSuccess(amt: number) {
@@ -221,6 +297,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const usdcEstimate = circleInfo ? (amt / circleInfo.kesRate).toFixed(2) : "0.00";
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode; color: string }[] = [
+    { id: "mpesa", label: "M-Pesa", icon: <Smartphone size={15} />, color: "bg-green-600" },
     { id: "card", label: "Card", icon: <CreditCard size={15} />, color: "bg-blue-600" },
     { id: "usdc", label: "USDC", icon: <Coins size={15} />, color: "bg-purple-600" },
   ];
@@ -286,8 +363,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                 ))}
               </div>
 
-              {/* Amount input (shared — hide when Stripe form is active) */}
-              {!circleIntentId && !(tab === "card" && stripeStep !== "idle") && (
+              {/* Amount input (shared — hide when Stripe form is active or M-Pesa is in-flight) */}
+              {!circleIntentId && !(tab === "card" && stripeStep !== "idle") && !(tab === "mpesa" && mpesaStep !== "idle") && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
                     Amount (KES)
@@ -317,6 +394,88 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* ─── M-PESA TAB ────────────────────────────────────────────── */}
+              {tab === "mpesa" && (
+                <div className="space-y-4">
+                  {mpesaStep === "idle" && (
+                    <>
+                      <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-start gap-2.5">
+                        <span className="text-xl">📱</span>
+                        <div>
+                          <p className="text-green-800 font-semibold text-xs">Pay with M-Pesa</p>
+                          <p className="text-green-700 text-xs mt-0.5">Enter your Safaricom number. You'll receive an STK push to complete the payment directly on your phone.</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Mobile Money Number</label>
+                        <div className="flex gap-2">
+                          <select
+                            value={mpesaCode}
+                            onChange={e => setMpesaCode(e.target.value)}
+                            className="border border-border rounded-xl px-2 py-3 text-sm bg-background focus:outline-none focus:border-primary appearance-none w-[90px] flex-shrink-0 text-center font-medium"
+                          >
+                            {MPESA_CODES.map(c => (
+                              <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="tel"
+                            value={mpesaPhone}
+                            onChange={e => setMpesaPhone(e.target.value.replace(/\D/g, ""))}
+                            placeholder={mpesaCode === "+254" ? "7XXXXXXXX" : "Phone number"}
+                            className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary"
+                          />
+                        </div>
+                      </div>
+
+                      {mpesaError && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                          <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                          <p className="text-red-700 text-xs">{mpesaError}</p>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleMpesaSend}
+                        disabled={!amount || amt < 100 || !mpesaPhone.trim()}
+                        className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-green-600/20"
+                      >
+                        <Smartphone size={18} />
+                        {amt >= 100 && mpesaPhone.trim()
+                          ? `Send KES ${amt.toLocaleString()} via M-Pesa`
+                          : !mpesaPhone.trim() ? "Enter your M-Pesa number" : "Enter at least KES 100"}
+                      </button>
+                    </>
+                  )}
+
+                  {(mpesaStep === "sending" || mpesaStep === "polling") && (
+                    <div className="py-10 flex flex-col items-center gap-4 text-center">
+                      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                        <Loader2 size={28} className="animate-spin text-green-600" />
+                      </div>
+                      {mpesaStep === "sending" ? (
+                        <>
+                          <p className="text-foreground font-semibold">Sending STK push…</p>
+                          <p className="text-muted-foreground text-sm">Initiating payment request to {mpesaCode}{mpesaPhone}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-foreground font-semibold">Check your phone 📱</p>
+                          <p className="text-muted-foreground text-sm">Enter your M-Pesa PIN on the pop-up to confirm {formatKES(amt)}.</p>
+                          {!mpesaConfigured && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 w-full">
+                              <p className="text-amber-700 text-xs">Demo mode — no real STK push sent. Crediting automatically…</p>
+                            </div>
+                          )}
+                          <p className="text-muted-foreground text-xs">Waiting for confirmation…</p>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -500,7 +659,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
               {/* Security footer */}
               <div className="flex items-center justify-center gap-1.5 pt-1">
                 <span className="text-[10px] text-muted-foreground/60">🔒</span>
-                <p className="text-[10px] text-muted-foreground/60">256-bit SSL · Stripe PCI-DSS L1 · Circle regulated</p>
+                <p className="text-[10px] text-muted-foreground/60">256-bit SSL · M-Pesa by Paystack · Stripe PCI-DSS L1 · Circle regulated</p>
               </div>
             </div>
           </motion.div>
