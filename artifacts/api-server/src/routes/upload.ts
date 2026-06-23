@@ -21,14 +21,19 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowed = [
-    "image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic",
+  const allowedMimes = [
+    "image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/gif",
     "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/octet-stream", // mobile PDF uploads often come as octet-stream
   ];
-  if (allowed.includes(file.mimetype)) {
+  const allowedExts = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".gif", ".pdf", ".doc", ".docx"];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error("Only images (JPG, PNG, WEBP) and PDFs are allowed"));
+    cb(new Error("Supported formats: JPG, PNG, WEBP, PDF, DOC, DOCX"));
   }
 };
 

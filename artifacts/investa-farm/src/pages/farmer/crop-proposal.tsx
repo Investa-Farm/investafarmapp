@@ -59,16 +59,25 @@ export default function CropProposal() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
+          amount: fundingAmt,
+          purpose: "other",
+          purposeDetails: `${form.cropType} crop production — ${form.acreage} acres in ${form.location}. Expected yield: ${form.expectedYield} tons. Season: ${form.season}. ${form.description || ""}`.trim(),
+          repaymentPeriodMonths: 6,
           cropType: form.cropType,
-          acreage: parseFloat(form.acreage),
           location: form.location,
-          requestedAmount: fundingAmt,
-          description: `${form.cropType} — ${form.acreage} acres in ${form.location}. Yield: ${form.expectedYield} tons. ${form.description}`,
-          fundingPurpose: "crop_production",
+          farmName: `${form.cropType} Farm — ${form.location}`,
+          acreage: form.acreage,
+          expectedYieldKg: form.expectedYield,
+          expectedRevenue: Math.round(fundingAmt * 2.4),
+          farmerShare: farmerShare,
         }),
       });
-      if (!r.ok) throw new Error("Submission failed");
-      return r.json();
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (data.error === "KYC_REQUIRED") throw new Error("Please complete KYC verification first. Go to Profile → KYC Documents to upload your ID and farm documents.");
+        throw new Error(data.message ?? data.error ?? "Submission failed");
+      }
+      return data;
     },
     onSuccess: () => setSubmitted(true),
   });
@@ -277,7 +286,9 @@ export default function CropProposal() {
                 {submitMutation.isPending ? "Submitting…" : "Submit Crop Proposal"}
               </button>
               {submitMutation.error && (
-                <p className="text-red-600 text-xs text-center">{(submitMutation.error as Error).message}</p>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                  <p className="text-red-700 text-xs font-medium">{(submitMutation.error as Error).message}</p>
+                </div>
               )}
             </motion.div>
           )}

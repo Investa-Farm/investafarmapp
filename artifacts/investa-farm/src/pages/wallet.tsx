@@ -35,7 +35,8 @@ export default function InvestorWallet() {
   const token = getToken();
   const user = getStoredUser();
   const qc = useQueryClient();
-  const [modal, setModal] = useState<"deposit" | "withdraw" | null>(null);
+  const isFarmer = (user as {role?: string} | null)?.role === "farmer";
+  const [modal, setModal] = useState<"deposit" | "withdraw" | "finance" | null>(null);
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
@@ -261,14 +262,21 @@ export default function InvestorWallet() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 mt-3">
+        <div className="grid grid-cols-3 gap-2 mt-3">
           <button onClick={() => { setModal("deposit"); setAmount(""); }}
-            className="bg-primary text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md shadow-primary/20">
-            <Plus size={16} /> Add Funds
+            className="bg-primary text-white font-bold py-3 rounded-2xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform shadow-md shadow-primary/20">
+            <Plus size={16} />
+            <span className="text-[10px]">Add Funds</span>
           </button>
           <button onClick={() => { setModal("withdraw"); setAmount(""); }}
-            className="bg-muted border border-border text-foreground font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
-            <ArrowUpRight size={16} /> Withdraw
+            className="bg-muted border border-border text-foreground font-bold py-3 rounded-2xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform">
+            <ArrowUpRight size={16} />
+            <span className="text-[10px]">Withdraw</span>
+          </button>
+          <button onClick={() => isFarmer ? setLocation("/farmer/loan-apply") : setModal("finance")}
+            className="bg-blue-50 border border-blue-200 text-blue-700 font-bold py-3 rounded-2xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform">
+            <TrendingUp size={16} />
+            <span className="text-[10px]">Finance</span>
           </button>
         </div>
       </div>
@@ -345,6 +353,80 @@ export default function InvestorWallet() {
           setTimeout(() => setSuccess(null), 5000);
         }}
       />
+
+      {/* Finance modal (investor) */}
+      <AnimatePresence>
+        {modal === "finance" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50"
+            onClick={(e) => { if (e.target === e.currentTarget) setModal(null); }}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="w-full max-w-[430px] bg-background rounded-t-3xl p-6 space-y-4 border-t-4 border-blue-600">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-foreground font-bold text-lg">💼 Finance Options</h3>
+                  <p className="text-muted-foreground text-xs mt-0.5">Grow your portfolio faster</p>
+                </div>
+                <button onClick={() => setModal(null)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">✕</button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center text-white text-lg">🌱</div>
+                    <div>
+                      <p className="font-semibold text-green-900 text-sm">Farm Share Investing</p>
+                      <p className="text-green-600 text-xs">Buy shares in verified Kenyan farms</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                    <div className="bg-white rounded-xl p-2">
+                      <p className="text-green-700 font-bold text-sm">18–32%</p>
+                      <p className="text-green-600 text-[10px]">Annual ROI</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-2">
+                      <p className="text-green-700 font-bold text-sm">6–12mo</p>
+                      <p className="text-green-600 text-[10px]">Term</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-2">
+                      <p className="text-green-700 font-bold text-sm">KES 5K</p>
+                      <p className="text-green-600 text-[10px]">Min. invest</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setModal(null); setLocation("/market/primary"); }}
+                    className="w-full bg-green-600 text-white font-semibold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">
+                    Browse Primary Market →
+                  </button>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white text-lg">📊</div>
+                    <div>
+                      <p className="font-semibold text-blue-900 text-sm">Secondary Market Trading</p>
+                      <p className="text-blue-600 text-xs">Trade existing farm shares at market price</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setModal(null); setLocation("/market/secondary"); }}
+                    className="w-full bg-blue-600 text-white font-semibold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">
+                    Open Trading Desk →
+                  </button>
+                </div>
+
+                <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center text-white text-lg flex-shrink-0">⚡</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-purple-900 text-sm">Portfolio-Backed Credit</p>
+                    <p className="text-purple-600 text-xs">Use farm holdings as collateral — coming soon</p>
+                  </div>
+                  <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0">Soon</span>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Withdraw modal */}
       <AnimatePresence>

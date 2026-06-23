@@ -307,7 +307,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode; color: string }[] = [
     { id: "mpesa", label: "M-Pesa", icon: <Smartphone size={15} />, color: "bg-green-600" },
-    { id: "card", label: "Card", icon: <CreditCard size={15} />, color: "bg-blue-600" },
+    { id: "card", label: "Stripe", icon: <CreditCard size={15} />, color: "bg-blue-600" },
     { id: "usdc", label: "USDC", icon: <Coins size={15} />, color: "bg-purple-600" },
   ];
 

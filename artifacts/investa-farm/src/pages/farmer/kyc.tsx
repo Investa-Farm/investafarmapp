@@ -13,13 +13,15 @@ type KycDoc = {
 };
 
 const DOC_TYPES = [
-  { value: "farm_report",       label: "Farm Report",        desc: "Seasonal farm production report" },
   { value: "national_id",       label: "National ID",        desc: "Copy of national identity card" },
+  { value: "farm_report",       label: "Farm Report",        desc: "Seasonal farm production report" },
   { value: "land_title",        label: "Land Title / Lease", desc: "Proof of land ownership or lease" },
   { value: "group_certificate", label: "Group Certificate",  desc: "Official group registration cert" },
   { value: "financial_statement", label: "Financial Statement", desc: "Bank statement or M-Pesa history" },
   { value: "other",             label: "Other Document",     desc: "Any other supporting document" },
 ];
+
+const FARMER_DOC_TYPES = new Set(DOC_TYPES.map(d => d.value));
 
 const statusIcon = (s: string) => {
   if (s === "approved") return <CheckCircle2 size={14} className="text-green-600" />;
@@ -43,13 +45,14 @@ export default function FarmerKyc() {
   const [showUnderReview, setShowUnderReview] = useState(false);
   const token = getToken();
 
-  const { data: docs = [], isLoading } = useQuery<KycDoc[]>({
+  const { data: rawDocs = [], isLoading } = useQuery<KycDoc[]>({
     queryKey: ["kyc-docs"],
     queryFn: async () => {
       const r = await fetch("/api/kyc/documents", { headers: { Authorization: `Bearer ${token}` } });
       return r.json();
     },
   });
+  const docs = rawDocs.filter(d => FARMER_DOC_TYPES.has(d.docType) || d.docType === "other");
 
   const uploadFile = async (file: File): Promise<string> => {
     const form = new FormData();
@@ -176,7 +179,7 @@ export default function FarmerKyc() {
               <label className="text-xs font-semibold text-foreground mb-1.5 block">Select File *</label>
               <label className={`w-full border-2 border-dashed rounded-xl overflow-hidden cursor-pointer transition-colors flex items-center justify-center min-h-[100px] ${filePreview ? "border-green-300 bg-green-50" : "border-border hover:border-primary/50 bg-muted/30"}`}>
                 <input type="file" className="hidden"
-                  accept="image/*,application/pdf"
+                  accept="image/*,application/pdf,.pdf,.doc,.docx"
                   onChange={handleFileChange} />
                 {imagePreviewUrl ? (
                   <img src={imagePreviewUrl} alt="Preview"
