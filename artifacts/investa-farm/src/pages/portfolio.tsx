@@ -785,52 +785,53 @@ export default function Portfolio() {
                 const hasRoi = !!roi;
 
                 return (
-                  <div key={h.id} data-testid={`holding-${h.id}`} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-                    <div className="relative h-24">
+                  <div key={h.id} data-testid={`holding-${h.id}`} className="bg-card rounded-2xl border border-border overflow-hidden shadow-md">
+                    <div className="relative h-36">
                       <img src={farmImg} alt={h.farmName} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-black/65 to-transparent" />
-                      <div className="absolute inset-0 p-3 flex items-end">
-                        <div>
-                          <p className="text-white font-bold text-sm">{h.farmName}</p>
-                          <p className="text-white/70 text-[11px]">{h.cropType} · {h.location}</p>
-                        </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                      {/* P&L badge top-right */}
+                      <div className={`absolute top-2.5 right-2.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${isUp ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
+                        {formatChange(h.gainLossPercent)}
                       </div>
                       {isExited && (
-                        <div className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <div className="absolute top-2.5 left-2.5 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                           Exit Pending
                         </div>
                       )}
                       {isHarvested && (
-                        <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <div className="absolute top-2.5 left-2.5 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                           🌾 Harvested
                         </div>
                       )}
-                      {hasRoi && roi.rainfall && roi.rainfall.riskColor !== "green" && (
-                        <div className={`absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-full ${roi.rainfall.riskColor === "red" ? "bg-red-500 text-white" : "bg-amber-400 text-amber-900"}`}>
+                      {hasRoi && roi.rainfall && roi.rainfall.riskColor !== "green" && !isExited && !isHarvested && (
+                        <div className={`absolute top-2.5 left-2.5 text-[9px] font-bold px-2 py-0.5 rounded-full ${roi.rainfall.riskColor === "red" ? "bg-red-500 text-white" : "bg-amber-400 text-amber-900"}`}>
                           {roi.rainfall.riskColor === "red" ? "🚨 Weather Risk" : "⚠️ Low Rain"}
                         </div>
                       )}
+                      {/* Farm info overlay bottom */}
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <p className="text-white font-bold text-base leading-tight">{h.farmName}</p>
+                        <p className="text-white/70 text-[11px] mt-0.5">{h.cropType} · {h.location}</p>
+                      </div>
+                    </div>
+
+                    {/* Stats strip */}
+                    <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+                      <div className="py-2.5 text-center">
+                        <p className="text-foreground font-bold text-sm">{h.quantity}</p>
+                        <p className="text-muted-foreground text-[9px] mt-0.5">Shares</p>
+                      </div>
+                      <div className="py-2.5 text-center">
+                        <p className="text-foreground font-bold text-sm">{formatAmount(invested)}</p>
+                        <p className="text-muted-foreground text-[9px] mt-0.5">Invested</p>
+                      </div>
+                      <div className="py-2.5 text-center">
+                        <p className={`font-bold text-sm ${isUp ? "text-green-600" : "text-red-500"}`}>{formatAmount(h.totalValue)}</p>
+                        <p className="text-muted-foreground text-[9px] mt-0.5">Current Value</p>
+                      </div>
                     </div>
 
                     <div className="p-3 space-y-2.5">
-                      <div className="grid grid-cols-4 gap-1.5">
-                        <div className="bg-muted/50 rounded-xl p-2 text-center">
-                          <p className="text-muted-foreground text-[9px]">Shares</p>
-                          <p className="text-foreground font-bold text-xs">{h.quantity}</p>
-                        </div>
-                        <div className="bg-muted/50 rounded-xl p-2 text-center">
-                          <p className="text-muted-foreground text-[9px]">Invested</p>
-                          <p className="text-foreground font-bold text-xs">{formatAmount(invested)}</p>
-                        </div>
-                        <div className="bg-muted/50 rounded-xl p-2 text-center">
-                          <p className="text-muted-foreground text-[9px]">Value</p>
-                          <p className="text-foreground font-bold text-xs">{formatAmount(h.totalValue)}</p>
-                        </div>
-                        <div className={`rounded-xl p-2 text-center ${isUp ? "bg-green-50" : "bg-red-50"}`}>
-                          <p className="text-muted-foreground text-[9px]">P&L</p>
-                          <p className={`font-bold text-xs ${isUp ? "text-green-600" : "text-red-500"}`}>{formatChange(h.gainLossPercent)}</p>
-                        </div>
-                      </div>
 
                       {/* AI-Computed ROI Projections */}
                       {hasRoi ? (

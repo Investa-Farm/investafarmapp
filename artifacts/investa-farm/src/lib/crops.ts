@@ -83,4 +83,4 @@ export function getCropImage(cropType: string, imageUrl?: string | null): string
   return aerialImg;
 }
 
-export const FARMER_HERO_IMAGE = farmerImg;
+export const FARMER_HERO_IMAGE = aerialImg;

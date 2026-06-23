@@ -363,8 +363,9 @@ export default function InvestorWallet() {
                 e.preventDefault();
                 const amt = parseFloat(amount);
                 if (!amt || amt < 100) return;
-                if (!phone.trim()) return;
-                withdrawMutation.mutate({ amt, phoneNum: "+254" + phone.trim() });
+                const raw = phone.trim().replace(/\s+/g, "").replace(/^\+254/, "").replace(/^0/, "");
+                if (!raw || raw.length < 9) return;
+                withdrawMutation.mutate({ amt, phoneNum: "+254" + raw });
               }} className="space-y-4">
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                   <p className="text-amber-700 text-xs">Available: <strong>{formatKES(balance)}</strong>. Funds will be sent to your M-Pesa within 1–2 business days.</p>

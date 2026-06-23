@@ -291,26 +291,28 @@ export default function SalesAgentDashboard() {
         )}
       </div>
 
-      {/* Fixed mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border flex justify-around items-stretch"
+      {/* Fixed mobile bottom nav — centered max-w-[430px] */}
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-white border-t border-border"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0)" }}>
-        {AGENT_TABS.map(({ id, label, icon: Icon }) => {
-          const active = activeTab === id;
-          return (
-            <button key={id} onClick={() => setActiveTab(id)}
-              className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${
-                active ? "text-amber-500" : "text-muted-foreground"
-              }`}>
-              <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
-              <span className="text-[10px] font-semibold">{label}</span>
-            </button>
-          );
-        })}
-        <button onClick={() => { localStorage.clear(); location.replace("/"); }}
-          className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-muted-foreground">
-          <LogOut size={20} strokeWidth={1.8} />
-          <span className="text-[10px] font-semibold">Logout</span>
-        </button>
+        <div className="flex justify-around items-stretch">
+          {AGENT_TABS.map(({ id, label, icon: Icon }) => {
+            const active = activeTab === id;
+            return (
+              <button key={id} onClick={() => setActiveTab(id)}
+                className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${
+                  active ? "text-amber-500" : "text-muted-foreground"
+                }`}>
+                <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
+                <span className="text-[10px] font-semibold">{label}</span>
+              </button>
+            );
+          })}
+          <button onClick={handleLogout}
+            className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-muted-foreground">
+            <LogOut size={20} strokeWidth={1.8} />
+            <span className="text-[10px] font-semibold">Logout</span>
+          </button>
+        </div>
       </nav>
     </div>
   );

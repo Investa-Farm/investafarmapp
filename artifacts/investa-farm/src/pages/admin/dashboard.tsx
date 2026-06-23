@@ -830,10 +830,27 @@ export default function AdminDashboard() {
                     </div>
                     {doc.fileUrl && (
                       <button onClick={() => setViewingDoc(doc)}
-                        className="ml-2 w-12 h-12 rounded-xl overflow-hidden border-2 border-primary/30 flex-shrink-0 bg-gray-100 flex items-center justify-center active:scale-95 transition-transform">
-                        {doc.fileUrl.match(/\.(jpg|jpeg|png|webp)$/i)
-                          ? <img src={doc.fileUrl} alt="Doc" className="w-full h-full object-cover" />
-                          : <FileText size={18} className="text-primary" />}
+                        className="ml-2 w-14 flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                        <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-primary/30 bg-gray-100 flex items-center justify-center">
+                          {doc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i)
+                            ? <img src={doc.fileUrl} alt="Doc" className="w-full h-full object-cover" />
+                            : doc.fileUrl.match(/\.pdf$/i)
+                              ? <div className="flex flex-col items-center justify-center w-full h-full bg-red-50">
+                                  <FileText size={20} className="text-red-500" />
+                                </div>
+                              : <div className="flex flex-col items-center justify-center w-full h-full bg-blue-50">
+                                  <FileText size={20} className="text-blue-500" />
+                                </div>
+                          }
+                        </div>
+                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
+                          doc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? "bg-green-100 text-green-700" :
+                          doc.fileUrl.match(/\.pdf$/i) ? "bg-red-100 text-red-700" :
+                          "bg-blue-100 text-blue-700"
+                        }`}>
+                          {doc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? "IMG" :
+                           doc.fileUrl.match(/\.pdf$/i) ? "PDF" : "DOC"}
+                        </span>
                       </button>
                     )}
                   </div>
