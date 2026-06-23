@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Wallet, CheckCircle2 } from "lucide-react";
+import { X, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Wallet, CheckCircle2, Receipt } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGetPortfolioSummary } from "@workspace/api-client-react";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
@@ -46,6 +46,7 @@ export function WalletModal({ open, onClose }: Props) {
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("+254");
   const [success, setSuccess] = useState<string | null>(null);
+  const [receiptTx, setReceiptTx] = useState<WalletData["transactions"][number] | null>(null);
   const { currency, setCurrency, formatAmount } = useCurrency();
 
   const { data, isLoading, refetch } = useQuery<WalletData>({
@@ -246,7 +247,8 @@ export function WalletModal({ open, onClose }: Props) {
                     const cfg = TX_ICONS[tx.type] ?? { emoji: "💳" };
                     const isCredit = ["deposit", "return", "transfer"].includes(tx.type);
                     return (
-                      <div key={tx.id} className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 mb-2">
+                      <button key={tx.id} onClick={() => setReceiptTx(tx)}
+                        className="w-full flex items-center gap-3 bg-card border border-border rounded-xl p-3 mb-2 active:scale-[0.98] transition-transform text-left">
                         <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-base flex-shrink-0">
                           {cfg.emoji}
                         </div>
@@ -256,13 +258,16 @@ export function WalletModal({ open, onClose }: Props) {
                             {new Date(tx.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                           </p>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className={`font-bold text-sm ${isCredit ? "text-green-600" : "text-red-500"}`}>
-                            {isCredit ? "+" : "-"}{formatAmount(parseFloat(tx.amount))}
-                          </p>
-                          <p className="text-muted-foreground text-[10px]">{formatAmount(parseFloat(tx.balanceAfter))}</p>
+                        <div className="text-right flex-shrink-0 flex items-center gap-2">
+                          <div>
+                            <p className={`font-bold text-sm ${isCredit ? "text-green-600" : "text-red-500"}`}>
+                              {isCredit ? "+" : "-"}{formatAmount(parseFloat(tx.amount))}
+                            </p>
+                            <p className="text-muted-foreground text-[10px]">{formatAmount(parseFloat(tx.balanceAfter))}</p>
+                          </div>
+                          <Receipt size={13} className="text-muted-foreground flex-shrink-0" />
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
               </div>
@@ -337,6 +342,61 @@ export function WalletModal({ open, onClose }: Props) {
                 setTimeout(() => setSuccess(null), 4000);
               }}
             />
+
+            {/* Receipt sheet */}
+            <AnimatePresence>
+              {receiptTx && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-20 flex items-end justify-center bg-black/50"
+                  onClick={(e) => { if (e.target === e.currentTarget) setReceiptTx(null); }}>
+                  <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                    transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                    className="w-full bg-white rounded-t-3xl overflow-hidden">
+                    {/* Receipt header */}
+                    <div className="bg-primary px-5 pt-6 pb-8 text-white text-center relative">
+                      <button onClick={() => setReceiptTx(null)}
+                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                        <X size={14} />
+                      </button>
+                      <div className="text-3xl mb-1">{TX_ICONS[receiptTx.type]?.emoji ?? "💳"}</div>
+                      <p className="text-white/80 text-xs uppercase tracking-widest font-semibold mb-1 capitalize">{receiptTx.type}</p>
+                      <p className={`text-2xl font-black ${["deposit","return","transfer"].includes(receiptTx.type) ? "text-green-300" : "text-red-300"}`}>
+                        {["deposit","return","transfer"].includes(receiptTx.type) ? "+" : "-"}{formatAmount(parseFloat(receiptTx.amount))}
+                      </p>
+                    </div>
+                    {/* Torn edge */}
+                    <div className="h-4 bg-primary relative" style={{ marginTop: -1 }}>
+                      <svg viewBox="0 0 400 16" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
+                        <path d="M0,0 Q20,16 40,0 Q60,16 80,0 Q100,16 120,0 Q140,16 160,0 Q180,16 200,0 Q220,16 240,0 Q260,16 280,0 Q300,16 320,0 Q340,16 360,0 Q380,16 400,0 L400,16 L0,16 Z" fill="white"/>
+                      </svg>
+                    </div>
+                    {/* Receipt rows */}
+                    <div className="px-5 py-4 space-y-3">
+                      {[
+                        { label: "Description", value: receiptTx.description ?? receiptTx.type },
+                        { label: "Date", value: new Date(receiptTx.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" }) },
+                        { label: "Reference", value: receiptTx.reference ?? "—" },
+                        { label: "Status", value: receiptTx.status },
+                        { label: "Balance After", value: formatAmount(parseFloat(receiptTx.balanceAfter)) },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex justify-between items-start border-b border-dashed border-border pb-2 last:border-0">
+                          <span className="text-muted-foreground text-xs font-medium">{label}</span>
+                          <span className={`text-xs font-semibold text-right max-w-[55%] ${label === "Status" ? (receiptTx.status === "completed" ? "text-green-600" : receiptTx.status === "pending" ? "text-amber-600" : "text-red-500") : "text-foreground"}`}>
+                            {label === "Status" ? value.charAt(0).toUpperCase() + value.slice(1) : value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="px-5 pb-6">
+                      <button onClick={() => setReceiptTx(null)}
+                        className="w-full bg-primary text-white font-bold text-sm py-3.5 rounded-2xl active:scale-95 transition-transform">
+                        Done
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </motion.div>
       )}

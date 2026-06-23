@@ -218,7 +218,7 @@ export default function Portfolio() {
     setTimeout(() => setAcctCopied(false), 2000);
   };
 
-  const brokerLink = `https://app.investafarm.com/portfolio`;
+  const brokerLink = `${window.location.origin}/market/portfolios`;
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(brokerLink).catch(() => {});
     setCopied(true);

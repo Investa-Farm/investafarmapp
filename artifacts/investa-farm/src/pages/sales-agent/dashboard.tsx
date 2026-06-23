@@ -2,11 +2,18 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import {
-  Briefcase, Copy, Check, Users, TrendingUp, Link2, Send,
-  ChevronRight, LogOut, ArrowLeft, FileText, Star, Wallet,
+  Briefcase, Copy, Check, Users, Link2, Send,
+  ChevronRight, LogOut, FileText, Star, Wallet, Home, BarChart2,
 } from "lucide-react";
 import { getToken, getStoredUser } from "@/lib/auth";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
+
+const AGENT_TABS = [
+  { id: "overview",  label: "Home",      icon: Home       },
+  { id: "farmers",   label: "Farmers",   icon: Users      },
+  { id: "proposals", label: "Proposals", icon: FileText   },
+] as const;
+type AgentTab = typeof AGENT_TABS[number]["id"];
 
 const AMBER = "#d97706";
 const AMBER_BG = "bg-amber-50";
@@ -21,7 +28,7 @@ export default function SalesAgentDashboard() {
   const [stats, setStats] = useState({ farmers: 0, proposals: 0, funded: 0, commission: 0 });
   const [farmers, setFarmers] = useState<any[]>([]);
   const [proposals, setProposals] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"overview" | "farmers" | "proposals">("overview");
+  const [activeTab, setActiveTab] = useState<AgentTab>("overview");
   const [loading, setLoading] = useState(true);
 
   const agentCode = user?.id ? String(user.id).padStart(6, "0") : "000000";
@@ -131,19 +138,7 @@ export default function SalesAgentDashboard() {
         </div>
       </div>
 
-      {/* Main tabs */}
-      <div className="px-5 mt-5 flex gap-2">
-        {(["overview", "farmers", "proposals"] as const).map(t => (
-          <button key={t} onClick={() => setActiveTab(t)}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all ${
-              activeTab === t ? "bg-amber-500 text-white shadow-sm" : "bg-muted text-muted-foreground"
-            }`}>
-            {t}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 px-5 mt-4 pb-8 space-y-4 overflow-y-auto">
+      <div className="flex-1 px-5 mt-4 pb-24 space-y-4 overflow-y-auto">
         {activeTab === "overview" && (
           <>
             {/* Referral link card */}
@@ -295,6 +290,28 @@ export default function SalesAgentDashboard() {
           </div>
         )}
       </div>
+
+      {/* Fixed mobile bottom nav */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border flex justify-around items-stretch"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0)" }}>
+        {AGENT_TABS.map(({ id, label, icon: Icon }) => {
+          const active = activeTab === id;
+          return (
+            <button key={id} onClick={() => setActiveTab(id)}
+              className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${
+                active ? "text-amber-500" : "text-muted-foreground"
+              }`}>
+              <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
+              <span className="text-[10px] font-semibold">{label}</span>
+            </button>
+          );
+        })}
+        <button onClick={() => { localStorage.clear(); location.replace("/"); }}
+          className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-muted-foreground">
+          <LogOut size={20} strokeWidth={1.8} />
+          <span className="text-[10px] font-semibold">Logout</span>
+        </button>
+      </nav>
     </div>
   );
 }

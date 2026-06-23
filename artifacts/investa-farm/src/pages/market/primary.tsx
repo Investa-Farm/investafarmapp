@@ -321,17 +321,15 @@ export default function PrimaryMarket() {
                       <div className="border-t border-border px-4 pb-4 pt-3 space-y-3">
                         {/* Mini map + chart side by side */}
                         <div className="flex gap-3 items-stretch">
-                          {/* Map thumbnail */}
-                          <div className="w-28 flex-shrink-0 rounded-xl overflow-hidden border border-border relative bg-[#e8ead2]" style={{ minHeight: 110 }}>
-                            <iframe
-                              src={getMiniMapIframeSrc(listing.location)}
-                              className="w-full h-full border-0 pointer-events-none"
+                          {/* Farm image */}
+                          <div className="w-28 flex-shrink-0 rounded-xl overflow-hidden border border-border relative" style={{ minHeight: 110 }}>
+                            <img
+                              src={imgSrc}
+                              alt={listing.farmName}
+                              className="w-full h-full object-cover"
                               style={{ minHeight: 110 }}
-                              loading="lazy"
-                              referrerPolicy="no-referrer"
-                              title={`${listing.location} map`}
                             />
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/55 to-transparent px-1.5 py-1 flex items-center gap-0.5">
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/65 to-transparent px-1.5 py-1 flex items-center gap-0.5">
                               <MapPin size={8} className="text-white flex-shrink-0" />
                               <span className="text-white text-[8px] font-semibold truncate">{listing.location}</span>
                             </div>

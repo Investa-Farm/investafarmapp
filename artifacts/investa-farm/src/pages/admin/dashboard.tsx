@@ -1684,14 +1684,20 @@ export default function AdminDashboard() {
 
             {/* Document preview */}
             <div className="bg-gray-100 flex items-center justify-center" style={{ minHeight: 300 }}>
-              {viewingDoc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? (
+              {viewingDoc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)/i) ? (
                 <img
                   src={viewingDoc.fileUrl}
                   alt={viewingDoc.docType}
                   className="w-full object-contain"
                   style={{ maxHeight: 400 }}
+                  onError={(e) => {
+                    const t = e.currentTarget;
+                    t.onerror = null;
+                    t.style.display = "none";
+                    t.insertAdjacentHTML("afterend", `<div class="flex flex-col items-center gap-3 p-8 text-center"><p class="text-muted-foreground text-sm">Image could not be loaded. Try opening in browser.</p></div>`);
+                  }}
                 />
-              ) : viewingDoc.fileUrl.match(/\.pdf$/i) ? (
+              ) : viewingDoc.fileUrl.match(/\.pdf/i) ? (
                 <iframe
                   src={viewingDoc.fileUrl}
                   title={viewingDoc.docType}
@@ -1701,7 +1707,11 @@ export default function AdminDashboard() {
               ) : (
                 <div className="flex flex-col items-center gap-3 p-8 text-center">
                   <FileText size={48} className="text-muted-foreground" />
-                  <p className="text-muted-foreground text-sm">Preview not available for this file type</p>
+                  <p className="text-muted-foreground text-sm font-medium">Click "Open in Browser" to view this document</p>
+                  <a href={viewingDoc.fileUrl} target="_blank" rel="noreferrer"
+                    className="mt-1 bg-primary text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5">
+                    <ExternalLink size={12} /> Open Document
+                  </a>
                 </div>
               )}
             </div>

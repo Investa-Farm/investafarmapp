@@ -250,13 +250,13 @@ function Router() {
         <AuthGuard role="investor"><CommunityPortfolios /></AuthGuard>
       </Route>
       <Route path="/market/portfolios/:id">
-        <AuthGuard role="investor"><CommunityPortfolios /></AuthGuard>
+        <CommunityPortfolios />
       </Route>
       <Route path="/market/exchange/:id">
         <AuthGuard role="investor"><FarmExchange /></AuthGuard>
       </Route>
       <Route path="/market/:id">
-        <AuthGuard role="investor"><FarmDetail /></AuthGuard>
+        <FarmDetail />
       </Route>
       <Route path="/portfolio">
         <AuthGuard role="investor"><Portfolio /></AuthGuard>
@@ -301,7 +301,7 @@ function Router() {
         <AuthGuard role="farmer"><LoanApply /></AuthGuard>
       </Route>
       <Route path="/farmer/funding">
-        <AuthGuard role="farmer"><LoanApply /></AuthGuard>
+        <AuthGuard role="farmer"><CropProposal /></AuthGuard>
       </Route>
       <Route path="/farmer/operations">
         <AuthGuard role="farmer"><FarmerOperations /></AuthGuard>
