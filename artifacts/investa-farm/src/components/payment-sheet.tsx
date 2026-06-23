@@ -47,6 +47,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const [mpesaRef, setMpesaRef] = useState<string | null>(null);
   const [mpesaError, setMpesaError] = useState<string | null>(null);
   const [mpesaConfigured, setMpesaConfigured] = useState(true);
+  const [mpesaProvider, setMpesaProvider] = useState<"stripe" | "paystack">("stripe");
   const mpesaPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Stripe card state
@@ -88,7 +89,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   function resetAll() {
     setAmount("");
     // M-Pesa
-    setMpesaPhone(""); setMpesaStep("idle"); setMpesaRef(null); setMpesaError(null);
+    setMpesaPhone(""); setMpesaStep("idle"); setMpesaRef(null); setMpesaError(null); setMpesaProvider("stripe");
     if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
     // Stripe
     setStripeStep("idle"); setStripeIntentId(null); setCardError(null);
@@ -97,12 +98,11 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false); setWalletModalOpen(false);
   }
 
-  // ─── M-PESA ─────────────────────────────────────────────────────────────────
+  // ─── M-PESA (via Stripe) ────────────────────────────────────────────────────
   async function handleMpesaSend() {
     const amt = parseFloat(amount);
     if (!amt || amt < 100 || !mpesaPhone.trim()) return;
 
-    // Normalize locally: strip leading zero then check digit count
     const digits = mpesaPhone.replace(/\D/g, "");
     const local = digits.startsWith("0") ? digits.slice(1) : digits;
     if (mpesaCode === "+254" && (local.length < 9 || local.length > 9)) {
@@ -110,47 +110,69 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       return;
     }
 
+    const fullPhone = mpesaCode + local;
     setMpesaStep("sending");
     setMpesaError(null);
+
     try {
-      const r = await fetch("/api/wallet/paystack/mpesa", {
+      // Use Stripe M-Pesa endpoint (falls back to demo mode if Stripe not configured)
+      const r = await fetch("/api/wallet/stripe/mpesa", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: amt, phone: mpesaCode + mpesaPhone.trim() }),
+        body: JSON.stringify({ amount: amt, phone: fullPhone }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Failed to initiate M-Pesa payment");
-      setMpesaRef(d.reference);
+
+      setMpesaRef(d.intentId);
       setMpesaConfigured(d.configured !== false);
+      setMpesaProvider("stripe");
+
+      // If Stripe is live-configured, trigger STK push via Stripe.js confirmMpesaPayment
+      if (d.configured && d.clientSecret && d.publicKey) {
+        try {
+          const stripe = await loadStripeJs(d.publicKey);
+          // confirmMpesaPayment sends the STK push; errors surface as stripe error
+          const { error } = await (stripe as any).confirmMpesaPayment(d.clientSecret, {
+            payment_method: { billing_details: { phone: fullPhone } },
+          });
+          if (error) {
+            setMpesaError(error.message ?? "M-Pesa confirmation failed");
+            setMpesaStep("idle"); return;
+          }
+        } catch {
+          // Stripe.js M-Pesa not available — poll and let webhook handle it
+        }
+      }
+
       setMpesaStep("polling");
 
-      // If demo mode, credit immediately after a short delay
+      // Demo mode: credit immediately after a short delay
       if (d.configured === false) {
         setTimeout(() => { handleSuccess(amt); }, 2500);
         return;
       }
 
-      // Poll every 4 seconds for up to 2 minutes
+      // Poll Stripe status every 4 seconds for up to 2 minutes
       let polls = 0;
       mpesaPollRef.current = setInterval(async () => {
         polls++;
         if (polls > 30) {
           clearInterval(mpesaPollRef.current!); mpesaPollRef.current = null;
-          setMpesaError("Payment timed out. Please try again.");
-          setMpesaStep("idle");
-          return;
+          setMpesaError("Payment timed out. Please check your M-Pesa and try again.");
+          setMpesaStep("idle"); return;
         }
         try {
-          const sr = await fetch(`/api/wallet/paystack/status/${d.reference}`, {
+          const sr = await fetch(`/api/wallet/stripe/mpesa/status/${d.intentId}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const sd = await sr.json();
-          if (sd.status === "success") {
+          if (sd.paid) {
             clearInterval(mpesaPollRef.current!); mpesaPollRef.current = null;
             handleSuccess(amt);
-          } else if (sd.status === "failed") {
+          } else if (sd.status === "canceled" || sd.status === "payment_failed") {
             clearInterval(mpesaPollRef.current!); mpesaPollRef.current = null;
-            setMpesaError("Payment failed. Please try again.");
+            setMpesaError("Payment was cancelled or failed. Please try again.");
             setMpesaStep("idle");
           }
         } catch { /* keep polling */ }
@@ -414,8 +436,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                       <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-start gap-2.5">
                         <span className="text-xl">📱</span>
                         <div>
-                          <p className="text-green-800 font-semibold text-xs">Pay with M-Pesa</p>
-                          <p className="text-green-700 text-xs mt-0.5">Enter your Safaricom number. You'll receive an STK push to complete the payment directly on your phone.</p>
+                          <p className="text-green-800 font-semibold text-xs">Pay with M-Pesa · powered by Stripe</p>
+                          <p className="text-green-700 text-xs mt-0.5">Enter your Safaricom number. An STK push will arrive on your phone — enter your M-Pesa PIN to confirm.</p>
                         </div>
                       </div>
 
@@ -668,7 +690,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
               {/* Security footer */}
               <div className="flex items-center justify-center gap-1.5 pt-1">
                 <span className="text-[10px] text-muted-foreground/60">🔒</span>
-                <p className="text-[10px] text-muted-foreground/60">256-bit SSL · M-Pesa by Paystack · Stripe PCI-DSS L1 · Circle regulated</p>
+                <p className="text-[10px] text-muted-foreground/60">256-bit SSL · M-Pesa &amp; Cards by Stripe · Circle USDC · PCI-DSS L1</p>
               </div>
             </div>
           </motion.div>

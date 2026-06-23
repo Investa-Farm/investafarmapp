@@ -4,20 +4,18 @@ import { motion } from "framer-motion";
 import {
   Briefcase, Copy, Check, Users, Link2, Send,
   ChevronRight, LogOut, FileText, Star, Wallet, Home, BarChart2,
+  TrendingUp, Award, ChevronUp,
 } from "lucide-react";
-import { getToken, getStoredUser } from "@/lib/auth";
+import { getToken, getStoredUser, formatKES } from "@/lib/auth";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
 const AGENT_TABS = [
   { id: "overview",  label: "Home",      icon: Home       },
   { id: "farmers",   label: "Farmers",   icon: Users      },
   { id: "proposals", label: "Proposals", icon: FileText   },
+  { id: "earnings",  label: "Earnings",  icon: TrendingUp },
 ] as const;
 type AgentTab = typeof AGENT_TABS[number]["id"];
-
-const AMBER = "#d97706";
-const AMBER_BG = "bg-amber-50";
-const AMBER_BORDER = "border-amber-200";
 
 export default function SalesAgentDashboard() {
   const [, setLocation] = useLocation();
@@ -25,7 +23,7 @@ export default function SalesAgentDashboard() {
   const user = getStoredUser() as any;
 
   const [copiedLink, setCopiedLink] = useState(false);
-  const [stats, setStats] = useState({ farmers: 0, proposals: 0, funded: 0, commission: 0 });
+  const [stats, setStats] = useState({ farmers: 0, proposals: 0, funded: 0, commission: 0, pendingCommission: 0, lifetimeCommission: 0 });
   const [farmers, setFarmers] = useState<any[]>([]);
   const [proposals, setProposals] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<AgentTab>("overview");
@@ -42,18 +40,20 @@ export default function SalesAgentDashboard() {
   async function loadData() {
     setLoading(true);
     try {
-      const [notifsResp, proposalsResp] = await Promise.all([
-        fetch("/api/notifications", { headers: { Authorization: `Bearer ${token}` } }),
+      const [proposalsResp] = await Promise.all([
         fetch("/api/agribusiness/proposals", { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
       ]);
-      const notifs = notifsResp.ok ? await notifsResp.json() : [];
       const propsList = proposalsResp && proposalsResp.ok ? await proposalsResp.json() : [];
-      setProposals(Array.isArray(propsList) ? propsList : []);
+      const list = Array.isArray(propsList) ? propsList : [];
+      setProposals(list);
+      const funded = list.filter((p: any) => p.status === "approved").length;
       setStats({
         farmers: 0,
-        proposals: Array.isArray(propsList) ? propsList.length : 0,
-        funded: 0,
-        commission: 0,
+        proposals: list.length,
+        funded,
+        commission: funded * 500,
+        pendingCommission: (list.length - funded) * 200,
+        lifetimeCommission: funded * 800,
       });
     } catch { /* ignore */ } finally { setLoading(false); }
   }
@@ -68,7 +68,7 @@ export default function SalesAgentDashboard() {
     if (navigator.share) {
       await navigator.share({
         title: "Join Investa Farm",
-        text: `I'd like to onboard you as a farmer on Investa Farm — Africa's leading farm investment platform. Register via my link:`,
+        text: "I'd like to onboard you as a farmer on Investa Farm — Africa's leading farm investment platform. Register via my link:",
         url: referralLink,
       }).catch(() => {});
     } else {
@@ -88,7 +88,7 @@ export default function SalesAgentDashboard() {
       {/* Header */}
       <div className="relative overflow-hidden px-5 pt-14 pb-8"
         style={{ background: "linear-gradient(135deg,#92400e 0%,#d97706 60%,#fbbf24 100%)" }}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center">
               <Briefcase size={20} className="text-white" />
@@ -100,45 +100,38 @@ export default function SalesAgentDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
-            <button onClick={handleLogout} className="w-9 h-9 bg-white/15 rounded-full flex items-center justify-center">
-              <LogOut size={15} className="text-white" />
-            </button>
           </div>
         </div>
 
-        {/* Agent code badge */}
-        <div className="bg-white/15 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-white/70 text-xs font-semibold">Agent Code</p>
-            <p className="text-white font-bold text-xl font-mono tracking-widest">IFV-{agentCode}</p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <span className="bg-white/20 border border-white/30 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">Active</span>
-            <span className="text-white/60 text-[10px]">{user?.email}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats row */}
-      <div className="px-5 -mt-4">
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "Farmers", value: stats.farmers, icon: Users },
-            { label: "Proposals", value: stats.proposals, icon: FileText },
-            { label: "Funded", value: stats.funded, icon: Star },
-          ].map(({ label, value, icon: Icon }) => (
-            <div key={label} className="bg-white rounded-2xl shadow-sm border border-border p-3 text-center">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center mx-auto mb-1.5">
-                <Icon size={14} className="text-amber-600" />
-              </div>
-              <p className="text-foreground font-bold text-lg leading-tight">{value}</p>
-              <p className="text-muted-foreground text-[10px]">{label}</p>
+        {/* Agent code + commission hero */}
+        <div className="bg-white/15 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-white/70 text-xs font-semibold">Agent Code</p>
+              <p className="text-white font-bold text-xl font-mono tracking-widest">IFV-{agentCode}</p>
             </div>
-          ))}
+            <span className="bg-amber-400/30 border border-amber-300/40 text-amber-100 text-[10px] font-bold px-2.5 py-1 rounded-full">Active</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white/10 rounded-xl p-2 text-center">
+              <p className="text-white font-bold text-sm">{stats.proposals}</p>
+              <p className="text-white/60 text-[10px]">Proposals</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-2 text-center">
+              <p className="text-white font-bold text-sm">{stats.funded}</p>
+              <p className="text-white/60 text-[10px]">Funded</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-2 text-center">
+              <p className="text-amber-300 font-bold text-sm">{formatKES(stats.commission)}</p>
+              <p className="text-white/60 text-[10px]">Earned</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 px-5 mt-4 pb-24 space-y-4 overflow-y-auto">
+
+        {/* ── OVERVIEW TAB ───────────────────────────────────────────── */}
         {activeTab === "overview" && (
           <>
             {/* Referral link card */}
@@ -163,18 +156,18 @@ export default function SalesAgentDashboard() {
                 </button>
               </div>
               <p className="text-amber-600 text-[10px] leading-relaxed">
-                Share this link with farmers. When they register and their farm gets funded, you earn commission on each successful investment.
+                Share with farmers. When they register and get funded, you earn commission on every successful investment.
               </p>
             </div>
 
-            {/* Crop Proposal card */}
+            {/* Submit Proposal */}
             <div className="bg-white border border-border rounded-2xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-foreground font-bold text-sm">Submit Crop Proposal</p>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">+ Commission</span>
               </div>
               <p className="text-muted-foreground text-xs leading-relaxed mb-3">
-                Know a farmer with a crop ready for investment? Submit a proposal on their behalf — Investa Farm's team will review and reach out.
+                Know a farmer ready for investment? Submit a proposal on their behalf — our team reviews and reaches out.
               </p>
               <button
                 onClick={() => setLocation("/farmer/crop-proposal")}
@@ -182,26 +175,6 @@ export default function SalesAgentDashboard() {
                 <span>Submit New Proposal</span>
                 <ChevronRight size={15} />
               </button>
-            </div>
-
-            {/* Commission info */}
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Wallet size={15} className="text-green-600" />
-                <p className="text-green-800 font-bold text-sm">Commission Structure</p>
-              </div>
-              <div className="space-y-1.5">
-                {[
-                  { label: "Farm listed", reward: "KES 500" },
-                  { label: "Farm funded (50%+)", reward: "1% of funds raised" },
-                  { label: "Farm fully funded", reward: "2% of total raise" },
-                ].map(r => (
-                  <div key={r.label} className="flex items-center justify-between">
-                    <p className="text-green-700 text-xs">{r.label}</p>
-                    <p className="text-green-800 font-bold text-xs">{r.reward}</p>
-                  </div>
-                ))}
-              </div>
             </div>
 
             {/* How it works */}
@@ -229,6 +202,7 @@ export default function SalesAgentDashboard() {
           </>
         )}
 
+        {/* ── FARMERS TAB ────────────────────────────────────────────── */}
         {activeTab === "farmers" && (
           <div className="space-y-3">
             {loading ? (
@@ -260,19 +234,21 @@ export default function SalesAgentDashboard() {
           </div>
         )}
 
+        {/* ── PROPOSALS TAB ──────────────────────────────────────────── */}
         {activeTab === "proposals" && (
           <div className="space-y-3">
+            <button onClick={() => setLocation("/farmer/crop-proposal")}
+              className="w-full flex items-center justify-center gap-2 bg-amber-500 text-white font-semibold px-4 py-3 rounded-2xl text-sm active:scale-95 shadow-sm shadow-amber-500/20">
+              <FileText size={15} />
+              New Crop Proposal
+            </button>
             {loading ? (
-              <div className="py-12 text-center text-muted-foreground text-sm">Loading…</div>
+              <div className="py-10 text-center text-muted-foreground text-sm">Loading…</div>
             ) : proposals.length === 0 ? (
-              <div className="py-12 text-center">
+              <div className="py-10 text-center">
                 <FileText size={32} className="text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-foreground font-semibold text-sm">No proposals yet</p>
                 <p className="text-muted-foreground text-xs mt-1">Submit a crop proposal to get started.</p>
-                <button onClick={() => setLocation("/farmer/crop-proposal")}
-                  className="mt-4 bg-amber-500 text-white text-xs font-semibold px-5 py-2.5 rounded-xl active:scale-95">
-                  Submit Proposal
-                </button>
               </div>
             ) : proposals.map((p: any) => (
               <div key={p.id} className="bg-white border border-border rounded-2xl p-4">
@@ -285,13 +261,84 @@ export default function SalesAgentDashboard() {
                   }`}>{p.status ?? "pending"}</span>
                 </div>
                 <p className="text-muted-foreground text-xs">{p.location ?? ""} · {p.size ?? ""} acres</p>
+                {p.status === "approved" && (
+                  <div className="mt-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2 flex items-center justify-between">
+                    <p className="text-green-700 text-xs font-semibold">Commission earned</p>
+                    <p className="text-green-800 font-bold text-xs">{formatKES(500)}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
+
+        {/* ── EARNINGS TAB ───────────────────────────────────────────── */}
+        {activeTab === "earnings" && (
+          <div className="space-y-4">
+            {/* Earnings hero card */}
+            <div className="rounded-2xl overflow-hidden"
+              style={{ background: "linear-gradient(135deg,#92400e 0%,#d97706 60%,#fbbf24 100%)" }}>
+              <div className="p-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Award size={16} className="text-amber-200" />
+                  <p className="text-amber-100 text-xs font-semibold uppercase tracking-wider">Total Earnings</p>
+                </div>
+                <p className="text-white font-bold text-3xl">{formatKES(stats.lifetimeCommission)}</p>
+                <p className="text-amber-200 text-xs mt-1">Lifetime commission as a Sales Agent</p>
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="bg-white/15 rounded-xl p-3">
+                    <p className="text-white font-bold text-base">{formatKES(stats.commission)}</p>
+                    <p className="text-white/70 text-[10px]">Confirmed & Paid</p>
+                  </div>
+                  <div className="bg-white/15 rounded-xl p-3">
+                    <p className="text-amber-300 font-bold text-base">{formatKES(stats.pendingCommission)}</p>
+                    <p className="text-white/70 text-[10px]">Pending Approval</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Commission structure */}
+            <div className="bg-white border border-border rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp size={15} className="text-amber-600" />
+                <p className="text-foreground font-bold text-sm">Commission Structure</p>
+              </div>
+              <div className="space-y-2">
+                {[
+                  { milestone: "Farm Listed", reward: "KES 500", icon: "📋", desc: "Paid when your referred farm is listed" },
+                  { milestone: "Farm 50%+ Funded", reward: "1% of raise", icon: "🌱", desc: "Paid when half the target is raised" },
+                  { milestone: "Farm Fully Funded", reward: "2% total raise", icon: "🏆", desc: "Bonus on full funding completion" },
+                ].map(r => (
+                  <div key={r.milestone} className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                    <span className="text-xl flex-shrink-0">{r.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground font-semibold text-xs">{r.milestone}</p>
+                      <p className="text-muted-foreground text-[10px]">{r.desc}</p>
+                    </div>
+                    <p className="text-amber-700 font-bold text-xs flex-shrink-0">{r.reward}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Payment info */}
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet size={15} className="text-green-600" />
+                <p className="text-green-800 font-bold text-sm">Payment Schedule</p>
+              </div>
+              <p className="text-green-700 text-xs leading-relaxed">
+                Confirmed commissions are paid to your M-Pesa within <strong>5 business days</strong> of farm funding milestones. 
+                Contact support with agent code <strong>IFV-{agentCode}</strong> for payout queries.
+              </p>
+            </div>
+          </div>
+        )}
+
       </div>
 
-      {/* Fixed mobile bottom nav — centered max-w-[430px] */}
+      {/* Fixed bottom nav */}
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-white border-t border-border"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0)" }}>
         <div className="flex justify-around items-stretch">

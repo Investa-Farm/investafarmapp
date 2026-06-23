@@ -37,6 +37,23 @@ export async function retrievePaymentIntent(id: string): Promise<Stripe.PaymentI
   return stripe.paymentIntents.retrieve(id);
 }
 
+export async function createMpesaPaymentIntent(opts: {
+  amountKES: number;
+  userId: number;
+  phone: string;
+}): Promise<{ clientSecret: string; id: string }> {
+  const stripe = getStripe();
+  const amountInSmallestUnit = Math.round(opts.amountKES * 100);
+  if (amountInSmallestUnit < 10000) throw new Error("Minimum KES 100 for M-Pesa via Stripe");
+  const intent = await stripe.paymentIntents.create({
+    amount: amountInSmallestUnit,
+    currency: "kes",
+    payment_method_types: ["m_pesa"],
+    metadata: { userId: String(opts.userId), phone: opts.phone, source: "investa-farm-mpesa" },
+  });
+  return { clientSecret: intent.client_secret!, id: intent.id };
+}
+
 export function constructWebhookEvent(payload: string | Buffer, sig: string, secret: string): Stripe.Event {
   const stripe = getStripe();
   return stripe.webhooks.constructEvent(payload, sig, secret);

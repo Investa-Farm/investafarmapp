@@ -815,19 +815,23 @@ export default function Portfolio() {
                       </div>
                     </div>
 
-                    {/* Stats strip */}
-                    <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+                    {/* Stats strip — 4 columns */}
+                    <div className="grid grid-cols-4 divide-x divide-border border-b border-border">
                       <div className="py-2.5 text-center">
                         <p className="text-foreground font-bold text-sm">{h.quantity}</p>
                         <p className="text-muted-foreground text-[9px] mt-0.5">Shares</p>
                       </div>
                       <div className="py-2.5 text-center">
-                        <p className="text-foreground font-bold text-sm">{formatAmount(invested)}</p>
+                        <p className="text-foreground font-bold text-xs">{formatAmount(invested)}</p>
                         <p className="text-muted-foreground text-[9px] mt-0.5">Invested</p>
                       </div>
                       <div className="py-2.5 text-center">
-                        <p className={`font-bold text-sm ${isUp ? "text-green-600" : "text-red-500"}`}>{formatAmount(h.totalValue)}</p>
-                        <p className="text-muted-foreground text-[9px] mt-0.5">Current Value</p>
+                        <p className={`font-bold text-xs ${isUp ? "text-green-600" : "text-red-500"}`}>{formatAmount(h.totalValue)}</p>
+                        <p className="text-muted-foreground text-[9px] mt-0.5">Value</p>
+                      </div>
+                      <div className="py-2.5 text-center">
+                        <p className={`font-bold text-xs ${isUp ? "text-green-600" : "text-red-500"}`}>{isUp ? "+" : ""}{formatAmount(h.gainLoss)}</p>
+                        <p className="text-muted-foreground text-[9px] mt-0.5">P&amp;L</p>
                       </div>
                     </div>
 

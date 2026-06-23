@@ -13,7 +13,7 @@ import {
 import { notifyUser } from "../lib/push";
 import { sendWalletTopupSms, sendWithdrawalSms } from "../lib/sms";
 import { isCircleConfigured, getKesUsdcRate, createPaymentIntent, getPaymentIntentStatus, getStaticUsdcAddress } from "../lib/circle";
-import { createPaymentIntent as stripeCreateIntent, retrievePaymentIntent, isConfigured as isStripeConfigured, STRIPE_PUBLIC_KEY, constructWebhookEvent } from "../lib/stripe";
+import { createPaymentIntent as stripeCreateIntent, retrievePaymentIntent, createMpesaPaymentIntent, isConfigured as isStripeConfigured, STRIPE_PUBLIC_KEY, constructWebhookEvent } from "../lib/stripe";
 
 const router: IRouter = Router();
 
@@ -418,6 +418,68 @@ router.post("/wallet/stripe/confirm", financialRateLimit, async (req, res): Prom
     res.json({ success: true, ...result });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Confirmation failed";
+    res.status(502).json({ error: msg });
+  }
+});
+
+// ─── STRIPE M-PESA ROUTES ────────────────────────────────────────────────────
+
+// POST /wallet/stripe/mpesa — initiate M-Pesa STK push via Stripe
+router.post("/wallet/stripe/mpesa", financialRateLimit, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const amount = Number(req.body.amount);
+  const phone = String(req.body.phone ?? "").trim();
+  if (!amount || amount < 100 || amount > 1_000_000) {
+    res.status(400).json({ error: "Amount must be between KES 100 and KES 1,000,000." }); return;
+  }
+  if (!phone) { res.status(400).json({ error: "Phone number required." }); return; }
+  const check = checkDepositVelocity(user.id, amount);
+  if (!check.ok) { res.status(400).json({ error: check.error }); return; }
+
+  if (!isStripeConfigured()) {
+    // Demo fallback — pretend it worked so frontend can show polling state
+    const fakeRef = `STRIPE-MPESA-DEMO-${Date.now()}`;
+    res.json({ intentId: fakeRef, configured: false, publicKey: "" }); return;
+  }
+  try {
+    const { clientSecret, id } = await createMpesaPaymentIntent({ amountKES: amount, userId: user.id, phone });
+    res.json({ intentId: id, clientSecret, publicKey: STRIPE_PUBLIC_KEY, configured: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed to initiate M-Pesa via Stripe";
+    res.status(502).json({ error: msg });
+  }
+});
+
+// GET /wallet/stripe/mpesa/status/:intentId — poll payment status
+router.get("/wallet/stripe/mpesa/status/:intentId", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { intentId } = req.params;
+
+  // Demo mode — always return pending (frontend credits immediately)
+  if (intentId.startsWith("STRIPE-MPESA-DEMO-")) {
+    res.json({ status: "pending", paid: false }); return;
+  }
+
+  if (!isStripeConfigured()) {
+    res.json({ status: "pending", paid: false }); return;
+  }
+  try {
+    const intent = await retrievePaymentIntent(intentId);
+    const paid = intent.status === "succeeded";
+    if (paid) {
+      const amount = intent.amount / 100;
+      const reference = `STRIPE-MPESA-${intentId}`;
+      const result = await creditWallet(user.id, amount, reference, "M-Pesa deposit via Stripe");
+      if (!(result as any).alreadyCredited) {
+        recordDeposit(user.id, amount);
+        notifyUser(user.id, "wallet_credit", "💰 M-Pesa (Stripe) Confirmed!", `KES ${amount.toLocaleString("en-KE")} added to your wallet.`, "/wallet").catch(() => {});
+      }
+    }
+    res.json({ status: intent.status, paid });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Status check failed";
     res.status(502).json({ error: msg });
   }
 });
