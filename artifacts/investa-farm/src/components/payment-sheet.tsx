@@ -101,6 +101,15 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   async function handleMpesaSend() {
     const amt = parseFloat(amount);
     if (!amt || amt < 100 || !mpesaPhone.trim()) return;
+
+    // Normalize locally: strip leading zero then check digit count
+    const digits = mpesaPhone.replace(/\D/g, "");
+    const local = digits.startsWith("0") ? digits.slice(1) : digits;
+    if (mpesaCode === "+254" && (local.length < 9 || local.length > 9)) {
+      setMpesaError("Enter a valid Safaricom number — 9 digits after the country code (e.g. 712 345 678).");
+      return;
+    }
+
     setMpesaStep("sending");
     setMpesaError(null);
     try {
@@ -426,7 +435,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                             type="tel"
                             value={mpesaPhone}
                             onChange={e => setMpesaPhone(e.target.value.replace(/\D/g, ""))}
-                            placeholder={mpesaCode === "+254" ? "7XXXXXXXX" : "Phone number"}
+                            placeholder={mpesaCode === "+254" ? "07XXXXXXXX or 7XXXXXXXX" : "Phone number"}
                             className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary"
                           />
                         </div>

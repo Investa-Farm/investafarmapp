@@ -77,12 +77,15 @@ export async function initiateMpesaCharge(opts: {
 }): Promise<{ reference: string; status: string; displayText: string }> {
   if (!isConfigured()) throw new Error("Paystack not configured");
   // Normalize phone: Paystack wants "07XXXXXXXX" format for Kenya
-  const rawPhone = opts.phone.replace(/\s+/g, "");
-  const phone = rawPhone.startsWith("+254")
-    ? "0" + rawPhone.slice(4)
-    : rawPhone.startsWith("254")
-    ? "0" + rawPhone.slice(3)
-    : rawPhone;
+  const rawPhone = opts.phone.replace(/[\s\-().]/g, "");
+  // Strip any country code prefix (+254 or 254)
+  let local = rawPhone;
+  if (local.startsWith("+254")) local = local.slice(4);
+  else if (local.startsWith("254")) local = local.slice(3);
+  // Strip any leading zero (e.g. user typed 07XXXXXXXX)
+  if (local.startsWith("0")) local = local.slice(1);
+  // Paystack expects "07XXXXXXXX" — 10 digits starting with 0
+  const phone = "0" + local;
 
   const res = await fetch(`${BASE}/charge`, {
     method: "POST",
