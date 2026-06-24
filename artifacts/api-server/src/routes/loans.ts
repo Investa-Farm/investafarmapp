@@ -3,7 +3,7 @@ import { db, loanApplicationsTable, farmsTable, marketListingsTable, kycDocument
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { z } from "zod";
-import { sendFundingApplicationEmail } from "../lib/email";
+import { sendFundingApplicationEmail, sendFundingVoucherEmail } from "../lib/email";
 import { notifyUser } from "../lib/push";
 
 const router: IRouter = Router();
@@ -338,6 +338,29 @@ router.post("/loans/repay/:id", async (req, res): Promise<void> => {
   await db.update(loanApplicationsTable)
     .set({ status: isFullRepayment ? "disbursed" : loan.status })
     .where(eq(loanApplicationsTable.id, loanId));
+
+  if (isFullRepayment) {
+    const voucherCode = [
+      "IFV",
+      String(loan.id).padStart(4, "0"),
+      loan.purpose.slice(0, 3).toUpperCase(),
+      Math.random().toString(36).slice(2, 6).toUpperCase(),
+    ].join("-");
+    const farmName = loan.cropName ? `${loan.cropName} Farm` : "Your Farm";
+    sendFundingVoucherEmail(
+      user.email, user.name,
+      Number(loan.amount), farmName,
+      voucherCode,
+      Math.round(Number(loan.amount) * 0.6),
+    ).catch(() => {});
+    notifyUser(
+      user.id, "loan_disbursed",
+      "🎉 Voucher Ready!",
+      `Your funding voucher ${voucherCode} for ${farmName} is now available.`,
+      "/farmer/farm-profile"
+    ).catch(() => {});
+  }
+
   res.json({
     success: true,
     loanId,

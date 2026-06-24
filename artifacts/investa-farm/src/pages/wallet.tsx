@@ -63,6 +63,18 @@ export default function InvestorWallet() {
     staleTime: 60_000,
   });
 
+  type PendingExit = { investmentId: number; farmName: string; cropType: string; shares: number; amount: number; exitType: string; exitDate: string | null };
+  const { data: pendingExits } = useQuery<{ pendingTotal: number; count: number; exits: PendingExit[] }>({
+    queryKey: ["wallet-pending-exits"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet/pending-exits", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { pendingTotal: 0, count: 0, exits: [] };
+      return r.json();
+    },
+    staleTime: 60_000,
+    enabled: !isFarmer,
+  });
+
   const handleCopyStellar = async () => {
     if (!stellarAcct?.accountNumber) return;
     await navigator.clipboard.writeText(stellarAcct.accountNumber).catch(() => {});
@@ -259,6 +271,39 @@ export default function InvestorWallet() {
               <p className="text-amber-600 text-[10px]">{escrowData!.escrows.filter(e => e.status === "held").length} active farm investment{escrowData!.escrows.filter(e => e.status === "held").length !== 1 ? "s" : ""} · secured until exit date</p>
             </div>
             <p className="text-amber-800 font-bold text-sm flex-shrink-0">{formatAmount(escrowData!.heldTotal)}</p>
+          </div>
+        )}
+
+        {/* Pending exit requests */}
+        {!isFarmer && (pendingExits?.count ?? 0) > 0 && (
+          <div className="mt-2 rounded-2xl border border-blue-200 bg-blue-50 p-3">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-lg">⏳</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-blue-800 text-xs font-semibold">Pending Exit Requests</p>
+                <p className="text-blue-600 text-[10px]">{pendingExits!.count} investment{pendingExits!.count !== 1 ? "s" : ""} queued for exit · funds released on schedule</p>
+              </div>
+              <p className="text-blue-800 font-bold text-sm flex-shrink-0">{formatAmount(pendingExits!.pendingTotal)}</p>
+            </div>
+            <div className="space-y-1.5">
+              {pendingExits!.exits.slice(0, 3).map(ex => (
+                <div key={ex.investmentId} className="flex items-center justify-between bg-white/60 rounded-xl px-3 py-1.5">
+                  <div className="min-w-0">
+                    <p className="text-blue-900 text-[11px] font-semibold truncate">{ex.farmName}</p>
+                    <p className="text-blue-500 text-[9px]">
+                      {ex.shares} shares · {ex.exitType === "wide_season" ? "Wide Season (30–60d)" : "Full Season (~6mo)"}
+                      {ex.exitDate ? ` · due ${new Date(ex.exitDate).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}` : ""}
+                    </p>
+                  </div>
+                  <p className="text-blue-800 font-bold text-[11px] flex-shrink-0 ml-2">{formatAmount(ex.amount)}</p>
+                </div>
+              ))}
+              {pendingExits!.exits.length > 3 && (
+                <p className="text-blue-500 text-[10px] text-center">+{pendingExits!.exits.length - 3} more</p>
+              )}
+            </div>
           </div>
         )}
 

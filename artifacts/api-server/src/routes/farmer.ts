@@ -318,6 +318,17 @@ router.post("/farmer/market/connect", async (req, res): Promise<void> => {
   res.json({ success: true, message: `Connection request sent to ${buyerName}. They will reach out within 24 hours.` });
 });
 
+const YIELD_ESTIMATES: Record<string, number> = {
+  maize: 2.5, corn: 2.5, wheat: 2.0, sorghum: 1.8, barley: 1.5, beans: 1.2,
+  rice: 3.0, sunflower: 1.0, kale: 8.0, cabbage: 12.0, tomatoes: 15.0,
+  coffee: 0.8, tea: 2.2, avocado: 3.5, potato: 8.0, onion: 6.0,
+  cassava: 5.0, greenhouse: 20.0, dairy: 12.0, poultry: 5.0,
+};
+function estimateYield(cropType: string, acreage: number): number {
+  const rate = YIELD_ESTIMATES[(cropType ?? "").toLowerCase()] ?? 2.0;
+  return Math.round(rate * acreage * 10) / 10;
+}
+
 router.post("/farmer/market/crop-proposal", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user || user.role !== "farmer") { res.status(403).json({ error: "Farmers only" }); return; }
@@ -346,7 +357,7 @@ router.post("/farmer/market/crop-proposal", async (req, res): Promise<void> => {
     sharesAvailable: totalShares,
     currentPrice: "100",
     status: "pending",
-    description: description ?? `Proposed ${cropType} crop on ${acreage} acres. Expected yield: ${expectedYield ?? "TBD"} tons. Planting: ${plantingDate ?? "Next season"}.`,
+    description: description ?? `Proposed ${cropType} crop on ${acreage} acres. Expected yield: ${expectedYield ?? estimateYield(cropType, acreage)} tons. Planting: ${plantingDate ?? "Next season"}.`,
     changePercent: "0",
     tradeCount: 0,
   }).returning();

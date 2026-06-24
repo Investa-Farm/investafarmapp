@@ -3,7 +3,7 @@ import { useListPrimaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
-import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator, MapPin, Users, Navigation } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator, MapPin, Users, Navigation, Scale, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
@@ -13,6 +13,7 @@ import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { InvestmentCalculator } from "@/components/investment-calculator";
 import { AiSectionBot } from "@/components/ai-section-bot";
+import { CompareFarmsModal, type CompareListing } from "@/components/compare-farms-modal";
 
 // --- AI insight snippet per farm ---
 const AI_INSIGHTS: Record<string, string[]> = {
@@ -176,6 +177,9 @@ export default function PrimaryMarket() {
   const [alertOpen, setAlertOpen] = useState(false);
   const [calcListing, setCalcListing] = useState<Listing | null>(null);
   const [calcOpen, setCalcOpen] = useState(false);
+  const [compareA, setCompareA] = useState<CompareListing | null>(null);
+  const [compareB, setCompareB] = useState<CompareListing | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const filteredListings = useMemo(() => {
     if (!listings) return [];
@@ -481,6 +485,27 @@ export default function PrimaryMarket() {
                             <BellRing size={16} className="text-green-600" />
                           </button>
                           <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const l = listing as CompareListing;
+                              if (!compareA || compareA.id === l.id) {
+                                setCompareA(l);
+                                setCompareB(null);
+                              } else {
+                                setCompareB(l);
+                                setCompareOpen(true);
+                              }
+                            }}
+                            className={`w-10 h-10 rounded-xl border flex items-center justify-center active:scale-95 transition-transform flex-shrink-0 ${
+                              compareA?.id === listing.id
+                                ? "bg-violet-100 border-violet-300"
+                                : "border-violet-200 bg-violet-50"
+                            }`}
+                            title="Compare Farm"
+                          >
+                            <Scale size={15} className="text-violet-600" />
+                          </button>
+                          <button
                             onClick={(e) => handleBuyClick(e, listing as Listing)}
                             className="flex-1 bg-primary text-white font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform"
                           >
@@ -495,9 +520,31 @@ export default function PrimaryMarket() {
         }
       </div>
 
+      {/* Floating compare bar — shown when Farm A is pinned but Farm B not yet chosen */}
+      {compareA && !compareOpen && (
+        <div className="fixed bottom-20 left-4 right-4 z-[60] pointer-events-none">
+          <div className="bg-violet-600 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl pointer-events-auto">
+            <Scale size={16} className="flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm leading-tight truncate">{compareA.farmName} selected</p>
+              <p className="text-violet-200 text-[10px]">Tap ⚖️ on another farm to compare</p>
+            </div>
+            <button onClick={() => setCompareA(null)} className="w-7 h-7 rounded-full bg-violet-500 flex items-center justify-center flex-shrink-0">
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <InvestModal open={investOpen} onClose={() => setInvestOpen(false)} listing={selectedListing} />
       <PriceAlertModal open={alertOpen} onClose={() => setAlertOpen(false)} listing={alertListing} />
       <InvestmentCalculator open={calcOpen} onClose={() => setCalcOpen(false)} listing={calcListing} />
+      <CompareFarmsModal
+        open={compareOpen}
+        farmA={compareA}
+        farmB={compareB}
+        onClose={() => { setCompareOpen(false); setCompareA(null); setCompareB(null); }}
+      />
       <BottomNav role="investor" />
     </div>
   );

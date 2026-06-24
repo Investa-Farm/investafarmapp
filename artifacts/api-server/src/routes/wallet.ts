@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { createHmac } from "crypto";
-import { db, walletsTable, walletTransactionsTable, escrowWalletsTable, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { db, walletsTable, walletTransactionsTable, escrowWalletsTable, usersTable, investmentsTable, farmsTable } from "@workspace/db";
+import { eq, desc, and } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { verifyTransaction, initializePayment, initiateMpesaCharge, checkChargeStatus, isConfigured as isPaystackConfigured, PAYSTACK_PUBLIC_KEY } from "../lib/paystack";
 import {
@@ -128,10 +128,10 @@ router.post("/wallet/withdraw", financialRateLimit, async (req, res): Promise<vo
   recordWithdrawal(user.id, amount);
   notifyUser(user.id, "withdrawal", "Withdrawal Initiated", `KES ${amount.toLocaleString("en-KE")} sent to M-Pesa. Processing 1-2 business days.`, "/wallet").catch(() => {});
   if (phone) {
-    sendWithdrawalSms(phone, amount, fee, user.email).catch(() => {});
+    sendWithdrawalSms(phone, amount, fee).catch(() => {});
   } else {
     db.select({ phone: usersTable.phone }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1)
-      .then(([u]) => { if ((u as any)?.phone) sendWithdrawalSms((u as any).phone, amount, fee, user.email).catch(() => {}); })
+      .then(([u]) => { if ((u as any)?.phone) sendWithdrawalSms((u as any).phone, amount, fee).catch(() => {}); })
       .catch(() => {});
   }
   res.json({ wallet: { ...wallet, balance: String(newBalance) }, fee });
@@ -261,7 +261,7 @@ router.post("/wallet/paystack/verify", async (req, res): Promise<void> => {
     recordDeposit(user.id, amount);
     notifyUser(user.id, "wallet_credit", "💰 Wallet Credited!", `KES ${amount.toLocaleString("en-KE")} added to your wallet.`, "/wallet").catch(() => {});
     db.select({ phone: usersTable.phone }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1)
-      .then(([u]) => { if ((u as any)?.phone) sendWalletTopupSms((u as any).phone, amount, (result as any).newBalance, user.email).catch(() => {}); })
+      .then(([u]) => { if ((u as any)?.phone) sendWalletTopupSms((u as any).phone, amount, (result as any).newBalance).catch(() => {}); })
       .catch(() => {});
 
     res.json({ success: true, ...result });
@@ -515,6 +515,45 @@ router.post("/wallet/stripe/webhook", async (req, res): Promise<void> => {
     }
   }
   res.sendStatus(200);
+});
+
+// ─── GET /wallet/pending-exits ───────────────────────────────────────────────
+router.get("/wallet/pending-exits", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const rows = await db
+    .select({
+      investmentId: investmentsTable.id,
+      shares: investmentsTable.shares,
+      totalAmount: investmentsTable.totalAmount,
+      exitType: investmentsTable.exitType,
+      exitDate: investmentsTable.exitDate,
+      farmName: farmsTable.name,
+      cropType: farmsTable.cropType,
+    })
+    .from(investmentsTable)
+    .leftJoin(farmsTable, eq(investmentsTable.farmId, farmsTable.id))
+    .where(and(
+      eq(investmentsTable.investorId, user.id),
+      eq(investmentsTable.status, "exit_requested"),
+    ));
+
+  const total = rows.reduce((sum, r) => sum + Number(r.totalAmount ?? 0), 0);
+
+  res.json({
+    pendingTotal: total,
+    count: rows.length,
+    exits: rows.map(r => ({
+      investmentId: r.investmentId,
+      farmName: r.farmName ?? "Unknown Farm",
+      cropType: r.cropType ?? "",
+      shares: r.shares,
+      amount: Number(r.totalAmount ?? 0),
+      exitType: r.exitType ?? "full_season",
+      exitDate: r.exitDate ? new Date(r.exitDate).toISOString() : null,
+    })),
+  });
 });
 
 export default router;
