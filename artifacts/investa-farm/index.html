@@ -57,6 +57,8 @@
     <style>
       @keyframes spin { to { transform:rotate(360deg); } }
     </style>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
     <script>
       // Show "waking up" message after 4s (Render cold start)
       var loaderStatus = document.getElementById('loader-status');
@@ -66,18 +68,18 @@
       setTimeout(function() {
         if (loaderStatus) loaderStatus.textContent = 'Almost ready…';
       }, 10000);
-      // Hide loader once React root renders
+      // Hide loader once React root renders — #root now exists in DOM
+      var rootEl = document.getElementById('root');
       var observer = new MutationObserver(function() {
-        var root = document.getElementById('root');
-        if (root && root.children.length > 0) {
+        if (rootEl && rootEl.children.length > 0) {
           var el = document.getElementById('app-loader');
           if (el) { el.style.opacity = '0'; setTimeout(function(){ if(el) el.remove(); }, 450); }
           observer.disconnect();
         }
       });
-      observer.observe(document.getElementById('root'), { childList: true, subtree: false });
+      if (rootEl) {
+        observer.observe(rootEl, { childList: true, subtree: false });
+      }
     </script>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

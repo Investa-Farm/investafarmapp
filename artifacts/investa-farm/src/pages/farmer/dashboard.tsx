@@ -13,6 +13,7 @@ import { LoanModal } from "@/components/loan-modal";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { InlineMicBot } from "@/components/ai-assistant";
+import { AppTour } from "@/components/app-tour";
 
 type GroupInfo = { id: number; name: string; registrationNumber: string; county: string; memberCount: number; status: string } | null;
 
@@ -351,6 +352,7 @@ export default function FarmerDashboard() {
       <HarvestPaymentModal open={harvestOpen} onClose={() => setHarvestOpen(false)} />
       <NotificationPrompt storageKey="farmer_notif_v1" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <AppTour role="farmer" />
     </div>
   );
 }

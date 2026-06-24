@@ -1,5 +1,5 @@
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
@@ -601,12 +601,13 @@ function RateAppWatcher() {
 
 function App() {
   const [splashDone, setSplashDone] = useState(false);
+  const handleSplashDone = useCallback(() => setSplashDone(true), []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
         <TooltipProvider>
-          {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
+          {!splashDone && <SplashScreen onDone={handleSplashDone} />}
           <WouterRouter base={BASE}>
             <Router />
             <RateAppWatcher />
