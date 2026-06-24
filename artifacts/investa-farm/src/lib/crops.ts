@@ -74,8 +74,7 @@ export const CROP_IMAGES: Record<string, string> = {
   tomatogreen:  tomatoGreenImg,
 };
 
-export function getCropImage(cropType: string, imageUrl?: string | null): string {
-  if (imageUrl && /^(https?:\/\/|blob:|data:)/.test(imageUrl)) return imageUrl;
+export function getCropImage(cropType: string, _imageUrl?: string | null): string {
   const key = (cropType ?? "").toLowerCase().replace(/\s+/g, "").replace(/[^a-z]/g, "");
   for (const [k, v] of Object.entries(CROP_IMAGES)) {
     if (key.includes(k) || k.includes(key)) return v;

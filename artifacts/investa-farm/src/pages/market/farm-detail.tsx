@@ -45,6 +45,21 @@ function getKenyaCoords(location: string): [number, number] {
   return [-1.2921, 36.8219];
 }
 
+function generateFarmPolygon(lat: number, lng: number, seed: number): [number, number][] {
+  const lngScale = Math.cos((lat * Math.PI) / 180);
+  const baseSize = 0.006 + (seed % 5) * 0.001;
+  const sides = 7 + (seed % 3);
+  const irregularity = [1.0, 0.88, 1.12, 0.94, 1.08, 0.85, 1.15, 0.92, 1.05, 0.80];
+  return Array.from({ length: sides }, (_, i) => {
+    const angle = (i / sides) * Math.PI * 2 - Math.PI / 3;
+    const r = baseSize * (irregularity[i % irregularity.length] ?? 1.0);
+    return [
+      lat + Math.cos(angle) * r,
+      lng + (Math.sin(angle) * r) / lngScale,
+    ] as [number, number];
+  });
+}
+
 function FarmLeafletMap({ lat, lng, label }: { lat: number; lng: number; label: string }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<any>(null);
@@ -54,34 +69,42 @@ function FarmLeafletMap({ lat, lng, label }: { lat: number; lng: number; label: 
     import("leaflet").then((L) => {
       if (!mapRef.current || instanceRef.current) return;
 
-      const farmIcon = L.divIcon({
-        html: `<div style="width:34px;height:40px;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.35))">
-          <svg xmlns="http://www.w3.org/2000/svg" width="34" height="40" viewBox="0 0 34 40">
-            <circle cx="17" cy="17" r="15" fill="#16a34a" opacity="0.18"/>
-            <circle cx="17" cy="17" r="10" fill="#16a34a"/>
-            <circle cx="17" cy="17" r="4.5" fill="white"/>
-            <line x1="17" y1="27" x2="17" y2="39" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"/>
-          </svg>
-        </div>`,
-        className: "",
-        iconSize: [34, 40],
-        iconAnchor: [17, 40],
-        popupAnchor: [0, -40],
-      });
+      const seed = Math.abs(label.split("").reduce((a, c) => a + c.charCodeAt(0), 0));
+      const polygon = generateFarmPolygon(lat, lng, seed);
 
-      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], 13);
+      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: false });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 18,
       }).addTo(map);
-      L.marker([lat, lng], { icon: farmIcon })
-        .addTo(map)
-        .bindPopup(`<strong style="font-size:13px">${label}</strong>`)
-        .openPopup();
+
+      const farmPoly = L.polygon(polygon, {
+        color: "#16a34a",
+        weight: 2.5,
+        fillColor: "#16a34a",
+        fillOpacity: 0.15,
+        dashArray: undefined,
+      }).addTo(map);
+
+      const bounds = farmPoly.getBounds();
+      map.fitBounds(bounds, { padding: [30, 30] });
+
+      farmPoly.bindPopup(
+        `<div style="font-size:13px;font-weight:700;color:#15803d">${label}</div>` +
+        `<div style="font-size:11px;color:#6b7280;margin-top:2px">Farm boundary (approx.)</div>`,
+        { offset: [0, -4] }
+      ).openPopup();
+
+      L.circleMarker([lat, lng], {
+        radius: 5,
+        color: "#16a34a",
+        fillColor: "#16a34a",
+        fillOpacity: 0.9,
+        weight: 2,
+      }).addTo(map);
 
       instanceRef.current = map;
 
-      // Invalidate size after animation settles so tiles fully render
       setTimeout(() => { try { map.invalidateSize(); } catch { /* ignore */ } }, 250);
       setTimeout(() => { try { map.invalidateSize(); } catch { /* ignore */ } }, 600);
     });
