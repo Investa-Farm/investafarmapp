@@ -15,7 +15,6 @@ const investorNav: NavItem[] = [
 const farmerNav: NavItem[] = [
   { label: "Home",         path: "/farmer",            icon: Home         },
   { label: "Applications", path: "/farmer/operations", icon: ClipboardList },
-  { label: "Updates",      path: "/farmer/updates",    icon: Package      },
   { label: "Profile",      path: "/farmer/profile",    icon: User         },
 ];
 

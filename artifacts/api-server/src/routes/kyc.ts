@@ -156,6 +156,21 @@ router.post("/kyc/admin/reject/:id", async (req, res): Promise<void> => {
   res.json({ success: true, doc });
 });
 
+router.post("/kyc/location", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { county, subCounty, ward, landmark, physicalAddress, gpsLat, gpsLng, gpsAccuracy } = req.body as Record<string, unknown>;
+  if (!county) { res.status(400).json({ error: "County is required" }); return; }
+  await db.update(usersTable)
+    .set({
+      metadata: JSON.stringify({
+        farmLocation: { county, subCounty, ward, landmark, physicalAddress, gpsLat, gpsLng, gpsAccuracy, savedAt: new Date().toISOString() },
+      }),
+    })
+    .where(eq(usersTable.id, user.id));
+  res.json({ success: true });
+});
+
 router.get("/kyc/admin/pending", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user || user.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
