@@ -53,6 +53,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   // Stripe card state
   const [stripeStep, setStripeStep] = useState<"idle" | "loading" | "form" | "confirming">("idle");
   const [stripeIntentId, setStripeIntentId] = useState<string | null>(null);
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
   const [cardError, setCardError] = useState<string | null>(null);
   const stripeInstanceRef = useRef<any>(null);
   const stripeElementsRef = useRef<any>(null);
@@ -92,7 +93,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setMpesaPhone(""); setMpesaStep("idle"); setMpesaRef(null); setMpesaError(null); setMpesaProvider("stripe");
     if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
     // Stripe
-    setStripeStep("idle"); setStripeIntentId(null); setCardError(null);
+    setStripeStep("idle"); setStripeIntentId(null); setStripeClientSecret(null); setCardError(null);
     stripeInstanceRef.current = null; stripeElementsRef.current = null;
     // Circle
     setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false); setWalletModalOpen(false);
@@ -225,23 +226,32 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       if (!r.ok) throw new Error(data.error ?? "Failed to create payment");
 
       setStripeIntentId(data.intentId);
+      setStripeClientSecret(data.clientSecret);
 
       const stripe = await loadStripeJs(data.publicKey);
       stripeInstanceRef.current = stripe;
 
       const elements = stripe.elements({
         clientSecret: data.clientSecret,
-        appearance: { theme: "stripe", variables: { colorPrimary: "#16a34a", borderRadius: "12px" } },
+        appearance: {
+          theme: "stripe",
+          variables: { colorPrimary: "#16a34a", borderRadius: "12px", fontFamily: "inherit" },
+        },
       });
       stripeElementsRef.current = elements;
 
       setStripeStep("form");
 
-      // Mount after React has rendered the container div
+      // Mount a card element (not payment element — avoids link/apple_pay warnings)
       requestAnimationFrame(() => {
         if (stripeContainerRef.current) {
-          const paymentEl = elements.create("payment");
-          paymentEl.mount(stripeContainerRef.current);
+          const cardEl = elements.create("card", {
+            style: {
+              base: { fontSize: "15px", color: "#111827", "::placeholder": { color: "#9ca3af" } },
+            },
+            hidePostalCode: true,
+          });
+          cardEl.mount(stripeContainerRef.current);
         }
       });
     } catch (err) {
@@ -255,11 +265,12 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setStripeStep("confirming");
     setCardError(null);
     try {
-      const { error, paymentIntent } = await stripeInstanceRef.current.confirmPayment({
-        elements: stripeElementsRef.current,
-        confirmParams: { return_url: window.location.href },
-        redirect: "if_required",
-      });
+      // Use confirmCardPayment (card element) not confirmPayment (payment element)
+      const cardEl = stripeElementsRef.current.getElement("card");
+      const { error, paymentIntent } = await stripeInstanceRef.current.confirmCardPayment(
+        stripeClientSecret ?? "",
+        { payment_method: { card: cardEl } }
+      );
       if (error) throw new Error(error.message ?? "Card payment failed");
       if (paymentIntent?.status === "succeeded") {
         const r = await fetch("/api/wallet/stripe/confirm", {

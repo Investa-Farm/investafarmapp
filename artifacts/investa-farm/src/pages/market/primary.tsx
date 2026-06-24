@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useListPrimaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
-import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator, MapPin, Users } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator, MapPin, Users, Navigation } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
@@ -99,6 +99,25 @@ function getTargetRoi(cropType: string, changePercent: number): number {
   const base = isExport ? 20 : isGrowth ? 22 : isBalanced ? 14 : 10;
   const boost = Math.max(-4, Math.min(8, Math.round(changePercent * 0.4)));
   return Math.max(4, base + boost);
+}
+
+const KENYA_COORDS: Record<string, [number, number]> = {
+  nairobi: [-1.2921, 36.8219], kiambu: [-1.1728, 36.8342], nakuru: [-0.3031, 36.0800],
+  meru: [0.0500, 37.6500], kirinyaga: [-0.4700, 37.3100], laikipia: [0.0300, 36.8000],
+  nyeri: [-0.4167, 36.9500], kisumu: [-0.0917, 34.7679], eldoret: [0.5200, 35.2699],
+  machakos: [-1.5177, 37.2634], narok: [-1.0833, 35.8667], thika: [-1.0332, 37.0693],
+  limuru: [-1.1133, 36.6428], nanyuki: [0.0100, 37.0714], embu: [-0.5273, 37.4571],
+  mombasa: [-4.0435, 39.6682], kericho: [-0.3667, 35.2833], kakamega: [0.2827, 34.7519],
+  muranga: [-0.7167, 37.1500], bomet: [-0.7833, 35.3500], rift: [-0.3031, 36.0800],
+  central: [-0.4167, 36.9500],
+};
+
+function getKenyaCoords(location: string): [number, number] {
+  const lower = (location ?? "").toLowerCase();
+  for (const [key, coords] of Object.entries(KENYA_COORDS)) {
+    if (lower.includes(key)) return coords;
+  }
+  return [-1.2921, 36.8219];
 }
 
 function generateSeasonHistory(basePrice: number, changePercent: number) {
@@ -319,48 +338,54 @@ export default function PrimaryMarket() {
                     {/* Expanded details */}
                     {isExpanded && (
                       <div className="border-t border-border px-4 pb-4 pt-3 space-y-3">
-                        {/* Mini map + chart side by side */}
-                        <div className="flex gap-3 items-stretch">
-                          {/* Farm image */}
-                          <div className="w-28 flex-shrink-0 rounded-xl overflow-hidden border border-border relative" style={{ minHeight: 110 }}>
-                            <img
-                              src={imgSrc}
-                              alt={listing.farmName}
-                              className="w-full h-full object-cover"
-                              style={{ minHeight: 110 }}
-                            />
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/65 to-transparent px-1.5 py-1 flex items-center gap-0.5">
-                              <MapPin size={8} className="text-white flex-shrink-0" />
-                              <span className="text-white text-[8px] font-semibold truncate">{listing.location}</span>
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-foreground mb-1">Today's Price</p>
-                            <div style={{ height: 110 }}>
-                              <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={seasonHistory} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                                  <defs>
-                                    <linearGradient id={`grad-${listing.id}`} x1="0" y1="0" x2="0" y2="1">
-                                      <stop offset="5%" stopColor={isUp ? "#16a34a40" : "#dc262640"} />
-                                      <stop offset="95%" stopColor={isUp ? "#16a34a00" : "#dc262600"} />
-                                    </linearGradient>
-                                  </defs>
-                                  <XAxis dataKey="time" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval={1} />
-                                  <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} width={38}
-                                    tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-                                  <Tooltip
-                                    formatter={(v: number) => [formatKES(v), "KES"]}
-                                    labelFormatter={(l) => l}
-                                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", fontWeight: 600 }}
-                                  />
-                                  <Area type="monotone" dataKey="value"
-                                    stroke={isUp ? "#16a34a" : "#dc2626"} strokeWidth={2}
-                                    fill={`url(#grad-${listing.id})`} dot={{ fill: isUp ? "#16a34a" : "#dc2626", r: 2 }} />
-                                </AreaChart>
-                              </ResponsiveContainer>
-                            </div>
+                        {/* Price chart — full width on top */}
+                        <div>
+                          <p className="text-xs font-semibold text-foreground mb-1.5">Today's Price</p>
+                          <div style={{ height: 120 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <AreaChart data={seasonHistory} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                                <defs>
+                                  <linearGradient id={`grad-${listing.id}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={isUp ? "#16a34a40" : "#dc262640"} />
+                                    <stop offset="95%" stopColor={isUp ? "#16a34a00" : "#dc262600"} />
+                                  </linearGradient>
+                                </defs>
+                                <XAxis dataKey="time" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval={1} />
+                                <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} width={38}
+                                  tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+                                <Tooltip
+                                  formatter={(v: number) => [formatKES(v), "KES"]}
+                                  labelFormatter={(l) => l}
+                                  contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", fontWeight: 600 }}
+                                />
+                                <Area type="monotone" dataKey="value"
+                                  stroke={isUp ? "#16a34a" : "#dc2626"} strokeWidth={2}
+                                  fill={`url(#grad-${listing.id})`} dot={{ fill: isUp ? "#16a34a" : "#dc2626", r: 2 }} />
+                              </AreaChart>
+                            </ResponsiveContainer>
                           </div>
                         </div>
+
+                        {/* Farm map — below chart */}
+                        {(() => {
+                          const [lat, lng] = getKenyaCoords(listing.location);
+                          const d = 0.06;
+                          const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${lng-d},${lat-d},${lng+d},${lat+d}&layer=mapnik&marker=${lat},${lng}`;
+                          return (
+                            <div className="rounded-xl overflow-hidden border border-border" style={{ height: 150, position: "relative" }}>
+                              <iframe
+                                src={mapUrl}
+                                style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+                                loading="lazy"
+                                title={`Map for ${listing.farmName}`}
+                              />
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5 flex items-center gap-1 pointer-events-none">
+                                <Navigation size={9} className="text-white flex-shrink-0" />
+                                <span className="text-white text-[9px] font-semibold truncate">{listing.location}</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {/* Location + shares info */}
                         <div className="flex items-center gap-3 flex-wrap">

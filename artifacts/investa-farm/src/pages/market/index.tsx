@@ -1521,7 +1521,7 @@ export default function MarketHome() {
                 disabled={!commitInput || Number(commitInput) <= 0 || commitLoading}
                 onClick={handleCommitFunds}
                 className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{ background: "linear-gradient(135deg, #052e16, #16a34a)" }}
+                style={{ background: "#16a34a" }}
               >
                 {commitLoading
                   ? <><Loader2 size={16} className="animate-spin" /> Processing…</>

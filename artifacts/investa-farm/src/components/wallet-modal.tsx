@@ -351,7 +351,8 @@ export function WalletModal({ open, onClose }: Props) {
                   onClick={(e) => { if (e.target === e.currentTarget) setReceiptTx(null); }}>
                   <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                     transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                    className="w-full bg-white rounded-t-3xl overflow-hidden">
+                    className="w-full bg-white rounded-t-3xl overflow-y-auto"
+                    style={{ maxHeight: "88dvh" }}>
                     {/* Receipt header */}
                     <div className="bg-primary px-5 pt-6 pb-8 text-white text-center relative">
                       <button onClick={() => setReceiptTx(null)}

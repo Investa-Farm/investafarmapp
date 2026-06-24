@@ -21,12 +21,12 @@ export interface TransactionToastOptions {
 }
 
 const TYPE_META: Record<TxType, { label: string; emoji: string; color: string; stepLabel: string }> = {
-  deposit:    { label: "Deposit",    emoji: "⬇️", color: "#16a34a", stepLabel: "Credited" },
-  investment: { label: "Investment", emoji: "📈", color: "#4f46e5", stepLabel: "Invested" },
-  return:     { label: "Harvest Payout", emoji: "💰", color: "#f59e0b", stepLabel: "Credited" },
-  withdrawal: { label: "Withdrawal", emoji: "⬆️", color: "#ef4444", stepLabel: "Sent" },
-  harvest:    { label: "Harvest Payout", emoji: "🌾", color: "#16a34a", stepLabel: "Credited" },
-  fund:       { label: "Fund Allocation", emoji: "💼", color: "#4f46e5", stepLabel: "Allocated" },
+  deposit:    { label: "Deposit",       emoji: "⬇️", color: "#16a34a", stepLabel: "Credited" },
+  investment: { label: "Investment",    emoji: "📈", color: "#16a34a", stepLabel: "Invested" },
+  return:     { label: "Harvest Payout",emoji: "💰", color: "#16a34a", stepLabel: "Credited" },
+  withdrawal: { label: "Withdrawal",    emoji: "⬆️", color: "#ef4444", stepLabel: "Sent" },
+  harvest:    { label: "Harvest Payout",emoji: "🌾", color: "#16a34a", stepLabel: "Credited" },
+  fund:       { label: "Fund Allocation",emoji: "💼", color: "#16a34a", stepLabel: "Allocated" },
 };
 
 function formatAmount(amount: number | string): string {
@@ -38,17 +38,17 @@ function formatAmount(amount: number | string): string {
 function StepDot({ done, active }: { done: boolean; active: boolean }) {
   return (
     <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-      done ? "bg-[#16a34a]" : active ? "bg-white/20 border-2 border-white/50" : "bg-white/10"
+      done ? "bg-[#16a34a]" : active ? "border-2 border-[#16a34a]/50 bg-[#16a34a]/10" : "bg-muted"
     }`}>
       {done && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-      {active && <div className="w-2 h-2 rounded-full bg-white animate-pulse" />}
+      {active && <div className="w-2 h-2 rounded-full bg-[#16a34a] animate-pulse" />}
     </div>
   );
 }
 
 function StepLine({ done }: { done: boolean }) {
   return (
-    <div className="flex-1 h-0.5 rounded-full mx-1" style={{ background: done ? "#16a34a" : "rgba(255,255,255,0.15)" }} />
+    <div className="flex-1 h-0.5 rounded-full mx-1" style={{ background: done ? "#16a34a" : "#e5e7eb" }} />
   );
 }
 
@@ -67,24 +67,27 @@ function TxCard({ type, amount, status = "processing", label, subtitle }: TxCard
 
   return (
     <div
-      style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", border: "1px solid rgba(255,255,255,0.08)" }}
-      className="rounded-2xl overflow-hidden w-full shadow-2xl"
+      style={{ background: "#ffffff", border: "1px solid #e5e7eb", boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
+      className="rounded-2xl overflow-hidden w-full"
     >
+      {/* Green top bar */}
+      <div className="h-1.5 w-full" style={{ background: "linear-gradient(90deg, #052e16, #16a34a)" }} />
+
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/8">
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center overflow-hidden">
-            <img src={logoSrc} alt="" className="w-5 h-5 object-contain" style={{ filter: "brightness(0) invert(1)" }} />
+          <div className="w-6 h-6 rounded-md bg-[#16a34a]/10 flex items-center justify-center overflow-hidden">
+            <img src={logoSrc} alt="" className="w-5 h-5 object-contain" />
           </div>
-          <span className="text-white font-black text-xs tracking-wide">INVESTA FARM</span>
+          <span className="text-foreground font-black text-xs tracking-wide">INVESTA FARM</span>
         </div>
-        <span className="text-white/40 text-[10px] font-semibold uppercase tracking-wider">{label ?? meta.label}</span>
+        <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">{label ?? meta.label}</span>
       </div>
 
       {/* Body */}
       <div className="px-4 pt-3 pb-1">
-        <p className="text-white font-black text-lg leading-tight">{formatAmount(amount)}</p>
-        <p className="text-white/50 text-[10px] mt-0.5">{subtitle ?? statusMsg}</p>
+        <p className="text-foreground font-black text-lg leading-tight">{formatAmount(amount)}</p>
+        <p className="text-muted-foreground text-[10px] mt-0.5">{subtitle ?? statusMsg}</p>
       </div>
 
       {/* Progress pipeline */}
@@ -100,8 +103,8 @@ function TxCard({ type, amount, status = "processing", label, subtitle }: TxCard
         <div className="flex justify-between mt-1.5">
           {stepLabels.map((l, i) => (
             <span key={l} className={`text-[9px] font-semibold ${
-              currentIdx === i ? "text-white" :
-              currentIdx > i ? "text-[#16a34a]" : "text-white/30"
+              currentIdx === i ? "text-[#16a34a]" :
+              currentIdx > i ? "text-[#16a34a]" : "text-muted-foreground/50"
             }`}>{l}</span>
           ))}
         </div>
@@ -131,15 +134,10 @@ export function showTransactionToast(opts: TransactionToastOptions) {
  * Call this after a successful payment/investment to show the full flow.
  */
 export function showCompletedTransactionFlow(opts: Omit<TransactionToastOptions, "status">) {
-  // Stage 1: Submitted
   showTransactionToast({ ...opts, status: "submitted", durationMs: 2500 });
-
-  // Stage 2: Processing
   setTimeout(() => {
     showTransactionToast({ ...opts, status: "processing", durationMs: 2500 });
   }, 2600);
-
-  // Stage 3: Credited
   setTimeout(() => {
     showTransactionToast({ ...opts, status: "credited", durationMs: 5000 });
   }, 5200);

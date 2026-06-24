@@ -27,7 +27,7 @@ export async function createPaymentIntent(opts: {
     amount: amountInSmallestUnit,
     currency: "kes",
     metadata: { userId: String(opts.userId), email: opts.email, source: "investa-farm" },
-    automatic_payment_methods: { enabled: true },
+    payment_method_types: ["card"],
   });
   return { clientSecret: intent.client_secret!, id: intent.id };
 }
