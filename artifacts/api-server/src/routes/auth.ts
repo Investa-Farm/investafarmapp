@@ -123,8 +123,8 @@ router.post("/auth/register", authRateLimit, async (req, res): Promise<void> => 
   await db.insert(otpCodesTable).values({ userId: user.id, code, purpose: "email_verify", expiresAt });
   sendOtpEmail(email, name, code).catch(() => {});
   if (phone) {
-    sendWelcomeSms(phone, name).catch(() => {});
-    sendOtpSms(phone, code).catch(() => {});
+    sendWelcomeSms(phone, name, email).catch(() => {});
+    sendOtpSms(phone, code, email).catch(() => {});
   }
 
   res.status(201).json({

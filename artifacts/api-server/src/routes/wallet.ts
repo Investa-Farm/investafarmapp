@@ -128,10 +128,10 @@ router.post("/wallet/withdraw", financialRateLimit, async (req, res): Promise<vo
   recordWithdrawal(user.id, amount);
   notifyUser(user.id, "withdrawal", "Withdrawal Initiated", `KES ${amount.toLocaleString("en-KE")} sent to M-Pesa. Processing 1-2 business days.`, "/wallet").catch(() => {});
   if (phone) {
-    sendWithdrawalSms(phone, amount, fee).catch(() => {});
+    sendWithdrawalSms(phone, amount, fee, user.email).catch(() => {});
   } else {
     db.select({ phone: usersTable.phone }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1)
-      .then(([u]) => { if ((u as any)?.phone) sendWithdrawalSms((u as any).phone, amount, fee).catch(() => {}); })
+      .then(([u]) => { if ((u as any)?.phone) sendWithdrawalSms((u as any).phone, amount, fee, user.email).catch(() => {}); })
       .catch(() => {});
   }
   res.json({ wallet: { ...wallet, balance: String(newBalance) }, fee });
@@ -261,7 +261,7 @@ router.post("/wallet/paystack/verify", async (req, res): Promise<void> => {
     recordDeposit(user.id, amount);
     notifyUser(user.id, "wallet_credit", "💰 Wallet Credited!", `KES ${amount.toLocaleString("en-KE")} added to your wallet.`, "/wallet").catch(() => {});
     db.select({ phone: usersTable.phone }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1)
-      .then(([u]) => { if ((u as any)?.phone) sendWalletTopupSms((u as any).phone, amount, (result as any).newBalance).catch(() => {}); })
+      .then(([u]) => { if ((u as any)?.phone) sendWalletTopupSms((u as any).phone, amount, (result as any).newBalance, user.email).catch(() => {}); })
       .catch(() => {});
 
     res.json({ success: true, ...result });
