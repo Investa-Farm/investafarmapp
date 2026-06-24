@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 
-const SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
+const SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? process.env.STRIPE_TEST_API_KEY ?? "";
 export const STRIPE_PUBLIC_KEY = process.env.STRIPE_PUBLIC_KEY ?? "";
 
 export function isConfigured() {

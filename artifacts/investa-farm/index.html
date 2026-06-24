@@ -33,6 +33,50 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <!-- App loading splash — shown until React mounts (covers Render cold-start delay) -->
+    <div id="app-loader" style="
+      position:fixed;inset:0;z-index:99999;
+      background:linear-gradient(160deg,#052e16 0%,#14532d 50%,#16a34a 100%);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      font-family:'Inter',sans-serif;transition:opacity .4s ease;
+    ">
+      <img src="/logo.png" alt="Investa Farm"
+        style="width:72px;height:72px;border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.35);margin-bottom:20px;" />
+      <p style="color:#fff;font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 4px;">Investa Farm</p>
+      <p style="color:rgba(255,255,255,.6);font-size:13px;margin:0 0 32px;">Farm investment, simplified</p>
+      <div style="width:48px;height:48px;position:relative;">
+        <div style="
+          position:absolute;inset:0;border-radius:50%;
+          border:3px solid rgba(255,255,255,.2);
+          border-top-color:#fff;
+          animation:spin .8s linear infinite;
+        "></div>
+      </div>
+      <p id="loader-status" style="color:rgba(255,255,255,.5);font-size:11px;margin-top:20px;">Loading…</p>
+    </div>
+    <style>
+      @keyframes spin { to { transform:rotate(360deg); } }
+    </style>
+    <script>
+      // Show "waking up" message after 4s (Render cold start)
+      var loaderStatus = document.getElementById('loader-status');
+      setTimeout(function() {
+        if (loaderStatus) loaderStatus.textContent = 'Waking up server…';
+      }, 4000);
+      setTimeout(function() {
+        if (loaderStatus) loaderStatus.textContent = 'Almost ready…';
+      }, 10000);
+      // Hide loader once React root renders
+      var observer = new MutationObserver(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length > 0) {
+          var el = document.getElementById('app-loader');
+          if (el) { el.style.opacity = '0'; setTimeout(function(){ if(el) el.remove(); }, 450); }
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.getElementById('root'), { childList: true, subtree: false });
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

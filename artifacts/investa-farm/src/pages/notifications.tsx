@@ -90,11 +90,14 @@ export default function NotificationsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
-  // Merge API notifs with demo notifs (deduped)
+  // Only show demo notifs for demo accounts; real users get live API data only
   const apiIds = new Set(apiNotifs.map(n => n.id));
+  const isDemoUser = typeof window !== "undefined" &&
+    !!localStorage.getItem("investa_token")?.includes("john.farmer") === false &&
+    (() => { try { const u = JSON.parse(localStorage.getItem("investa_user") ?? "{}"); return u.email?.endsWith("investafarm.com") && (u.email?.startsWith("david") || u.email?.startsWith("john")); } catch { return false; } })();
   const merged: Notif[] = [
     ...apiNotifs,
-    ...DEMO_NOTIFS.filter(d => !apiIds.has(d.id)),
+    ...(isDemoUser ? DEMO_NOTIFS.filter(d => !apiIds.has(d.id)) : []),
   ].filter(n => !localDeleted.has(n.id));
 
   const displayed = merged

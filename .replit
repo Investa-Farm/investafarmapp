@@ -18,6 +18,7 @@ RESEND_FROM_EMAIL = "Investa Farm <onboarding@app.investafarm.com>"
 PORT = "8080"
 NODE_ENV = "development"
 APP_URL = "https://36582874-02b7-42fb-bb00-ea991c0e35d0-00-4vt8sbmirvno.worf.replit.dev"
+STRIPE_PUBLIC_KEY = "pk_test_51TVQMRLI55Ea4b3BRaEqQo6wNr5CnzC4gGwjXqd8MgGSfeGDQrn2lkeShHPovpzjkYYWbiwVWnwRIGIG2QYyI8f100WDLxdgDa"
 
 [workflows]
 runButton = "Project"

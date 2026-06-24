@@ -157,8 +157,11 @@ router.get("/market/secondary", async (_req, res): Promise<void> => {
 });
 
 router.get("/market/movers", async (_req, res): Promise<void> => {
-  const farms = await db.select().from(farmsTable).orderBy(desc(farmsTable.changePercent)).limit(5);
-  res.json(farms.map(f => ({
+  const farms = await db.select().from(farmsTable).orderBy(desc(farmsTable.changePercent)).limit(20);
+  // Deduplicate by cropType — keep best performer per crop
+  const seen = new Set<string>();
+  const unique = farms.filter(f => { if (seen.has(f.cropType)) return false; seen.add(f.cropType); return true; }).slice(0, 6);
+  res.json(unique.map(f => ({
     farmId: f.id,
     farmName: f.name,
     cropType: f.cropType,
@@ -170,8 +173,11 @@ router.get("/market/movers", async (_req, res): Promise<void> => {
 });
 
 router.get("/market/decliners", async (_req, res): Promise<void> => {
-  const farms = await db.select().from(farmsTable).orderBy(asc(farmsTable.changePercent)).limit(5);
-  res.json(farms.map(f => ({
+  const farms = await db.select().from(farmsTable).orderBy(asc(farmsTable.changePercent)).limit(20);
+  // Deduplicate by cropType — keep worst performer per crop
+  const seen = new Set<string>();
+  const unique = farms.filter(f => { if (seen.has(f.cropType)) return false; seen.add(f.cropType); return true; }).slice(0, 6);
+  res.json(unique.map(f => ({
     farmId: f.id,
     farmName: f.name,
     cropType: f.cropType,

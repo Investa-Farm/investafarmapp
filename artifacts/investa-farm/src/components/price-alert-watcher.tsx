@@ -80,6 +80,7 @@ export function PriceAlertWatcher() {
   const token = getToken();
   const user = getStoredUser();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isFirstPollRef = useRef(true);
 
   useEffect(() => {
     if (!token || !user) return;
@@ -95,23 +96,34 @@ export function PriceAlertWatcher() {
         const fresh = data.filter(n => !seen.has(n.id));
 
         if (fresh.length === 0) return;
+
+        // On first poll: silently mark all existing notifications as seen
+        // so we don't flood the screen with accumulated old alerts.
+        if (isFirstPollRef.current) {
+          isFirstPollRef.current = false;
+          markSeen(fresh.map(n => n.id));
+          return;
+        }
+
+        isFirstPollRef.current = false;
         markSeen(fresh.map(n => n.id));
 
-        for (const n of fresh) {
+        // Only show up to 2 notifications per poll to avoid flooding
+        const toShow = fresh.slice(0, 2);
+
+        for (const n of toShow) {
           const richType = richTypeFromNotif(n.type);
           const amount = extractAmount(n.body);
 
-          // Show Binance-style rich in-app notification
           showRichNotification({
             type: richType,
             title: n.title,
             body: n.body.length > 80 ? n.body.slice(0, 80) + "…" : n.body,
             amount: amount > 0 ? amount : undefined,
             url: urlFromNotif(n.type),
-            durationMs: 9000,
+            durationMs: 8000,
           });
 
-          // Also fire device OS push notification for foreground gap
           if ("Notification" in window && Notification.permission === "granted") {
             try {
               const typeEmojis: Record<string, string> = {
@@ -134,8 +146,9 @@ export function PriceAlertWatcher() {
       } catch { /* silent */ }
     };
 
-    setTimeout(poll, 3000);
-    intervalRef.current = setInterval(poll, 45_000);
+    // Delay first poll — after page settles
+    setTimeout(poll, 5000);
+    intervalRef.current = setInterval(poll, 60_000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
