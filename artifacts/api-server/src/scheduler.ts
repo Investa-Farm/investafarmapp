@@ -8,26 +8,53 @@ import { getRainfallData, getKenyaCoords, checkRainfallAlerts } from "./lib/rain
 import { computeROI, type HoldingROIInput } from "./lib/roi";
 import { loadSettings } from "./lib/platformSettings";
 
+/** Returns a random integer in [min, max] inclusive */
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Schedule a daily job at a random time within a window.
+ * Fires once immediately at a random delay, then reschedules itself every 24 h
+ * at a fresh random time within the same window to avoid predictable patterns.
+ */
+function scheduleDailyRandom(
+  label: string,
+  minHour: number,
+  maxHour: number,
+  fn: () => void
+): void {
+  function fireNext() {
+    const h = randInt(minHour, maxHour);
+    const m = randInt(0, 59);
+    console.log(`[scheduler] ${label} → next run at ${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")} EAT`);
+    cron.schedule(`${m} ${h} * * *`, () => {
+      fn();
+    }, { timezone: "Africa/Nairobi", scheduled: true });
+  }
+  // Schedule immediately so the first run is at a random time today/tomorrow
+  fireNext();
+}
+
 export function startScheduler(): void {
-  cron.schedule("0 8 * * 1", () => runOpportunityDigest("Monday morning"), { timezone: "Africa/Nairobi" });
-  cron.schedule("0 18 * * 5", () => runOpportunityDigest("Friday evening"), { timezone: "Africa/Nairobi" });
+  // High-frequency operations keep their intervals (market data & matching)
   cron.schedule("*/5 * * * *", () => runPriceSimulation(), { timezone: "Africa/Nairobi" });
   cron.schedule("*/5 * * * *", () => runPriceAlertCheck(), { timezone: "Africa/Nairobi" });
   cron.schedule("*/5 * * * *", () => runWatchlistPriceAlerts(), { timezone: "Africa/Nairobi" });
   cron.schedule("*/2 * * * *", () => runOrderMatching(), { timezone: "Africa/Nairobi" });
-  cron.schedule("0 10 * * *", () => runVerificationReminders(), { timezone: "Africa/Nairobi" });
-  cron.schedule("0 2 * * *", () => runDividendPayouts(), { timezone: "Africa/Nairobi" });
-  cron.schedule("0 6 * * *", () => runRainfallAlerts(), { timezone: "Africa/Nairobi" });
-  cron.schedule("30 1 * * *", () => runDailyRoiSnapshots(), { timezone: "Africa/Nairobi" });
 
-  console.log("[scheduler] Weekly digest: Mon 8am & Fri 6pm EAT");
+  // Daily jobs fire at randomised times within a sensible window
+  scheduleDailyRandom("Weekly digest (Mon)",   7, 10, () => runOpportunityDigest("morning"));
+  scheduleDailyRandom("Weekly digest (Fri)",  16, 20, () => runOpportunityDigest("evening"));
+  scheduleDailyRandom("Verification reminders", 8, 11, runVerificationReminders);
+  scheduleDailyRandom("Dividend payouts",       1,  4, runDividendPayouts);
+  scheduleDailyRandom("Rainfall alerts",        5,  8, runRainfallAlerts);
+  scheduleDailyRandom("ROI snapshots",          0,  3, runDailyRoiSnapshots);
+
   console.log("[scheduler] Price simulation & alerts: every 5 minutes");
   console.log("[scheduler] Watchlist price alerts: every 5 minutes");
   console.log("[scheduler] Order matching engine: every 2 minutes");
-  console.log("[scheduler] Verification reminders: daily 10am EAT");
-  console.log("[scheduler] Dividend payouts: daily 2am EAT");
-  console.log("[scheduler] Rainfall alerts: daily 6am EAT");
-  console.log("[scheduler] ROI snapshots: daily 1:30am EAT");
+  console.log("[scheduler] Daily jobs: randomised times within safe windows");
 }
 
 async function runOpportunityDigest(label: string): Promise<void> {

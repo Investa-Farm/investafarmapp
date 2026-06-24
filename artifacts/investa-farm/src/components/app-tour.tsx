@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, ChevronLeft } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
-const TOUR_KEY = "investa_app_tour_v8";
+const TOUR_KEY = "investa_app_tour_v9";
 
 type TourSlide = {
   screenshot?: string;
@@ -218,49 +218,62 @@ export function AppTour({ role = "investor" }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={dismiss}
-            className="fixed inset-0 z-[9998]"
-            style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9998,
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(4px)",
+            }}
           />
 
-          {/* Card */}
+          {/* Card — centred with explicit inset math so nothing clips off-screen */}
           <motion.div
             key="tour-card"
             initial={{ opacity: 0, scale: 0.88, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.88, y: 30 }}
             transition={{ type: "spring", stiffness: 340, damping: 28 }}
-            className="fixed z-[9999] flex flex-col"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
             style={{
+              position: "fixed",
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              width: "min(360px, 92vw)",
-              maxHeight: "min(580px, 90vh)",
-              background: "linear-gradient(160deg, #052e16 0%, #0f3d20 55%, #1a5c2e 100%)",
+              zIndex: 9999,
+              width: "min(360px, calc(100vw - 32px))",
+              maxHeight: "min(600px, calc(100vh - 48px))",
+              background: "#ffffff",
               borderRadius: 28,
-              border: "1.5px solid rgba(74,222,128,0.18)",
-              boxShadow: "0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)",
+              border: "1.5px solid #e5e7eb",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.08)",
               overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
             }}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
           >
-            {/* Header strip */}
-            <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <img src={logoSrc} alt="Investa Farm" className="h-6 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
-                <span className="text-white/50 text-[11px] font-medium tracking-wide">Quick Tour</span>
+            {/* Coloured top accent strip */}
+            <div style={{ height: 5, background: "linear-gradient(90deg, #16a34a, #4ade80, #15803d)", flexShrink: 0 }} />
+
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px 10px", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <img src={logoSrc} alt="Investa Farm" style={{ height: 20, width: "auto" }} />
+                </div>
+                <span style={{ color: "#6b7280", fontSize: 11, fontWeight: 600, letterSpacing: "0.04em" }}>Quick Tour</span>
               </div>
               <button
                 onClick={dismiss}
-                className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center active:bg-white/20 transition-colors"
+                style={{ width: 28, height: 28, borderRadius: "50%", background: "#f3f4f6", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
               >
-                <X size={12} className="text-white/70" />
+                <X size={12} color="#9ca3af" />
               </button>
             </div>
 
             {/* Slide content */}
-            <div className="flex-1 overflow-hidden relative" style={{ minHeight: 0 }}>
+            <div style={{ flex: 1, overflow: "hidden", position: "relative", minHeight: 0 }}>
               <AnimatePresence mode="wait" custom={dir}>
                 <motion.div
                   key={idx}
@@ -269,73 +282,55 @@ export function AppTour({ role = "investor" }: Props) {
                   animate={{ opacity: 1, x: 0, scale: 1 }}
                   exit={{ opacity: 0, x: dir * -60, scale: 0.96 }}
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                  className="flex flex-col items-center w-full px-5 pb-4"
-                  style={{ height: "100%" }}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", padding: "0 20px 12px", height: "100%" }}
                 >
                   {slide.isWelcome ? (
-                    /* Welcome slide */
-                    <div className="flex flex-col items-center justify-center text-center pt-4 pb-2">
-                      <div
-                        className="w-20 h-20 rounded-2xl flex items-center justify-center mb-5 shadow-xl"
-                        style={{
-                          background: "linear-gradient(135deg,rgba(22,163,74,0.25) 0%,rgba(5,46,22,0.5) 100%)",
-                          border: "1.5px solid rgba(22,163,74,0.35)",
-                        }}
-                      >
-                        <img
-                          src={logoSrc}
-                          alt="Investa Farm"
-                          className="h-14 w-14 object-contain"
-                          style={{ filter: "brightness(0) invert(1)" }}
-                        />
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", paddingTop: 8, paddingBottom: 4 }}>
+                      <div style={{
+                        width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+                        border: "2px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16,
+                        boxShadow: "0 4px 16px rgba(22,163,74,0.15)"
+                      }}>
+                        <img src={logoSrc} alt="Investa Farm" style={{ height: 48, width: 48, objectFit: "contain" }} />
                       </div>
-                      <div className="text-4xl mb-3">{slide.emoji}</div>
-                      <h1 className="text-white font-black text-2xl leading-tight mb-2" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                      <div style={{ fontSize: 36, marginBottom: 10 }}>{slide.emoji}</div>
+                      <h1 style={{ color: "#111827", fontWeight: 900, fontSize: 22, lineHeight: 1.2, marginBottom: 6, fontFamily: "Space Grotesk, sans-serif" }}>
                         {slide.title}
                       </h1>
-                      <p className="text-green-300/80 font-semibold text-sm mb-3">{slide.subtitle}</p>
-                      <p className="text-white/55 text-sm leading-relaxed max-w-[260px]">{slide.body}</p>
+                      <p style={{ color: "#16a34a", fontWeight: 700, fontSize: 13, marginBottom: 10 }}>{slide.subtitle}</p>
+                      <p style={{ color: "#6b7280", fontSize: 13, lineHeight: 1.6, maxWidth: 260 }}>{slide.body}</p>
                     </div>
                   ) : (
-                    /* Screenshot slide */
-                    <div className="flex flex-col items-center w-full">
-                      {/* Compact screenshot — no phone frame, just a clipped rounded preview */}
-                      <div
-                        className="w-full overflow-hidden shadow-2xl mb-4"
-                        style={{
-                          borderRadius: 16,
-                          height: 200,
-                          border: "1.5px solid rgba(255,255,255,0.10)",
-                          background: "#0a1a0f",
-                        }}
-                      >
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+                      <div style={{
+                        width: "100%", borderRadius: 14, height: 190, overflow: "hidden",
+                        border: "1px solid #f3f4f6", background: "#f9fafb", marginBottom: 14,
+                        boxShadow: "0 2px 12px rgba(0,0,0,0.06)"
+                      }}>
                         <img
                           src={slide.screenshot}
                           alt={slide.title}
-                          className="w-full h-full object-cover object-top"
+                          style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
                           loading="eager"
                         />
                       </div>
-
-                      {/* Text */}
-                      <div className="text-center w-full">
-                        <div className="flex items-center justify-center gap-2 mb-2">
-                          <span className="text-2xl">{slide.emoji}</span>
-                          <div
-                            className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                            style={{
-                              background: `${slide.accent}25`,
-                              color: slide.accent === "#16a34a" ? "#4ade80" : "#fbbf24",
-                              border: `1px solid ${slide.accent}40`,
-                            }}
-                          >
+                      <div style={{ textAlign: "center", width: "100%" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+                          <span style={{ fontSize: 22 }}>{slide.emoji}</span>
+                          <span style={{
+                            display: "inline-block", padding: "2px 10px", borderRadius: 100, fontSize: 10,
+                            fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+                            background: slide.accent === "#16a34a" ? "#f0fdf4" : "#fffbeb",
+                            color: slide.accent === "#16a34a" ? "#15803d" : "#b45309",
+                            border: `1px solid ${slide.accent === "#16a34a" ? "#bbf7d0" : "#fde68a"}`,
+                          }}>
                             {slide.subtitle}
-                          </div>
+                          </span>
                         </div>
-                        <h2 className="text-white font-black text-lg mb-1.5 leading-tight" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                        <h2 style={{ color: "#111827", fontWeight: 900, fontSize: 17, lineHeight: 1.25, marginBottom: 6, fontFamily: "Space Grotesk, sans-serif" }}>
                           {slide.title}
                         </h2>
-                        <p className="text-white/50 text-[13px] leading-relaxed">{slide.body}</p>
+                        <p style={{ color: "#6b7280", fontSize: 13, lineHeight: 1.5 }}>{slide.body}</p>
                       </div>
                     </div>
                   )}
@@ -344,44 +339,47 @@ export function AppTour({ role = "investor" }: Props) {
             </div>
 
             {/* Bottom controls */}
-            <div className="px-5 pb-5 pt-2 flex-shrink-0">
+            <div style={{ padding: "8px 20px 20px", flexShrink: 0, borderTop: "1px solid #f3f4f6" }}>
               {/* Progress dots */}
-              <div className="flex items-center justify-center gap-1.5 mb-4">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 14 }}>
                 {slides.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => goTo(i)}
-                    className="rounded-full transition-all duration-300"
                     style={{
-                      width: i === idx ? 18 : 5,
-                      height: 5,
-                      background: i === idx ? "#4ade80" : "rgba(255,255,255,0.2)",
+                      borderRadius: 100, border: "none", cursor: "pointer", transition: "all 0.3s",
+                      width: i === idx ? 20 : 6, height: 6,
+                      background: i === idx ? "#16a34a" : "#d1d5db",
+                      padding: 0,
                     }}
                   />
                 ))}
               </div>
 
               {/* Nav row */}
-              <div className="flex items-center gap-2.5">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 {idx > 0 ? (
                   <button
                     onClick={prev}
-                    className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
-                    style={{ background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.1)" }}
+                    style={{
+                      width: 42, height: 42, borderRadius: 12, border: "1.5px solid #e5e7eb",
+                      background: "#f9fafb", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+                    }}
                   >
-                    <ChevronLeft size={16} className="text-white/70" />
+                    <ChevronLeft size={16} color="#6b7280" />
                   </button>
                 ) : (
-                  <div className="w-11" />
+                  <div style={{ width: 42 }} />
                 )}
 
                 <button
                   onClick={next}
-                  className="flex-1 h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform shadow-lg"
                   style={{
+                    flex: 1, height: 42, borderRadius: 12, border: "none", cursor: "pointer",
                     background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
-                    boxShadow: "0 6px 20px rgba(22,163,74,0.4)",
-                    color: "#fff",
+                    color: "#fff", fontWeight: 700, fontSize: 14,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    boxShadow: "0 4px 14px rgba(22,163,74,0.35)",
                   }}
                 >
                   {idx < slides.length - 1 ? (
@@ -393,10 +391,12 @@ export function AppTour({ role = "investor" }: Props) {
 
                 <button
                   onClick={dismiss}
-                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
-                  style={{ background: "rgba(255,255,255,0.05)" }}
+                  style={{
+                    width: 42, height: 42, borderRadius: 12, border: "1.5px solid #e5e7eb",
+                    background: "#f9fafb", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+                  }}
                 >
-                  <span className="text-white/35 text-[10px] font-medium leading-tight text-center">Skip</span>
+                  <span style={{ color: "#9ca3af", fontSize: 10, fontWeight: 600 }}>Skip</span>
                 </button>
               </div>
             </div>

@@ -75,28 +75,61 @@ function resolveCoords(location: string): [number, number] {
   for (const [key, coords] of Object.entries(LOCATION_COORDS)) {
     if (l.includes(key)) return coords;
   }
-  // Fallback: centre of Kenya (Nairobi area) — no random scatter
   return [-1.2921, 36.8219];
 }
 
-function makeIcon(color: string, active = false): L.DivIcon {
-  const s = active ? 44 : 36;
-  const r1 = active ? 18 : 14;
-  const r2 = active ? 11 : 8;
-  const r3 = active ? 5 : 4;
-  const line1 = active ? 29 : 22;
-  const line2 = active ? 44 : 35;
-  const sw = active ? 3 : 2;
+/**
+ * Generate a deterministic irregular polygon around a centre point
+ * to simulate a farm boundary. Uses a seeded approach based on farmId
+ * so the shape is stable across renders.
+ */
+function makeFarmBoundary(
+  center: [number, number],
+  farmId: number,
+  active: boolean
+): L.Polygon {
+  const [lat, lng] = center;
+  // Spread ~0.02–0.06 degrees (roughly 2–6 km)
+  const spread = 0.025 + (farmId % 5) * 0.008;
+  const sides = 6 + (farmId % 4); // 6-9 sided polygon
+  const points: [number, number][] = [];
+
+  for (let i = 0; i < sides; i++) {
+    const angle = (i / sides) * 2 * Math.PI;
+    // Vary radius slightly per vertex for organic feel
+    const variance = 0.65 + ((farmId * (i + 3)) % 7) / 10;
+    const r = spread * variance;
+    // Lat/lng ratio compensation (Kenya ~1.1)
+    points.push([lat + r * Math.cos(angle), lng + r * Math.sin(angle) * 1.1]);
+  }
+
+  const color = active ? "#16a34a" : getCropColor(""); // will be overridden per crop
+  return L.polygon(points as L.LatLngExpression[], {
+    color: active ? "#16a34a" : undefined,
+    fillColor: active ? "#16a34a" : undefined,
+    weight: active ? 2.5 : 1.8,
+    fillOpacity: active ? 0.22 : 0.13,
+    opacity: active ? 1 : 0.75,
+  });
+}
+
+function makeLabelIcon(crop: string, active: boolean): L.DivIcon {
+  const emoji = getCropEmoji(crop);
+  const color = getCropColor(crop);
+  const s = active ? 40 : 32;
   return L.divIcon({
-    html: `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s + 10}" viewBox="0 0 ${s} ${s + 10}" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))">
-      <circle cx="${s/2}" cy="${s/2}" r="${r1}" fill="${color}" opacity="0.18"/>
-      <circle cx="${s/2}" cy="${s/2}" r="${r2}" fill="${color}"/>
-      <circle cx="${s/2}" cy="${s/2}" r="${r3}" fill="white"/>
-      <line x1="${s/2}" y1="${line1}" x2="${s/2}" y2="${line2}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-    </svg>`,
+    html: `<div style="
+      width:${s}px;height:${s}px;border-radius:50%;
+      background:${active ? color : "white"};
+      border:2.5px solid ${color};
+      display:flex;align-items:center;justify-content:center;
+      font-size:${active ? 18 : 14}px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.22);
+      transition:all 0.2s;
+    ">${emoji}</div>`,
     className: "",
-    iconSize: [s, s + 10],
-    iconAnchor: [s / 2, s + 10],
+    iconSize: [s, s],
+    iconAnchor: [s / 2, s / 2],
   });
 }
 
@@ -112,16 +145,15 @@ function riskLevel(crop: string, chg: number) {
 
 export default function FarmMap() {
   const [, setLocation] = useLocation();
-  const mapRef    = useRef<HTMLDivElement>(null);
-  const mapInst   = useRef<L.Map | null>(null);
-  const markersRef= useRef<Map<number, L.Marker>>(new Map());
+  const mapRef     = useRef<HTMLDivElement>(null);
+  const mapInst    = useRef<L.Map | null>(null);
+  const layersRef  = useRef<Map<number, { polygon: L.Polygon; marker: L.Marker }>>(new Map());
 
   const [selected, setSelected] = useState<Listing | null>(null);
   const [filter, setFilter]     = useState<string>("All");
 
   const { data: listings = [], isLoading } = useListPrimaryMarket();
 
-  // Unique crop types for filter chips
   const cropTypes = ["All", ...Array.from(new Set((listings as Listing[]).map(l => l.cropType)))];
 
   const visible = filter === "All"
@@ -153,33 +185,57 @@ export default function FarmMap() {
     return () => { map.remove(); mapInst.current = null; };
   }, []);
 
-  // Sync markers when listings or filter changes
+  // Sync farm boundaries + emoji markers when listings or filter or selection changes
   useEffect(() => {
     const map = mapInst.current;
     if (!map) return;
 
-    // Remove old markers
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current.clear();
+    // Remove old layers
+    layersRef.current.forEach(({ polygon, marker }) => {
+      polygon.remove();
+      marker.remove();
+    });
+    layersRef.current.clear();
 
     visible.forEach(farm => {
       const coords = resolveCoords(farm.location);
       const color  = getCropColor(farm.cropType);
-      const icon   = makeIcon(color, selected?.farmId === farm.farmId);
-      const marker = L.marker(coords, { icon })
+      const isActive = selected?.farmId === farm.farmId;
+
+      const polygon = makeFarmBoundary(coords, farm.farmId, isActive);
+      polygon.setStyle({
+        color: isActive ? "#16a34a" : color,
+        fillColor: isActive ? "#16a34a" : color,
+        weight: isActive ? 2.5 : 1.8,
+        fillOpacity: isActive ? 0.22 : 0.13,
+        opacity: isActive ? 1 : 0.75,
+      });
+      polygon.addTo(map);
+      polygon.on("click", () => setSelected(prev => prev?.farmId === farm.farmId ? null : farm));
+
+      const marker = L.marker(coords, { icon: makeLabelIcon(farm.cropType, isActive) })
         .addTo(map)
         .on("click", () => setSelected(prev => prev?.farmId === farm.farmId ? null : farm));
-      markersRef.current.set(farm.farmId, marker);
+
+      layersRef.current.set(farm.farmId, { polygon, marker });
     });
   }, [visible, selected?.farmId]);
 
-  // Update active marker icon when selection changes
+  // Update active layers when selection changes (style only)
   useEffect(() => {
-    markersRef.current.forEach((marker, farmId) => {
+    layersRef.current.forEach(({ polygon, marker }, farmId) => {
       const farm = (listings as Listing[]).find(l => l.farmId === farmId);
       if (!farm) return;
+      const isActive = selected?.farmId === farmId;
       const color = getCropColor(farm.cropType);
-      marker.setIcon(makeIcon(color, selected?.farmId === farmId));
+      polygon.setStyle({
+        color: isActive ? "#16a34a" : color,
+        fillColor: isActive ? "#16a34a" : color,
+        weight: isActive ? 2.5 : 1.8,
+        fillOpacity: isActive ? 0.22 : 0.13,
+        opacity: isActive ? 1 : 0.75,
+      });
+      marker.setIcon(makeLabelIcon(farm.cropType, isActive));
     });
   }, [selected?.farmId, listings]);
 
@@ -343,10 +399,11 @@ export default function FarmMap() {
           <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Crop Types</p>
           {Array.from(new Set(visible.map(l => l.cropType))).slice(0, 6).map(crop => (
             <div key={crop} className="flex items-center gap-1.5 mb-1.5 last:mb-0">
-              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: getCropColor(crop) }} />
-              <span className="text-[10px] text-foreground font-medium truncate">{crop}</span>
+              <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0 opacity-60" style={{ background: getCropColor(crop) }} />
+              <span className="text-[10px] text-foreground font-medium truncate">{getCropEmoji(crop)} {crop}</span>
             </div>
           ))}
+          <p className="text-[8px] text-muted-foreground mt-2 italic">Boundaries are approximate</p>
         </div>
       )}
 
