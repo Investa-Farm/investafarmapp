@@ -40,20 +40,26 @@ export default function SalesAgentDashboard() {
   async function loadData() {
     setLoading(true);
     try {
-      const [proposalsResp] = await Promise.all([
-        fetch("/api/agribusiness/proposals", { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+      const headers = { Authorization: `Bearer ${token}` };
+      const [proposalsResp, networkResp] = await Promise.all([
+        fetch("/api/agribusiness/proposals", { headers }).catch(() => null),
+        fetch("/api/agribusiness/my-network", { headers }).catch(() => null),
       ]);
       const propsList = proposalsResp && proposalsResp.ok ? await proposalsResp.json() : [];
+      const networkList = networkResp && networkResp.ok ? await networkResp.json() : [];
       const list = Array.isArray(propsList) ? propsList : [];
+      const net = Array.isArray(networkList) ? networkList : [];
       setProposals(list);
+      setFarmers(net);
       const funded = list.filter((p: any) => p.status === "approved").length;
+      const totalComm = funded * 500 + net.filter((f: any) => f.funded).length * 800;
       setStats({
-        farmers: 0,
+        farmers: net.length,
         proposals: list.length,
         funded,
-        commission: funded * 500,
+        commission: totalComm,
         pendingCommission: (list.length - funded) * 200,
-        lifetimeCommission: funded * 800,
+        lifetimeCommission: totalComm,
       });
     } catch { /* ignore */ } finally { setLoading(false); }
   }
@@ -114,8 +120,8 @@ export default function SalesAgentDashboard() {
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-white/10 rounded-xl p-2 text-center">
-              <p className="text-white font-bold text-sm">{stats.proposals}</p>
-              <p className="text-white/60 text-[10px]">Proposals</p>
+              <p className="text-white font-bold text-sm">{stats.farmers}</p>
+              <p className="text-white/60 text-[10px]">Farmers</p>
             </div>
             <div className="bg-white/10 rounded-xl p-2 text-center">
               <p className="text-white font-bold text-sm">{stats.funded}</p>

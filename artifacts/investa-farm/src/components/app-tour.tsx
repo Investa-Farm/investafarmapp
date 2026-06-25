@@ -150,10 +150,30 @@ export function AppTour({ role = "investor" }: Props) {
       : INVESTOR_SLIDES;
 
   useEffect(() => {
-    // Never show the tour again if ANY previous version was dismissed
+    // Never show the tour again if ANY previous version was dismissed.
+    // We scan localStorage for ANY key that starts with "investa_app_tour_v"
+    // so upgrading the version key never forces a re-show for returning users.
     const stableSeen = localStorage.getItem(STABLE_SEEN_KEY);
+    if (stableSeen) return undefined;
+
+    // Check current version key
     const versionSeen = localStorage.getItem(`${TOUR_KEY}_${role}`);
-    if (stableSeen || versionSeen) return undefined;
+    if (versionSeen) {
+      // Backfill stable key so future version bumps never re-trigger
+      localStorage.setItem(STABLE_SEEN_KEY, "done");
+      return undefined;
+    }
+
+    // Check any older version key (e.g. investa_app_tour_v8_investor)
+    const oldVersionSeen = Object.keys(localStorage).some(
+      k => k.startsWith("investa_app_tour_v") && k.endsWith(`_${role}`)
+    );
+    if (oldVersionSeen) {
+      // Backfill the stable key so we never check old keys again
+      localStorage.setItem(STABLE_SEEN_KEY, "done");
+      return undefined;
+    }
+
     const t = setTimeout(() => {
       setIdx(0);
       setOpen(true);
