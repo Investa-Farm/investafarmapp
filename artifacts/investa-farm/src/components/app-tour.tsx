@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, ChevronLeft } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
-const TOUR_KEY = "investa_app_tour_v9";
+const TOUR_KEY = "investa_app_tour_v10";
+const STABLE_SEEN_KEY = "investa_tour_seen";
 
 type TourSlide = {
   screenshot?: string;
@@ -149,19 +150,21 @@ export function AppTour({ role = "investor" }: Props) {
       : INVESTOR_SLIDES;
 
   useEffect(() => {
-    const seen = localStorage.getItem(`${TOUR_KEY}_${role}`);
-    if (!seen) {
-      const t = setTimeout(() => {
-        setIdx(0);
-        setOpen(true);
-      }, 1200);
-      return () => clearTimeout(t);
-    }
-    return undefined;
+    // Never show the tour again if ANY previous version was dismissed
+    const stableSeen = localStorage.getItem(STABLE_SEEN_KEY);
+    const versionSeen = localStorage.getItem(`${TOUR_KEY}_${role}`);
+    if (stableSeen || versionSeen) return undefined;
+    const t = setTimeout(() => {
+      setIdx(0);
+      setOpen(true);
+    }, 1200);
+    return () => clearTimeout(t);
   }, [role]);
 
   const dismiss = () => {
+    // Write both versioned key (for this role) AND stable permanent key
     localStorage.setItem(`${TOUR_KEY}_${role}`, "done");
+    localStorage.setItem(STABLE_SEEN_KEY, "done");
     setOpen(false);
   };
 

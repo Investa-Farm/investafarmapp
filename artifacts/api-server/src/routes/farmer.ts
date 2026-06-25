@@ -339,34 +339,48 @@ router.post("/farmer/market/crop-proposal", async (req, res): Promise<void> => {
   };
 
   if (!cropType || !acreage || !location) {
-    res.status(400).json({ error: "cropType, acreage, and location are required" });
+    res.status(400).json({ error: "Crop type, acreage, and location are all required." });
     return;
   }
 
-  const loanAmount = (acreage ?? 1) * 15000;
+  const acreageNum = Number(acreage);
+  if (!isFinite(acreageNum) || acreageNum <= 0) {
+    res.status(400).json({ error: "Please enter a valid acreage (e.g. 2.5 acres)." });
+    return;
+  }
+
+  const loanAmount = Math.round(acreageNum * 15000);
   const totalShares = Math.ceil(loanAmount / 100);
+  const yieldEstimate = expectedYield != null && isFinite(Number(expectedYield))
+    ? Number(expectedYield)
+    : estimateYield(cropType, acreageNum);
 
-  const [farm] = await db.insert(farmsTable).values({
-    farmerId: user.id,
-    name: `${user.name}'s ${cropType} Farm`,
-    cropType,
-    location,
-    loanAmount: String(loanAmount),
-    totalShares,
-    sharePrice: "100",
-    sharesAvailable: totalShares,
-    currentPrice: "100",
-    status: "pending",
-    description: description ?? `Proposed ${cropType} crop on ${acreage} acres. Expected yield: ${expectedYield ?? estimateYield(cropType, acreage)} tons. Planting: ${plantingDate ?? "Next season"}.`,
-    changePercent: "0",
-    tradeCount: 0,
-  }).returning();
+  try {
+    const [farm] = await db.insert(farmsTable).values({
+      farmerId: user.id,
+      name: `${user.name}'s ${cropType} Farm`,
+      cropType,
+      location,
+      loanAmount: String(loanAmount),
+      totalShares,
+      sharePrice: "100",
+      sharesAvailable: totalShares,
+      currentPrice: "100",
+      status: "pending",
+      description: description ?? `Proposed ${cropType} crop on ${acreageNum} acres. Expected yield: ${yieldEstimate} tons. Planting: ${plantingDate ?? "Next season"}.`,
+      changePercent: "0",
+      tradeCount: 0,
+    }).returning();
 
-  res.status(201).json({
-    id: farm!.id,
-    message: `Crop proposal for ${cropType} submitted successfully. It will be reviewed and listed for investor funding.`,
-    farm: farm,
-  });
+    res.status(201).json({
+      id: farm!.id,
+      message: `Crop proposal for ${cropType} submitted! It will be reviewed and listed for investor funding once approved.`,
+      farm: farm,
+    });
+  } catch (e) {
+    logger.error({ err: e }, "[CROP_PROPOSAL] DB insert failed");
+    res.status(500).json({ error: "Failed to save your proposal. Please try again." });
+  }
 });
 
 router.post("/farmer/voucher-redeem", async (req, res): Promise<void> => {
