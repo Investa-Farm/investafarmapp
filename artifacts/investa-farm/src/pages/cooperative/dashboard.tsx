@@ -440,7 +440,7 @@ export default function CooperativeDashboard() {
   const user = getStoredUser();
   const token = getToken();
   const [copiedSnippet, setCopiedSnippet] = useState<"rest" | "excel" | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "api" | "farmers" | "orders" | "coinvest">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "api" | "farmers" | "orders" | "coinvest" | "delivery">("overview");
 
   // API Keys state
   const [apiKeys, setApiKeys] = useState<Array<{ key: string; name: string; createdAt: string }>>(() => {

@@ -12,6 +12,7 @@ import {
 } from "../lib/security";
 import { notifyUser } from "../lib/push";
 import { sendWalletTopupSms, sendWithdrawalSms } from "../lib/sms";
+import { sendWalletCreditEmail, sendWithdrawalConfirmationEmail } from "../lib/email";
 import { isCircleConfigured, getKesUsdcRate, createPaymentIntent, getPaymentIntentStatus, getStaticUsdcAddress } from "../lib/circle";
 import { createPaymentIntent as stripeCreateIntent, retrievePaymentIntent, createMpesaPaymentIntent, isConfigured as isStripeConfigured, STRIPE_PUBLIC_KEY, constructWebhookEvent } from "../lib/stripe";
 
@@ -127,12 +128,12 @@ router.post("/wallet/withdraw", financialRateLimit, async (req, res): Promise<vo
   }
   recordWithdrawal(user.id, amount);
   notifyUser(user.id, "withdrawal", "Withdrawal Initiated", `KES ${amount.toLocaleString("en-KE")} sent to M-Pesa. Processing 1-2 business days.`, "/wallet").catch(() => {});
+  const phoneForEmail = phone ?? await db.select({ phone: usersTable.phone }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1).then(([u]) => (u as any)?.phone ?? "").catch(() => "");
+  sendWithdrawalConfirmationEmail(user.email, user.name, amount, fee, phoneForEmail || "M-Pesa", ref).catch(() => {});
   if (phone) {
     sendWithdrawalSms(phone, amount, fee).catch(() => {});
-  } else {
-    db.select({ phone: usersTable.phone }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1)
-      .then(([u]) => { if ((u as any)?.phone) sendWithdrawalSms((u as any).phone, amount, fee).catch(() => {}); })
-      .catch(() => {});
+  } else if (phoneForEmail) {
+    sendWithdrawalSms(phoneForEmail, amount, fee).catch(() => {});
   }
   res.json({ wallet: { ...wallet, balance: String(newBalance) }, fee });
 });
@@ -260,6 +261,7 @@ router.post("/wallet/paystack/verify", async (req, res): Promise<void> => {
 
     recordDeposit(user.id, amount);
     notifyUser(user.id, "wallet_credit", "💰 Wallet Credited!", `KES ${amount.toLocaleString("en-KE")} added to your wallet.`, "/wallet").catch(() => {});
+    sendWalletCreditEmail(user.email, user.name, amount, (result as any).newBalance ?? amount, "Paystack").catch(() => {});
     db.select({ phone: usersTable.phone }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1)
       .then(([u]) => { if ((u as any)?.phone) sendWalletTopupSms((u as any).phone, amount, (result as any).newBalance).catch(() => {}); })
       .catch(() => {});

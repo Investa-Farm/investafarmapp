@@ -8,7 +8,7 @@ import {
   ListSharesForSaleBody,
 } from "@workspace/api-zod";
 import { getCurrentUser } from "./auth";
-import { sendFundingVoucherEmail, sendFirstInvestmentEmail } from "../lib/email";
+import { sendFundingVoucherEmail, sendFirstInvestmentEmail, sendInvestmentConfirmationEmail } from "../lib/email";
 import { notifyUser } from "../lib/push";
 import { financialRateLimit, checkInvestmentVelocity, recordInvestment } from "../lib/security";
 
@@ -369,13 +369,22 @@ router.post("/market/buy", financialRateLimit, async (req, res): Promise<void> =
   // Record investment velocity
   recordInvestment(user.id, totalAmount);
 
-  // Send first-investment congratulations email if this is the investor's first purchase
+  // Send investment confirmation email for every purchase; first-purchase gets the special congrats email too
   try {
+    const exitLabel = exitType === "wide_season" ? "Wide Season (~45 days)" : "Full Season (~6 months)";
+    sendInvestmentConfirmationEmail(
+      user.email, user.name,
+      farm?.name ?? "a Kenyan farm",
+      farm?.cropType ?? "Mixed",
+      quantity, totalAmount,
+      exitType, exitLabel,
+    ).catch(() => {});
+
     const [{ value: investCount }] = await db.select({ value: count() }).from(investmentsTable).where(eq(investmentsTable.investorId, user.id));
     if (investCount === 1) {
       sendFirstInvestmentEmail(user.email, user.name, farm?.name ?? "a Kenyan farm", totalAmount).catch(console.error);
     }
-  } catch (e) { console.error("[FIRST_INVEST_EMAIL]", e); }
+  } catch (e) { console.error("[INVEST_EMAIL]", e); }
 
   if (isPrimary && farm) {
     // ── Primary market: investor money → farmer wallet immediately ───────────

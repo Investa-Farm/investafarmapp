@@ -3,14 +3,16 @@ import { db, usersTable, farmsTable, marketListingsTable, walletsTable, walletTr
 import { eq, and } from "drizzle-orm";
 
 const DEMO_USERS = [
-  { email: "john.farmer@investafarm.com",   password: "password123", name: "John Kamau",       role: "farmer"      as const },
-  { email: "david.investor@investafarm.com",password: "password123", name: "David Mwangi",     role: "investor"    as const },
-  { email: "demo.farmer@investafarm.com",   password: "password123", name: "Demo Farmer",       role: "farmer"      as const },
-  { email: "demo.investor@investafarm.com", password: "password123", name: "Demo Investor",     role: "investor"    as const },
-  { email: "demo.coop@investafarm.com",     password: "password123", name: "Demo Coop",         role: "cooperative" as const },
-  { email: "admin@investafarm.com",         password: "admin2024!",  name: "Platform Admin",    role: "admin"       as const },
-  { email: "grace.farmer@investafarm.com",  password: "password123", name: "Grace Wanjiku",     role: "farmer"      as const },
-  { email: "peter.farmer@investafarm.com",  password: "password123", name: "Peter Otieno",      role: "farmer"      as const },
+  { email: "john.farmer@investafarm.com",   password: "password123", name: "John Kamau",         role: "farmer"       as const },
+  { email: "david.investor@investafarm.com",password: "password123", name: "David Mwangi",       role: "investor"     as const },
+  { email: "demo.farmer@investafarm.com",   password: "password123", name: "Demo Farmer",         role: "farmer"       as const },
+  { email: "demo.investor@investafarm.com", password: "password123", name: "Demo Investor",       role: "investor"     as const },
+  { email: "demo.coop@investafarm.com",     password: "password123", name: "Demo Coop",           role: "cooperative"  as const },
+  { email: "admin@investafarm.com",         password: "admin2024!",  name: "Platform Admin",      role: "admin"        as const },
+  { email: "grace.farmer@investafarm.com",  password: "password123", name: "Grace Wanjiku",       role: "farmer"       as const },
+  { email: "peter.farmer@investafarm.com",  password: "password123", name: "Peter Otieno",        role: "farmer"       as const },
+  { email: "demo.agent@investafarm.com",    password: "password123", name: "Demo Sales Agent",    role: "agribusiness" as const },
+  { email: "demo.offtaker@investafarm.com", password: "password123", name: "Demo Offtaker",       role: "agribusiness" as const },
 ];
 
 const DEMO_FARMS = [
@@ -199,12 +201,14 @@ async function seedDemoKyc(userIds: Record<string, number>, log: (msg: string) =
 }
 
 const DEMO_WALLET_BALANCES: Record<string, number> = {
-  "david.investor@investafarm.com":  150000,
-  "demo.investor@investafarm.com":    75000,
-  "john.farmer@investafarm.com":      25000,
-  "demo.farmer@investafarm.com":      15000,
-  "grace.farmer@investafarm.com":     20000,
-  "peter.farmer@investafarm.com":     18000,
+  "david.investor@investafarm.com":   150000,
+  "demo.investor@investafarm.com":     75000,
+  "john.farmer@investafarm.com":       25000,
+  "demo.farmer@investafarm.com":       15000,
+  "grace.farmer@investafarm.com":      20000,
+  "peter.farmer@investafarm.com":      18000,
+  "demo.agent@investafarm.com":        50000,
+  "demo.offtaker@investafarm.com":     80000,
 };
 
 async function seedDemoWallets(userIds: Record<string, number>, log: (msg: string) => void) {

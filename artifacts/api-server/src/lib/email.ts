@@ -1319,3 +1319,210 @@ export async function sendFundingApplicationEmail(
     html: emailWrapper(content, `Your funding application for ${farmName} has been received. AI Score: ${aiScore}/100.`),
   });
 }
+
+// ─── INVESTMENT CONFIRMATION EMAIL ────────────────────────────────────────────
+export async function sendInvestmentConfirmationEmail(
+  to: string,
+  name: string,
+  farmName: string,
+  cropType: string,
+  shares: number,
+  amountKes: number,
+  exitType: string,
+  exitLabel: string,
+): Promise<void> {
+  const transport = createTransport();
+  if (!transport) return;
+  const fmt = (n: number) => `KES ${new Intl.NumberFormat("en-KE").format(Math.round(n))}`;
+  const pricePerShare = shares > 0 ? amountKes / shares : amountKes;
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(160deg,${GRASS_DARK} 0%,${GRASS_GREEN} 100%);padding:28px 40px;text-align:center;">
+          <p style="font-size:44px;margin:0 0 8px 0;">🌾✅</p>
+          <h1 style="color:#ffffff;font-size:22px;font-weight:900;margin:0 0 6px 0;">Investment Confirmed!</h1>
+          <p style="color:rgba(255,255,255,0.8);font-size:13px;margin:0;">Your shares are secured in the Kenyan soil</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:32px 40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Hi <strong>${name}</strong>, your investment in <strong>${farmName}</strong> has been confirmed and your shares are now active.
+        </p>
+
+        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:20px;padding:24px;margin:0 0 24px 0;">
+          <p style="color:${GRASS_MID};font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 16px 0;text-align:center;">Investment Receipt</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Farm</td>
+              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;padding:6px 0;">${farmName}</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Crop</td>
+              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;padding:6px 0;">${cropType}</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Shares</td>
+              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;padding:6px 0;">${shares.toLocaleString("en-KE")}</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Price/Share</td>
+              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;padding:6px 0;">${fmt(pricePerShare)}</td>
+            </tr>
+            <tr style="border-top:1px solid #bbf7d0;">
+              <td style="color:${GRASS_DARK};font-size:15px;font-weight:800;padding:10px 0 0 0;">Total Invested</td>
+              <td style="color:${GRASS_DARK};font-size:15px;font-weight:800;text-align:right;padding:10px 0 0 0;">${fmt(amountKes)}</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Exit Window</td>
+              <td style="color:#4f46e5;font-size:13px;font-weight:700;text-align:right;padding:6px 0;">${exitLabel}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:16px;padding:20px;margin:0 0 24px 0;">
+          <p style="color:#1e40af;font-weight:700;font-size:14px;margin:0 0 10px 0;">📅 What happens next?</p>
+          <p style="color:#1e3a8a;font-size:13px;line-height:1.7;margin:0 0 8px 0;">✅ <strong>Now:</strong> Shares secured, farm funded</p>
+          <p style="color:#1e3a8a;font-size:13px;line-height:1.7;margin:0 0 8px 0;">📸 <strong>Monthly:</strong> Field updates with real photos land in your feed</p>
+          <p style="color:#1e3a8a;font-size:13px;line-height:1.7;margin:0;">💰 <strong>${exitLabel}:</strong> Payout credited to your Investa Wallet → M-Pesa ready</p>
+        </div>
+
+        ${ctaButton("📊 View My Portfolio →", "https://app.investafarm.com/portfolio")}
+      </td>
+    </tr>`;
+
+  await transport.sendMail({
+    from: from("Investa Farm"),
+    to,
+    subject: `✅ Investment Confirmed — ${shares} shares in ${farmName}`,
+    html: emailWrapper(content, `Your ${shares}-share investment of ${fmt(amountKes)} in ${farmName} is confirmed.`),
+  });
+}
+
+// ─── WALLET CREDIT / TOP-UP EMAIL ─────────────────────────────────────────────
+export async function sendWalletCreditEmail(
+  to: string,
+  name: string,
+  amountKes: number,
+  newBalanceKes: number,
+  method: string,
+): Promise<void> {
+  const transport = createTransport();
+  if (!transport) return;
+  const fmt = (n: number) => `KES ${new Intl.NumberFormat("en-KE").format(Math.round(n))}`;
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(160deg,${GRASS_DARK} 0%,${GRASS_GREEN} 100%);padding:28px 40px;text-align:center;">
+          <p style="font-size:44px;margin:0 0 8px 0;">💰</p>
+          <h1 style="color:#ffffff;font-size:22px;font-weight:900;margin:0 0 6px 0;">Wallet Funded!</h1>
+          <p style="color:rgba(255,255,255,0.8);font-size:13px;margin:0;">Your Investa Farm wallet has been credited</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:32px 40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Hi <strong>${name}</strong>, your wallet has been successfully topped up. Your funds are ready to invest in Kenyan farms.
+        </p>
+
+        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:20px;padding:24px;margin:0 0 24px 0;text-align:center;">
+          <p style="color:${GRASS_MID};font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 10px 0;">Amount Credited</p>
+          <p style="color:${GRASS_DARK};font-size:36px;font-weight:900;margin:0 0 4px 0;">${fmt(amountKes)}</p>
+          <p style="color:#6b7280;font-size:12px;margin:0 0 16px 0;">via ${method}</p>
+          <div style="background:#ffffff;border-radius:12px;padding:12px 20px;display:inline-block;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            <p style="color:#9ca3af;font-size:11px;margin:0 0 4px 0;">New Balance</p>
+            <p style="color:${GRASS_GREEN};font-size:20px;font-weight:800;margin:0;">${fmt(newBalanceKes)}</p>
+          </div>
+        </div>
+
+        <div style="background:#fefce8;border:1px solid #fef08a;border-radius:16px;padding:16px 20px;margin:0 0 24px 0;">
+          <p style="color:#854d0e;font-size:13px;font-weight:700;margin:0 0 8px 0;">💡 Ready to invest?</p>
+          <p style="color:#78350f;font-size:13px;line-height:1.6;margin:0;">Browse live farm listings on the primary market — coffee, tea, avocado, and more. Minimum investment is KES 100 per share.</p>
+        </div>
+
+        ${ctaButton("🌾 Browse Live Farms →", "https://app.investafarm.com/market")}
+      </td>
+    </tr>`;
+
+  await transport.sendMail({
+    from: from("Investa Farm"),
+    to,
+    subject: `💰 Wallet Funded — ${fmt(amountKes)} added to your Investa Farm account`,
+    html: emailWrapper(content, `${fmt(amountKes)} has been added to your Investa Farm wallet. New balance: ${fmt(newBalanceKes)}.`),
+  });
+}
+
+// ─── WITHDRAWAL CONFIRMATION EMAIL ────────────────────────────────────────────
+export async function sendWithdrawalConfirmationEmail(
+  to: string,
+  name: string,
+  amountKes: number,
+  feeKes: number,
+  phone: string,
+  refCode: string,
+): Promise<void> {
+  const transport = createTransport();
+  if (!transport) return;
+  const fmt = (n: number) => `KES ${new Intl.NumberFormat("en-KE").format(Math.round(n))}`;
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(160deg,#1e293b 0%,#334155 100%);padding:28px 40px;text-align:center;">
+          <p style="font-size:44px;margin:0 0 8px 0;">🏧</p>
+          <h1 style="color:#ffffff;font-size:22px;font-weight:900;margin:0 0 6px 0;">Withdrawal Initiated</h1>
+          <p style="color:rgba(255,255,255,0.8);font-size:13px;margin:0;">Your M-Pesa withdrawal is being processed</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:32px 40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Hi <strong>${name}</strong>, your withdrawal request has been submitted and is being processed.
+        </p>
+
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:20px;margin:0 0 24px 0;">
+          <p style="color:#0f172a;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 14px 0;">Withdrawal Details</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Amount</td>
+              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;">${fmt(amountKes)}</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Processing Fee</td>
+              <td style="color:#ef4444;font-size:13px;font-weight:700;text-align:right;">- ${fmt(feeKes)}</td>
+            </tr>
+            <tr style="border-top:1px solid #e2e8f0;">
+              <td style="color:#111827;font-size:14px;font-weight:800;padding:10px 0 0 0;">You Receive</td>
+              <td style="color:#16a34a;font-size:14px;font-weight:800;text-align:right;padding:10px 0 0 0;">${fmt(amountKes - feeKes)}</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">To M-Pesa</td>
+              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;">${phone}</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Reference</td>
+              <td style="color:#6b7280;font-size:12px;font-family:monospace;text-align:right;">${refCode}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:16px;margin:0 0 24px 0;">
+          <p style="color:#1e40af;font-size:13px;margin:0;">⏱ <strong>Processing time:</strong> 1–2 business days. You will receive an M-Pesa confirmation SMS once the transfer completes.</p>
+        </div>
+
+        ${ctaButton("📱 Open App →", "https://app.investafarm.com/wallet")}
+      </td>
+    </tr>`;
+
+  await transport.sendMail({
+    from: from("Investa Farm"),
+    to,
+    subject: `🏧 Withdrawal Submitted — ${fmt(amountKes)} to M-Pesa`,
+    html: emailWrapper(content, `Your withdrawal of ${fmt(amountKes)} to M-Pesa ${phone} is being processed. Ref: ${refCode}.`),
+  });
+}

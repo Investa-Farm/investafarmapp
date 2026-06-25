@@ -276,11 +276,21 @@ export default function CooperativeAuth() {
                   </button>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-border">
+                <div className="mt-6 pt-4 border-t border-border space-y-2">
                   <button
                     onClick={() => { setSubType("farmers_connect"); setEmail("demo.coop@investafarm.com"); setPassword("password123"); setTab("signin"); }}
                     className="w-full py-2.5 border border-[#16a34a]/30 rounded-xl text-[#16a34a] text-xs font-semibold bg-[#16a34a]/5 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
                     🤝 Try Demo Cooperative Account
+                  </button>
+                  <button
+                    onClick={() => { setSubType("sales_agent"); setOrgType("sales_agent"); setEmail("demo.agent@investafarm.com"); setPassword("password123"); setTab("signin"); }}
+                    className="w-full py-2.5 border border-amber-200 rounded-xl text-amber-700 text-xs font-semibold bg-amber-50 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                    💼 Try Demo Sales Agent Account
+                  </button>
+                  <button
+                    onClick={() => { setSubType("offtaker"); setOrgType("offtaker"); setEmail("demo.offtaker@investafarm.com"); setPassword("password123"); setTab("signin"); }}
+                    className="w-full py-2.5 border border-violet-200 rounded-xl text-violet-700 text-xs font-semibold bg-violet-50 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                    🚚 Try Demo Offtaker Account
                   </button>
                 </div>
               </motion.div>
