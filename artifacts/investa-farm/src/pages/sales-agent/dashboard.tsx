@@ -47,7 +47,7 @@ function CommissionWithdrawal({ token, agentCode, availableKes }: { token: strin
   return (
     <>
       <button onClick={() => { setOpen(true); }}
-        className="w-full py-3.5 rounded-2xl border-2 border-amber-500 text-amber-700 font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all bg-amber-50">
+        className="w-full py-3.5 rounded-2xl border-2 border-green-600 text-green-700 font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all bg-green-50">
         <Wallet size={16} /> Request Commission Withdrawal
       </button>
 
@@ -67,18 +67,18 @@ function CommissionWithdrawal({ token, agentCode, availableKes }: { token: strin
                   </div>
                   <p className="text-foreground font-extrabold text-lg mb-1">Request Received!</p>
                   <p className="text-muted-foreground text-sm mb-3">Your withdrawal is being processed.</p>
-                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4">
-                    <p className="text-amber-700 text-xs font-semibold">Reference Code</p>
-                    <p className="text-amber-800 font-bold text-base mt-0.5">{refCode}</p>
+                  <div className="bg-green-50 border border-green-200 rounded-2xl p-3 mb-4">
+                    <p className="text-green-700 text-xs font-semibold">Reference Code</p>
+                    <p className="text-green-800 font-bold text-base mt-0.5">{refCode}</p>
                   </div>
                   <p className="text-muted-foreground text-xs leading-relaxed">Funds will be sent to your M-Pesa within <strong>5 business days</strong>. Quote your reference code for any queries.</p>
-                  <button onClick={close} className="mt-5 w-full bg-amber-500 text-white font-bold py-3.5 rounded-2xl active:scale-95">Done</button>
+                  <button onClick={close} className="mt-5 w-full bg-green-600 text-white font-bold py-3.5 rounded-2xl active:scale-95">Done</button>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                    <p className="text-amber-700 text-xs font-semibold">Available for Withdrawal</p>
-                    <p className="text-amber-800 font-bold text-xl mt-0.5">{formatKES(availableKes)}</p>
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                    <p className="text-green-700 text-xs font-semibold">Available for Withdrawal</p>
+                    <p className="text-green-800 font-bold text-xl mt-0.5">{formatKES(availableKes)}</p>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">M-Pesa Number</label>
@@ -89,17 +89,17 @@ function CommissionWithdrawal({ token, agentCode, availableKes }: { token: strin
                       </select>
                       <input type="tel" value={mpesaNumber} onChange={e => setMpesaNumber(e.target.value.replace(/\D/g, ""))}
                         placeholder="07XXXXXXXX" required
-                        className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-amber-400" />
+                        className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-green-500" />
                     </div>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Amount (KES)</label>
                     <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder={`Min KES 100 · Max ${formatKES(availableKes)}`} required min={100} max={availableKes}
-                      className="w-full border border-border rounded-xl px-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-amber-400" />
+                      className="w-full border border-border rounded-xl px-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-green-500" />
                   </div>
                   {error && <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-red-600 text-xs">{error}</div>}
                   <button type="submit" disabled={submitting || !mpesaNumber || !amount}
-                    className="w-full bg-amber-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-40">
+                    className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-40">
                     {submitting ? <Loader2 size={16} className="animate-spin" /> : <Wallet size={16} />}
                     {submitting ? "Submitting…" : "Request Withdrawal"}
                   </button>
@@ -199,7 +199,7 @@ export default function SalesAgentDashboard() {
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-background flex flex-col">
       {/* Header */}
       <div className="relative overflow-hidden px-5 pt-14 pb-8"
-        style={{ background: "linear-gradient(135deg,#92400e 0%,#d97706 60%,#fbbf24 100%)" }}>
+        style={{ background: "linear-gradient(135deg,#052e16 0%,#14532d 60%,#16a34a 100%)" }}>
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center">
@@ -222,7 +222,7 @@ export default function SalesAgentDashboard() {
               <p className="text-white/70 text-xs font-semibold">Agent Code</p>
               <p className="text-white font-bold text-xl font-mono tracking-widest">IFV-{agentCode}</p>
             </div>
-            <span className="bg-amber-400/30 border border-amber-300/40 text-amber-100 text-[10px] font-bold px-2.5 py-1 rounded-full">Active</span>
+            <span className="bg-green-400/30 border border-green-300/40 text-green-100 text-[10px] font-bold px-2.5 py-1 rounded-full">Active</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-white/10 rounded-xl p-2 text-center">
@@ -234,7 +234,7 @@ export default function SalesAgentDashboard() {
               <p className="text-white/60 text-[10px]">Funded</p>
             </div>
             <div className="bg-white/10 rounded-xl p-2 text-center">
-              <p className="text-amber-300 font-bold text-sm">{formatKES(stats.commission)}</p>
+              <p className="text-green-300 font-bold text-sm">{formatKES(stats.commission)}</p>
               <p className="text-white/60 text-[10px]">Earned</p>
             </div>
           </div>
@@ -247,27 +247,27 @@ export default function SalesAgentDashboard() {
         {activeTab === "overview" && (
           <>
             {/* Referral link card */}
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-3">
               <div className="flex items-center gap-2">
-                <Link2 size={16} className="text-amber-600" />
-                <p className="text-amber-800 font-bold text-sm">Your Referral Link</p>
+                <Link2 size={16} className="text-green-600" />
+                <p className="text-green-800 font-bold text-sm">Your Referral Link</p>
               </div>
-              <div className="bg-white border border-amber-200 rounded-xl px-3 py-2.5">
+              <div className="bg-white border border-green-200 rounded-xl px-3 py-2.5">
                 <p className="text-foreground font-mono text-xs break-all">{referralLink}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={copyLink}
-                  className="flex items-center justify-center gap-1.5 bg-white border border-amber-300 text-amber-700 text-xs font-semibold py-2.5 rounded-xl active:scale-95">
+                  className="flex items-center justify-center gap-1.5 bg-white border border-green-300 text-green-700 text-xs font-semibold py-2.5 rounded-xl active:scale-95">
                   {copiedLink ? <Check size={13} /> : <Copy size={13} />}
                   {copiedLink ? "Copied!" : "Copy Link"}
                 </button>
                 <button onClick={shareLink}
-                  className="flex items-center justify-center gap-1.5 bg-amber-500 text-white text-xs font-semibold py-2.5 rounded-xl active:scale-95 shadow-sm">
+                  className="flex items-center justify-center gap-1.5 bg-green-600 text-white text-xs font-semibold py-2.5 rounded-xl active:scale-95 shadow-sm">
                   <Send size={13} />
                   Share
                 </button>
               </div>
-              <p className="text-amber-600 text-[10px] leading-relaxed">
+              <p className="text-green-600 text-[10px] leading-relaxed">
                 Share with farmers. When they register and get funded, you earn commission on every successful investment.
               </p>
             </div>
@@ -283,7 +283,7 @@ export default function SalesAgentDashboard() {
               </p>
               <button
                 onClick={() => setLocation("/farmer/crop-proposal")}
-                className="w-full flex items-center justify-between bg-amber-500 text-white font-semibold px-4 py-3 rounded-xl text-sm active:scale-95">
+                className="w-full flex items-center justify-between bg-green-600 text-white font-semibold px-4 py-3 rounded-xl text-sm active:scale-95">
                 <span>Submit New Proposal</span>
                 <ChevronRight size={15} />
               </button>
@@ -300,8 +300,8 @@ export default function SalesAgentDashboard() {
                   { step: "4", title: "You earn", desc: "Commission credited to your agent wallet." },
                 ].map(s => (
                   <div key={s.step} className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-amber-700 text-[10px] font-bold">{s.step}</span>
+                    <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-green-700 text-[10px] font-bold">{s.step}</span>
                     </div>
                     <div>
                       <p className="text-foreground font-semibold text-xs">{s.title}</p>
@@ -325,20 +325,20 @@ export default function SalesAgentDashboard() {
                 <p className="text-foreground font-semibold text-sm">No farmers yet</p>
                 <p className="text-muted-foreground text-xs mt-1">Share your referral link to onboard farmers.</p>
                 <button onClick={shareLink}
-                  className="mt-4 bg-amber-500 text-white text-xs font-semibold px-5 py-2.5 rounded-xl active:scale-95">
+                  className="mt-4 bg-green-600 text-white text-xs font-semibold px-5 py-2.5 rounded-xl active:scale-95">
                   Share Link Now
                 </button>
               </div>
             ) : farmers.map((f: any) => (
               <div key={f.id} className="bg-white border border-border rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <Users size={16} className="text-amber-600" />
+                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <Users size={16} className="text-green-600" />
                 </div>
                 <div className="flex-1">
                   <p className="text-foreground font-semibold text-sm">{f.name}</p>
                   <p className="text-muted-foreground text-xs">{f.email}</p>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${f.farmFunded ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${f.farmFunded ? "bg-green-100 text-green-700" : "bg-green-50 text-green-600"}`}>
                   {f.farmFunded ? "Funded" : "Pending"}
                 </span>
               </div>
@@ -350,7 +350,7 @@ export default function SalesAgentDashboard() {
         {activeTab === "proposals" && (
           <div className="space-y-3">
             <button onClick={() => setLocation("/farmer/crop-proposal")}
-              className="w-full flex items-center justify-center gap-2 bg-amber-500 text-white font-semibold px-4 py-3 rounded-2xl text-sm active:scale-95 shadow-sm shadow-amber-500/20">
+              className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-semibold px-4 py-3 rounded-2xl text-sm active:scale-95 shadow-sm shadow-green-600/20">
               <FileText size={15} />
               New Crop Proposal
             </button>
@@ -369,7 +369,7 @@ export default function SalesAgentDashboard() {
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                     p.status === "approved" ? "bg-green-100 text-green-700" :
                     p.status === "rejected" ? "bg-red-100 text-red-700" :
-                    "bg-amber-100 text-amber-700"
+                    "bg-green-50 text-green-600"
                   }`}>{p.status ?? "pending"}</span>
                 </div>
                 <p className="text-muted-foreground text-xs">{p.location ?? ""} · {p.size ?? ""} acres</p>
@@ -389,21 +389,21 @@ export default function SalesAgentDashboard() {
           <div className="space-y-4">
             {/* Earnings hero card */}
             <div className="rounded-2xl overflow-hidden"
-              style={{ background: "linear-gradient(135deg,#92400e 0%,#d97706 60%,#fbbf24 100%)" }}>
+              style={{ background: "linear-gradient(135deg,#052e16 0%,#14532d 60%,#16a34a 100%)" }}>
               <div className="p-5">
                 <div className="flex items-center gap-2 mb-1">
-                  <Award size={16} className="text-amber-200" />
-                  <p className="text-amber-100 text-xs font-semibold uppercase tracking-wider">Total Earnings</p>
+                  <Award size={16} className="text-green-200" />
+                  <p className="text-green-100 text-xs font-semibold uppercase tracking-wider">Total Earnings</p>
                 </div>
                 <p className="text-white font-bold text-3xl">{formatKES(stats.lifetimeCommission)}</p>
-                <p className="text-amber-200 text-xs mt-1">Lifetime commission as a Sales Agent</p>
+                <p className="text-green-200 text-xs mt-1">Lifetime commission as a Sales Agent</p>
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   <div className="bg-white/15 rounded-xl p-3">
                     <p className="text-white font-bold text-base">{formatKES(stats.commission)}</p>
                     <p className="text-white/70 text-[10px]">Confirmed & Paid</p>
                   </div>
                   <div className="bg-white/15 rounded-xl p-3">
-                    <p className="text-amber-300 font-bold text-base">{formatKES(stats.pendingCommission)}</p>
+                    <p className="text-green-300 font-bold text-base">{formatKES(stats.pendingCommission)}</p>
                     <p className="text-white/70 text-[10px]">Pending Approval</p>
                   </div>
                 </div>
@@ -413,7 +413,7 @@ export default function SalesAgentDashboard() {
             {/* Commission structure */}
             <div className="bg-white border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
-                <TrendingUp size={15} className="text-amber-600" />
+                <TrendingUp size={15} className="text-green-600" />
                 <p className="text-foreground font-bold text-sm">Commission Structure</p>
               </div>
               <div className="space-y-2">
@@ -422,13 +422,13 @@ export default function SalesAgentDashboard() {
                   { milestone: "Farm 50%+ Funded", reward: "1% of raise", icon: "🌱", desc: "Paid when half the target is raised" },
                   { milestone: "Farm Fully Funded", reward: "2% total raise", icon: "🏆", desc: "Bonus on full funding completion" },
                 ].map(r => (
-                  <div key={r.milestone} className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                  <div key={r.milestone} className="flex items-center gap-3 p-3 bg-green-50 border border-green-100 rounded-xl">
                     <span className="text-xl flex-shrink-0">{r.icon}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-foreground font-semibold text-xs">{r.milestone}</p>
                       <p className="text-muted-foreground text-[10px]">{r.desc}</p>
                     </div>
-                    <p className="text-amber-700 font-bold text-xs flex-shrink-0">{r.reward}</p>
+                    <p className="text-green-700 font-bold text-xs flex-shrink-0">{r.reward}</p>
                   </div>
                 ))}
               </div>
@@ -462,7 +462,7 @@ export default function SalesAgentDashboard() {
             return (
               <button key={id} onClick={() => setActiveTab(id)}
                 className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${
-                  active ? "text-amber-500" : "text-muted-foreground"
+                  active ? "text-green-600" : "text-muted-foreground"
                 }`}>
                 <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
                 <span className="text-[10px] font-semibold">{label}</span>
