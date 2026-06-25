@@ -447,7 +447,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                       <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-start gap-2.5">
                         <span className="text-xl">📱</span>
                         <div>
-                          <p className="text-green-800 font-semibold text-xs">Pay with M-Pesa · powered by Stripe</p>
+                          <p className="text-green-800 font-semibold text-xs">Pay with M-Pesa · mobile money</p>
                           <p className="text-green-700 text-xs mt-0.5">Enter your Safaricom number. An STK push will arrive on your phone — enter your M-Pesa PIN to confirm.</p>
                         </div>
                       </div>

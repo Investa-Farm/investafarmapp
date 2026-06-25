@@ -218,6 +218,19 @@ export default function Portfolio() {
   const holdingsList = (holdings as Holding[]) ?? [];
   const currentHolding = holdingsList[holdingIdx] ?? null;
 
+  function getSeasonStatus(h: Holding): "pre_season" | "mid_season" | "full_season" {
+    if ((h as any).createdAt) {
+      const days = Math.floor((Date.now() - new Date((h as any).createdAt).getTime()) / 86400000);
+      if (days >= 90) return "full_season";
+      if (days >= 45) return "mid_season";
+      return "pre_season";
+    }
+    const idx = holdingsList.indexOf(h);
+    if (idx === 0) return "pre_season";
+    if (idx === 1) return "mid_season";
+    return "full_season";
+  }
+
   return (
     <div className="app-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }} data-testid="portfolio-page">
 
@@ -647,8 +660,8 @@ export default function Portfolio() {
       {wizardOpen && (
         <PortfolioWizard onClose={() => setWizardOpen(false)} onCreated={() => { setWizardOpen(false); refetchPortfolios(); }} />
       )}
-      <ExitModal open={exitOpen} onClose={() => setExitOpen(false)} holding={selectedHolding} />
-      <SellSharesModal open={sellOpen} onClose={() => setSellOpen(false)} holding={selectedHolding} />
+      <ExitModal open={exitOpen} onClose={() => setExitOpen(false)} holding={selectedHolding} seasonStatus={selectedHolding ? getSeasonStatus(selectedHolding as any) : "mid_season"} />
+      <SellSharesModal open={sellOpen} onClose={() => setSellOpen(false)} holding={selectedHolding} seasonStatus={selectedHolding ? getSeasonStatus(selectedHolding as any) : "mid_season"} />
       <SwapModal open={swapOpen} onClose={() => { setSwapOpen(false); setSwapHolding(null); }} holding={swapHolding} />
       <ReinvestmentSettings open={reinvestOpen} onClose={() => setReinvestOpen(false)} />
       <ShareModal

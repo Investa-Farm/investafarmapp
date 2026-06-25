@@ -13,9 +13,10 @@ interface ExitModalProps {
     purchasePrice: number; currentPrice: number; totalValue: number;
     exitType: string;
   } | null;
+  seasonStatus?: "pre_season" | "mid_season" | "full_season";
 }
 
-export function ExitModal({ open, onClose, holding }: ExitModalProps) {
+export function ExitModal({ open, onClose, holding, seasonStatus = "mid_season" }: ExitModalProps) {
   const [exitType, setExitType] = useState<"wide_season" | "full_season">("full_season");
   const [step, setStep] = useState<"choose" | "confirm" | "done">("choose");
   const requestExit = useRequestExit();
@@ -112,6 +113,29 @@ export function ExitModal({ open, onClose, holding }: ExitModalProps) {
 
             {/* Scrollable content */}
             <div className="overflow-y-auto flex-1 px-5 pt-4 pb-6">
+              {seasonStatus === "pre_season" && (
+                <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                  <AlertTriangle size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-amber-800 font-bold text-sm">Pre-Season Period</p>
+                    <p className="text-amber-700 text-xs mt-0.5 leading-relaxed">
+                      Exits open at <strong>Mid-Season</strong> (~45 days after investment) or at <strong>Full-Season</strong> harvest. Your holding is still maturing — check back once the season progresses.
+                    </p>
+                  </div>
+                </div>
+              )}
+              {seasonStatus === "mid_season" && (
+                <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center gap-2.5">
+                  <span className="text-lg">⚡</span>
+                  <p className="text-orange-700 text-xs font-semibold">Mid-Season Window Open — early exit available with 5% penalty</p>
+                </div>
+              )}
+              {seasonStatus === "full_season" && (
+                <div className="mb-4 bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2.5">
+                  <span className="text-lg">🌾</span>
+                  <p className="text-green-700 text-xs font-semibold">Full-Season Harvest Window Open — maximum returns available</p>
+                </div>
+              )}
               <AnimatePresence mode="wait">
                 {step === "choose" && (
                   <motion.div key="choose" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
@@ -173,8 +197,9 @@ export function ExitModal({ open, onClose, holding }: ExitModalProps) {
                     </div>
 
                     <button onClick={() => setStep("confirm")}
-                      className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all">
-                      Request {selected.label} →
+                      disabled={seasonStatus === "pre_season"}
+                      className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                      {seasonStatus === "pre_season" ? "Season Window Not Yet Open" : `Request ${selected.label} →`}
                     </button>
                   </motion.div>
                 )}

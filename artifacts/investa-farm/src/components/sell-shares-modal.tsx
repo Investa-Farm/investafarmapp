@@ -14,9 +14,10 @@ interface SellSharesModalProps {
     quantity: number; purchasePrice: number; currentPrice: number;
     totalValue: number; imageUrl?: string;
   } | null;
+  seasonStatus?: "pre_season" | "mid_season" | "full_season";
 }
 
-export function SellSharesModal({ open, onClose, holding }: SellSharesModalProps) {
+export function SellSharesModal({ open, onClose, holding, seasonStatus = "mid_season" }: SellSharesModalProps) {
   const [step, setStep] = useState<"configure" | "review" | "done">("configure");
   const [quantity, setQuantity] = useState(1);
   const [pricePerShare, setPricePerShare] = useState(0);
@@ -86,6 +87,27 @@ export function SellSharesModal({ open, onClose, holding }: SellSharesModalProps
             </div>
 
             <div className="px-5 pt-4 pb-8 space-y-4">
+              {seasonStatus === "pre_season" && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-start gap-2.5">
+                  <span className="text-lg flex-shrink-0">🔒</span>
+                  <div>
+                    <p className="text-amber-800 font-bold text-xs">Secondary Market Closed · Pre-Season</p>
+                    <p className="text-amber-700 text-[11px] mt-0.5 leading-relaxed">Listing shares opens at the Mid-Season window (~45 days in) or Full-Season harvest. Hold tight — your investment is still growing.</p>
+                  </div>
+                </div>
+              )}
+              {seasonStatus === "mid_season" && (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-2.5 flex items-center gap-2">
+                  <span className="text-base">⚡</span>
+                  <p className="text-orange-700 text-[11px] font-semibold">Mid-Season Window Open — secondary market listing available</p>
+                </div>
+              )}
+              {seasonStatus === "full_season" && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-2.5 flex items-center gap-2">
+                  <span className="text-base">🌾</span>
+                  <p className="text-green-700 text-[11px] font-semibold">Full-Season Window — premium pricing available on the secondary market</p>
+                </div>
+              )}
               <AnimatePresence mode="wait">
                 {step === "configure" && (
                   <motion.div key="configure" initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="space-y-4">

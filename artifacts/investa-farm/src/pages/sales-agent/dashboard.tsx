@@ -4,9 +4,115 @@ import { motion } from "framer-motion";
 import {
   Briefcase, Copy, Check, Users, Link2, Send,
   ChevronRight, LogOut, FileText, Star, Wallet, Home, BarChart2,
-  TrendingUp, Award, ChevronUp,
+  TrendingUp, Award, ChevronUp, Phone, Loader2, CheckCircle2, X,
 } from "lucide-react";
 import { getToken, getStoredUser, formatKES } from "@/lib/auth";
+
+const COOP_MPESA_CODES = [
+  { code: "+254", flag: "🇰🇪" }, { code: "+255", flag: "🇹🇿" },
+  { code: "+256", flag: "🇺🇬" }, { code: "+250", flag: "🇷🇼" },
+];
+
+function CommissionWithdrawal({ token, agentCode, availableKes }: { token: string | null; agentCode: string; availableKes: number }) {
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<"form" | "done">("form");
+  const [mpesaCode, setMpesaCode] = useState("+254");
+  const [mpesaNumber, setMpesaNumber] = useState("");
+  const [amount, setAmount] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [refCode, setRefCode] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!mpesaNumber.trim() || !amount) return;
+    const amt = Number(amount);
+    if (amt < 100 || amt > availableKes) { setError(`Amount must be between KES 100 and ${formatKES(availableKes)}`); return; }
+    setSubmitting(true); setError("");
+    try {
+      const r = await fetch("/api/agribusiness/commission-withdrawal", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ mpesaNumber: `${mpesaCode}${mpesaNumber.replace(/^0/, "")}`, amount: amt }),
+      });
+      const data = await r.json();
+      if (r.ok) { setRefCode(data.referenceCode ?? `WDL-${agentCode}-${Date.now().toString(36).toUpperCase()}`); setStep("done"); }
+      else { setError(data.error ?? "Withdrawal request failed. Please try again."); }
+    } catch { setError("Connection error. Please try again."); }
+    finally { setSubmitting(false); }
+  }
+
+  function close() { setOpen(false); setTimeout(() => { setStep("form"); setAmount(""); setMpesaNumber(""); setError(""); }, 400); }
+
+  return (
+    <>
+      <button onClick={() => { setOpen(true); }}
+        className="w-full py-3.5 rounded-2xl border-2 border-amber-500 text-amber-700 font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all bg-amber-50">
+        <Wallet size={16} /> Request Commission Withdrawal
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={close} />
+          <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl shadow-xl">
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border">
+              <p className="text-foreground font-bold text-base">{step === "done" ? "Request Submitted!" : "Withdraw Commission"}</p>
+              <button onClick={close} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center"><X size={15} /></button>
+            </div>
+            <div className="px-5 pt-4 pb-8">
+              {step === "done" ? (
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 size={32} className="text-green-600" />
+                  </div>
+                  <p className="text-foreground font-extrabold text-lg mb-1">Request Received!</p>
+                  <p className="text-muted-foreground text-sm mb-3">Your withdrawal is being processed.</p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4">
+                    <p className="text-amber-700 text-xs font-semibold">Reference Code</p>
+                    <p className="text-amber-800 font-bold text-base mt-0.5">{refCode}</p>
+                  </div>
+                  <p className="text-muted-foreground text-xs leading-relaxed">Funds will be sent to your M-Pesa within <strong>5 business days</strong>. Quote your reference code for any queries.</p>
+                  <button onClick={close} className="mt-5 w-full bg-amber-500 text-white font-bold py-3.5 rounded-2xl active:scale-95">Done</button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <p className="text-amber-700 text-xs font-semibold">Available for Withdrawal</p>
+                    <p className="text-amber-800 font-bold text-xl mt-0.5">{formatKES(availableKes)}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">M-Pesa Number</label>
+                    <div className="flex gap-2">
+                      <select value={mpesaCode} onChange={e => setMpesaCode(e.target.value)}
+                        className="border border-border rounded-xl px-2 py-3 text-sm bg-background focus:outline-none appearance-none w-[85px] flex-shrink-0 text-center font-medium">
+                        {COOP_MPESA_CODES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.code}</option>)}
+                      </select>
+                      <input type="tel" value={mpesaNumber} onChange={e => setMpesaNumber(e.target.value.replace(/\D/g, ""))}
+                        placeholder="07XXXXXXXX" required
+                        className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-amber-400" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Amount (KES)</label>
+                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder={`Min KES 100 · Max ${formatKES(availableKes)}`} required min={100} max={availableKes}
+                      className="w-full border border-border rounded-xl px-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-amber-400" />
+                  </div>
+                  {error && <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-red-600 text-xs">{error}</div>}
+                  <button type="submit" disabled={submitting || !mpesaNumber || !amount}
+                    className="w-full bg-amber-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-40">
+                    {submitting ? <Loader2 size={16} className="animate-spin" /> : <Wallet size={16} />}
+                    {submitting ? "Submitting…" : "Request Withdrawal"}
+                  </button>
+                  <p className="text-muted-foreground text-[10px] text-center">Processed within 5 business days. Agent code: IFV-{agentCode}</p>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
 const AGENT_TABS = [
@@ -339,6 +445,9 @@ export default function SalesAgentDashboard() {
                 Contact support with agent code <strong>IFV-{agentCode}</strong> for payout queries.
               </p>
             </div>
+
+            {/* Commission withdrawal request */}
+            <CommissionWithdrawal token={token} agentCode={agentCode} availableKes={stats.commission} />
           </div>
         )}
 

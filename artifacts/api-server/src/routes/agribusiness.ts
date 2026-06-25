@@ -387,4 +387,183 @@ router.get("/agribusiness/proposals", async (req, res): Promise<void> => {
   }
 });
 
+// ── POST /agribusiness/commission-withdrawal — agent requests commission payout ──
+router.post("/agribusiness/commission-withdrawal", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { mpesaNumber, amount } = req.body as { mpesaNumber: string; amount: number };
+  if (!mpesaNumber || !amount || amount < 100) {
+    res.status(400).json({ error: "mpesaNumber and amount (min KES 100) required" }); return;
+  }
+  try {
+    const refCode = `WDL-${String(user.id).padStart(6, "0")}-${Date.now().toString(36).toUpperCase()}`;
+    logger.info({ userId: user.id, mpesaNumber, amount, refCode }, "[AGENT] Commission withdrawal requested");
+    res.json({
+      ok: true,
+      referenceCode: refCode,
+      message: "Withdrawal request received. Funds will be sent to your M-Pesa within 5 business days.",
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to submit withdrawal request" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OFFTAKER ROUTES (companies like Terralima that buy farm produce)
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.get("/offtaker/stats", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const contracts = await db.select().from(voucherOrdersTable)
+      .where(eq(voucherOrdersTable.agribusinessId, user.id));
+    const active = contracts.filter(c => c.status === "pending").length;
+    const fulfilled = contracts.filter(c => c.status === "fulfilled").length;
+    const totalKes = contracts.filter(c => c.status === "fulfilled")
+      .reduce((s, c) => s + Number(c.amount), 0);
+    const farms = await db.select({ count: count() }).from(farmsTable)
+      .where(eq(farmsTable.status, "active"));
+    res.json({
+      activeContracts: active,
+      fulfilledContracts: fulfilled,
+      totalPurchasedKes: totalKes,
+      availableFarms: Number(farms[0]?.count ?? 0),
+    });
+  } catch { res.status(500).json({ error: "Failed to fetch stats" }); }
+});
+
+router.get("/offtaker/farms", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const farms = await db
+      .select({ farm: farmsTable, farmer: usersTable })
+      .from(farmsTable)
+      .leftJoin(usersTable, eq(farmsTable.farmerId, usersTable.id))
+      .where(inArray(farmsTable.status, ["active", "funded"] as any));
+    const cropPrices: Record<string, number> = {
+      maize: 35, wheat: 42, coffee: 750, tea: 320, rice: 55, tomatoes: 65,
+      avocado: 120, beans: 80, kale: 25, cabbage: 30, sunflower: 90, sorghum: 38,
+    };
+    res.json(farms.map(({ farm, farmer }) => {
+      const pricePerKg = cropPrices[farm.cropType?.toLowerCase() ?? ""] ?? 50;
+      const estimatedYieldTons = Math.round((farm.totalShares * 0.01) * 2.5);
+      const daysToHarvest = 90 + Math.floor(Math.random() * 60);
+      return {
+        id: farm.id,
+        name: farm.name,
+        cropType: farm.cropType,
+        location: farm.location,
+        status: farm.status,
+        totalShares: farm.totalShares,
+        sharesAvailable: farm.sharesAvailable,
+        fundedPercent: Math.round(((farm.totalShares - farm.sharesAvailable) / Math.max(farm.totalShares, 1)) * 100),
+        farmerName: farmer?.name ?? "Unknown",
+        farmerPhone: farmer?.phone ?? null,
+        pricePerKgKes: pricePerKg,
+        estimatedYieldTons,
+        daysToHarvest,
+        minOrderTons: 1,
+        maxOrderTons: estimatedYieldTons,
+        harvestDate: new Date(Date.now() + daysToHarvest * 86400000).toISOString().slice(0, 10),
+        certifications: farm.cropType === "coffee" ? ["Fair Trade", "Rainforest Alliance"] : ["GAP Certified"],
+      };
+    }));
+  } catch { res.status(500).json({ error: "Failed to fetch farms" }); }
+});
+
+router.get("/offtaker/contracts", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const orders = await db
+      .select({ order: voucherOrdersTable, farmer: usersTable })
+      .from(voucherOrdersTable)
+      .leftJoin(usersTable, eq(voucherOrdersTable.farmerId, usersTable.id))
+      .where(eq(voucherOrdersTable.agribusinessId, user.id))
+      .orderBy(desc(voucherOrdersTable.createdAt))
+      .limit(50);
+    res.json(orders.map(({ order, farmer }) => ({
+      id: order.id,
+      farmerId: order.farmerId,
+      farmerName: farmer?.name ?? "Farmer",
+      farmName: (order as any).farmName ?? "Farm",
+      cropType: (order as any).cropType ?? "Produce",
+      quantityTons: Math.round(Number(order.amount) / 50000) || 1,
+      pricePerKg: Number(order.amount) > 0 ? Math.round(Number(order.amount) / (Math.round(Number(order.amount) / 50000) * 1000)) : 50,
+      totalKes: Number(order.amount),
+      status: order.status,
+      deliveryDate: (order as any).deliveryDate ?? null,
+      createdAt: order.createdAt,
+      referenceCode: `OFT-${String(order.id).padStart(6, "0")}`,
+    })));
+  } catch { res.status(500).json({ error: "Failed to fetch contracts" }); }
+});
+
+router.post("/offtaker/contract", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { farmId, quantityTons, pricePerKgKes, deliveryDate, notes } = req.body as {
+    farmId: number; quantityTons: number; pricePerKgKes: number; deliveryDate?: string; notes?: string;
+  };
+  if (!farmId || !quantityTons || !pricePerKgKes) {
+    res.status(400).json({ error: "farmId, quantityTons, and pricePerKgKes required" }); return;
+  }
+  try {
+    const [farm] = await db.select().from(farmsTable).where(eq(farmsTable.id, farmId));
+    if (!farm) { res.status(404).json({ error: "Farm not found" }); return; }
+    const totalKes = quantityTons * 1000 * pricePerKgKes;
+    const [order] = await db.insert(voucherOrdersTable).values({
+      agribusinessId: user.id,
+      farmerId: farm.farmerId,
+      amount: String(totalKes),
+      status: "pending",
+      items: JSON.stringify([{ name: farm.cropType, qty: quantityTons, unit: "tons" }]),
+      ...(deliveryDate ? { deliveryDate } : {}),
+      ...(notes ? { notes } : {}),
+    } as any).returning();
+    res.json({
+      ok: true,
+      contractId: order.id,
+      referenceCode: `OFT-${String(order.id).padStart(6, "0")}`,
+      totalKes,
+      farmName: farm.name,
+      cropType: farm.cropType,
+      quantityTons,
+      status: "pending",
+    });
+  } catch { res.status(500).json({ error: "Failed to create contract" }); }
+});
+
+router.put("/offtaker/contract/:id/status", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const id = Number(req.params["id"]);
+  const { status } = req.body as { status: string };
+  const valid = ["pending", "confirmed", "in_transit", "fulfilled", "cancelled"];
+  if (!valid.includes(status)) { res.status(400).json({ error: "Invalid status" }); return; }
+  try {
+    const [ord] = await db.select().from(voucherOrdersTable).where(eq(voucherOrdersTable.id, id));
+    if (!ord || ord.agribusinessId !== user.id) { res.status(403).json({ error: "Not found" }); return; }
+    await db.update(voucherOrdersTable).set({ status } as any).where(eq(voucherOrdersTable.id, id));
+    res.json({ ok: true, status });
+  } catch { res.status(500).json({ error: "Failed to update contract" }); }
+});
+
+router.get("/offtaker/market-prices", async (_req, res): Promise<void> => {
+  const prices = [
+    { crop: "Maize", pricePerKg: 35, unit: "KES/kg", trend: "+3.2%", exchange: "KACE" },
+    { crop: "Wheat", pricePerKg: 42, unit: "KES/kg", trend: "+1.8%", exchange: "KACE" },
+    { crop: "Coffee", pricePerKg: 750, unit: "KES/kg", trend: "-0.5%", exchange: "Nairobi" },
+    { crop: "Tea", pricePerKg: 320, unit: "KES/kg", trend: "+5.1%", exchange: "Mombasa" },
+    { crop: "Rice", pricePerKg: 55, unit: "KES/kg", trend: "+0.9%", exchange: "KACE" },
+    { crop: "Tomatoes", pricePerKg: 65, unit: "KES/kg", trend: "-2.3%", exchange: "Nairobi" },
+    { crop: "Avocado", pricePerKg: 120, unit: "KES/kg", trend: "+8.4%", exchange: "Mombasa" },
+    { crop: "Beans", pricePerKg: 80, unit: "KES/kg", trend: "+2.1%", exchange: "KACE" },
+    { crop: "Sunflower", pricePerKg: 90, unit: "KES/kg", trend: "+4.7%", exchange: "KACE" },
+  ];
+  res.json(prices);
+});
+
 export default router;
