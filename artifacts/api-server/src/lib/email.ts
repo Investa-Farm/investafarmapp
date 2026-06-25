@@ -221,77 +221,87 @@ function emailWrapper(content: string, preheader = "") {
   <title>${APP_NAME}</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
-<body style="margin:0;padding:0;background-color:#f0fdf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-  ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#f0fdf4;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>` : ""}
-  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:linear-gradient(160deg,#f0fdf4 0%,#dcfce7 100%);padding:32px 0 48px;">
+<body style="margin:0;padding:0;background-color:#0a0f0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#0a0f0a;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>` : ""}
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#0c1a0c;padding:40px 0 56px;">
     <tr><td align="center" style="padding:0 16px;">
-      <table width="580" cellpadding="0" cellspacing="0" role="presentation" style="max-width:580px;width:100%;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(5,46,22,0.14),0 2px 8px rgba(5,46,22,0.08);">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;border-radius:20px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,0.6),0 8px 24px rgba(0,0,0,0.4);">
 
         <!-- Premium header -->
         <tr>
-          <td style="background:linear-gradient(135deg,${GRASS_DARK} 0%,#14532d 45%,${GRASS_GREEN} 100%);padding:36px 40px 28px;text-align:center;position:relative;">
-            <!-- Decorative top stripe -->
-            <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#86efac,#4ade80,#16a34a,#4ade80,#86efac);"></div>
-            ${LOGO_SVG}
-            <!-- Separator line -->
-            <div style="margin:16px auto 0;width:60px;height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent);border-radius:2px;"></div>
+          <td style="background:linear-gradient(160deg,#071a07 0%,#0f2d0f 40%,#14532d 75%,#166534 100%);padding:0;text-align:center;">
+            <!-- Top accent line -->
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="background:linear-gradient(90deg,#052e16,#16a34a,#4ade80,#16a34a,#052e16);height:3px;font-size:0;line-height:0;">&nbsp;</td>
+            </tr></table>
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="padding:40px 48px 36px;text-align:center;">
+                ${LOGO_SVG}
+                <table cellpadding="0" cellspacing="0" style="margin:20px auto 0;"><tr>
+                  <td style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:100px;padding:5px 18px;">
+                    <p style="color:rgba(255,255,255,0.55);font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">AFRICA'S FARM INVESTMENT EXCHANGE</p>
+                  </td>
+                </tr></table>
+              </td>
+            </tr></table>
           </td>
         </tr>
 
-        <!-- Gold accent bar -->
+        <!-- White content area -->
         <tr>
-          <td style="background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);padding:6px 40px;">
-            <p style="color:#1c1917;font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin:0;text-align:center;">Africa's Leading Farm Investment Platform</p>
+          <td style="background:#ffffff;padding:0;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              ${content}
+            </table>
           </td>
         </tr>
 
-        <!-- Content -->
-        ${content}
-
-        <!-- Premium divider before footer -->
+        <!-- Divider -->
         <tr>
-          <td style="padding:0 40px;">
-            <div style="height:1px;background:linear-gradient(90deg,transparent,#bbf7d0,transparent);"></div>
+          <td style="background:#ffffff;padding:0 48px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="height:1px;background:linear-gradient(90deg,transparent,#d1fae5,transparent);font-size:0;line-height:0;">&nbsp;</td>
+            </tr></table>
           </td>
         </tr>
 
-        <!-- Premium footer -->
+        <!-- Footer -->
         <tr>
-          <td style="background:linear-gradient(180deg,#f0fdf4 0%,#dcfce7 100%);padding:24px 40px 28px;">
+          <td style="background:#f9fafb;padding:28px 48px 36px;">
             <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
               <tr>
-                <td style="text-align:center;padding-bottom:14px;">
+                <td style="text-align:center;padding-bottom:16px;">
                   <a href="https://chat.whatsapp.com/BWfnSpL4GTl0EsFpuPMKOK"
-                    style="display:inline-block;background:linear-gradient(135deg,#16a34a,#15803d);color:#ffffff;font-size:11px;font-weight:700;text-decoration:none;padding:8px 22px;border-radius:20px;box-shadow:0 2px 8px rgba(22,163,74,0.25);">
-                    💬 Join our WhatsApp Community
+                    style="display:inline-block;background:#16a34a;color:#ffffff;font-size:11px;font-weight:700;letter-spacing:0.5px;text-decoration:none;padding:10px 24px;border-radius:100px;">
+                    Join our WhatsApp Community
                   </a>
                 </td>
               </tr>
               <tr>
-                <td style="text-align:center;padding-bottom:6px;">
-                  <a href="https://app.investafarm.com" style="display:inline-block;margin:0 6px;color:${GRASS_GREEN};font-size:10px;font-weight:600;text-decoration:none;">Open App</a>
-                  <span style="color:#d1d5db;font-size:10px;">·</span>
-                  <a href="https://app.investafarm.com/market" style="display:inline-block;margin:0 6px;color:${GRASS_GREEN};font-size:10px;font-weight:600;text-decoration:none;">Browse Market</a>
-                  <span style="color:#d1d5db;font-size:10px;">·</span>
-                  <a href="https://app.investafarm.com/portfolio" style="display:inline-block;margin:0 6px;color:${GRASS_GREEN};font-size:10px;font-weight:600;text-decoration:none;">My Portfolio</a>
+                <td style="text-align:center;padding-bottom:10px;">
+                  <a href="https://app.investafarm.com" style="display:inline-block;margin:0 8px;color:#16a34a;font-size:11px;font-weight:600;text-decoration:none;">Open App</a>
+                  <span style="color:#d1d5db;font-size:11px;">·</span>
+                  <a href="https://app.investafarm.com/market" style="display:inline-block;margin:0 8px;color:#16a34a;font-size:11px;font-weight:600;text-decoration:none;">Browse Market</a>
+                  <span style="color:#d1d5db;font-size:11px;">·</span>
+                  <a href="https://app.investafarm.com/portfolio" style="display:inline-block;margin:0 8px;color:#16a34a;font-size:11px;font-weight:600;text-decoration:none;">Portfolio</a>
                 </td>
               </tr>
               <tr>
-                <td style="text-align:center;padding:8px 0 4px;">
-                  <div style="width:32px;height:2px;background:linear-gradient(90deg,#16a34a,#4ade80);border-radius:2px;margin:0 auto;"></div>
+                <td style="padding:12px 0 8px;">
+                  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+                    <td style="height:1px;background:#e5e7eb;font-size:0;line-height:0;">&nbsp;</td>
+                  </tr></table>
                 </td>
               </tr>
               <tr>
-                <td>
-                  <p style="color:#6b7280;font-size:11px;margin:0 0 4px 0;text-align:center;font-weight:500;">
-                    <strong style="color:#374151;">Investa Farm Ltd</strong> · Nairobi, Kenya
+                <td style="text-align:center;">
+                  <p style="color:#374151;font-size:12px;margin:0 0 4px 0;font-weight:600;">Investa Farm Ltd &nbsp;·&nbsp; Nairobi, Kenya</p>
+                  <p style="color:#9ca3af;font-size:11px;margin:0 0 4px 0;">Regulated by the Capital Markets Authority of Kenya</p>
+                  <p style="color:#9ca3af;font-size:11px;margin:0 0 4px 0;">
+                    <a href="mailto:investafarm@proton.me" style="color:#16a34a;text-decoration:none;font-weight:600;">investafarm@proton.me</a>
                   </p>
-                  <p style="color:#9ca3af;font-size:10px;margin:0 0 3px 0;text-align:center;">
-                    Regulated by the Capital Markets Authority of Kenya &nbsp;·&nbsp;
-                    <a href="mailto:investafarm@proton.me" style="color:${GRASS_GREEN};text-decoration:none;font-weight:600;">investafarm@proton.me</a>
-                  </p>
-                  <p style="color:#d1d5db;font-size:10px;margin:4px 0 0 0;text-align:center;">
-                    Automated notification — do not reply &nbsp;·&nbsp;
+                  <p style="color:#d1d5db;font-size:10px;margin:6px 0 0 0;">
+                    Automated notification &nbsp;·&nbsp;
                     <a href="#" style="color:#9ca3af;text-decoration:none;">Unsubscribe</a>
                   </p>
                 </td>
@@ -378,21 +388,23 @@ export async function sendVerificationReminderEmail(
 
 function statCard(icon: string, label: string, value: string, color = GRASS_GREEN) {
   return `
-    <td align="center" style="padding:0 6px;">
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px 12px;text-align:center;min-width:100px;">
-        <p style="font-size:24px;margin:0 0 4px 0;">${icon}</p>
-        <p style="font-size:18px;font-weight:800;color:${color};margin:0 0 2px 0;">${value}</p>
-        <p style="font-size:10px;color:#9ca3af;margin:0;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${label}</p>
-      </div>
+    <td align="center" style="padding:0 5px;">
+      <table cellpadding="0" cellspacing="0" style="border-radius:12px;overflow:hidden;" width="100%"><tr>
+        <td style="background:#f8fafb;border:1px solid #e5e7eb;border-radius:12px;padding:16px 10px;text-align:center;">
+          <p style="font-size:22px;margin:0 0 6px 0;line-height:1;">${icon}</p>
+          <p style="font-size:17px;font-weight:800;color:${color};margin:0 0 3px 0;line-height:1;">${value}</p>
+          <p style="font-size:9px;color:#9ca3af;margin:0;font-weight:700;text-transform:uppercase;letter-spacing:1px;">${label}</p>
+        </td>
+      </tr></table>
     </td>`;
 }
 
-function ctaButton(text: string, url: string, gradient = `linear-gradient(135deg,${GRASS_DARK},${GRASS_GREEN})`) {
+function ctaButton(text: string, url: string, bg = GRASS_GREEN) {
   return `
     <table width="100%" cellpadding="0" cellspacing="0">
       <tr>
-        <td align="center" style="padding:8px 0;">
-          <a href="${url}" style="display:inline-block;background:${gradient};color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;padding:14px 36px;border-radius:12px;letter-spacing:0.3px;">
+        <td align="center" style="padding:12px 0;">
+          <a href="${url}" style="display:inline-block;background:${bg};color:#ffffff;font-weight:700;font-size:14px;letter-spacing:0.5px;text-decoration:none;padding:15px 40px;border-radius:100px;">
             ${text}
           </a>
         </td>
@@ -1104,30 +1116,37 @@ export async function sendFarmUpdateEmail(
   const appUrl = process.env.APP_URL ?? "https://app.investafarm.com";
   const farmUrl = `${appUrl}/market/${farmId}`;
   const content = `
-    <div style="text-align:center;margin-bottom:24px;">
-      <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#052e16,#16a34a);font-size:28px;">🌱</div>
-    </div>
-    <h2 style="font-size:20px;font-weight:800;color:#111827;text-align:center;margin:0 0 6px 0;">New Field Update</h2>
-    <p style="font-size:14px;color:#6b7280;text-align:center;margin:0 0 24px 0;">Your farm just posted fresh progress</p>
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(160deg,#071a07 0%,#14532d 100%);padding:40px 48px;text-align:center;">
+          <p style="font-size:44px;margin:0 0 10px 0;">🌱</p>
+          <h1 style="color:#ffffff;font-size:22px;font-weight:800;margin:0 0 6px 0;">New Field Update</h1>
+          <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:0;">${farmName}</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:36px 48px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Hi <strong>${investorName}</strong>, your investment in <strong style="color:#16a34a;">${farmName}</strong> just posted a new field update.
+        </p>
 
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #16a34a;border-radius:12px;padding:20px;margin-bottom:24px;">
-      <p style="font-weight:700;color:#14532d;font-size:15px;margin:0 0 8px 0;">📢 ${updateTitle}</p>
-      <p style="color:#166534;font-size:13px;line-height:1.6;margin:0;">${updateDescription}</p>
-    </div>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #16a34a;border-radius:12px;padding:20px;">
+              <p style="font-weight:700;color:#14532d;font-size:15px;margin:0 0 8px 0;">${updateTitle}</p>
+              <p style="color:#166534;font-size:13px;line-height:1.6;margin:0;">${updateDescription}</p>
+            </td>
+          </tr>
+        </table>
 
-    <p style="font-size:13px;color:#374151;line-height:1.6;margin:0 0 8px 0;">
-      Hi <strong>${investorName}</strong>, your investment in <strong style="color:#16a34a;">${farmName}</strong> has a new field update.
-    </p>
-    <p style="font-size:13px;color:#6b7280;line-height:1.6;margin:0 0 24px 0;">
-      Staying informed helps you track crop progress and make smarter exit timing decisions. Farms with active updates tend to return <strong>+12% higher yields</strong> for investors.
-    </p>
+        <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:24px 0;">
+          Farms with active updates tend to return <strong>+12% higher yields</strong> for investors. Track progress to time your exit well.
+        </p>
 
-    <div style="text-align:center;">
-      <a href="${farmUrl}" style="display:inline-block;background:linear-gradient(135deg,#052e16,#16a34a);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:12px;letter-spacing:0.3px;">
-        View Farm Update →
-      </a>
-    </div>
-  `;
+        ${ctaButton("View Farm Update →", farmUrl)}
+      </td>
+    </tr>`;
   await transport.sendMail({
     from: `"Investa Farm" <${process.env.GOOGLE_SMTP_USER ?? "noreply@investafarm.com"}>`,
     to,

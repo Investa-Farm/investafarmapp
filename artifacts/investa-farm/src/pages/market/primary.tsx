@@ -1,9 +1,10 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useListPrimaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
-import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator, MapPin, Users, Navigation, Scale, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator, MapPin, Users, Navigation, Scale, X, Smartphone, Share2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
@@ -181,6 +182,34 @@ export default function PrimaryMarket() {
   const [compareB, setCompareB] = useState<CompareListing | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
 
+  // PWA install prompt
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [pwaVisible, setPwaVisible] = useState(false);
+  const isIOS = /iphone|ipad|ipod/i.test(typeof navigator !== "undefined" ? navigator.userAgent : "");
+  const isInStandaloneMode = typeof window !== "undefined" && (window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true);
+
+  useEffect(() => {
+    if (isInStandaloneMode) return;
+    if (localStorage.getItem("investa_pwa_dismissed")) return;
+    const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e); setPwaVisible(true); };
+    window.addEventListener("beforeinstallprompt", handler as any);
+    if (isIOS) setTimeout(() => setPwaVisible(true), 1800);
+    return () => window.removeEventListener("beforeinstallprompt", handler as any);
+  }, []);
+
+  const handleInstall = useCallback(async () => {
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === "accepted") { setPwaVisible(false); setInstallPrompt(null); }
+    }
+  }, [installPrompt]);
+
+  const dismissPwa = () => {
+    setPwaVisible(false);
+    localStorage.setItem("investa_pwa_dismissed", "1");
+  };
+
   const filteredListings = useMemo(() => {
     if (!listings) return [];
     if (activeCategory === "all") return listings;
@@ -214,6 +243,53 @@ export default function PrimaryMarket() {
           </div>
         </div>
       </div>
+
+      {/* PWA Install Widget */}
+      <AnimatePresence>
+        {pwaVisible && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ type: "spring", stiffness: 280, damping: 24 }}
+            className="mx-4 mt-3"
+          >
+            {isIOS && !installPrompt ? (
+              <div className="bg-gradient-to-r from-[#052e16] to-[#166534] rounded-2xl p-3.5 flex items-start gap-3 shadow-lg">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <Smartphone size={20} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-sm leading-tight">Add to Home Screen</p>
+                  <p className="text-white/70 text-[11px] mt-0.5 leading-relaxed">
+                    Tap <Share2 size={10} className="inline relative -top-[1px]" /> then <strong>"Add to Home Screen"</strong> for the full app experience — live prices, instant alerts.
+                  </p>
+                </div>
+                <button onClick={dismissPwa} className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <X size={11} className="text-white" />
+                </button>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-r from-[#052e16] to-[#166534] rounded-2xl p-3.5 flex items-center gap-3 shadow-lg">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <Smartphone size={20} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-sm leading-tight">Add to Home Screen</p>
+                  <p className="text-white/70 text-[11px] mt-0.5">Live prices, alerts & offline access</p>
+                </div>
+                <button onClick={handleInstall}
+                  className="bg-white text-[#14532d] font-bold text-[11px] px-3 py-1.5 rounded-lg flex-shrink-0 active:scale-95 transition-all">
+                  Install
+                </button>
+                <button onClick={dismissPwa} className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <X size={11} className="text-white" />
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Category Filter Tabs */}
       <div className="px-4 pt-4 pb-1">

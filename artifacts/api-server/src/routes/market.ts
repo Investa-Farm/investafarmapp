@@ -536,6 +536,22 @@ router.post("/market/buy", financialRateLimit, async (req, res): Promise<void> =
   });
 });
 
+// Minimum hold days before secondary listing, keyed by crop type substring
+const SECONDARY_HOLD_DAYS: Record<string, number> = {
+  kale: 30, cabbage: 30, tomatoes: 30, poultry: 30, chicken: 30, spinach: 30,
+  maize: 45, beans: 45, sunflower: 45, rice: 45, wheat: 45, dairy: 45, cattle: 45,
+  corn: 45, sorghum: 45, cassava: 45, potato: 45, onion: 45,
+  coffee: 60, tea: 60, avocado: 60, greenhouse: 60, macadamia: 60, tobacco: 60,
+};
+
+function getSecondaryMinHoldDays(cropType: string): number {
+  const crop = (cropType ?? "").toLowerCase();
+  for (const [key, days] of Object.entries(SECONDARY_HOLD_DAYS)) {
+    if (crop.includes(key)) return days;
+  }
+  return 45;
+}
+
 router.post("/market/sell", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) {
@@ -551,6 +567,21 @@ router.post("/market/sell", async (req, res): Promise<void> => {
   const [investment] = await db.select().from(investmentsTable).where(eq(investmentsTable.id, holdingId));
   if (!investment || investment.quantity < quantity) {
     res.status(400).json({ error: "Invalid holding or insufficient shares" });
+    return;
+  }
+
+  // Fetch farm to check crop type for hold period
+  const [farmForHold] = await db.select().from(farmsTable).where(eq(farmsTable.id, investment.farmId));
+  const minDays = getSecondaryMinHoldDays(farmForHold?.cropType ?? "");
+  const daysSincePurchase = Math.floor((Date.now() - new Date(investment.createdAt).getTime()) / 86400000);
+  if (daysSincePurchase < minDays) {
+    const daysRemaining = minDays - daysSincePurchase;
+    res.status(400).json({
+      error: `${farmForHold?.cropType ?? "This crop"} shares must be held for at least ${minDays} days before listing on the secondary market. ${daysRemaining} day${daysRemaining !== 1 ? "s" : ""} remaining.`,
+      daysRemaining,
+      minDays,
+      daysSincePurchase,
+    });
     return;
   }
 

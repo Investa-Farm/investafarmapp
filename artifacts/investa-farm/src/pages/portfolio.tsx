@@ -218,17 +218,35 @@ export default function Portfolio() {
   const holdingsList = (holdings as Holding[]) ?? [];
   const currentHolding = holdingsList[holdingIdx] ?? null;
 
-  function getSeasonStatus(h: Holding): "pre_season" | "mid_season" | "full_season" {
+  // Crop-specific minimum hold days before secondary listing
+  const SECONDARY_HOLD_DAYS: Record<string, number> = {
+    kale: 30, cabbage: 30, tomatoes: 30, poultry: 30, chicken: 30, spinach: 30,
+    maize: 45, beans: 45, sunflower: 45, rice: 45, wheat: 45, dairy: 45, cattle: 45,
+    corn: 45, sorghum: 45, cassava: 45,
+    coffee: 60, tea: 60, avocado: 60, greenhouse: 60, macadamia: 60, tobacco: 60,
+  };
+
+  function getMinHoldDays(cropType: string): number {
+    const crop = (cropType ?? "").toLowerCase();
+    for (const [key, days] of Object.entries(SECONDARY_HOLD_DAYS)) {
+      if (crop.includes(key)) return days;
+    }
+    return 45;
+  }
+
+  function getHoldInfo(h: Holding): { status: "pre_season" | "mid_season" | "full_season"; daysRemaining: number; minHoldDays: number } {
+    const minHoldDays = getMinHoldDays((h as any).cropType ?? "");
     if ((h as any).createdAt) {
       const days = Math.floor((Date.now() - new Date((h as any).createdAt).getTime()) / 86400000);
-      if (days >= 90) return "full_season";
-      if (days >= 45) return "mid_season";
-      return "pre_season";
+      if (days >= 90) return { status: "full_season", daysRemaining: 0, minHoldDays };
+      if (days >= minHoldDays) return { status: "mid_season", daysRemaining: 0, minHoldDays };
+      return { status: "pre_season", daysRemaining: minHoldDays - days, minHoldDays };
     }
-    const idx = holdingsList.indexOf(h);
-    if (idx === 0) return "pre_season";
-    if (idx === 1) return "mid_season";
-    return "full_season";
+    return { status: "mid_season", daysRemaining: 0, minHoldDays };
+  }
+
+  function getSeasonStatus(h: Holding): "pre_season" | "mid_season" | "full_season" {
+    return getHoldInfo(h).status;
   }
 
   return (
@@ -661,7 +679,14 @@ export default function Portfolio() {
         <PortfolioWizard onClose={() => setWizardOpen(false)} onCreated={() => { setWizardOpen(false); refetchPortfolios(); }} />
       )}
       <ExitModal open={exitOpen} onClose={() => setExitOpen(false)} holding={selectedHolding} seasonStatus={selectedHolding ? getSeasonStatus(selectedHolding as any) : "mid_season"} />
-      <SellSharesModal open={sellOpen} onClose={() => setSellOpen(false)} holding={selectedHolding} seasonStatus={selectedHolding ? getSeasonStatus(selectedHolding as any) : "mid_season"} />
+      <SellSharesModal
+        open={sellOpen}
+        onClose={() => setSellOpen(false)}
+        holding={selectedHolding}
+        seasonStatus={selectedHolding ? getHoldInfo(selectedHolding as any).status : "mid_season"}
+        daysRemaining={selectedHolding ? getHoldInfo(selectedHolding as any).daysRemaining : 0}
+        minHoldDays={selectedHolding ? getHoldInfo(selectedHolding as any).minHoldDays : 45}
+      />
       <SwapModal open={swapOpen} onClose={() => { setSwapOpen(false); setSwapHolding(null); }} holding={swapHolding} />
       <ReinvestmentSettings open={reinvestOpen} onClose={() => setReinvestOpen(false)} />
       <ShareModal
