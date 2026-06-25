@@ -446,7 +446,7 @@ export default function Portfolio() {
 
       {/* ══ HOLDINGS TAB ══ */}
       {activeTab === "holdings" && (
-        <div className="flex-1 overflow-hidden flex flex-col gap-2 px-4 pb-2" style={{ minHeight: 0 }}>
+        <div className="flex-1 overflow-y-auto flex flex-col gap-2 px-4 pb-24">
 
           {/* AI insight strip */}
           {holdingsList.length > 0 && summary && (
@@ -461,10 +461,10 @@ export default function Portfolio() {
             </div>
           )}
 
-          {/* Holding card carousel — fills available height */}
-          <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
+          {/* Holding card carousel */}
+          <div className="flex flex-col">
             {isLoading ? (
-              <Skeleton className="flex-1 rounded-2xl" />
+              <Skeleton className="h-[460px] rounded-2xl" />
             ) : holdingsList.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center bg-white border border-border rounded-2xl p-6">
                 <TrendingUp size={32} className="text-muted-foreground mb-3" />
@@ -518,7 +518,7 @@ export default function Portfolio() {
                   ))}
                 </div>
 
-                {/* Card — fills remaining space */}
+                {/* Card */}
                 <AnimatePresence mode="wait">
                   {currentHolding && (() => {
                     const h = currentHolding;
@@ -538,8 +538,7 @@ export default function Portfolio() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -40 }}
                         transition={{ type: "spring", stiffness: 340, damping: 30 }}
-                        className="flex-1 bg-card rounded-2xl border border-border overflow-hidden shadow-md flex flex-col"
-                        style={{ minHeight: 0 }}
+                        className="bg-card rounded-2xl border border-border overflow-hidden shadow-md flex flex-col"
                         data-testid={`holding-${h.id}`}
                         onTouchStart={e => {
                           touchStartX.current = e.touches[0]?.clientX ?? null;
@@ -558,7 +557,7 @@ export default function Portfolio() {
                         }}
                       >
                         {/* Farm image */}
-                        <div className="relative flex-shrink-0" style={{ height: "32%" }}>
+                        <div className="relative flex-shrink-0" style={{ height: 160 }}>
                           <img src={farmImg} alt={h.farmName} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                           {/* status badges */}
@@ -580,22 +579,22 @@ export default function Portfolio() {
                         </div>
 
                         {/* Stats strip */}
-                        <div className="grid grid-cols-4 divide-x divide-border border-b border-border flex-shrink-0">
+                        <div className="grid grid-cols-4 divide-x divide-border border-b border-border flex-shrink-0 bg-muted/30">
                           {[
-                            { label: "Shares", val: String(h.quantity), color: "text-foreground" },
-                            { label: "Invested", val: formatAmount(invested), color: "text-foreground" },
-                            { label: "Value", val: formatAmount(h.totalValue), color: isUp ? "text-green-600" : "text-red-500" },
-                            { label: "P&L", val: (isUp ? "+" : "") + formatAmount(h.gainLoss), color: isUp ? "text-green-600" : "text-red-500" },
-                          ].map(({ label, val, color }) => (
-                            <div key={label} className="py-2 text-center">
-                              <p className={`font-bold text-xs ${color}`}>{val}</p>
+                            { label: "Shares", val: String(h.quantity), color: "text-foreground", bg: "" },
+                            { label: "Invested", val: formatAmount(invested), color: "text-foreground", bg: "" },
+                            { label: "Value", val: formatAmount(h.totalValue), color: isUp ? "text-green-600" : "text-red-500", bg: isUp ? "bg-green-50/50" : "bg-red-50/50" },
+                            { label: "P&L", val: (isUp ? "+" : "") + formatAmount(h.gainLoss), color: isUp ? "text-green-600" : "text-red-500", bg: isUp ? "bg-green-50/50" : "bg-red-50/50" },
+                          ].map(({ label, val, color, bg }) => (
+                            <div key={label} className={`py-2.5 text-center ${bg}`}>
+                              <p className={`font-bold text-xs leading-tight ${color}`}>{val}</p>
                               <p className="text-muted-foreground text-[9px] mt-0.5">{label}</p>
                             </div>
                           ))}
                         </div>
 
-                        {/* ROI projections */}
-                        <div className="p-3 flex-1 flex flex-col justify-between" style={{ minHeight: 0 }}>
+                        {/* ROI projections + actions */}
+                        <div className="p-3 space-y-3">
                           <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-2.5">
                             <p className="text-green-700 text-[10px] font-semibold mb-1.5">
                               {roi ? "AI ROI Projections" : "Estimated Payout on Exit"}
@@ -621,23 +620,23 @@ export default function Portfolio() {
                           </div>
 
                           {/* Action buttons */}
-                          <div className="flex gap-1.5 mt-2">
+                          <div className="flex gap-1.5">
                             <Link href={`/market/exchange/${h.farmId}`}
-                              className="h-9 px-2.5 rounded-xl border border-border text-muted-foreground text-[10px] font-medium active:scale-95 transition-all flex items-center justify-center gap-1 flex-shrink-0">
+                              className="h-10 px-3 rounded-xl border border-border text-muted-foreground text-[10px] font-medium active:scale-95 transition-all flex items-center justify-center gap-1 flex-shrink-0">
                               <ExternalLink size={10} /> View
                             </Link>
                             {h.status === "active" && (
                               <>
                                 <button onClick={() => handleSwapClick(h)}
-                                  className="flex-1 h-9 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold active:scale-95 transition-all flex items-center justify-center gap-1">
+                                  className="flex-1 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold active:scale-95 transition-all flex items-center justify-center gap-1">
                                   <RefreshCw size={10} /> Swap
                                 </button>
                                 <button onClick={() => handleSellClick(h)}
-                                  className="flex-1 h-9 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold active:scale-95 transition-all flex items-center justify-center gap-1">
+                                  className="flex-1 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold active:scale-95 transition-all flex items-center justify-center gap-1">
                                   <Tag size={10} /> Sell
                                 </button>
                                 <button onClick={() => handleExitClick(h)}
-                                  className="flex-1 h-9 rounded-xl bg-primary text-white text-[10px] font-bold active:scale-95 transition-all">
+                                  className="flex-1 h-10 rounded-xl bg-primary text-white text-[10px] font-bold active:scale-95 transition-all">
                                   Exit
                                 </button>
                               </>

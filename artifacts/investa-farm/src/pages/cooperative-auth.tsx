@@ -276,23 +276,9 @@ export default function CooperativeAuth() {
                   </button>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-border space-y-2">
-                  <button
-                    onClick={() => { setSubType("farmers_connect"); setEmail("demo.coop@investafarm.com"); setPassword("password123"); setTab("signin"); }}
-                    className="w-full py-2.5 border border-[#16a34a]/30 rounded-xl text-[#16a34a] text-xs font-semibold bg-[#16a34a]/5 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
-                    🤝 Try Demo Cooperative Account
-                  </button>
-                  <button
-                    onClick={() => { setSubType("sales_agent"); setOrgType("sales_agent"); setEmail("demo.agent@investafarm.com"); setPassword("password123"); setTab("signin"); }}
-                    className="w-full py-2.5 border border-amber-200 rounded-xl text-amber-700 text-xs font-semibold bg-amber-50 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
-                    💼 Try Demo Sales Agent Account
-                  </button>
-                  <button
-                    onClick={() => { setSubType("offtaker"); setOrgType("offtaker"); setEmail("demo.offtaker@investafarm.com"); setPassword("password123"); setTab("signin"); }}
-                    className="w-full py-2.5 border border-violet-200 rounded-xl text-violet-700 text-xs font-semibold bg-violet-50 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
-                    🚚 Try Demo Offtaker Account
-                  </button>
-                </div>
+                <p className="text-center text-muted-foreground text-xs mt-6 pt-4 border-t border-border">
+                  Select your account type above to continue
+                </p>
               </motion.div>
             ) : (
               <motion.div key="auth-form" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}>
@@ -367,10 +353,24 @@ export default function CooperativeAuth() {
                       {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                       {loading ? "Signing in…" : "Sign In →"}
                     </button>
-                    <button type="button" onClick={() => { setEmail("demo.coop@investafarm.com"); setPassword("demo1234"); }}
-                      className="w-full py-2.5 border border-[#16a34a]/30 rounded-xl text-[#16a34a] text-xs font-semibold bg-[#16a34a]/5 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
-                      🤝 Use Demo Account
-                    </button>
+                    {/* Sub-type specific demo account */}
+                    {subType === "sales_agent" ? (
+                      <button type="button" onClick={() => { setEmail("demo.agent@investafarm.com"); setPassword("password123"); }}
+                        className="w-full py-2.5 border border-amber-200 rounded-xl text-amber-700 text-xs font-semibold bg-amber-50 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                        💼 Try Demo Sales Agent — demo.agent@investafarm.com
+                      </button>
+                    ) : subType === "offtaker" ? (
+                      <button type="button" onClick={() => { setEmail("demo.offtaker@investafarm.com"); setPassword("password123"); }}
+                        className="w-full py-2.5 border border-violet-200 rounded-xl text-violet-700 text-xs font-semibold bg-violet-50 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                        🚚 Try Demo Offtaker — demo.offtaker@investafarm.com
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => { setEmail("demo.coop@investafarm.com"); setPassword("password123"); }}
+                        className="w-full py-2.5 border border-[#16a34a]/30 rounded-xl text-[#16a34a] text-xs font-semibold bg-[#16a34a]/5 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
+                        🤝 Try Demo Partner — demo.coop@investafarm.com
+                      </button>
+                    )}
+                    <p className="text-center text-muted-foreground text-[10px]">All demo accounts use password: <strong>password123</strong></p>
                   </form>
                 ) : (
                   <form onSubmit={handleRegister} className="space-y-4">
