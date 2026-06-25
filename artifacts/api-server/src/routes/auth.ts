@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
 import { createHmac, timingSafeEqual, randomBytes } from "crypto";
-import { db, usersTable, otpCodesTable, passwordResetTokensTable, walletsTable } from "@workspace/db";
+import { db, usersTable, otpCodesTable, passwordResetTokensTable, walletsTable, notificationsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { LoginBody } from "@workspace/api-zod";
@@ -17,6 +17,8 @@ const RegisterBody = z.object({
   phone: z.string().optional(),
   orgType: z.string().optional(),
   county: z.string().optional(),
+  referredById: z.number().optional(),
+  referralChannel: z.string().optional(),
 });
 
 const router: IRouter = Router();
@@ -79,7 +81,7 @@ router.post("/auth/register", authRateLimit, async (req, res): Promise<void> => 
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { email: rawEmail, password, name, role, phone } = parsed.data;
+  const { email: rawEmail, password, name, role, phone, referredById, referralChannel } = parsed.data;
   const email = rawEmail.toLowerCase().trim();
 
   // Block disposable/spam email patterns
@@ -107,6 +109,16 @@ router.post("/auth/register", authRateLimit, async (req, res): Promise<void> => 
   const [existingWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, user.id));
   if (!existingWallet) {
     await db.insert(walletsTable).values({ userId: user.id, balance: "0", currency: "KES" });
+  }
+
+  // Handle referral — notify the referring agribusiness/user
+  if (referredById) {
+    db.insert(notificationsTable).values({
+      userId: referredById,
+      type: "referral_signup",
+      title: "New Referral Registration",
+      body: `${name} just registered using your referral link as a ${role}. They are now linked to your network.`,
+    }).catch(() => {});
   }
 
   if (isDemo) {

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useRegister } from "@workspace/api-client-react";
 import { setToken, storeUser } from "@/lib/auth";
-import { Loader2, Tractor, BarChart2, Handshake, Package, Eye, EyeOff, Check, X, ArrowLeft } from "lucide-react";
+import { Loader2, Tractor, BarChart2, Handshake, Package, Eye, EyeOff, Check, X, ArrowLeft, Gift } from "lucide-react";
 
 function isEmailValid(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -20,6 +20,11 @@ function pwCheck(pw: string) {
   };
 }
 
+function getQueryParam(key: string): string {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(key) ?? "";
+}
+
 export default function Register() {
   const [, setLocation] = useLocation();
   const [name, setName] = useState("");
@@ -30,6 +35,25 @@ export default function Register() {
   const [agribizType, setAgribizType] = useState<AgribizType>("farmer_connector");
   const [error, setError] = useState("");
   const [touched, setTouched] = useState({ name: false, email: false, password: false });
+
+  // Referral info from URL — URLSearchParams already decodes, no extra decodeURIComponent needed
+  const [referredById] = useState(() => {
+    const raw = getQueryParam("ref");
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? String(n) : "";
+  });
+  const [partnerName] = useState(() => {
+    try { return getQueryParam("partner"); } catch { return ""; }
+  });
+  const [viaChannel] = useState(() => getQueryParam("via")); // "agribiz" etc.
+  const hasReferral = !!referredById;
+
+  // Pre-select role from URL (?type=farmer or ?type=investor)
+  useEffect(() => {
+    const typeParam = getQueryParam("type");
+    if (typeParam === "farmer") setRole("farmer");
+    else if (typeParam === "investor") setRole("investor");
+  }, []);
 
   const register = useRegister();
   const checks = pwCheck(password);
@@ -54,12 +78,18 @@ export default function Register() {
           password,
           role: finalRole as "farmer" | "investor",
           agribizType: role === "agribusiness" ? agribizType : undefined,
+          ...(hasReferral ? { referredById: parseInt(referredById, 10), referralChannel: viaChannel || undefined } : {}),
         } as any,
       },
       {
         onSuccess: (data: any) => {
           setToken(data.token);
           storeUser({ ...data.user, agribizType: role === "agribusiness" ? agribizType : undefined });
+          // Store referral info locally
+          if (hasReferral) {
+            localStorage.setItem("investa_referred_by", referredById);
+            if (viaChannel) localStorage.setItem("investa_referral_channel", viaChannel);
+          }
           if (data.requiresOtp === false) {
             if (data.user.role === "farmer") setLocation("/farmer");
             else setLocation("/market");
@@ -103,6 +133,23 @@ export default function Register() {
           </button>
         </Link>
       </div>
+
+      {/* Referral banner */}
+      {hasReferral && (
+        <div className="mx-5 mt-4 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+            <Gift size={18} className="text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-emerald-800 font-bold text-sm">You were referred!</p>
+            <p className="text-emerald-700 text-xs mt-0.5">
+              {partnerName
+                ? <><strong>{partnerName}</strong> invited you to Investa Farm. Your account will be linked to their network.</>
+                : "You've been invited to join Investa Farm via a referral link. Your account will be linked automatically."}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="pt-6 pb-5 px-8 text-center space-y-3">
         <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto shadow-lg shadow-primary/25">
@@ -256,6 +303,18 @@ export default function Register() {
                 </div>
               )}
             </div>
+
+            {/* Referral code display */}
+            {hasReferral && (
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5">
+                <Gift size={14} className="text-emerald-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-emerald-700 text-xs font-semibold">Referral code applied</p>
+                  <p className="text-emerald-600 text-[11px] truncate">Referred by {partnerName || `Partner #${referredById}`}</p>
+                </div>
+                <span className="text-emerald-600 text-[10px] font-bold bg-emerald-100 px-2 py-0.5 rounded-full">✓ Applied</span>
+              </div>
+            )}
 
             <button
               data-testid="button-register"

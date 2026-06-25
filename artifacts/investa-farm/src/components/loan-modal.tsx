@@ -114,7 +114,7 @@ export function LoanModal({ open, onClose }: LoanModalProps) {
   const submitInvestment = () => {
     apply.mutate({
       amount: parseFloat(targetAmount),
-      purpose: "investment_proposal",
+      purpose: "other",
       purposeDetails: [
         `Crop: ${cropType}`,
         `Land: ${landSize}`,

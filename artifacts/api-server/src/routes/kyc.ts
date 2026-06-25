@@ -21,6 +21,7 @@ const UploadDocBody = z.object({
     "land_title",
     "group_certificate",
     "financial_statement",
+    "business_registration",
     "other",
   ]),
   title: z.string().min(1),

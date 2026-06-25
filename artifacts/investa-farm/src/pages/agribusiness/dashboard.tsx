@@ -29,7 +29,7 @@ export default function AgribusinessDashboard() {
 
   // Referral state
   const [refCopied, setRefCopied] = useState(false);
-  const refLink = `https://app.investafarm.com/register?ref=${user?.id ?? 0}&type=farmer&via=agribiz&partner=${encodeURIComponent(user?.name ?? "")}`;
+  const refLink = `${window.location.origin}/register?ref=${user?.id ?? 0}&type=farmer&via=agribiz&partner=${encodeURIComponent(user?.name ?? "")}`;
 
   const copyRef = async () => {
     await navigator.clipboard.writeText(refLink).catch(() => {});
@@ -573,22 +573,22 @@ export default function AgribusinessDashboard() {
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <AppTour role="agribusiness" />
 
-      {/* Sales Agent footer nav */}
-      {isSalesAgent && (
+      {/* Sales Agent / Farmer Connector footer nav */}
+      {(isSalesAgent || agribizType === "farmer_connector") && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border flex items-center justify-around px-2 pb-safe"
           style={{ paddingBottom: "env(safe-area-inset-bottom, 12px)", paddingTop: 8 }}>
           <button onClick={() => setActiveSection("home")}
-            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "home" ? "text-amber-600" : "text-muted-foreground"}`}>
+            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "home" ? "text-primary" : "text-muted-foreground"}`}>
             <Home size={20} />
             <span className="text-[10px] font-semibold">Home</span>
           </button>
           <button onClick={() => setActiveSection("referral")}
-            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "referral" ? "text-amber-600" : "text-muted-foreground"}`}>
+            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "referral" ? "text-primary" : "text-muted-foreground"}`}>
             <Share2 size={20} />
             <span className="text-[10px] font-semibold">Refer</span>
           </button>
           <button onClick={() => setActiveSection("commissions")}
-            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "commissions" ? "text-amber-600" : "text-muted-foreground"}`}>
+            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "commissions" ? "text-primary" : "text-muted-foreground"}`}>
             <DollarSign size={20} />
             <span className="text-[10px] font-semibold">Earnings</span>
           </button>
