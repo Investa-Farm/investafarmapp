@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, voucherOrdersTable, usersTable, loanApplicationsTable } from "@workspace/db";
+import { db, voucherOrdersTable, usersTable, loanApplicationsTable, farmsTable } from "@workspace/db";
 import { eq, desc, inArray, count, sql } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { logger } from "../lib/logger";
@@ -345,6 +345,45 @@ router.post("/agribusiness/voucher-verify", async (req, res): Promise<void> => {
   } catch (e) {
     logger.error({ err: e }, "[AGRIBUSINESS] Failed to verify voucher");
     res.status(500).json({ error: "Voucher lookup failed" });
+  }
+});
+
+// ── GET /agribusiness/proposals — proposals (pending farms) submitted by this agent ──
+router.get("/agribusiness/proposals", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const farms = await db
+      .select({
+        id: farmsTable.id,
+        name: farmsTable.name,
+        cropType: farmsTable.cropType,
+        location: farmsTable.location,
+        status: farmsTable.status,
+        loanAmount: farmsTable.loanAmount,
+        totalShares: farmsTable.totalShares,
+        sharesAvailable: farmsTable.sharesAvailable,
+        createdAt: farmsTable.createdAt,
+      })
+      .from(farmsTable)
+      .where(eq(farmsTable.farmerId, user.id))
+      .orderBy(desc(farmsTable.createdAt))
+      .limit(50);
+
+    res.json(farms.map(f => ({
+      id: f.id,
+      farmName: f.name,
+      cropType: f.cropType,
+      location: f.location,
+      status: f.status === "pending" ? "pending" : f.status === "active" ? "pending" : f.status === "funded" ? "approved" : f.status,
+      loanAmount: Number(f.loanAmount ?? 0),
+      totalShares: f.totalShares,
+      funded: f.sharesAvailable === 0,
+      createdAt: f.createdAt,
+    })));
+  } catch (e) {
+    logger.error({ err: e }, "[AGRIBUSINESS] Failed to fetch proposals");
+    res.status(500).json({ error: "Failed to fetch proposals" });
   }
 });
 

@@ -9,6 +9,7 @@ import {
   Star, Plus, RefreshCw, Bell, CreditCard, X, Info, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { PortfolioWizard } from "@/components/portfolio-wizard";
+import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
@@ -20,6 +21,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExitModal } from "@/components/exit-modal";
 import { SellSharesModal } from "@/components/sell-shares-modal";
+import { SwapModal } from "@/components/swap-modal";
 import { PortfolioHealthAI } from "@/components/portfolio-health-ai";
 import { getCropImage } from "@/lib/crops";
 import { ReinvestmentSettings } from "@/components/reinvestment-settings";
@@ -99,6 +101,8 @@ export default function Portfolio() {
   const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null);
   const [exitOpen, setExitOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
+  const [swapHolding, setSwapHolding] = useState<Holding | null>(null);
   const [shareHolding, setShareHolding] = useState<Holding | null>(null);
   const [period, setPeriod] = useState<Period>("1W");
   const [activeTab, setActiveTab] = useState<"overview" | "holdings">(() =>
@@ -191,6 +195,7 @@ export default function Portfolio() {
 
   const handleExitClick = (h: Holding) => { setSelectedHolding(h); setExitOpen(true); };
   const handleSellClick = (h: Holding) => { setSelectedHolding(h); setSellOpen(true); };
+  const handleSwapClick = (h: Holding) => { setSwapHolding(h); setSwapOpen(true); };
 
   useEffect(() => {
     if (qualification?.qualified && localStorage.getItem("investa_broker_unlocked") !== "true") {
@@ -505,17 +510,24 @@ export default function Portfolio() {
                         data-testid={`holding-${h.id}`}
                       >
                         {/* Farm image */}
-                        <div className="relative flex-shrink-0" style={{ height: "30%" }}>
+                        <div className="relative flex-shrink-0" style={{ height: "32%" }}>
                           <img src={farmImg} alt={h.farmName} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                          <div className={`absolute top-2.5 right-2.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${isUp ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
-                            {formatChange(h.gainLossPercent)}
-                          </div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                          {/* status badges */}
                           {isExited && <div className="absolute top-2.5 left-2.5 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Exit Pending</div>}
                           {isHarvested && <div className="absolute top-2.5 left-2.5 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">🌾 Harvested</div>}
+                          {/* sparkline + change pill */}
+                          <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                            <div className="opacity-80">
+                              <Sparkline data={generateSparkData(h.farmId * 13, 10)} width={48} height={22} positive={isUp} />
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isUp ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
+                              {formatChange(h.gainLossPercent)}
+                            </span>
+                          </div>
                           <div className="absolute bottom-0 left-0 right-0 p-3">
-                            <p className="text-white font-bold text-base leading-tight">{h.farmName}</p>
-                            <p className="text-white/70 text-[11px] mt-0.5">{h.cropType} · {h.location}</p>
+                            <p className="text-white font-bold text-sm leading-tight">{h.farmName}</p>
+                            <p className="text-white/70 text-[10px] mt-0.5">{h.cropType} · {h.location}</p>
                           </div>
                         </div>
 
@@ -561,19 +573,23 @@ export default function Portfolio() {
                           </div>
 
                           {/* Action buttons */}
-                          <div className="flex gap-2 mt-2">
+                          <div className="flex gap-1.5 mt-2">
                             <Link href={`/market/exchange/${h.farmId}`}
-                              className="flex-1 py-2.5 rounded-xl border border-border text-muted-foreground text-xs font-medium active:scale-95 transition-all flex items-center justify-center gap-1">
-                              <ExternalLink size={11} /> View Farm
+                              className="h-9 px-2.5 rounded-xl border border-border text-muted-foreground text-[10px] font-medium active:scale-95 transition-all flex items-center justify-center gap-1 flex-shrink-0">
+                              <ExternalLink size={10} /> View
                             </Link>
                             {h.status === "active" && (
                               <>
+                                <button onClick={() => handleSwapClick(h)}
+                                  className="flex-1 h-9 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold active:scale-95 transition-all flex items-center justify-center gap-1">
+                                  <RefreshCw size={10} /> Swap
+                                </button>
                                 <button onClick={() => handleSellClick(h)}
-                                  className="flex-1 py-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1">
-                                  <Tag size={11} /> Sell
+                                  className="flex-1 h-9 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold active:scale-95 transition-all flex items-center justify-center gap-1">
+                                  <Tag size={10} /> Sell
                                 </button>
                                 <button onClick={() => handleExitClick(h)}
-                                  className="flex-1 py-2.5 rounded-xl bg-primary text-white text-xs font-bold active:scale-95 transition-all">
+                                  className="flex-1 h-9 rounded-xl bg-primary text-white text-[10px] font-bold active:scale-95 transition-all">
                                   Exit
                                 </button>
                               </>
@@ -616,6 +632,7 @@ export default function Portfolio() {
       )}
       <ExitModal open={exitOpen} onClose={() => setExitOpen(false)} holding={selectedHolding} />
       <SellSharesModal open={sellOpen} onClose={() => setSellOpen(false)} holding={selectedHolding} />
+      <SwapModal open={swapOpen} onClose={() => { setSwapOpen(false); setSwapHolding(null); }} holding={swapHolding} />
       <ReinvestmentSettings open={reinvestOpen} onClose={() => setReinvestOpen(false)} />
       <ShareModal
         open={!!shareHolding}

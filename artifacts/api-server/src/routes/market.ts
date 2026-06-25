@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, farmsTable, marketListingsTable, usersTable, investmentsTable, transactionsTable, notificationsTable, walletsTable, walletTransactionsTable, loanApplicationsTable, transactionFeesTable, escrowWalletsTable, platformRevenueTable } from "@workspace/db";
+import { db, farmsTable, marketListingsTable, usersTable, investmentsTable, transactionsTable, notificationsTable, walletsTable, walletTransactionsTable, loanApplicationsTable, transactionFeesTable, escrowWalletsTable, platformRevenueTable, watchlistTable } from "@workspace/db";
 import { eq, and, desc, asc, count, sql } from "drizzle-orm";
 import { transferFunds, creditWallet } from "../lib/walletOps";
 import { cache, TTL } from "../lib/cache";
@@ -489,6 +489,24 @@ router.post("/market/buy", financialRateLimit, async (req, res): Promise<void> =
               "/portfolio"
             ).catch(() => {});
           }
+
+          // Notify watchlist users that this farm is now fully funded
+          try {
+            const watchers = await db.select({ userId: watchlistTable.userId })
+              .from(watchlistTable).where(eq(watchlistTable.farmId, listing.farmId));
+            const alreadyNotified = new Set([...investorIds, farmer.id]);
+            for (const { userId } of watchers) {
+              if (!alreadyNotified.has(userId)) {
+                notifyUser(
+                  userId,
+                  "farm_fully_funded",
+                  "📌 Watchlisted Farm Fully Funded",
+                  `${farm?.name ?? "A farm"} on your watchlist is now 100% funded. Check the secondary market for future share listings.`,
+                  "/market"
+                ).catch(() => {});
+              }
+            }
+          } catch (e) { console.error("[WATCHLIST_FUNDED_NOTIFY]", e); }
         }
       }
     } catch (e) { console.error("[FARM_FUNDED]", e); }
@@ -537,6 +555,23 @@ router.post("/market/sell", async (req, res): Promise<void> => {
   }).returning();
 
   const [farm] = await db.select().from(farmsTable).where(eq(farmsTable.id, investment.farmId));
+
+  // Notify watchers of this farm that a secondary listing just appeared
+  try {
+    const watchers = await db.select({ userId: watchlistTable.userId })
+      .from(watchlistTable).where(eq(watchlistTable.farmId, investment.farmId));
+    for (const { userId } of watchers) {
+      if (userId !== user.id) {
+        notifyUser(
+          userId,
+          "price_alert",
+          "📌 Watchlisted Farm — New Shares Available",
+          `${farm?.name ?? "A farm"} on your watchlist has ${quantity} share${quantity > 1 ? "s" : ""} listed on the secondary market at KES ${pricePerShare.toLocaleString("en-KE")}/share.`,
+          "/market/secondary"
+        ).catch(() => {});
+      }
+    }
+  } catch (e) { console.error("[WATCHLIST_LISTING_NOTIFY]", e); }
 
   res.status(201).json({
     id: listing.id,

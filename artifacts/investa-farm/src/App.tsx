@@ -25,6 +25,7 @@ import MarketHome from "@/pages/market/index";
 import PrimaryMarket from "@/pages/market/primary";
 import SecondaryMarket from "@/pages/market/secondary";
 import FarmMap from "@/pages/market/farm-map";
+import MarketPreview from "@/pages/market/preview";
 import FarmDetail from "@/pages/market/farm-detail";
 import FarmExchange from "@/pages/market/farm-exchange";
 import CommunityPortfolios from "@/pages/market/community-portfolios";
@@ -224,6 +225,11 @@ function Router() {
       </Route>
       <Route path="/reset-password">
         <ResetPassword />
+      </Route>
+
+      {/* Public market preview — no login required */}
+      <Route path="/market/preview">
+        <MarketPreview />
       </Route>
 
       {/* Investor routes */}
@@ -599,8 +605,12 @@ function RateAppWatcher() {
   return <RateAppModal open={open} onClose={() => setOpen(false)} />;
 }
 
+// Routes that should bypass the splash screen (public/shareable pages)
+const PUBLIC_BYPASS_PATHS = ["/market/preview"];
+
 function App() {
-  const [splashDone, setSplashDone] = useState(false);
+  const isPublicBypass = PUBLIC_BYPASS_PATHS.some(p => window.location.pathname.endsWith(p));
+  const [splashDone, setSplashDone] = useState(isPublicBypass);
   const handleSplashDone = useCallback(() => setSplashDone(true), []);
 
   return (

@@ -331,7 +331,7 @@ function estimateYield(cropType: string, acreage: number): number {
 
 router.post("/farmer/market/crop-proposal", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
-  if (!user || user.role !== "farmer") { res.status(403).json({ error: "Farmers only" }); return; }
+  if (!user || (user.role !== "farmer" && user.role !== "agribusiness")) { res.status(403).json({ error: "Farmers only" }); return; }
 
   const { cropType, acreage, expectedYield, plantingDate, location, description } = req.body as {
     cropType?: string; acreage?: number; expectedYield?: number;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2 } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Share2 } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import {
   useGetTopMovers,
@@ -647,6 +647,19 @@ export default function MarketHome() {
               className="w-8 h-8 rounded-full bg-card flex items-center justify-center border border-border shadow-sm"
               title="Refresh market">
               <RefreshCw size={14} className={`text-foreground ${refreshing ? "animate-spin" : ""}`} />
+            </button>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/market/preview`;
+                if (navigator.share) {
+                  navigator.share({ title: "Investa Farm — Live Market", text: "Check out live farm investment listings on Investa Farm 🌾", url }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(url).catch(() => {});
+                }
+              }}
+              className="w-8 h-8 rounded-full bg-card flex items-center justify-center border border-border shadow-sm"
+              title="Share market">
+              <Share2 size={14} className="text-foreground" />
             </button>
             <button onClick={() => setLocation("/market/map")}
               className="w-8 h-8 rounded-full bg-card flex items-center justify-center border border-border shadow-sm"
