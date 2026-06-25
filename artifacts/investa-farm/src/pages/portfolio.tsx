@@ -117,6 +117,8 @@ export default function Portfolio() {
   const [statDetail, setStatDetail] = useState<"invested" | "pnl" | "holdings" | null>(null);
   const [holdingIdx, setHoldingIdx] = useState(0);
   const [, setLocation] = useLocation();
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   const token = getToken();
   const qc = useQueryClient();
   const { formatAmount } = useCurrency();
@@ -508,6 +510,21 @@ export default function Portfolio() {
                         className="flex-1 bg-card rounded-2xl border border-border overflow-hidden shadow-md flex flex-col"
                         style={{ minHeight: 0 }}
                         data-testid={`holding-${h.id}`}
+                        onTouchStart={e => {
+                          touchStartX.current = e.touches[0]?.clientX ?? null;
+                          touchStartY.current = e.touches[0]?.clientY ?? null;
+                        }}
+                        onTouchEnd={e => {
+                          if (touchStartX.current === null || touchStartY.current === null) return;
+                          const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current;
+                          const dy = (e.changedTouches[0]?.clientY ?? 0) - touchStartY.current;
+                          if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+                            if (dx < 0) setHoldingIdx(i => Math.min(holdingsList.length - 1, i + 1));
+                            else setHoldingIdx(i => Math.max(0, i - 1));
+                          }
+                          touchStartX.current = null;
+                          touchStartY.current = null;
+                        }}
                       >
                         {/* Farm image */}
                         <div className="relative flex-shrink-0" style={{ height: "32%" }}>

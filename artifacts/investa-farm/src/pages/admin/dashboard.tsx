@@ -73,6 +73,10 @@ export default function AdminDashboard() {
   const [farmsLoading, setFarmsLoading] = useState(false);
   const [payoutsLoading, setPayoutsLoading] = useState(false);
   const [harvestLoading, setHarvestLoading] = useState<number | null>(null);
+  const [fundingFarmId, setFundingFarmId] = useState<number | null>(null);
+  const [fundAmount, setFundAmount] = useState("");
+  const [fundLoading, setFundLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -289,6 +293,46 @@ export default function AdminDashboard() {
       if (r.ok) setDividends(await r.json());
     } finally {
       setPayoutsLoading(false);
+    }
+  };
+
+  const adminFundFarm = async (farmId: number) => {
+    const amt = parseFloat(fundAmount);
+    if (!amt || amt <= 0) return;
+    setFundLoading(true);
+    try {
+      const r = await fetch(`/api/admin/farms/${farmId}/fund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amountKes: amt }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      showToast(`✓ Bought ${d.sharesBought} shares for KES ${Number(d.totalCost).toLocaleString("en-KE")}`);
+      setFundingFarmId(null);
+      setFundAmount("");
+      fetchFarms();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally {
+      setFundLoading(false);
+    }
+  };
+
+  const deleteFarm = async (farmId: number, farmName: string) => {
+    if (!confirm(`Delete "${farmName}"? This permanently removes all investments, listings, and data for this farm.`)) return;
+    setDeleteLoading(farmId);
+    try {
+      const r = await fetch(`/api/admin/farms/${farmId}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Delete failed");
+      showToast("Farm deleted");
+      fetchFarms();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally {
+      setDeleteLoading(null);
     }
   };
 
@@ -1161,7 +1205,47 @@ export default function AdminDashboard() {
                       {harvestLoading === f.id ? "Paying…" : "🌾 Harvest & Pay"}
                     </button>
                   )}
+                  {f.status === "active" && f.sharesAvailable > 0 && (
+                    <button
+                      onClick={() => setFundingFarmId(fundingFarmId === f.id ? null : f.id)}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-green-50 border border-green-300 text-green-700 active:scale-95 transition-transform flex items-center gap-1"
+                    >
+                      💰 Fund
+                    </button>
+                  )}
+                  <button
+                    onClick={() => deleteFarm(f.id, f.name)}
+                    disabled={deleteLoading === f.id}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-red-50 border border-red-200 text-red-600 active:scale-95 transition-transform disabled:opacity-50 flex items-center gap-1 ml-auto"
+                  >
+                    {deleteLoading === f.id ? "…" : "🗑 Delete"}
+                  </button>
                 </div>
+                {fundingFarmId === f.id && (
+                  <div className="border-t border-green-200 bg-green-50 px-3 py-3 flex gap-2 items-center">
+                    <div className="relative flex-1">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-green-700 text-[10px] font-bold">KES</span>
+                      <input
+                        type="number"
+                        value={fundAmount}
+                        onChange={e => setFundAmount(e.target.value)}
+                        placeholder={`Max: ${(f.sharesAvailable * f.sharePrice).toLocaleString("en-KE")}`}
+                        className="w-full border border-green-300 rounded-xl pl-10 pr-3 py-2 text-xs focus:outline-none focus:border-green-500 bg-white"
+                      />
+                    </div>
+                    <button
+                      onClick={() => adminFundFarm(f.id)}
+                      disabled={fundLoading || !fundAmount}
+                      className="px-3 py-2 rounded-xl text-[10px] font-bold bg-green-600 text-white disabled:opacity-50 active:scale-95 transition-transform flex items-center gap-1"
+                    >
+                      {fundLoading ? "…" : "Invest"}
+                    </button>
+                    <button onClick={() => { setFundingFarmId(null); setFundAmount(""); }}
+                      className="px-2 py-2 rounded-xl text-[10px] bg-white border border-border text-muted-foreground">
+                      ✕
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </>
@@ -1676,84 +1760,106 @@ export default function AdminDashboard() {
       )}
 
       {/* KYC Document Viewer Modal */}
-      {viewingDoc && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-          onClick={() => setViewingDoc(null)}
-        >
+      {viewingDoc && (() => {
+        const rawUrl = viewingDoc.fileUrl;
+        const docUrl = rawUrl.startsWith("http") ? rawUrl : `${window.location.origin}${rawUrl.startsWith("/") ? rawUrl : "/" + rawUrl}`;
+        const isImage = /\.(jpg|jpeg|png|webp|gif)/i.test(rawUrl);
+        const isPdf = /\.pdf/i.test(rawUrl);
+        return (
           <div
-            className="relative w-full max-w-sm bg-background rounded-3xl overflow-hidden shadow-2xl"
-            onClick={e => e.stopPropagation()}
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            onClick={() => setViewingDoc(null)}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <div>
-                <p className="font-bold text-sm text-foreground">{viewingDoc.docType}</p>
-                <p className="text-muted-foreground text-[10px]">{viewingDoc.userName} · {viewingDoc.userEmail}</p>
-              </div>
-              <button
-                onClick={() => setViewingDoc(null)}
-                className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Document preview */}
-            <div className="bg-gray-100 flex items-center justify-center" style={{ minHeight: 300 }}>
-              {viewingDoc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)/i) ? (
-                <img
-                  src={viewingDoc.fileUrl}
-                  alt={viewingDoc.docType}
-                  className="w-full object-contain"
-                  style={{ maxHeight: 400 }}
-                  onError={(e) => {
-                    const t = e.currentTarget;
-                    t.onerror = null;
-                    t.style.display = "none";
-                    t.insertAdjacentHTML("afterend", `<div class="flex flex-col items-center gap-3 p-8 text-center"><p class="text-muted-foreground text-sm">Image could not be loaded. Try opening in browser.</p></div>`);
-                  }}
-                />
-              ) : viewingDoc.fileUrl.match(/\.pdf/i) ? (
-                <iframe
-                  src={viewingDoc.fileUrl}
-                  title={viewingDoc.docType}
-                  className="w-full"
-                  style={{ height: 400, border: "none" }}
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-3 p-8 text-center">
-                  <FileText size={48} className="text-muted-foreground" />
-                  <p className="text-muted-foreground text-sm font-medium">Click "Open in Browser" to view this document</p>
-                  <a href={viewingDoc.fileUrl} target="_blank" rel="noreferrer"
-                    className="mt-1 bg-primary text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5">
-                    <ExternalLink size={12} /> Open Document
-                  </a>
+            <div
+              className="relative w-full max-w-sm bg-background rounded-3xl overflow-hidden shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <div>
+                  <p className="font-bold text-sm text-foreground">{viewingDoc.docType}</p>
+                  <p className="text-muted-foreground text-[10px]">{viewingDoc.userName} · {viewingDoc.userEmail}</p>
                 </div>
-              )}
-            </div>
+                <button
+                  onClick={() => setViewingDoc(null)}
+                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground"
+                >
+                  <X size={16} />
+                </button>
+              </div>
 
-            {/* Actions */}
-            <div className="px-4 py-3 flex gap-2 border-t border-border">
-              <a
-                href={viewingDoc.fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 flex items-center justify-center gap-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-semibold py-2.5 rounded-xl"
-              >
-                <ExternalLink size={13} /> Open in Browser
-              </a>
-              <span className={`flex-1 flex items-center justify-center text-xs font-bold rounded-xl py-2.5 ${
-                viewingDoc.status === "approved" ? "bg-green-100 text-green-700" :
-                viewingDoc.status === "rejected" ? "bg-red-100 text-red-700" :
-                "bg-amber-100 text-amber-700"
-              }`}>
-                {viewingDoc.status === "approved" ? "✓ Approved" : viewingDoc.status === "rejected" ? "✗ Rejected" : "⏳ Pending"}
-              </span>
+              {/* Document preview */}
+              <div className="bg-gray-100 flex items-center justify-center" style={{ minHeight: 300 }}>
+                {isImage ? (
+                  <img
+                    src={docUrl}
+                    alt={viewingDoc.docType}
+                    className="w-full object-contain"
+                    style={{ maxHeight: 400 }}
+                    onError={(e) => {
+                      const t = e.currentTarget;
+                      t.onerror = null;
+                      t.style.display = "none";
+                      const msg = document.createElement("div");
+                      msg.className = "flex flex-col items-center gap-3 p-8 text-center";
+                      msg.innerHTML = `<p class='text-sm text-gray-500'>Image could not load — <a href='${docUrl}' target='_blank' class='text-blue-600 underline'>open in new tab</a></p>`;
+                      t.parentNode?.appendChild(msg);
+                    }}
+                  />
+                ) : isPdf ? (
+                  <iframe
+                    src={docUrl}
+                    title={viewingDoc.docType}
+                    className="w-full"
+                    style={{ height: 400, border: "none" }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-3 p-8 text-center">
+                    <FileText size={48} className="text-muted-foreground" />
+                    <p className="text-muted-foreground text-sm font-medium">Click "Open in Browser" to view this document</p>
+                    <a href={docUrl} target="_blank" rel="noreferrer"
+                      className="mt-1 bg-primary text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5">
+                      <ExternalLink size={12} /> Open Document
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="px-4 py-3 flex gap-2 border-t border-border">
+                <a
+                  href={docUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-semibold py-2.5 rounded-xl"
+                >
+                  <ExternalLink size={13} /> Open in Browser
+                </a>
+                {viewingDoc.status === "pending" && isMasterAdmin ? (
+                  <div className="flex gap-1.5 flex-1">
+                    <button onClick={() => { approveKycDoc(viewingDoc.id, "approved"); setViewingDoc(null); }}
+                      className="flex-1 flex items-center justify-center gap-1 bg-green-50 border border-green-200 text-green-700 text-xs font-bold py-2.5 rounded-xl active:scale-95">
+                      <CheckCircle2 size={12} /> OK
+                    </button>
+                    <button onClick={() => { approveKycDoc(viewingDoc.id, "rejected"); setViewingDoc(null); }}
+                      className="flex-1 flex items-center justify-center gap-1 bg-red-50 border border-red-200 text-red-600 text-xs font-bold py-2.5 rounded-xl active:scale-95">
+                      <XCircle size={12} /> Reject
+                    </button>
+                  </div>
+                ) : (
+                  <span className={`flex-1 flex items-center justify-center text-xs font-bold rounded-xl py-2.5 ${
+                    viewingDoc.status === "approved" ? "bg-green-100 text-green-700" :
+                    viewingDoc.status === "rejected" ? "bg-red-100 text-red-700" :
+                    "bg-amber-100 text-amber-700"
+                  }`}>
+                    {viewingDoc.status === "approved" ? "✓ Approved" : viewingDoc.status === "rejected" ? "✗ Rejected" : "⏳ Pending"}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

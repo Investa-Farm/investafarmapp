@@ -455,6 +455,38 @@ router.post("/admin/farms/:id/harvest", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/admin/farms/:id/fund", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const farmId = Number(req.params["id"]);
+  const { amountKes } = req.body as { amountKes: number };
+  if (!amountKes || amountKes <= 0) { res.status(400).json({ error: "Invalid amount" }); return; }
+  const [farm] = await db.select().from(farmsTable).where(eq(farmsTable.id, farmId));
+  if (!farm) { res.status(404).json({ error: "Farm not found" }); return; }
+  const sharePrice = Number(farm.sharePrice);
+  if (sharePrice <= 0) { res.status(400).json({ error: "Farm has no share price" }); return; }
+  const sharesToBuy = Math.min(Math.floor(amountKes / sharePrice), farm.sharesAvailable);
+  if (sharesToBuy <= 0) { res.status(400).json({ error: "Not enough shares available or amount too low" }); return; }
+  const totalCost = sharesToBuy * sharePrice;
+  // Find or use the platform admin user id (id=1 fallback)
+  const [adminUser] = await db.select().from(usersTable).where(eq(usersTable.role, "admin")).limit(1) as any;
+  const adminId = adminUser?.id ?? 1;
+  await db.insert(investmentsTable).values({
+    investorId: adminId,
+    farmId,
+    quantity: sharesToBuy,
+    purchasePrice: String(sharePrice),
+    currentPrice: String(sharePrice),
+    status: "active",
+    exitType: "full_season",
+  } as any);
+  const newAvailable = farm.sharesAvailable - sharesToBuy;
+  const updates: any = { sharesAvailable: newAvailable };
+  if (newAvailable === 0) updates.status = "funded";
+  await db.update(farmsTable).set(updates).where(eq(farmsTable.id, farmId));
+  res.json({ ok: true, sharesBought: sharesToBuy, totalCost, newAvailable });
+});
+
 router.get("/admin/dividends", async (req, res): Promise<void> => {
   const ok = await requireAdmin(req, res);
   if (!ok) return;
