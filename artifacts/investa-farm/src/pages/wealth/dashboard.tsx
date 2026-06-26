@@ -20,7 +20,7 @@ import {
 const INDIGO = "#4f46e5";
 const COLORS = ["#4f46e5", "#16a34a", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
 
-type Tab = "overview" | "funds" | "clients" | "reports";
+type Tab = "overview" | "funds" | "clients" | "reports" | "wallet";
 
 type ClientEntry = {
   id: string;
@@ -128,11 +128,25 @@ export default function WealthDashboard() {
     setLocation("/");
   };
 
+  const { data: walletData } = useQuery<{ balance: number; transactions: any[] }>({
+    queryKey: ["wealth-wallet"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (!r.ok) return { balance: 0, transactions: [] };
+      return r.json();
+    },
+    enabled: tab === "wallet",
+    staleTime: 60_000,
+  });
+  const walletBalance = walletData?.balance ?? 0;
+  const walletTxns: any[] = walletData?.transactions ?? [];
+
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: "Overview", icon: <BarChart2 size={15} /> },
-    { id: "funds", label: "Funds", icon: <Briefcase size={15} /> },
-    { id: "clients", label: "Clients", icon: <Users size={15} /> },
-    { id: "reports", label: "Reports", icon: <FileText size={15} /> },
+    { id: "funds",    label: "Funds",    icon: <Briefcase size={15} /> },
+    { id: "clients",  label: "Clients",  icon: <Users size={15} /> },
+    { id: "reports",  label: "Reports",  icon: <FileText size={15} /> },
+    { id: "wallet",   label: "Wallet",   icon: <Wallet size={15} /> },
   ];
 
   return (
@@ -494,6 +508,76 @@ export default function WealthDashboard() {
                 </div>
               </>
             )}
+
+            {/* ── WALLET TAB ── */}
+            {tab === "wallet" && (
+              <>
+                <p className="font-bold text-foreground text-base">Fund Wallet</p>
+
+                <div className="rounded-3xl overflow-hidden" style={{ background: "linear-gradient(160deg,#1e1b4b 0%,#312e81 60%,#4f46e5 100%)" }}>
+                  <div className="px-5 pt-5 pb-4">
+                    <p className="text-indigo-200 text-[10px] font-semibold uppercase tracking-wider mb-1">Available Balance</p>
+                    <p className="text-white font-black text-3xl">{formatKES(walletBalance)}</p>
+                    <p className="text-indigo-200 text-xs mt-1.5">Fund Manager Wallet · {user?.name}</p>
+                  </div>
+                  <div className="grid grid-cols-2 divide-x divide-white/10 border-t border-white/10">
+                    <a href="/wallet" className="py-3 text-center text-white/80 text-xs font-semibold active:bg-white/10 transition-colors block">＋ Add Funds</a>
+                    <a href="/wallet" className="py-3 text-center text-white/80 text-xs font-semibold active:bg-white/10 transition-colors block">↑ Withdraw</a>
+                  </div>
+                </div>
+
+                <div className="bg-card rounded-2xl border border-border p-4">
+                  <p className="font-semibold text-foreground text-sm mb-3">Recent Transactions</p>
+                  {walletTxns.length === 0 ? (
+                    <div className="text-center py-6">
+                      <Wallet size={24} className="text-muted-foreground mx-auto mb-2" />
+                      <p className="text-muted-foreground text-sm">No transactions yet</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">Add funds to start investing in farm portfolios</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {walletTxns.slice(0, 6).map((tx: any, i: number) => {
+                        const isIn = (tx.amount ?? 0) > 0 || tx.type === "deposit" || tx.type === "dividend";
+                        return (
+                          <div key={tx.id ?? i} className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isIn ? "bg-green-50" : "bg-red-50"}`}>
+                              <span className="text-sm">{isIn ? "↓" : "↑"}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-foreground text-xs font-semibold truncate">{tx.description ?? tx.type ?? "Transaction"}</p>
+                              <p className="text-muted-foreground text-[9px]">{tx.createdAt ? new Date(tx.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short" }) : "—"}</p>
+                            </div>
+                            <p className={`text-xs font-bold flex-shrink-0 ${isIn ? "text-green-600" : "text-red-500"}`}>
+                              {isIn ? "+" : "-"}{formatKES(Math.abs(tx.amount ?? 0))}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
+                  <p className="text-indigo-800 text-xs font-bold mb-3">Quick Actions</p>
+                  <div className="space-y-2">
+                    {[
+                      { label: "Invest in Farm Portfolio", desc: "Browse active farms and allocate client capital", icon: "🌾", href: "/market"    },
+                      { label: "View Full Portfolio",       desc: "Track all fund holdings and performance",        icon: "📊", href: "/portfolio" },
+                    ].map(a => (
+                      <a key={a.label} href={a.href}
+                        className="w-full flex items-center gap-3 bg-white rounded-xl px-3 py-2.5 border border-indigo-100 active:scale-95 transition-all text-left no-underline">
+                        <span className="text-base">{a.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-indigo-800 text-xs font-semibold">{a.label}</p>
+                          <p className="text-indigo-400 text-[9px]">{a.desc}</p>
+                        </div>
+                        <ArrowUpRight size={12} className="text-indigo-400 flex-shrink-0" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -548,12 +632,13 @@ export default function WealthDashboard() {
       </AnimatePresence>
 
       {/* Bottom nav */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-background border-t border-border px-6 py-3 flex items-center justify-around">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-background border-t border-border px-2 py-3 flex items-center justify-around">
         {[
-          { id: "overview", label: "Overview", icon: <BarChart2 size={20} /> },
-          { id: "funds", label: "Funds", icon: <Briefcase size={20} /> },
-          { id: "clients", label: "Clients", icon: <Users size={20} /> },
-          { id: "reports", label: "Reports", icon: <FileText size={20} /> },
+          { id: "overview", label: "Overview", icon: <BarChart2 size={18} /> },
+          { id: "funds",    label: "Funds",    icon: <Briefcase size={18} /> },
+          { id: "clients",  label: "Clients",  icon: <Users size={18} /> },
+          { id: "reports",  label: "Reports",  icon: <FileText size={18} /> },
+          { id: "wallet",   label: "Wallet",   icon: <Wallet size={18} /> },
         ].map(item => (
           <button key={item.id} onClick={() => setTab(item.id as Tab)}
             className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${tab === item.id ? "text-indigo-600" : "text-muted-foreground"}`}>

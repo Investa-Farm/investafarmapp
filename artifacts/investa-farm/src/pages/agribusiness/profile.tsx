@@ -16,6 +16,14 @@ export default function AgribusinessProfile() {
 
   const agribizType = (user as any)?.agribizType ?? localStorage.getItem("investa_agribiz_type") ?? "farmer_connector";
   const isInputSupplier = agribizType === "input_supplier";
+  const BRAND_CONFIGS = {
+    sales_agent:      { gradient: "linear-gradient(135deg,#451a03 0%,#92400e 60%,#f59e0b 100%)", badge: "bg-amber-500 text-white",   label: "Sales Agent",      backPath: "/sales-agent/dashboard"  },
+    offtaker:         { gradient: "linear-gradient(135deg,#2e1065 0%,#4c1d95 60%,#7c3aed 100%)", badge: "bg-violet-500 text-white",  label: "Offtaker",         backPath: "/offtaker/dashboard"     },
+    input_supplier:   { gradient: "linear-gradient(135deg,#431407 0%,#9a3412 60%,#ea580c 100%)", badge: "bg-orange-500 text-white",  label: "Input Supplier",   backPath: "/agribusiness"           },
+    farmer_connector: { gradient: "linear-gradient(135deg,#052e16 0%,#14532d 40%,#16a34a 100%)", badge: "bg-emerald-500 text-white", label: "Farmer Connector", backPath: "/agribusiness"           },
+    cooperative:      { gradient: "linear-gradient(135deg,#052e16 0%,#14532d 40%,#16a34a 100%)", badge: "bg-emerald-500 text-white", label: "Co-operative",     backPath: "/cooperative/dashboard"  },
+  };
+  const brand = BRAND_CONFIGS[agribizType as keyof typeof BRAND_CONFIGS] ?? BRAND_CONFIGS.farmer_connector;
 
   const [name, setName] = useState(user?.name ?? "");
   const [phone, setPhone] = useState((user as any)?.phone ?? "");
@@ -109,13 +117,11 @@ export default function AgribusinessProfile() {
 
       {/* Header */}
       <div className="relative overflow-hidden" style={{ minHeight: 180 }}>
-        <div className="absolute inset-0" style={isInputSupplier
-          ? { background: "linear-gradient(135deg, #431407 0%, #9a3412 60%, #ea580c 100%)" }
-          : { background: "linear-gradient(135deg, #052e16 0%, #14532d 40%, #16a34a 80%, #22c55e 100%)" }} />
+        <div className="absolute inset-0" style={{ background: brand.gradient }} />
         <div className="relative z-10 pt-12 px-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button onClick={() => setLocation("/agribusiness")} className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
+              <button onClick={() => setLocation(brand.backPath)} className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
                 <ArrowLeft size={16} className="text-white" />
               </button>
               <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
@@ -147,8 +153,8 @@ export default function AgribusinessProfile() {
                 <h1 className="text-white text-lg font-bold">{user?.name}</h1>
                 {isVerified && <ShieldCheck size={16} className="text-green-300" />}
               </div>
-              <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${isInputSupplier ? "bg-orange-500 text-white" : "bg-emerald-500 text-white"}`}>
-                {isInputSupplier ? "Input Supplier" : "Farmer Connector"}
+              <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${brand.badge}`}>
+                {brand.label}
               </span>
               <p className="text-white/70 text-xs mt-1">{user?.email}</p>
             </div>

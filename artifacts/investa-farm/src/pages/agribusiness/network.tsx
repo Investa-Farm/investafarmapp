@@ -27,6 +27,15 @@ export default function AgribusinessNetwork() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "kyc_done" | "pending" | "new">("all");
+  const agribizType = (user as any)?.agribizType ?? localStorage.getItem("investa_agribiz_type") ?? "farmer_connector";
+  const NET_BRAND: Record<string, { gradient: string; title: string; subtitle: string }> = {
+    sales_agent:      { gradient: "linear-gradient(135deg,#451a03 0%,#92400e 60%,#f59e0b 100%)", title: "Farmer Prospects",    subtitle: "Farmers you've onboarded & connected"   },
+    offtaker:         { gradient: "linear-gradient(135deg,#2e1065 0%,#4c1d95 60%,#7c3aed 100%)", title: "Supply Network",      subtitle: "Farmers available to supply your produce" },
+    input_supplier:   { gradient: "linear-gradient(135deg,#431407 0%,#9a3412 60%,#ea580c 100%)", title: "Customer Farmers",    subtitle: "Farmers purchasing your inputs"           },
+    farmer_connector: { gradient: "linear-gradient(135deg,#052e16 0%,#14532d 40%,#16a34a 100%)", title: "My Farmer Network",   subtitle: "Farmers you've onboarded to Investa Farm" },
+    cooperative:      { gradient: "linear-gradient(135deg,#052e16 0%,#14532d 40%,#16a34a 100%)", title: "Co-operative Members", subtitle: "Registered member farmers"               },
+  };
+  const netBrand = NET_BRAND[agribizType] ?? NET_BRAND.farmer_connector!;
 
   const { data: notifications = [] } = useQuery<any[]>({
     queryKey: ["notifications"],
@@ -88,7 +97,7 @@ export default function AgribusinessNetwork() {
 
       {/* Header */}
       <div className="relative overflow-hidden" style={{ minHeight: 160 }}>
-        <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 40%, #16a34a 80%, #22c55e 100%)" }} />
+        <div className="absolute inset-0" style={{ background: netBrand.gradient }} />
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='white' fill-opacity='1' fill-rule='evenodd'%3E%3Ccircle cx='20' cy='20' r='2'/%3E%3C/g%3E%3C/svg%3E\")" }} />
         <div className="relative z-10 pt-12 px-5">
           <div className="flex items-center justify-between">
@@ -106,8 +115,8 @@ export default function AgribusinessNetwork() {
             </button>
           </div>
           <div className="mt-4 mb-4">
-            <h1 className="text-white text-2xl font-bold">My Farmer Network</h1>
-            <p className="text-white/70 text-xs mt-0.5">Farmers you've onboarded to Investa Farm</p>
+            <h1 className="text-white text-2xl font-bold">{netBrand.title}</h1>
+            <p className="text-white/70 text-xs mt-0.5">{netBrand.subtitle}</p>
           </div>
         </div>
       </div>
