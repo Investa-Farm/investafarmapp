@@ -3,7 +3,14 @@ set -e
 
 if ! command -v pnpm &> /dev/null; then
   echo "==> pnpm not found, installing..."
-  npm install -g pnpm
+  npm install -g pnpm@9
+fi
+
+# Ensure pnpm version is v9 (lockfile was generated with pnpm v9)
+PNPM_MAJOR=$(pnpm --version | cut -d. -f1)
+if [ "$PNPM_MAJOR" != "9" ]; then
+  echo "==> Detected pnpm v$(pnpm --version), switching to pnpm v9..."
+  npm install -g pnpm@9
 fi
 
 echo "==> Installing dependencies..."
