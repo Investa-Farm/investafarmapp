@@ -187,7 +187,9 @@ async function runPriceSimulation(): Promise<void> {
         );
       }
 
-      const prevPrice = Number(farm.currentPrice) || Number(farm.sharePrice) || P_execution;
+      // Use the last market price as the baseline; fall back to P_execution on first run
+      // (avoids a misleading -80% drop when comparing fair value to face value on day 1)
+      const prevPrice = Number(farm.currentPrice) || P_execution;
       const changePercent = ((P_execution - prevPrice) / Math.max(prevPrice, 0.01)) * 100;
 
       await db.update(farmsTable)
