@@ -165,19 +165,19 @@ export default function OfftakerDashboard() {
         </div>
 
         {tab === "home" && (
-          <div className="grid grid-cols-2 gap-2 pb-4">
+          <div className="grid grid-cols-2 gap-2 pb-5">
             {[
-              { label: "Active Contracts", val: stats?.activeContracts ?? 0, icon: "📋" },
-              { label: "Farms Available", val: stats?.availableFarms ?? farms.length, icon: "🌾" },
-              { label: "Fulfilled Orders", val: stats?.fulfilledContracts ?? 0, icon: "✅" },
-              { label: "Total Purchased", val: formatKES(stats?.totalPurchasedKes ?? totalKes), icon: "💰" },
+              { label: "Active Contracts", val: stats?.activeContracts ?? 0, icon: "📋", accent: "border-blue-300/30 bg-blue-400/15" },
+              { label: "Farms Available", val: stats?.availableFarms ?? farms.length, icon: "🌾", accent: "border-green-300/30 bg-green-400/15" },
+              { label: "Fulfilled Orders", val: stats?.fulfilledContracts ?? 0, icon: "✅", accent: "border-emerald-300/30 bg-emerald-400/15" },
+              { label: "Total Purchased", val: formatKES(stats?.totalPurchasedKes ?? totalKes), icon: "💰", accent: "border-amber-300/30 bg-amber-400/15" },
             ].map(s => (
-              <div key={s.label} className="bg-white/10 rounded-2xl p-3">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-sm">{s.icon}</span>
-                  <p className="text-white/70 text-[10px] font-medium">{s.label}</p>
+              <div key={s.label} className={`rounded-2xl p-3 border ${s.accent} backdrop-blur-sm`}>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-base">{s.icon}</span>
+                  <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wider">{s.label}</p>
                 </div>
-                <p className="text-white font-bold text-base">{s.val}</p>
+                <p className="text-white font-extrabold text-xl leading-none">{s.val}</p>
               </div>
             ))}
           </div>
@@ -308,61 +308,63 @@ export default function OfftakerDashboard() {
                   </div>
                 ) : filteredFarms.map(f => (
                   <motion.div key={f.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                    className="bg-white border border-border rounded-2xl overflow-hidden">
+                    className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+                    {/* Coloured top bar */}
+                    <div className="h-1.5 bg-gradient-to-r from-green-500 to-emerald-400" style={{ width: `${f.fundedPercent}%` }} />
                     <div className="p-4">
                       <div className="flex items-start gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-2xl flex-shrink-0">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center text-3xl flex-shrink-0 border border-green-200">
                           {cropEmoji(f.cropType)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-foreground font-bold text-sm truncate">{f.name}</p>
+                          <p className="text-foreground font-extrabold text-sm truncate">{f.name}</p>
                           <p className="text-muted-foreground text-[11px] flex items-center gap-1 mt-0.5">
                             <MapPin size={10} /> {f.location}
                           </p>
-                          <div className="flex flex-wrap gap-1 mt-1">
+                          <div className="flex flex-wrap gap-1 mt-1.5">
                             {f.certifications.map(c => (
-                              <span key={c} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">{c}</span>
+                              <span key={c} className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">{c}</span>
                             ))}
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-green-700 font-bold text-sm">KES {f.pricePerKgKes}/kg</p>
+                          <p className="text-green-700 font-extrabold text-sm">KES {f.pricePerKgKes}/kg</p>
                           <p className="text-muted-foreground text-[10px]">market rate</p>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-2 mb-3">
                         {[
-                          { label: "Yield Est.", val: `${f.estimatedYieldTons}t` },
-                          { label: "Harvest In", val: `${f.daysToHarvest}d` },
-                          { label: "Min Order", val: `${f.minOrderTons}t` },
+                          { label: "Yield Est.", val: `${f.estimatedYieldTons}t`, color: "bg-blue-50 text-blue-700" },
+                          { label: "Harvest In", val: `${f.daysToHarvest}d`, color: "bg-amber-50 text-amber-700" },
+                          { label: "Min Order", val: `${f.minOrderTons}t`, color: "bg-green-50 text-green-700" },
                         ].map(s => (
-                          <div key={s.label} className="bg-gray-50 rounded-xl p-2 text-center">
-                            <p className="text-foreground font-bold text-xs">{s.val}</p>
-                            <p className="text-muted-foreground text-[9px]">{s.label}</p>
+                          <div key={s.label} className={`${s.color} rounded-xl p-2 text-center`}>
+                            <p className="font-extrabold text-xs">{s.val}</p>
+                            <p className="text-[9px] opacity-70 mt-0.5">{s.label}</p>
                           </div>
                         ))}
                       </div>
 
                       <div className="mb-3">
                         <div className="flex justify-between text-[10px] mb-1">
-                          <span className="text-muted-foreground">Funded</span>
-                          <span className="font-semibold text-green-600">{f.fundedPercent}%</span>
+                          <span className="text-muted-foreground font-medium">Investment Progress</span>
+                          <span className="font-bold text-green-600">{f.fundedPercent}% funded</span>
                         </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full">
-                          <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${f.fundedPercent}%` }} />
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all" style={{ width: `${f.fundedPercent}%` }} />
                         </div>
                       </div>
 
                       <div className="flex gap-2">
                         {f.farmerPhone && (
                           <a href={`tel:${f.farmerPhone}`}
-                            className="h-9 px-3 rounded-xl border border-border text-muted-foreground text-xs flex items-center gap-1.5 active:scale-95 transition-all">
+                            className="h-10 px-3 rounded-xl border border-border text-muted-foreground text-xs flex items-center gap-1.5 active:scale-95 transition-all font-medium">
                             <Phone size={12} /> Call Farmer
                           </a>
                         )}
                         <button onClick={() => openOrderSheet(f)}
-                          className="flex-1 h-9 rounded-xl bg-primary text-white text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1.5">
+                          className="flex-1 h-10 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 text-white text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-green-200">
                           <Plus size={13} /> Place Order
                         </button>
                       </div>

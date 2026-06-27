@@ -204,119 +204,135 @@ export default function AgribusinessDashboard() {
             <div className="grid grid-cols-2 gap-3">
               {isInputSupplier ? (
                 <>
-                  <div className="bg-card rounded-2xl border border-border p-3.5">
-                    <p className="text-muted-foreground text-[10px]">Pending Orders</p>
-                    <p className="text-foreground font-bold text-2xl mt-1">{agribizStats ? String(agribizStats.pendingOrders) : "—"}</p>
-                    <p className="text-orange-500 text-[10px] font-medium mt-0.5">{agribizStats?.pendingOrders === 0 ? "All up to date" : "Awaiting fulfilment"}</p>
+                  <div className="rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 p-3.5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-14 h-14 bg-orange-200 rounded-full -mr-4 -mt-4 opacity-40" />
+                    <p className="text-orange-700 text-[10px] font-semibold uppercase tracking-wider">Pending Orders</p>
+                    <p className="text-orange-900 font-extrabold text-3xl mt-1 leading-none">{agribizStats ? String(agribizStats.pendingOrders) : "—"}</p>
+                    <p className="text-orange-500 text-[10px] font-medium mt-1">{agribizStats?.pendingOrders === 0 ? "✓ All up to date" : "Awaiting fulfilment"}</p>
                   </div>
-                  <div className="bg-card rounded-2xl border border-border p-3.5">
-                    <p className="text-muted-foreground text-[10px]">Total Redeemed</p>
-                    <p className="text-foreground font-bold text-xl mt-1">{agribizStats ? formatKES(agribizStats.totalRedeemedKes) : "—"}</p>
-                    <p className="text-muted-foreground text-[10px] mt-0.5">This season</p>
+                  <div className="rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 p-3.5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-14 h-14 bg-green-200 rounded-full -mr-4 -mt-4 opacity-40" />
+                    <p className="text-green-700 text-[10px] font-semibold uppercase tracking-wider">Total Redeemed</p>
+                    <p className="text-green-900 font-extrabold text-xl mt-1 leading-none">{agribizStats ? formatKES(agribizStats.totalRedeemedKes) : "—"}</p>
+                    <p className="text-green-600 text-[10px] font-medium mt-1">This season</p>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="bg-card rounded-2xl border border-border p-3.5">
-                    <p className="text-muted-foreground text-[10px]">Farmers Connected</p>
-                    <p className="text-foreground font-bold text-2xl mt-1">{agribizStats ? String(agribizStats.farmersConnected) : "—"}</p>
-                    <p className="text-green-500 text-[10px] font-medium mt-0.5">Unique farmers</p>
+                  <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 p-3.5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-14 h-14 bg-emerald-200 rounded-full -mr-4 -mt-4 opacity-40" />
+                    <p className="text-emerald-700 text-[10px] font-semibold uppercase tracking-wider">Farmers Connected</p>
+                    <p className="text-emerald-900 font-extrabold text-3xl mt-1 leading-none">{agribizStats ? String(agribizStats.farmersConnected) : "—"}</p>
+                    <p className="text-emerald-600 text-[10px] font-medium mt-1">Unique farmers</p>
                   </div>
-                  <div className="bg-card rounded-2xl border border-border p-3.5">
-                    <p className="text-muted-foreground text-[10px]">Commission Earned</p>
-                    <p className="text-foreground font-bold text-xl mt-1">{agribizStats ? formatKES(agribizStats.commissionEarned) : "—"}</p>
-                    <p className="text-muted-foreground text-[10px] mt-0.5">This season</p>
+                  <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 p-3.5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-14 h-14 bg-amber-200 rounded-full -mr-4 -mt-4 opacity-40" />
+                    <p className="text-amber-700 text-[10px] font-semibold uppercase tracking-wider">Commission Earned</p>
+                    <p className="text-amber-900 font-extrabold text-xl mt-1 leading-none">{agribizStats ? formatKES(agribizStats.commissionEarned) : "—"}</p>
+                    <p className="text-amber-600 text-[10px] font-medium mt-1">This season</p>
                   </div>
                 </>
               )}
-              <div className="bg-card rounded-2xl border border-border p-3.5">
-                <p className="text-muted-foreground text-[10px]">KYC Status</p>
-                <p className={`font-bold text-sm mt-1 ${kycApproved >= 2 ? "text-green-600" : kycPending > 0 ? "text-blue-500" : "text-amber-600"}`}>
-                  {kycApproved >= 2 ? "✓ Verified" : kycPending > 0 ? "Under Review" : "Pending"}
-                </p>
-                <p className="text-muted-foreground text-[10px] mt-0.5">{kycApproved}/{kycDocs.length} docs approved</p>
+              <div className="bg-card rounded-2xl border border-border p-3.5 flex items-center gap-2.5">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${kycApproved >= 2 ? "bg-green-100" : kycPending > 0 ? "bg-blue-100" : "bg-amber-100"}`}>
+                  <ShieldCheck size={16} className={kycApproved >= 2 ? "text-green-600" : kycPending > 0 ? "text-blue-500" : "text-amber-600"} />
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-[10px]">KYC Status</p>
+                  <p className={`font-bold text-sm ${kycApproved >= 2 ? "text-green-600" : kycPending > 0 ? "text-blue-500" : "text-amber-600"}`}>
+                    {kycApproved >= 2 ? "✓ Verified" : kycPending > 0 ? "Under Review" : "Pending"}
+                  </p>
+                  <p className="text-muted-foreground text-[10px]">{kycApproved}/{kycDocs.length} approved</p>
+                </div>
               </div>
-              <div className="bg-card rounded-2xl border border-border p-3.5">
-                <p className="text-muted-foreground text-[10px]">Platform Status</p>
-                <p className="text-green-600 font-bold text-sm mt-1">Active</p>
-                <p className="text-muted-foreground text-[10px] mt-0.5">Partner account</p>
+              <div className="bg-card rounded-2xl border border-border p-3.5 flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-[10px]">Platform Status</p>
+                  <p className="text-green-600 font-bold text-sm">Active</p>
+                  <p className="text-muted-foreground text-[10px]">Partner account</p>
+                </div>
               </div>
             </div>
 
             {/* Quick Actions */}
             <div className="space-y-2">
-              <p className="font-semibold text-sm">Quick Actions</p>
+              <p className="font-bold text-sm text-foreground">Quick Actions</p>
               {isInputSupplier ? (
                 <>
                   <Link href="/agribusiness/orders">
-                    <div className="flex items-center gap-3 bg-card rounded-2xl border border-border p-4 cursor-pointer active:scale-98 transition-transform">
-                      <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-                        <Package size={20} className="text-orange-600" />
+                    <div className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-sm">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center flex-shrink-0 shadow-sm shadow-orange-200">
+                        <Package size={20} className="text-white" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-sm">Voucher Orders</p>
-                        <p className="text-muted-foreground text-xs">View and fulfil incoming farmer voucher orders</p>
+                        <p className="font-bold text-sm text-orange-900">Voucher Orders</p>
+                        <p className="text-orange-600 text-xs">View and fulfil incoming farmer orders</p>
                       </div>
-                      <ChevronRight size={16} className="text-muted-foreground" />
+                      {agribizStats?.pendingOrders ? (
+                        <span className="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full">{agribizStats.pendingOrders}</span>
+                      ) : <ChevronRight size={16} className="text-orange-400" />}
                     </div>
                   </Link>
                   <button onClick={() => setActiveSection("catalogue")}
-                    className="w-full flex items-center gap-3 bg-card rounded-2xl border border-border p-4 cursor-pointer active:scale-98 transition-transform text-left">
-                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <TrendingUp size={20} className="text-blue-600" />
+                    className="w-full flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform text-left shadow-sm">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-200">
+                      <TrendingUp size={20} className="text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold text-sm">Catalogue & Pricing</p>
-                      <p className="text-muted-foreground text-xs">{products.length} product{products.length !== 1 ? "s" : ""} listed · tap to manage</p>
+                      <p className="font-bold text-sm text-blue-900">Catalogue & Pricing</p>
+                      <p className="text-blue-600 text-xs">{products.length} product{products.length !== 1 ? "s" : ""} listed · tap to manage</p>
                     </div>
-                    <ChevronRight size={16} className="text-muted-foreground" />
+                    <ChevronRight size={16} className="text-blue-400" />
                   </button>
-                  <div className="flex items-center gap-3 bg-card rounded-2xl border border-border p-4">
-                    <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <MapPin size={20} className="text-green-600" />
+                  <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 shadow-sm">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-green-200">
+                      <MapPin size={20} className="text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold text-sm">My Business Location</p>
-                      <p className="text-muted-foreground text-xs">{(user as any)?.county ?? "County not set"} · Kenya</p>
+                      <p className="font-bold text-sm text-green-900">My Business Location</p>
+                      <p className="text-green-600 text-xs">{(user as any)?.county ?? "County not set"} · Kenya</p>
                     </div>
-                    <ChevronRight size={16} className="text-muted-foreground" />
+                    <ChevronRight size={16} className="text-green-400" />
                   </div>
                 </>
               ) : (
                 <>
                   <button onClick={() => setActiveSection("referral")}
-                    className="w-full flex items-center gap-3 bg-card rounded-2xl border border-border p-4 cursor-pointer active:scale-98 transition-transform text-left">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                      <Handshake size={20} className="text-emerald-600" />
+                    className="w-full flex items-center gap-3 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform text-left shadow-sm">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-emerald-200">
+                      <Handshake size={20} className="text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold text-sm">Refer a Farmer</p>
-                      <p className="text-muted-foreground text-xs">Generate & share your referral link</p>
+                      <p className="font-bold text-sm text-emerald-900">Refer a Farmer</p>
+                      <p className="text-emerald-600 text-xs">Generate & share your referral link</p>
                     </div>
-                    <ChevronRight size={16} className="text-muted-foreground" />
+                    <ChevronRight size={16} className="text-emerald-400" />
                   </button>
                   <Link href="/agribusiness/network">
-                    <div className="flex items-center gap-3 bg-card rounded-2xl border border-border p-4 cursor-pointer active:scale-98 transition-transform">
-                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                        <Users size={20} className="text-blue-600" />
+                    <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-sm">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-200">
+                        <Users size={20} className="text-white" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-sm">My Farmer Network</p>
-                        <p className="text-muted-foreground text-xs">{myNetwork.length} farmer{myNetwork.length !== 1 ? "s" : ""} onboarded</p>
+                        <p className="font-bold text-sm text-blue-900">My Farmer Network</p>
+                        <p className="text-blue-600 text-xs">{myNetwork.length} farmer{myNetwork.length !== 1 ? "s" : ""} onboarded</p>
                       </div>
-                      <ChevronRight size={16} className="text-muted-foreground" />
+                      <ChevronRight size={16} className="text-blue-400" />
                     </div>
                   </Link>
                   <button onClick={() => setActiveSection("commissions")}
-                    className="w-full flex items-center gap-3 bg-card rounded-2xl border border-border p-4 cursor-pointer active:scale-98 transition-transform text-left">
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                      <Star size={20} className="text-amber-600" />
+                    className="w-full flex items-center gap-3 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform text-left shadow-sm">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-sm shadow-amber-200">
+                      <Star size={20} className="text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold text-sm">Commission History</p>
-                      <p className="text-muted-foreground text-xs">{commissions.length} record{commissions.length !== 1 ? "s" : ""} · total {formatKES(agribizStats?.commissionEarned ?? 0)}</p>
+                      <p className="font-bold text-sm text-amber-900">Commission History</p>
+                      <p className="text-amber-600 text-xs">{commissions.length} record{commissions.length !== 1 ? "s" : ""} · total {formatKES(agribizStats?.commissionEarned ?? 0)}</p>
                     </div>
-                    <ChevronRight size={16} className="text-muted-foreground" />
+                    <ChevronRight size={16} className="text-amber-400" />
                   </button>
                 </>
               )}

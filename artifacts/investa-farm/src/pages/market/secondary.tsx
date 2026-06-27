@@ -321,28 +321,29 @@ export default function SecondaryMarket() {
               const isUp = avgChange >= 0;
               const regions = [...new Set(cropListings.map(l => l.location?.split(",")[0]?.trim() ?? "Kenya"))].slice(0, 3);
               return (
-                <div key={crop} className="rounded-2xl border overflow-hidden shadow-sm" style={{ borderColor: isUp ? "rgba(22,163,74,0.25)" : undefined, background: "var(--card)" }}>
+                <div key={crop} className="rounded-2xl border overflow-hidden shadow-md"
+                  style={{ borderColor: isUp ? "rgba(22,163,74,0.2)" : "rgba(220,38,38,0.15)", background: "var(--card)" }}>
                   {/* Crop group header */}
                   <button
-                    className="w-full flex items-center gap-3 p-2.5 active:bg-muted/40 transition-colors"
+                    className="w-full flex items-center gap-3 p-3 active:bg-muted/40 transition-colors"
                     onClick={() => setExpandedCrop(isExpanded ? null : crop)}
                   >
-                    <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+                    <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm">
                       <img src={getCropImage(crop, undefined)} alt={crop} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-foreground font-bold text-sm">{crop}</p>
-                        <span className="text-[9px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded-full">{cropListings.length} seller{cropListings.length !== 1 ? "s" : ""}</span>
+                        <p className="text-foreground font-extrabold text-sm">{crop}</p>
+                        <span className="text-[9px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded-full border border-primary/20">{cropListings.length} seller{cropListings.length !== 1 ? "s" : ""}</span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         <MapPin size={9} className="text-muted-foreground" />
                         <span className="text-muted-foreground text-[10px] truncate">{regions.join(" · ")}</span>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                      <p className="text-foreground font-bold text-sm">{formatKES(bestPrice)}</p>
-                      <span className={`text-[10px] font-bold flex items-center gap-0.5 ${isUp ? "text-green-600" : "text-red-500"}`}>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <p className="text-foreground font-extrabold text-base leading-none">{formatKES(bestPrice)}</p>
+                      <span className={`text-[10px] font-bold flex items-center gap-0.5 px-2 py-0.5 rounded-full ${isUp ? "text-green-600 bg-green-50" : "text-red-500 bg-red-50"}`}>
                         {isUp ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
                         {formatChange(avgChange)}
                       </span>
@@ -369,64 +370,67 @@ export default function SecondaryMarket() {
                           return (
                             <div key={listing.id}
                               data-testid={`secondary-listing-${listing.id}`}
-                              className={`flex items-center gap-3 px-3 py-2.5 ${i < cropListings.length - 1 ? "border-b border-border" : ""}`}
+                              className={`px-3 py-3 ${i < cropListings.length - 1 ? "border-b border-border/60" : ""} ${i % 2 === 0 ? "bg-muted/20" : ""}`}
                             >
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 mb-0.5">
-                                  <p className="text-foreground text-xs font-semibold truncate">{listing.farmName}</p>
-                                  <span className="text-[8px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">RESALE</span>
+                              <div className="flex items-center gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <p className="text-foreground text-xs font-bold truncate">{listing.farmName}</p>
+                                    <span className="text-[8px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 border border-primary/20">P2P</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <MapPin size={9} className="text-muted-foreground flex-shrink-0" />
+                                    <span className="text-muted-foreground text-[10px] truncate">{region}</span>
+                                    <RiskBadge level={risk} />
+                                  </div>
+                                  {listing.sellerName && (
+                                    <p className="text-muted-foreground text-[9px] mt-0.5 flex items-center gap-1">
+                                      <span className="opacity-60">↑</span> {listing.sellerName}
+                                    </p>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                  <MapPin size={9} className="text-muted-foreground flex-shrink-0" />
-                                  <span className="text-muted-foreground text-[10px] truncate">{region}</span>
-                                  <span className="text-muted-foreground/40 text-[10px]">·</span>
-                                  <RiskBadge level={risk} />
+                                <div className="w-16 flex-shrink-0">
+                                  <Sparkline data={sparkData} color={up ? "#16a34a" : "#dc2626"} height={28} />
                                 </div>
-                                {listing.sellerName && (
-                                  <p className="text-muted-foreground text-[9px] mt-0.5">📤 {listing.sellerName}</p>
-                                )}
-                              </div>
-                              <div className="w-14 flex-shrink-0">
-                                <Sparkline data={sparkData} color={up ? "#16a34a" : "#dc2626"} height={24} />
-                              </div>
-                              <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                                <p className="text-foreground font-bold text-sm">{formatKES(listing.pricePerShare)}</p>
-                                <span className={`text-[9px] font-bold ${up ? "text-green-600" : "text-red-500"}`}>
-                                  {formatChange(listing.changePercent)}
-                                </span>
-                                {(listing as any).dcfFairValue && (
-                                  <span className={`text-[8px] font-semibold px-1 py-0.5 rounded ${
-                                    (listing as any).dcfPremiumPct > 5
-                                      ? "bg-amber-50 text-amber-600"
-                                      : (listing as any).dcfPremiumPct < -5
-                                        ? "bg-green-50 text-green-600"
-                                        : "bg-muted text-muted-foreground"
-                                  }`}>
-                                    {(listing as any).dcfPremiumPct > 0 ? "+" : ""}{(listing as any).dcfPremiumPct?.toFixed(1)}% vs DCF
+                                <div className="flex flex-col items-end gap-1 flex-shrink-0 min-w-[88px]">
+                                  <p className="text-foreground font-extrabold text-sm leading-none">{formatKES(listing.pricePerShare)}</p>
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${up ? "text-green-600 bg-green-50" : "text-red-500 bg-red-50"}`}>
+                                    {formatChange(listing.changePercent)}
                                   </span>
-                                )}
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setMoreListing(listing); }}
-                                    title="More details"
-                                    className="w-7 h-7 rounded-lg border border-border flex items-center justify-center active:scale-95 transition-transform hover:bg-primary/5 hover:border-primary/30"
-                                  >
-                                    <Info size={11} className="text-muted-foreground" />
-                                  </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setAlertListing(listing); }}
-                                    title="Set price alert"
-                                    className="w-7 h-7 rounded-lg border border-border flex items-center justify-center active:scale-95 transition-transform hover:bg-amber-50 hover:border-amber-300 group"
-                                  >
-                                    <BellRing size={12} className="text-muted-foreground group-hover:text-amber-500" />
-                                  </button>
-                                  <button
-                                    data-testid={`button-buy-${listing.id}`}
-                                    onClick={(e) => handleBuyClick(e, listing)}
-                                    className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm"
-                                  >
-                                    BUY
-                                  </button>
+                                  {(listing as any).dcfFairValue && (
+                                    <span className={`text-[8px] font-semibold px-1 py-0.5 rounded ${
+                                      (listing as any).dcfPremiumPct > 5
+                                        ? "bg-amber-50 text-amber-600"
+                                        : (listing as any).dcfPremiumPct < -5
+                                          ? "bg-green-50 text-green-600"
+                                          : "bg-muted text-muted-foreground"
+                                    }`}>
+                                      {(listing as any).dcfPremiumPct > 0 ? "+" : ""}{(listing as any).dcfPremiumPct?.toFixed(1)}% DCF
+                                    </span>
+                                  )}
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setMoreListing(listing); }}
+                                      title="More details"
+                                      className="w-7 h-7 rounded-lg border border-border flex items-center justify-center active:scale-95 transition-transform hover:bg-primary/5 hover:border-primary/30"
+                                    >
+                                      <Info size={11} className="text-muted-foreground" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setAlertListing(listing); }}
+                                      title="Set price alert"
+                                      className="w-7 h-7 rounded-lg border border-border flex items-center justify-center active:scale-95 transition-transform hover:bg-amber-50 hover:border-amber-300 group"
+                                    >
+                                      <BellRing size={12} className="text-muted-foreground group-hover:text-amber-500" />
+                                    </button>
+                                    <button
+                                      data-testid={`button-buy-${listing.id}`}
+                                      onClick={(e) => handleBuyClick(e, listing)}
+                                      className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm shadow-green-500/30"
+                                    >
+                                      BUY
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>

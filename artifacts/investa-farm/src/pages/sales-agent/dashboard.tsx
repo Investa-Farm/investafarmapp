@@ -216,26 +216,30 @@ export default function SalesAgentDashboard() {
         </div>
 
         {/* Agent code + commission hero */}
-        <div className="bg-white/15 rounded-2xl p-4">
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-white/70 text-xs font-semibold">Agent Code</p>
-              <p className="text-white font-bold text-xl font-mono tracking-widest">IFV-{agentCode}</p>
+              <p className="text-white/60 text-[10px] font-semibold uppercase tracking-widest">Your Agent Code</p>
+              <p className="text-white font-extrabold text-2xl font-mono tracking-widest mt-0.5">IFV-{agentCode}</p>
             </div>
-            <span className="bg-green-400/30 border border-green-300/40 text-green-100 text-[10px] font-bold px-2.5 py-1 rounded-full">Active</span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="flex items-center gap-1.5 bg-green-400/25 border border-green-300/30 text-green-100 text-[10px] font-bold px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse" /> Active
+              </span>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white/10 rounded-xl p-2 text-center">
-              <p className="text-white font-bold text-sm">{stats.farmers}</p>
-              <p className="text-white/60 text-[10px]">Farmers</p>
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            <div className="bg-white/10 rounded-2xl p-3 text-center border border-white/10">
+              <p className="text-white font-extrabold text-xl leading-none">{stats.farmers}</p>
+              <p className="text-white/50 text-[10px] mt-1">Farmers</p>
             </div>
-            <div className="bg-white/10 rounded-xl p-2 text-center">
-              <p className="text-white font-bold text-sm">{stats.funded}</p>
-              <p className="text-white/60 text-[10px]">Funded</p>
+            <div className="bg-white/10 rounded-2xl p-3 text-center border border-white/10">
+              <p className="text-white font-extrabold text-xl leading-none">{stats.funded}</p>
+              <p className="text-white/50 text-[10px] mt-1">Funded</p>
             </div>
-            <div className="bg-white/10 rounded-xl p-2 text-center">
-              <p className="text-green-300 font-bold text-sm">{formatKES(stats.commission)}</p>
-              <p className="text-white/60 text-[10px]">Earned</p>
+            <div className="bg-green-400/20 rounded-2xl p-3 text-center border border-green-400/30">
+              <p className="text-green-300 font-extrabold text-base leading-none">{formatKES(stats.commission)}</p>
+              <p className="text-white/50 text-[10px] mt-1">Earned</p>
             </div>
           </div>
         </div>
@@ -247,29 +251,29 @@ export default function SalesAgentDashboard() {
         {activeTab === "overview" && (
           <>
             {/* Referral link card */}
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Link2 size={16} className="text-green-600" />
-                <p className="text-green-800 font-bold text-sm">Your Referral Link</p>
+            <div className="rounded-2xl overflow-hidden border border-green-200 shadow-sm">
+              <div className="bg-gradient-to-r from-emerald-600 to-green-500 px-4 pt-4 pb-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <Link2 size={16} className="text-white" />
+                  <p className="text-white font-bold text-sm">Your Referral Link</p>
+                </div>
+                <p className="text-white/70 text-[11px]">Share with farmers — earn commission when they get funded</p>
               </div>
-              <div className="bg-white border border-green-200 rounded-xl px-3 py-2.5">
-                <p className="text-foreground font-mono text-xs break-all">{referralLink}</p>
+              <div className="-mt-3 mx-3 bg-white rounded-2xl p-3 border border-green-100 shadow-md mb-3">
+                <p className="text-foreground font-mono text-[11px] break-all leading-relaxed">{referralLink}</p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 px-3 pb-4">
                 <button onClick={copyLink}
-                  className="flex items-center justify-center gap-1.5 bg-white border border-green-300 text-green-700 text-xs font-semibold py-2.5 rounded-xl active:scale-95">
-                  {copiedLink ? <Check size={13} /> : <Copy size={13} />}
+                  className="flex items-center justify-center gap-1.5 bg-white border-2 border-green-300 text-green-700 text-xs font-bold py-3 rounded-xl active:scale-95 shadow-sm">
+                  {copiedLink ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
                   {copiedLink ? "Copied!" : "Copy Link"}
                 </button>
                 <button onClick={shareLink}
-                  className="flex items-center justify-center gap-1.5 bg-green-600 text-white text-xs font-semibold py-2.5 rounded-xl active:scale-95 shadow-sm">
+                  className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs font-bold py-3 rounded-xl active:scale-95 shadow-sm shadow-green-300">
                   <Send size={13} />
-                  Share
+                  Share Now
                 </button>
               </div>
-              <p className="text-green-600 text-[10px] leading-relaxed">
-                Share with farmers. When they register and get funded, you earn commission on every successful investment.
-              </p>
             </div>
 
             {/* Submit Proposal */}
