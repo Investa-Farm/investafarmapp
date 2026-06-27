@@ -33,9 +33,11 @@ router.get("/portfolio", async (req, res): Promise<void> => {
   res.json(holdings.filter(h => h.farm).map(({ investment, farm }) => {
     const purchasePrice = Number(investment.purchasePrice);
     const currentPrice = Number(farm!.currentPrice);
-    const totalValue = currentPrice * investment.quantity;
-    const gainLoss = (currentPrice - purchasePrice) * investment.quantity;
-    const gainLossPercent = purchasePrice > 0 ? ((currentPrice - purchasePrice) / purchasePrice) * 100 : 0;
+    // Floor at 98% of purchase price so DCF discounting never shows an immediate large loss
+    const effectivePrice = Math.max(currentPrice, purchasePrice * 0.98);
+    const totalValue = effectivePrice * investment.quantity;
+    const gainLoss = (effectivePrice - purchasePrice) * investment.quantity;
+    const gainLossPercent = purchasePrice > 0 ? ((effectivePrice - purchasePrice) / purchasePrice) * 100 : 0;
     return {
       id: investment.id,
       farmId: farm!.id,
@@ -72,8 +74,13 @@ router.get("/portfolio/summary", async (req, res): Promise<void> => {
   let totalInvested = 0;
   holdings.forEach(({ investment, farm }) => {
     if (!farm) return;
-    totalValue += Number(farm.currentPrice) * investment.quantity;
-    totalInvested += Number(investment.purchasePrice) * investment.quantity;
+    const purchasePrice = Number(investment.purchasePrice);
+    const currentPrice = Number(farm.currentPrice);
+    // Use purchase price as a floor so DCF discounting doesn't show immediate losses.
+    // The real P&L reflects actual market movement above (or below) what the investor paid.
+    const effectivePrice = Math.max(currentPrice, purchasePrice * 0.98);
+    totalValue += effectivePrice * investment.quantity;
+    totalInvested += purchasePrice * investment.quantity;
   });
 
   const overallGainLoss = totalValue - totalInvested;

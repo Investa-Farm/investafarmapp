@@ -783,7 +783,7 @@ export default function SecondaryMarket() {
                   { label: "Shares Listed", val: moreListing.sharesAvailable.toLocaleString(), cls: "text-foreground" },
                   { label: "Market Change", val: `${moreListing.changePercent >= 0 ? "+" : ""}${moreListing.changePercent.toFixed(2)}%`, cls: moreListing.changePercent >= 0 ? "text-green-600" : "text-red-500" },
                   { label: "Est. Mid-Season", val: "+10%", cls: "text-orange-500" },
-                  { label: "Est. Full Season", val: "+22%", cls: "text-green-600" },
+                  { label: "Est. Full Season", val: "+28%", cls: "text-green-600" },
                   { label: "Status", val: "Active Resale", cls: "text-primary" },
                 ].map(({ label, val, cls }) => (
                   <div key={label} className="bg-muted/50 rounded-xl p-3">
@@ -793,12 +793,45 @@ export default function SecondaryMarket() {
                 ))}
               </div>
 
+              {/* Trade math — 10 share quick calc */}
+              {(() => {
+                const qty = Math.min(10, moreListing.sharesAvailable);
+                const cost = qty * moreListing.pricePerShare;
+                const brokerFee = cost * 0.01;
+                const totalCost = cost + brokerFee;
+                const resellAt10 = cost * 1.10 * 0.995;
+                const resellAt28 = cost * 1.28 * 0.995;
+                return (
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-3 mb-4">
+                    <p className="text-green-800 font-bold text-[10px] uppercase tracking-wider mb-2.5">📊 Trade Math ({qty} shares)</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-muted-foreground text-[9px]">You pay (incl. 1% fee)</p>
+                        <p className="font-bold text-sm text-foreground">{formatKES(totalCost)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-[9px]">Mid-season resell (+10%)</p>
+                        <p className="font-bold text-sm text-orange-600">+{formatKES(resellAt10 - totalCost)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-[9px]">Full harvest payout (+28%)</p>
+                        <p className="font-bold text-sm text-green-600">+{formatKES(resellAt28 - totalCost)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-[9px]">Break-even price/share</p>
+                        <p className="font-bold text-sm text-foreground">{formatKES(totalCost / qty)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Broker fee note */}
               <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 mb-4 flex items-start gap-2">
                 <span className="text-base">🤝</span>
                 <div>
-                  <p className="text-violet-700 font-semibold text-xs">1% Broker Fee Applies</p>
-                  <p className="text-violet-600 text-[10px]">A 1% platform fee is charged on secondary market trades to support market liquidity.</p>
+                  <p className="text-violet-700 font-semibold text-xs">1% Broker Fee + 0.5% Trade Fee</p>
+                  <p className="text-violet-600 text-[10px]">1% entry fee on secondary market purchases. An additional 0.5% is deducted when you re-sell.</p>
                 </div>
               </div>
 

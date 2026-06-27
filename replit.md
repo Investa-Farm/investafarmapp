@@ -52,7 +52,53 @@ A farm investment PWA where farmers raise capital by listing farm shares (like a
 - **Onboarding**: 3-slide animated splash with real farm data previews
 - **Farmers**: List farms for investment, track funding progress, post field updates, view earnings
 - **Investors**: Browse live market with sparklines + price ticker, buy shares (primary/secondary), manage portfolio, request exit (Wide Season 30-60d or Full Season ~6mo), view transaction history
+- **Agribusinesses / Sales Agents / Offtakers**: Separate KYC flow with business registration, ID, selfie, and financial statements
 - **Demo accounts**: `john.farmer@investafarm.com` / `password123` (farmer), `david.investor@investafarm.com` / `password123` (investor)
+
+## Investment Math
+
+### Primary Market — Share Purchase
+```
+Share price (P₀) = Farm loan amount / Total shares listed
+Platform fee     = 1.5% of (P₀ × quantity)
+Total cost       = (P₀ × quantity) + platform_fee
+```
+
+### Mid-Season Exit (Secondary Market Sale)
+```
+P_sell          = P₀ × (1 + 0.10) × demand_factor     # ~10% gain in 30–60 days
+Trade fee       = 0.5% of proceeds
+Net proceeds    = (Q × P_sell) × (1 − 0.005)
+ROI             = (Net proceeds − Cost) / Cost × 100   # ≈ +9.5% in ~45 days
+Annualised ROI  = ((1.10)^(365/45) − 1) × 100          # ≈ 120% p.a.
+```
+
+### Full-Season Exit (Harvest Dividend)
+```
+Farm revenue    = LoanAmount × 1.40                    # 40% revenue multiplier
+InvestorShare   = Revenue × α       (α = 0.65, investor allocation factor)
+Payout/share    = InvestorShare / TotalShares
+Investor return = Q × Payout/share
+ROI             = (Return − Cost) / Cost × 100         # ≈ +28% in ~6 months
+Annualised ROI  = ((1.28)^(365/180) − 1) × 100         # ≈ 62% p.a.
+```
+
+### DCF Fair Value (current share price on market)
+```
+IntrinsicValue  = (FarmRevenue × α) / (1 + r)^t
+r               = 0.105 (10.5% discount rate, Kenya risk-free + premium)
+t               = days_to_harvest / 365
+```
+> The portfolio display floors effective price at 98% of purchase price so DCF discounting never
+> shows a misleading immediate loss on newly-purchased shares.
+
+### What-If Scenario Modelling
+```
+revenueMultiplier = 1 + (rainfallDelta × cropSensitivity) + priceDelta
+adjustedROI       = BASE_ROI × revenueMultiplier          # BASE_ROI = 28%
+adjustedPayout    = cost × (1 + adjustedROI)
+```
+Example crops sensitivity: rice=0.80 (high rainfall dependency), dairy=0.20 (low), maize=0.60.
 
 ## UX Details
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calculator, X, TrendingUp, Leaf, CloudRain, TrendingDown, Sun, Zap } from "lucide-react";
+import { Calculator, X, TrendingUp, Leaf, CloudRain, TrendingDown, Sun, Zap, Info, ChevronRight } from "lucide-react";
 import { useCurrency } from "@/lib/currency";
 
 interface CalcListing {
@@ -64,7 +64,8 @@ const SCENARIOS = [
 export function InvestmentCalculator({ open, onClose, listing, onBuy }: Props) {
   const { formatAmount, currency, toDisplay } = useCurrency();
   const [inputAmount, setInputAmount] = useState("");
-  const [activeTab, setActiveTab] = useState<"returns" | "whatif">("returns");
+  const [activeTab, setActiveTab] = useState<"returns" | "whatif" | "math">("returns");
+  const [mathExpanded, setMathExpanded] = useState(false);
 
   if (!listing) return null;
 
@@ -72,12 +73,18 @@ export function InvestmentCalculator({ open, onClose, listing, onBuy }: Props) {
   const amountInKes = amount * currency.kesPerUnit;
   const sharesAffordable = amountInKes > 0 ? Math.floor(amountInKes / listing.pricePerShare) : 0;
   const actualCost = sharesAffordable * listing.pricePerShare;
-  const wideReturn = actualCost * 1.08;
+  const midReturn = actualCost * 1.10;
   const fullReturn = actualCost * 1.28;
-  const wideProfit = wideReturn - actualCost;
+  const midProfit = midReturn - actualCost;
   const fullProfit = fullReturn - actualCost;
   const maxAffordable = Math.min(sharesAffordable, listing.sharesAvailable);
   const maxCost = maxAffordable * listing.pricePerShare;
+  const midReturnMax = maxCost * 1.10;
+  const fullReturnMax = maxCost * 1.28;
+  const midProfitMax = midReturnMax - maxCost;
+  const fullProfitMax = fullReturnMax - maxCost;
+  const platformFee = maxCost * 0.015;
+  const netCost = maxCost + platformFee;
 
   const quickAmountsKes = [5_000, 10_000, 25_000, 50_000, 100_000];
 
@@ -93,19 +100,28 @@ export function InvestmentCalculator({ open, onClose, listing, onBuy }: Props) {
     return { returnPct: adjustedReturn * 100, payout: adjustedPayout, profit };
   };
 
+  const midAnnualised = ((1.10 ** (365 / 45)) - 1) * 100;
+  const fullAnnualised = ((1.28 ** (365 / 180)) - 1) * 100;
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div className="fixed inset-0 z-50 flex items-end justify-center"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-          <motion.div className="relative w-full max-w-[430px] bg-background rounded-t-3xl"
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+          <motion.div className="relative w-full max-w-[430px] bg-background rounded-t-3xl flex flex-col"
             initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-            style={{ maxHeight: "90vh" }}
+            style={{ maxHeight: "92dvh" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}>
 
-            <div className="flex items-center gap-2.5 px-5 pt-5 pb-3 border-b border-border">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-10 h-1 bg-border rounded-full" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center gap-2.5 px-5 pt-2 pb-3 border-b border-border flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Calculator size={18} className="text-primary" />
               </div>
               <div className="flex-1 min-w-0">
@@ -119,10 +135,12 @@ export function InvestmentCalculator({ open, onClose, listing, onBuy }: Props) {
               </button>
             </div>
 
-            <div className="overflow-y-auto px-5 py-4 space-y-4" style={{ maxHeight: "calc(90vh - 80px)" }}>
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {/* Amount input */}
               <div>
                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
-                  How much do you want to invest? ({currency.code})
+                  How much to invest? ({currency.code})
                 </label>
                 <div className="mt-1.5 flex items-center border border-border rounded-xl overflow-hidden focus-within:border-primary bg-background">
                   <span className="px-3 text-muted-foreground font-bold text-sm select-none">{currency.symbol}</span>
@@ -136,26 +154,36 @@ export function InvestmentCalculator({ open, onClose, listing, onBuy }: Props) {
                 </div>
               </div>
 
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
                 {quickAmountsKes.map(kes => (
                   <button key={kes}
                     onClick={() => setInputAmount(String(toDisplay(kes).toFixed(2)))}
-                    className={`flex-shrink-0 text-[10px] font-semibold px-3 py-1.5 rounded-full border transition-colors ${amountInKes === kes ? "border-primary text-primary" : "border-border text-muted-foreground hover:border-primary hover:text-primary"}`}>
+                    className={`flex-shrink-0 text-[10px] font-semibold px-3 py-1.5 rounded-full border transition-colors ${amountInKes === kes ? "border-primary text-primary bg-primary/5" : "border-border text-muted-foreground hover:border-primary hover:text-primary"}`}>
                     {formatAmount(kes)}
                   </button>
                 ))}
               </div>
 
-              {sharesAffordable > 0 ? (
+              {maxAffordable > 0 ? (
                 <>
+                  {/* Summary box */}
                   <div className="bg-muted rounded-2xl p-3.5 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground text-xs">Shares you can buy</span>
                       <span className="font-bold text-sm">{maxAffordable.toLocaleString()} shares</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground text-xs">Total cost</span>
+                      <span className="text-muted-foreground text-xs">Share cost</span>
                       <span className="font-semibold text-sm">{formatAmount(maxCost)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-muted-foreground/70">
+                      <span className="text-[10px]">Platform fee (1.5%)</span>
+                      <span className="text-[10px]">{formatAmount(platformFee)}</span>
+                    </div>
+                    <div className="h-px bg-border" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-foreground text-xs font-semibold">Total you pay</span>
+                      <span className="font-bold text-sm text-foreground">{formatAmount(netCost)}</span>
                     </div>
                     {listing.sharesAvailable < sharesAffordable && (
                       <p className="text-amber-600 text-[10px] font-semibold">
@@ -166,43 +194,64 @@ export function InvestmentCalculator({ open, onClose, listing, onBuy }: Props) {
 
                   {/* Tab switcher */}
                   <div className="flex gap-1 bg-muted rounded-xl p-1">
-                    <button
-                      onClick={() => setActiveTab("returns")}
-                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === "returns" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
-                      <TrendingUp size={12} /> Returns
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("whatif")}
-                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === "whatif" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
-                      <Zap size={12} /> What-If
-                    </button>
+                    {[
+                      { id: "returns", label: "Returns", icon: TrendingUp },
+                      { id: "whatif", label: "What-If", icon: Zap },
+                      { id: "math", label: "Math", icon: Info },
+                    ].map(t => (
+                      <button key={t.id}
+                        onClick={() => setActiveTab(t.id as any)}
+                        className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${activeTab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
+                        <t.icon size={11} /> {t.label}
+                      </button>
+                    ))}
                   </div>
 
                   <AnimatePresence mode="wait">
                     {activeTab === "returns" && (
-                      <motion.div key="returns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-2 gap-3">
-                        <div className="bg-green-50 border border-green-200 rounded-2xl p-3.5">
-                          <div className="flex items-center gap-1 mb-1.5">
-                            <Leaf size={11} className="text-green-600" />
-                            <p className="text-green-700 text-[9px] font-bold uppercase tracking-wider">Wide Season</p>
+                      <motion.div key="returns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3.5">
+                            <div className="flex items-center gap-1 mb-1.5">
+                              <span className="text-sm">⚡</span>
+                              <p className="text-orange-700 text-[9px] font-bold uppercase tracking-wider">Mid-Season</p>
+                            </div>
+                            <p className="text-orange-700 font-bold text-lg leading-tight">{formatAmount(midReturnMax)}</p>
+                            <p className="text-orange-500 text-[10px] mt-0.5">+{formatAmount(midProfitMax)} profit</p>
+                            <div className="mt-2 inline-flex items-center gap-1 bg-orange-200 rounded-full px-2 py-0.5">
+                              <TrendingUp size={8} className="text-orange-700" />
+                              <span className="text-orange-700 text-[9px] font-bold">+10% · 30–60 days</span>
+                            </div>
                           </div>
-                          <p className="text-green-800 font-bold text-lg leading-tight">{formatAmount(wideReturn)}</p>
-                          <p className="text-green-600 text-[10px] mt-0.5">+{formatAmount(wideProfit)} profit</p>
-                          <div className="mt-2 inline-flex items-center gap-1 bg-green-200 rounded-full px-2 py-0.5">
-                            <TrendingUp size={8} className="text-green-700" />
-                            <span className="text-green-700 text-[9px] font-bold">+8% · 30-60 days</span>
+                          <div className="bg-green-50 border border-green-200 rounded-2xl p-3.5">
+                            <div className="flex items-center gap-1 mb-1.5">
+                              <Leaf size={11} className="text-green-600" />
+                              <p className="text-green-700 text-[9px] font-bold uppercase tracking-wider">Full Season</p>
+                            </div>
+                            <p className="text-green-700 font-bold text-lg leading-tight">{formatAmount(fullReturnMax)}</p>
+                            <p className="text-green-500 text-[10px] mt-0.5">+{formatAmount(fullProfitMax)} profit</p>
+                            <div className="mt-2 inline-flex items-center gap-1 bg-green-200 rounded-full px-2 py-0.5">
+                              <TrendingUp size={8} className="text-green-700" />
+                              <span className="text-green-700 text-[9px] font-bold">+28% · ~6 months</span>
+                            </div>
                           </div>
                         </div>
-                        <div className="bg-primary/5 border border-primary/25 rounded-2xl p-3.5">
-                          <div className="flex items-center gap-1 mb-1.5">
-                            <TrendingUp size={11} className="text-primary" />
-                            <p className="text-primary text-[9px] font-bold uppercase tracking-wider">Full Season</p>
+
+                        {/* Annualised returns strip */}
+                        <div className="bg-muted/60 rounded-xl px-4 py-3 flex items-center justify-between">
+                          <div className="text-center">
+                            <p className="text-muted-foreground text-[9px] font-medium">Mid-Season Ann. ROI</p>
+                            <p className="text-orange-600 font-bold text-xs">{midAnnualised.toFixed(0)}% p.a.</p>
                           </div>
-                          <p className="text-primary font-bold text-lg leading-tight">{formatAmount(fullReturn)}</p>
-                          <p className="text-primary/70 text-[10px] mt-0.5">+{formatAmount(fullProfit)} profit</p>
-                          <div className="mt-2 inline-flex items-center gap-1 bg-primary/20 rounded-full px-2 py-0.5">
-                            <TrendingUp size={8} className="text-primary" />
-                            <span className="text-primary text-[9px] font-bold">+28% · ~6 months</span>
+                          <div className="w-px h-8 bg-border" />
+                          <div className="text-center">
+                            <p className="text-muted-foreground text-[9px] font-medium">Full-Season Ann. ROI</p>
+                            <p className="text-green-600 font-bold text-xs">{fullAnnualised.toFixed(0)}% p.a.</p>
+                          </div>
+                          <div className="w-px h-8 bg-border" />
+                          <div className="text-center">
+                            <p className="text-muted-foreground text-[9px] font-medium">Shares @ price</p>
+                            <p className="text-foreground font-bold text-xs">{formatAmount(listing.pricePerShare)}</p>
                           </div>
                         </div>
                       </motion.div>
@@ -216,7 +265,6 @@ export function InvestmentCalculator({ open, onClose, listing, onBuy }: Props) {
                         {SCENARIOS.map(sc => {
                           const result = computeScenario(sc.rainfallDelta, sc.priceDelta);
                           const isPositive = result.profit >= 0;
-                          const Icon = sc.icon;
                           return (
                             <div key={sc.id} className={`rounded-2xl border p-3.5 ${sc.bg}`}>
                               <div className="flex items-center justify-between mb-2">
@@ -244,27 +292,108 @@ export function InvestmentCalculator({ open, onClose, listing, onBuy }: Props) {
                           );
                         })}
                         <p className="text-[9px] text-muted-foreground text-center leading-relaxed">
-                          Scenario modelling uses crop rainfall sensitivity coefficients and market price elasticity. Results are illustrative.
+                          Scenario modelling uses crop rainfall sensitivity and market price elasticity. Illustrative only.
                         </p>
+                      </motion.div>
+                    )}
+
+                    {activeTab === "math" && (
+                      <motion.div key="math" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
+                          <p className="text-blue-800 font-bold text-xs">📐 How Returns Are Calculated</p>
+
+                          <div className="space-y-2.5">
+                            <div className="bg-white/70 rounded-xl p-3">
+                              <p className="text-blue-700 text-[10px] font-bold mb-1">⚡ Mid-Season Exit (Secondary Market Sale)</p>
+                              <p className="text-muted-foreground text-[10px] font-mono leading-relaxed">
+                                P_sell = P₀ × (1 + 0.10) × demand_factor<br />
+                                Proceeds = Q × P_sell × (1 − 0.005)<br />
+                                ROI = (Proceeds − Cost) / Cost × 100
+                              </p>
+                              <div className="mt-2 pt-2 border-t border-blue-100 grid grid-cols-2 gap-1.5">
+                                <div>
+                                  <p className="text-[9px] text-muted-foreground">Your shares (Q)</p>
+                                  <p className="font-bold text-xs">{maxAffordable}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] text-muted-foreground">Sale price/share</p>
+                                  <p className="font-bold text-xs">{formatAmount(listing.pricePerShare * 1.10)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] text-muted-foreground">Trade fee (0.5%)</p>
+                                  <p className="font-bold text-xs">{formatAmount(midReturnMax * 0.005)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] text-muted-foreground">Net proceeds</p>
+                                  <p className="font-bold text-xs text-orange-600">{formatAmount(midReturnMax * 0.995)}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="bg-white/70 rounded-xl p-3">
+                              <p className="text-blue-700 text-[10px] font-bold mb-1">🌾 Full Season Exit (Harvest Dividend)</p>
+                              <p className="text-muted-foreground text-[10px] font-mono leading-relaxed">
+                                Revenue = LoanAmt × 1.40<br />
+                                InvestorShare = Revenue × α (α = 65%)<br />
+                                Payout = Q × (InvestorShare / TotalShares)<br />
+                                ROI = (Payout − Cost) / Cost × 100
+                              </p>
+                              <div className="mt-2 pt-2 border-t border-blue-100 grid grid-cols-2 gap-1.5">
+                                <div>
+                                  <p className="text-[9px] text-muted-foreground">Investment (Cost)</p>
+                                  <p className="font-bold text-xs">{formatAmount(maxCost)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] text-muted-foreground">Expected payout</p>
+                                  <p className="font-bold text-xs text-green-600">{formatAmount(fullReturnMax)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] text-muted-foreground">Gross profit</p>
+                                  <p className="font-bold text-xs text-green-600">+{formatAmount(fullProfitMax)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] text-muted-foreground">ROI</p>
+                                  <p className="font-bold text-xs text-green-600">+28%</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <p className="text-[9px] text-blue-600 leading-relaxed">
+                            α (alpha) = investor revenue share · P₀ = purchase price per share · Q = quantity · Fees are deducted from proceeds.
+                          </p>
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
 
-                  {onBuy && (
-                    <button onClick={() => { onClose(); onBuy(); }}
-                      className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl active:scale-95 transition-transform">
-                      Buy {maxAffordable} Shares — {formatAmount(maxCost)}
-                    </button>
-                  )}
+                  {/* Bottom spacer */}
+                  <div className="h-2" />
                 </>
               ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Calculator size={32} className="mx-auto mb-2 opacity-20" />
-                  <p className="text-sm font-medium">Enter an amount above to simulate returns</p>
-                  <p className="text-xs mt-1">Minimum: {formatAmount(listing.pricePerShare)} for 1 share</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+                    <Calculator size={32} className="opacity-30" />
+                  </div>
+                  <p className="text-sm font-medium">Enter an amount to simulate returns</p>
+                  <p className="text-xs mt-1 text-muted-foreground/70">Minimum: {formatAmount(listing.pricePerShare)} for 1 share</p>
                 </div>
               )}
             </div>
+
+            {/* Sticky buy button */}
+            {maxAffordable > 0 && onBuy && (
+              <div className="flex-shrink-0 px-5 pb-8 pt-3 border-t border-border bg-background">
+                <button onClick={() => { onClose(); onBuy(); }}
+                  className="w-full bg-primary text-white font-bold py-4 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
+                  <TrendingUp size={16} />
+                  Buy {maxAffordable} Shares — {formatAmount(maxCost)}
+                </button>
+                <p className="text-center text-[10px] text-muted-foreground mt-2">
+                  +{formatAmount(platformFee)} platform fee · Total: {formatAmount(netCost)}
+                </p>
+              </div>
+            )}
           </motion.div>
         </motion.div>
       )}
