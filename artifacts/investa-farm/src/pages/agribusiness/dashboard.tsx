@@ -29,7 +29,8 @@ export default function AgribusinessDashboard() {
 
   // Referral state
   const [refCopied, setRefCopied] = useState(false);
-  const refLink = `${window.location.origin}/register?ref=${user?.id ?? 0}&type=farmer&via=agribiz&partner=${encodeURIComponent(user?.name ?? "")}`;
+  const _BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+  const refLink = `${window.location.origin}${_BASE}/register?ref=${user?.id ?? 0}&type=farmer&via=agribiz&partner=${encodeURIComponent(user?.name ?? "")}`;
 
   const copyRef = async () => {
     await navigator.clipboard.writeText(refLink).catch(() => {});

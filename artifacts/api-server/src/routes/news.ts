@@ -404,6 +404,68 @@ function buildFallbackSentiment(articles: NewsItem[]): SentimentResult[] {
   return result.sort((a, b) => b.score - a.score);
 }
 
+// ─── Groq AI-generated news ───────────────────────────────────────────────────
+async function fetchGroqGeneratedNews(): Promise<NewsItem[] | null> {
+  const apiKey = process.env["GROQ_API_KEY"];
+  if (!apiKey) return null;
+  try {
+    const today = new Date().toLocaleDateString("en-KE", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "Africa/Nairobi" });
+    const prompt = `You are an agriculture journalist covering Kenya's farming sector. Today is ${today}.
+
+Generate exactly 8 fresh, realistic Kenya agriculture news items in JSON format. Each item must be a distinct story about different crops or regions. Make the content specific, data-rich, and believable — include actual KES prices, percentages, county names, and organisation names.
+
+Return ONLY a JSON array (no markdown) with objects having these fields:
+- title: compelling headline (max 80 chars)
+- source: plausible Kenyan or African news outlet name
+- summary: 2-sentence summary with specific figures (80-120 words)
+- tag: one of [Market, Exports, Policy, Weather, Returns, Agritech, Finance]
+- tagColor: matching tag color class — "bg-green-100 text-green-700" for Exports, "bg-orange-100 text-orange-700" for Market, "bg-red-100 text-red-700" for Policy, "bg-sky-100 text-sky-700" for Weather, "bg-purple-100 text-purple-700" for Returns, "bg-blue-100 text-blue-700" for Agritech, "bg-emerald-100 text-emerald-700" for Finance
+- imageKey: one of [maize, coffee, tea, avocado, tomatoes, wheat, dairy, kale, rice, sunflower, beans]
+- time: relative time like "2h ago" or "4h ago" (vary between 1h and 18h)
+- url: plausible Kenya news URL (use domains like nation.africa, standardmedia.co.ke, businessdailyafrica.com, kbc.co.ke, bloomberg.com, reuters.com, capitalfm.co.ke)
+
+Cover a mix of: commodity price moves, export volumes, government policy, weather impact, cooperative earnings, new agritech/fintech, irrigation updates.`;
+
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.8,
+        max_tokens: 3000,
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+
+    if (!resp.ok) return null;
+    const data = await resp.json() as any;
+    const text: string = data?.choices?.[0]?.message?.content ?? "";
+
+    // Extract JSON array from the response
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return null;
+
+    const raw = JSON.parse(jsonMatch[0]) as any[];
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+
+    return raw.slice(0, 8).map((item: any, i: number): NewsItem => ({
+      id: 1000 + i,
+      title: String(item.title ?? "").slice(0, 120),
+      source: String(item.source ?? "AI News"),
+      summary: String(item.summary ?? ""),
+      tag: String(item.tag ?? "Market"),
+      tagColor: String(item.tagColor ?? "bg-orange-100 text-orange-700"),
+      imageKey: String(item.imageKey ?? "maize"),
+      time: String(item.time ?? `${i + 1}h ago`),
+      url: String(item.url ?? "#"),
+    }));
+  } catch (e) {
+    console.error("[news/groq] generation error:", e);
+    return null;
+  }
+}
+
 const STATIC_NEWS: NewsItem[] = [
   { id: 1, title: "Kenya Avocado Exports Surpass 160,000 MT in June 2026", source: "Business Daily Africa", summary: "Kenya's avocado exports surpassed 160,000 metric tonnes in June 2026, the highest monthly total on record. Hass variety commands KES 280/kg at Nairobi packing houses as EU and Gulf demand accelerates.", tag: "Exports", tagColor: "bg-green-100 text-green-700", time: "1h ago", imageKey: "avocado", url: "https://businessdailyafrica.com" },
   { id: 2, title: "Maize Prices Surge 11% Ahead of July Harvest Window", source: "The Standard", summary: "Spot maize prices at the Eldoret grain market hit KES 5,200 per 90kg bag this week — up 11% from May — as erratic long rains delay Rift Valley harvests by three to four weeks.", tag: "Market", tagColor: "bg-orange-100 text-orange-700", time: "3h ago", imageKey: "maize", url: "https://standardmedia.co.ke" },
@@ -443,14 +505,38 @@ router.get("/news", async (_req, res): Promise<void> => {
     return;
   }
 
-  // Priority chain: TheNewsAPI → Currents → GNews → Mediastack → RSS → Static
-  const items =
-    await fetchTheNewsAPI() ??
-    await fetchCurrentsAPI() ??
-    await fetchGNews() ??
-    await fetchMediastack() ??
-    await fetchRssNews() ??
-    STATIC_NEWS;
+  // Priority chain: TheNewsAPI → Currents → GNews → Mediastack → RSS → Groq AI → Static
+  // Also fetch Groq AI news in parallel to supplement real news
+  const [realItems, groqItems] = await Promise.all([
+    (async () =>
+      await fetchTheNewsAPI() ??
+      await fetchCurrentsAPI() ??
+      await fetchGNews() ??
+      await fetchMediastack() ??
+      await fetchRssNews() ??
+      null
+    )(),
+    fetchGroqGeneratedNews(),
+  ]);
+
+  let items: NewsItem[];
+  if (realItems && groqItems) {
+    // Merge: real news first, then AI-generated items (deduplicate by title similarity)
+    const combined = [...realItems];
+    for (const ai of groqItems) {
+      const isDuplicate = realItems.some(r =>
+        r.title.toLowerCase().slice(0, 30) === ai.title.toLowerCase().slice(0, 30)
+      );
+      if (!isDuplicate) combined.push(ai);
+    }
+    items = combined.slice(0, 20);
+  } else if (realItems) {
+    items = realItems;
+  } else if (groqItems) {
+    items = [...groqItems, ...STATIC_NEWS].slice(0, 14);
+  } else {
+    items = STATIC_NEWS;
+  }
 
   cache = { items, cachedAt: Date.now() };
 

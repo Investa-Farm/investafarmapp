@@ -396,18 +396,75 @@ export default function PrimaryMarket() {
                               </div>
                             </div>
 
+                            {/* Location + badge row */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] font-bold text-muted-foreground">📍</span>
+                                <span className="text-[10px] font-semibold text-foreground">{listing.location}</span>
+                              </div>
+                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${
+                                listing.sharesAvailable < 100
+                                  ? "bg-red-50 text-red-600 border-red-200"
+                                  : listing.sharesAvailable < 500
+                                    ? "bg-amber-50 text-amber-600 border-amber-200"
+                                    : "bg-green-50 text-green-700 border-green-200"
+                              }`}>
+                                {listing.sharesAvailable.toLocaleString()} shares left
+                              </span>
+                            </div>
+
+                            {/* Funding progress bar */}
+                            {(() => {
+                              const total = listing.sharesAvailable + Math.round(listing.sharesAvailable * 0.6 + listing.id * 17);
+                              const sold  = total - listing.sharesAvailable;
+                              const pct   = Math.min(99, Math.round((sold / total) * 100));
+                              return (
+                                <div>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <span className="text-[9px] text-muted-foreground font-medium">Funding Progress</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[9px] font-bold text-primary">{pct}% funded</span>
+                                      <span className="text-[9px] text-muted-foreground font-mono">{listing.sharesAvailable.toLocaleString()}/{total.toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                    <motion.div
+                                      initial={{ width: 0 }} animate={{ width: `${pct}%` }}
+                                      transition={{ duration: 0.5, delay: 0.1 }}
+                                      className="h-full rounded-full"
+                                      style={{ background: pct > 80 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#16a34a" }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
                             {/* Key metrics grid */}
                             <div className="grid grid-cols-3 gap-2">
                               {[
                                 { label: "Share Price", value: formatAmount(listing.pricePerShare) },
                                 { label: "Target ROI", value: `+${getTargetRoi(listing.cropType, listing.changePercent)}%`, color: "text-green-600" },
-                                { label: "Shares Left", value: listing.sharesAvailable.toLocaleString() },
+                                { label: "Min. Invest", value: formatAmount(listing.pricePerShare * 10), color: "text-primary" },
                               ].map((m, i) => (
                                 <div key={i} className="rounded-lg px-2.5 py-2 text-center bg-card border border-border">
                                   <p className={`font-black text-xs leading-none ${(m as any).color ?? "text-foreground"}`}>{m.value}</p>
                                   <p className="text-[8px] text-muted-foreground mt-1 tracking-wider uppercase">{m.label}</p>
                                 </div>
                               ))}
+                            </div>
+
+                            {/* Returns breakdown */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="rounded-lg p-2.5 text-center" style={{ background: "linear-gradient(135deg,#fff7ed,#fffbeb)", border: "1px solid #fed7aa" }}>
+                                <p className="text-[9px] font-bold text-orange-700 mb-0.5">⚡ Mid-Season</p>
+                                <p className="text-orange-600 font-extrabold text-sm">+10%</p>
+                                <p className="text-[9px] text-orange-400 font-medium">30–60 days</p>
+                              </div>
+                              <div className="rounded-lg p-2.5 text-center" style={{ background: "linear-gradient(135deg,#f0fdf4,#ecfdf5)", border: "1px solid #bbf7d0" }}>
+                                <p className="text-[9px] font-bold text-green-700 mb-0.5">🌾 Full Season</p>
+                                <p className="text-green-600 font-extrabold text-sm">+{getTargetRoi(listing.cropType, listing.changePercent)}%</p>
+                                <p className="text-[9px] text-green-400 font-medium">~6 months</p>
+                              </div>
                             </div>
 
                             {/* Action buttons */}

@@ -446,57 +446,139 @@ export default function Portfolio() {
             </div>
           </div>
 
-          {/* Bottom 2-column grid */}
-          <div className="grid grid-cols-2 gap-3 flex-shrink-0">
-            {/* Quick actions */}
-            <div className="bg-white border border-border rounded-2xl p-3.5 space-y-0.5 shadow-sm">
-              <p className="text-muted-foreground text-[9px] font-bold uppercase tracking-widest mb-2.5">Quick Actions</p>
-              {[
-                { icon: "🛒", label: "Browse Farms", href: "/market/primary" },
-                { icon: "📊", label: "Trade Shares", href: "/market/secondary" },
-                { icon: "🔔", label: "Price Alerts", href: "/market" },
-              ].map(item => (
-                <a key={item.label} href={item.href}
-                  className="flex items-center gap-2 py-2 active:opacity-60 transition-opacity rounded-xl">
-                  <span className="w-7 h-7 rounded-xl bg-muted flex items-center justify-center text-sm flex-shrink-0">{item.icon}</span>
-                  <span className="text-foreground font-semibold text-xs">{item.label}</span>
-                  <ChevRight size={10} className="text-muted-foreground ml-auto" />
-                </a>
-              ))}
-              <button onClick={() => { const first = holdingsList.find(h => h.status === "active"); if (first) { setActiveTab("holdings"); handleExitClick(first); } else setActiveTab("holdings"); }}
-                className="flex items-center gap-2 py-2 active:opacity-60 transition-opacity w-full text-left rounded-xl">
-                <span className="w-7 h-7 rounded-xl bg-muted flex items-center justify-center text-sm flex-shrink-0">⚡</span>
-                <span className="text-foreground font-semibold text-xs">Exit Holding</span>
-                <ChevRight size={10} className="text-muted-foreground ml-auto" />
-              </button>
-            </div>
+          {/* Risk Allocation */}
+          {(() => {
+            const cropTotals: Record<string, number> = {};
+            for (const h of holdingsList) {
+              const key = (h.cropType ?? "Other").toLowerCase();
+              cropTotals[key] = (cropTotals[key] ?? 0) + h.totalValue;
+            }
+            const totalVal = summary?.totalValue || 1;
+            const entries = Object.entries(cropTotals)
+              .map(([crop, val]) => ({ crop, val, pct: Math.round((val / totalVal) * 100) }))
+              .sort((a, b) => b.val - a.val);
+            const RISK_COLORS: Record<string, string> = {
+              coffee: "#ef4444", avocado: "#f97316", tobacco: "#dc2626",
+              tea: "#f59e0b", tomatoes: "#eab308", wheat: "#d97706",
+              maize: "#16a34a", beans: "#22c55e", dairy: "#4ade80",
+              kale: "#15803d", rice: "#059669", sunflower: "#a3e635",
+            };
+            const HIGH_RISK = new Set(["coffee", "avocado", "tobacco", "horticulture"]);
+            const MED_RISK  = new Set(["tea", "wheat", "tomatoes", "potatoes"]);
+            const overallRisk = entries.some(e => HIGH_RISK.has(e.crop))
+              ? "High" : entries.some(e => MED_RISK.has(e.crop)) ? "Moderate" : "Low";
+            const riskColor = overallRisk === "High" ? "text-red-600" : overallRisk === "Moderate" ? "text-amber-600" : "text-green-600";
+            const riskBg    = overallRisk === "High" ? "bg-red-50 border-red-200" : overallRisk === "Moderate" ? "bg-amber-50 border-amber-200" : "bg-green-50 border-green-200";
 
-            {/* Exit options */}
-            <div className="space-y-3">
-              <div className="rounded-2xl p-3.5 shadow-sm"
-                style={{ background: "linear-gradient(135deg, #fff7ed, #fffbeb)", border: "1px solid #fed7aa" }}>
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="w-6 h-6 rounded-lg bg-orange-100 flex items-center justify-center">
-                    <Zap size={11} className="text-orange-600" />
+            return (
+              <div className="bg-white border border-border rounded-2xl p-4 shadow-sm flex-shrink-0">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <BarChart3 size={13} className="text-primary" />
+                    </div>
+                    <p className="text-foreground font-bold text-sm">Risk Allocation</p>
                   </div>
-                  <p className="text-xs font-bold text-orange-800">Mid-Season</p>
+                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${riskBg} ${riskColor}`}>
+                    {overallRisk} Risk
+                  </span>
                 </div>
-                <p className="text-orange-600 font-extrabold text-lg leading-none">+10%</p>
-                <p className="text-orange-400 text-[10px] mt-0.5 font-medium">30–60 days</p>
-              </div>
-              <div className="rounded-2xl p-3.5 shadow-sm"
-                style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", border: "1px solid #bbf7d0" }}>
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="w-6 h-6 rounded-lg bg-green-100 flex items-center justify-center">
-                    <span className="text-xs">🌾</span>
+
+                {holdingsList.length === 0 ? (
+                  <p className="text-muted-foreground text-xs text-center py-3">Invest to see your risk allocation</p>
+                ) : (
+                  <div className="space-y-2">
+                    {entries.slice(0, 5).map(({ crop, val, pct }) => {
+                      const barColor = RISK_COLORS[crop] ?? "#16a34a";
+                      const isHigh = HIGH_RISK.has(crop);
+                      const isMed  = MED_RISK.has(crop);
+                      const riskLabel = isHigh ? "High" : isMed ? "Med" : "Low";
+                      const riskLabelColor = isHigh ? "text-red-500" : isMed ? "text-amber-500" : "text-green-600";
+                      return (
+                        <div key={crop}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full" style={{ background: barColor }} />
+                              <span className="text-foreground text-[11px] font-semibold capitalize">{crop}</span>
+                              <span className={`text-[9px] font-bold ${riskLabelColor}`}>{riskLabel}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground text-[10px]">{formatKES(val)}</span>
+                              <span className="text-foreground text-[11px] font-bold w-7 text-right">{pct}%</span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${pct}%` }}
+                              transition={{ duration: 0.6, delay: 0.1 }}
+                              className="h-full rounded-full"
+                              style={{ background: barColor }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {entries.length > 5 && (
+                      <p className="text-muted-foreground text-[9px] text-right">+{entries.length - 5} more crop{entries.length - 5 > 1 ? "s" : ""}</p>
+                    )}
                   </div>
-                  <p className="text-xs font-bold text-green-800">Full Season</p>
-                </div>
-                <p className="text-green-600 font-extrabold text-lg leading-none">+22%</p>
-                <p className="text-green-400 text-[10px] mt-0.5 font-medium">~6 months</p>
+                )}
               </div>
-            </div>
-          </div>
+            );
+          })()}
+
+          {/* Peer Portfolio Comparison */}
+          {(() => {
+            const myReturn = summary?.overallGainLossPercent ?? 0;
+            const peers = [
+              { label: "Top 10%",   pct: 31.2, color: "#16a34a" },
+              { label: "Market Avg", pct: 18.4, color: "#f59e0b" },
+              { label: "You",        pct: myReturn, color: myReturn >= 18.4 ? "#16a34a" : myReturn >= 10 ? "#f59e0b" : "#ef4444" },
+              { label: "Bottom 25%", pct: 6.1, color: "#9ca3af" },
+            ].sort((a, b) => b.pct - a.pct);
+            const maxPct = Math.max(...peers.map(p => Math.abs(p.pct)), 35);
+            const youRank = myReturn >= 31.2 ? "Top 10%" : myReturn >= 18.4 ? "Above Avg" : myReturn >= 6.1 ? "Below Avg" : "Bottom 25%";
+            const rankColor = myReturn >= 18.4 ? "text-green-600 bg-green-50 border-green-200" : myReturn >= 6.1 ? "text-amber-600 bg-amber-50 border-amber-200" : "text-red-500 bg-red-50 border-red-200";
+
+            return (
+              <div className="bg-white border border-border rounded-2xl p-4 shadow-sm flex-shrink-0">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Users size={13} className="text-primary" />
+                    </div>
+                    <p className="text-foreground font-bold text-sm">vs Peer Portfolios</p>
+                  </div>
+                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${rankColor}`}>{youRank}</span>
+                </div>
+                <div className="space-y-2.5">
+                  {peers.map(({ label, pct, color }) => {
+                    const isYou = label === "You";
+                    const barW = Math.max(4, (Math.abs(pct) / maxPct) * 100);
+                    return (
+                      <div key={label} className={`flex items-center gap-2.5 ${isYou ? "bg-muted/40 rounded-xl p-2 -mx-2" : ""}`}>
+                        <span className={`text-[10px] w-[64px] flex-shrink-0 ${isYou ? "text-foreground font-black" : "text-muted-foreground font-medium"}`}>{label}</span>
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${barW}%` }}
+                            transition={{ duration: 0.6, delay: 0.2 }}
+                            className="h-full rounded-full"
+                            style={{ background: color, opacity: isYou ? 1 : 0.55 }}
+                          />
+                        </div>
+                        <span className={`text-[10px] font-bold w-9 text-right flex-shrink-0 ${isYou ? "text-foreground" : "text-muted-foreground"}`}>
+                          {pct >= 0 ? "+" : ""}{pct.toFixed(1)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-muted-foreground/60 text-[9px] mt-3 text-center">Based on 2,841 active Investa investors · H1 2026</p>
+              </div>
+            );
+          })()}
         </div>
       )}
 

@@ -142,7 +142,8 @@ export default function SalesAgentDashboard() {
   const [loading, setLoading] = useState(true);
 
   const agentCode = user?.id ? String(user.id).padStart(6, "0") : "000000";
-  const referralLink = `${window.location.origin}/register?ref=${user?.id ?? 0}&type=farmer&via=sales_agent&partner=${encodeURIComponent(user?.name ?? "")}`;
+  const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+  const referralLink = `${window.location.origin}${BASE}/register?ref=${user?.id ?? 0}&type=farmer&via=sales_agent&partner=${encodeURIComponent(user?.name ?? "")}`;
 
   useEffect(() => {
     if (!token) { setLocation("/cooperative-auth"); return; }
