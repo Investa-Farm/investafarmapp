@@ -2,89 +2,64 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useListPrimaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES } from "@/lib/auth";
+import { formatKES, getStoredUser } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
-import { ArrowLeft, ChevronDown, ChevronUp, BellRing, Calculator, MapPin, Users, Navigation, Scale, X, Smartphone, Share2 } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Search, SlidersHorizontal, ChevronDown, ChevronUp, Zap, X, Users, Bell } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { getCropImage, CROP_IMAGES } from "@/lib/crops";
+import { getCropImage } from "@/lib/crops";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { InvestmentCalculator } from "@/components/investment-calculator";
-import { AiSectionBot } from "@/components/ai-section-bot";
-import { CompareFarmsModal, type CompareListing } from "@/components/compare-farms-modal";
 
-// --- AI insight snippet per farm ---
 const AI_INSIGHTS: Record<string, string[]> = {
-  maize:       ["Strong demand from millers this season", "Favourable rainfall boosts yield outlook"],
-  tomatoes:    ["Urban demand up 18% · good entry point", "Processing contracts driving price stability"],
-  coffee:      ["Global arabica prices rising steadily", "Export premiums widening for AA grade"],
-  tea:         ["Auction volumes solid · steady income", "Rainfall adequate for top-grade flush"],
-  beans:       ["Short supply across Rift Valley now", "High-protein demand pushing farmgate price"],
-  avocado:     ["EU export window opens next quarter", "Hass variety premium over 22% this cycle"],
-  dairy:       ["Processor intake prices up 8% YoY", "Feed cost stabilising · margins improving"],
-  poultry:     ["Flock disease burden easing region-wide", "Table-egg premium sustained through Q3"],
-  wheat:       ["Milling demand stable · secure offtake", "Import competition easing · local prices firm"],
-  rice:        ["Mwea yields above 5-year average", "Government strategic reserve buying active"],
-  sunflower:   ["Edible oil deficit supports farmgate price", "Contract farming schemes expanding"],
-  kale:        ["Urban market demand consistently high", "Short cycle crop · fast capital recycling"],
-  cabbage:     ["Supermarket chain offtake agreements firm", "Cool-season conditions ideal this month"],
-  greenhouse:  ["Year-round harvest smooths revenue curve", "Export-quality veg fetching 2.4× farmgate"],
+  maize:       ["Strong demand from millers", "Favourable rainfall outlook"],
+  tomatoes:    ["Urban demand up 18%", "Processing contracts stable"],
+  coffee:      ["Arabica prices rising", "Export premiums widening"],
+  tea:         ["Auction volumes solid", "Rainfall adequate for flush"],
+  beans:       ["Short supply Rift Valley", "High-protein demand rising"],
+  avocado:     ["EU export window opens Q4", "Hass variety +22% premium"],
+  dairy:       ["Processor prices up 8% YoY", "Feed costs stabilising"],
+  poultry:     ["Disease burden easing", "Table-egg premium sustained"],
+  wheat:       ["Milling demand stable", "Import competition easing"],
+  rice:        ["Mwea yields above avg", "Strategic reserve buying"],
+  sunflower:   ["Edible oil deficit firm", "Contract schemes expanding"],
+  kale:        ["Urban demand high", "Short cycle · fast turnover"],
 };
 
 function getAiInsight(cropType: string, changePercent: number, id: number): string {
   const key = (cropType ?? "").toLowerCase();
-  const pool = AI_INSIGHTS[key] ?? [
-    changePercent > 0 ? "Positive price momentum · watch for entry" : "Price consolidating · monitor closely",
-    "AI models show stable seasonal demand",
-  ];
+  const pool = AI_INSIGHTS[key] ?? [changePercent > 0 ? "Positive momentum" : "Consolidating", "Stable demand"];
   return pool[id % pool.length];
 }
 
-// --- Risk helpers ---
 const HIGH_RISK_CROPS = new Set(["coffee", "avocado", "tobacco", "horticulture"]);
 const MOD_RISK_CROPS  = new Set(["tea", "wheat", "tomatoes", "potatoes", "onions"]);
-type RiskLevel = "Low" | "Moderate" | "High";
+type RiskLevel = "Low" | "Mod" | "High";
 
 function getRiskLevel(cropType: string, changePercent: number): RiskLevel {
   const crop = (cropType ?? "").toLowerCase();
   if (HIGH_RISK_CROPS.has(crop) || Math.abs(changePercent) > 5) return "High";
-  if (MOD_RISK_CROPS.has(crop) || Math.abs(changePercent) > 2) return "Moderate";
+  if (MOD_RISK_CROPS.has(crop) || Math.abs(changePercent) > 2) return "Mod";
   return "Low";
 }
 
-function RiskDots({ level }: { level: RiskLevel }) {
-  const filled = level === "High" ? 5 : level === "Moderate" ? 3 : 2;
-  const color = level === "High" ? "bg-red-500" : level === "Moderate" ? "bg-amber-400" : "bg-green-500";
-  return (
-    <div className="flex gap-0.5 items-center">
-      {[1,2,3,4,5].map(i => (
-        <div key={i} className={`w-1.5 h-1.5 rounded-full ${i <= filled ? color : "bg-muted-foreground/20"}`} />
-      ))}
-    </div>
-  );
-}
-
-// --- Category helpers ---
 type CategoryKey = "all" | "stable" | "balanced" | "export" | "growth";
-
-const CATEGORY_TABS: { key: CategoryKey; label: string; emoji: string }[] = [
-  { key: "all",      label: "All",              emoji: "🌍" },
-  { key: "stable",   label: "Stable Income",    emoji: "🌾" },
-  { key: "balanced", label: "Balanced",         emoji: "⚖️" },
-  { key: "export",   label: "Export & Premium", emoji: "✈️" },
-  { key: "growth",   label: "High Growth",      emoji: "🚀" },
+const CATEGORY_TABS: { key: CategoryKey; label: string; short: string }[] = [
+  { key: "all",      label: "All Markets",     short: "ALL"  },
+  { key: "stable",   label: "Stable Income",   short: "STBL" },
+  { key: "balanced", label: "Balanced",        short: "BAL"  },
+  { key: "export",   label: "Export Grade",    short: "EXPT" },
+  { key: "growth",   label: "High Growth",     short: "GRTH" },
 ];
-
 const CATEGORY_CROPS: Record<Exclude<CategoryKey, "all">, string[]> = {
   stable:   ["maize", "corn", "wheat", "sorghum", "barley", "beans", "cassava", "rice", "grain"],
   balanced: ["tomatoes", "potatoes", "dairy", "cattle", "kale", "onions", "capsicum", "sugarcane"],
   export:   ["coffee", "tea", "avocado", "macadamia", "sunflower", "tobacco"],
   growth:   ["poultry", "chicken", "horticulture", "greenhouse", "strawberries"],
 };
-
 function getCategoryForCrop(cropType: string): Exclude<CategoryKey, "all"> {
   const crop = (cropType ?? "").toLowerCase();
   for (const [cat, crops] of Object.entries(CATEGORY_CROPS)) {
@@ -92,72 +67,21 @@ function getCategoryForCrop(cropType: string): Exclude<CategoryKey, "all"> {
   }
   return "stable";
 }
-
 function getTargetRoi(cropType: string, changePercent: number): number {
   const crop = (cropType ?? "").toLowerCase();
   const isExport   = CATEGORY_CROPS.export.some(c => crop.includes(c));
   const isGrowth   = CATEGORY_CROPS.growth.some(c => crop.includes(c));
   const isBalanced = CATEGORY_CROPS.balanced.some(c => crop.includes(c));
   const base = isExport ? 20 : isGrowth ? 22 : isBalanced ? 14 : 10;
-  const boost = Math.max(-4, Math.min(8, Math.round(changePercent * 0.4)));
-  return Math.max(4, base + boost);
-}
-
-const KENYA_COORDS: Record<string, [number, number]> = {
-  nairobi: [-1.2921, 36.8219], kiambu: [-1.1728, 36.8342], nakuru: [-0.3031, 36.0800],
-  meru: [0.0500, 37.6500], kirinyaga: [-0.4700, 37.3100], laikipia: [0.0300, 36.8000],
-  nyeri: [-0.4167, 36.9500], kisumu: [-0.0917, 34.7679], eldoret: [0.5200, 35.2699],
-  machakos: [-1.5177, 37.2634], narok: [-1.0833, 35.8667], thika: [-1.0332, 37.0693],
-  limuru: [-1.1133, 36.6428], nanyuki: [0.0100, 37.0714], embu: [-0.5273, 37.4571],
-  mombasa: [-4.0435, 39.6682], kericho: [-0.3667, 35.2833], kakamega: [0.2827, 34.7519],
-  muranga: [-0.7167, 37.1500], bomet: [-0.7833, 35.3500], rift: [-0.3031, 36.0800],
-  central: [-0.4167, 36.9500],
-};
-
-function getKenyaCoords(location: string): [number, number] {
-  const lower = (location ?? "").toLowerCase();
-  for (const [key, coords] of Object.entries(KENYA_COORDS)) {
-    if (lower.includes(key)) return coords;
-  }
-  return [-1.2921, 36.8219];
+  return Math.max(4, base + Math.round(changePercent * 0.4));
 }
 
 function generateSeasonHistory(basePrice: number, changePercent: number) {
-  const times = ["6am", "8am", "10am", "12pm", "2pm", "4pm", "6pm", "8pm"];
-  const trend = changePercent / 100;
+  const times = ["06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"];
   return times.map((time, i) => {
-    const noise = (Math.sin(i * 1.7) * 0.04 + Math.cos(i * 0.9) * 0.03);
-    return {
-      time,
-      value: Math.round(basePrice * (0.92 + (i / 8) * 0.18 + trend * (i / 8) + noise)),
-    };
+    const noise = Math.sin(i * 1.7) * 0.04 + Math.cos(i * 0.9) * 0.03;
+    return { time, value: Math.round(basePrice * (0.92 + (i / 8) * 0.18 + (changePercent / 100) * (i / 8) + noise)) };
   });
-}
-
-// --- Kenya location coordinates for mini-map ---
-const KE_COORDS: Record<string, [number, number]> = {
-  nairobi: [-1.2921, 36.8219], nakuru: [-0.3031, 36.0800], kisumu: [-0.1022, 34.7617],
-  meru: [0.0467, 37.6490], eldoret: [0.5200, 35.2699], narok: [-1.0824, 35.8706],
-  nyeri: [-0.4166, 36.9500], kakamega: [0.2827, 34.7519], kitale: [1.0154, 35.0062],
-  thika: [-1.0332, 37.0693], laikipia: [0.2000, 36.7000], muranga: [-0.7190, 37.1499],
-  embu: [-0.5317, 37.4500], machakos: [-1.5177, 37.2634], kiambu: [-1.1691, 36.8356],
-  nyandarua: [-0.1830, 36.3672], kajiado: [-1.8520, 36.7764], bomet: [-0.7876, 35.3437],
-  kericho: [-0.3686, 35.2862], siaya: [0.0617, 34.2422], busia: [0.4609, 34.1109],
-  turkana: [3.1200, 35.6000], wajir: [1.7473, 40.0573],
-};
-
-function getListingCoords(location: string): [number, number] {
-  const loc = location.toLowerCase();
-  for (const [key, coords] of Object.entries(KE_COORDS)) {
-    if (loc.includes(key.replace(/_/g, " ")) || loc.includes(key)) return coords;
-  }
-  return [-1.2921, 36.8219];
-}
-
-function getMiniMapIframeSrc(location: string): string {
-  const [lat, lng] = getListingCoords(location);
-  const d = 0.22;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${(lng - d).toFixed(4)}%2C${(lat - d * 0.75).toFixed(4)}%2C${(lng + d).toFixed(4)}%2C${(lat + d * 0.75).toFixed(4)}&layer=mapnik&marker=${lat.toFixed(4)}%2C${lng.toFixed(4)}`;
 }
 
 type Listing = {
@@ -165,6 +89,34 @@ type Listing = {
   location: string; pricePerShare: number; sharesAvailable: number;
   changePercent: number; imageUrl?: string;
 };
+
+function TickerTape({ listings }: { listings: Listing[] }) {
+  const items = listings.slice(0, 8);
+  if (!items.length) return null;
+  return (
+    <div className="overflow-hidden border-b border-white/10 bg-black/30">
+      <motion.div
+        className="flex gap-6 whitespace-nowrap py-1.5 px-3"
+        animate={{ x: [0, -1200] }}
+        transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+      >
+        {[...items, ...items].map((l, i) => {
+          const up = l.changePercent >= 0;
+          const ticker = l.cropType.slice(0, 4).toUpperCase();
+          return (
+            <span key={i} className="text-[10px] font-bold tracking-wide inline-flex items-center gap-1.5">
+              <span className="text-white/60">{ticker}</span>
+              <span className="text-white font-mono">{formatKES(l.pricePerShare)}</span>
+              <span className={up ? "text-green-400" : "text-red-400"}>
+                {up ? "▲" : "▼"}{Math.abs(l.changePercent).toFixed(1)}%
+              </span>
+            </span>
+          );
+        })}
+      </motion.div>
+    </div>
+  );
+}
 
 export default function PrimaryMarket() {
   const [, setLocation] = useLocation();
@@ -178,452 +130,330 @@ export default function PrimaryMarket() {
   const [alertOpen, setAlertOpen] = useState(false);
   const [calcListing, setCalcListing] = useState<Listing | null>(null);
   const [calcOpen, setCalcOpen] = useState(false);
-  const [compareA, setCompareA] = useState<CompareListing | null>(null);
-  const [compareB, setCompareB] = useState<CompareListing | null>(null);
-  const [compareOpen, setCompareOpen] = useState(false);
-
-  // PWA install prompt
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
-  const [pwaVisible, setPwaVisible] = useState(false);
-  const isIOS = /iphone|ipad|ipod/i.test(typeof navigator !== "undefined" ? navigator.userAgent : "");
-  const isInStandaloneMode = typeof window !== "undefined" && (window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true);
-
-  useEffect(() => {
-    if (isInStandaloneMode) return;
-    if (localStorage.getItem("investa_pwa_dismissed")) return;
-    const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e); setPwaVisible(true); };
-    window.addEventListener("beforeinstallprompt", handler as any);
-    if (isIOS) setTimeout(() => setPwaVisible(true), 1800);
-    return () => window.removeEventListener("beforeinstallprompt", handler as any);
-  }, []);
-
-  const handleInstall = useCallback(async () => {
-    if (installPrompt) {
-      await installPrompt.prompt();
-      const { outcome } = await installPrompt.userChoice;
-      if (outcome === "accepted") { setPwaVisible(false); setInstallPrompt(null); }
-    }
-  }, [installPrompt]);
-
-  const dismissPwa = () => {
-    setPwaVisible(false);
-    localStorage.setItem("investa_pwa_dismissed", "1");
-  };
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"roi" | "price" | "change">("roi");
 
   const filteredListings = useMemo(() => {
     if (!listings) return [];
-    if (activeCategory === "all") return listings;
-    return (listings as any[]).filter(l => getCategoryForCrop(l.cropType) === activeCategory);
-  }, [listings, activeCategory]);
+    let list = listings as Listing[];
+    if (activeCategory !== "all") list = list.filter(l => getCategoryForCrop(l.cropType) === activeCategory);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(l => l.farmName.toLowerCase().includes(q) || l.cropType.toLowerCase().includes(q) || l.location.toLowerCase().includes(q));
+    }
+    if (sortBy === "roi") list = [...list].sort((a, b) => getTargetRoi(b.cropType, b.changePercent) - getTargetRoi(a.cropType, a.changePercent));
+    if (sortBy === "price") list = [...list].sort((a, b) => a.pricePerShare - b.pricePerShare);
+    if (sortBy === "change") list = [...list].sort((a, b) => b.changePercent - a.changePercent);
+    return list;
+  }, [listings, activeCategory, search, sortBy]);
 
-  const handleBuyClick = (e: React.MouseEvent, listing: Listing) => {
-    e.stopPropagation();
-    setSelectedListing(listing); setInvestOpen(true);
-  };
+  const allListings = (listings as Listing[]) ?? [];
+  const gainers = allListings.filter(l => l.changePercent > 0).length;
+  const losers  = allListings.filter(l => l.changePercent < 0).length;
+  const avgRoi  = allListings.length ? (allListings.reduce((s, l) => s + getTargetRoi(l.cropType, l.changePercent), 0) / allListings.length).toFixed(1) : "—";
 
   return (
-    <div className="app-shell pb-20 page-enter" data-testid="primary-market">
-      {/* Compact header */}
-      <div className="relative overflow-hidden" style={{ height: 80 }}>
-        <img src={CROP_IMAGES.maize} alt="Primary Market" className="w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(120deg, rgba(5,46,22,0.92) 0%, rgba(20,83,45,0.80) 60%, rgba(22,163,74,0.35) 100%)" }} />
-        <div className="absolute inset-0 pt-10 px-4 flex items-center">
-          <button data-testid="button-back" onClick={() => setLocation("/market")}
-            className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mr-2.5">
-            <ArrowLeft size={13} className="text-white" />
+    <div className="min-h-dvh w-full max-w-[430px] mx-auto flex flex-col pb-20"
+      style={{ background: "linear-gradient(180deg, #0a0f0a 0%, #0d1a0e 40%, #111 100%)" }}>
+
+      {/* Header */}
+      <div style={{ background: "linear-gradient(180deg, #051a06 0%, #0b2010 100%)", borderBottom: "1px solid rgba(34,197,94,0.15)" }}>
+        <div className="flex items-center gap-3 px-4 pt-12 pb-3">
+          <button onClick={() => setLocation("/market")}
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <ArrowLeft size={14} className="text-white" />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-white/70 text-[9px] font-medium uppercase tracking-wider">Buy Direct from Farmers</p>
-            <h1 className="text-white text-sm font-bold leading-tight">Primary Market</h1>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-[9px] font-bold tracking-[0.15em] text-green-400/70 uppercase">Primary Exchange</span>
+              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                <span className="w-1 h-1 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-[8px] font-bold text-green-400 tracking-wider">OPEN</span>
+              </span>
+            </div>
+            <h1 className="text-white font-extrabold text-lg tracking-tight leading-none">Primary Market</h1>
           </div>
-          <div className="flex items-center gap-1.5 bg-white/10 rounded-lg px-2 py-1 flex-shrink-0">
-            <span className="text-[10px]">⚡+10%</span>
-            <span className="text-white/40 text-[9px]">·</span>
-            <span className="text-[10px]">🌾+28%</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSortBy(s => s === "roi" ? "price" : s === "price" ? "change" : "roi")}
+              className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-transform"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <SlidersHorizontal size={13} className="text-white/70" />
+            </button>
           </div>
+        </div>
+
+        {/* Ticker tape */}
+        {!isLoading && allListings.length > 0 && <TickerTape listings={allListings} />}
+
+        {/* Market summary stats */}
+        <div className="grid grid-cols-4 border-t border-white/5">
+          {[
+            { label: "LISTED", value: allListings.length || "—" },
+            { label: "GAINERS", value: gainers, color: "text-green-400" },
+            { label: "LOSERS", value: losers, color: "text-red-400" },
+            { label: "AVG ROI", value: avgRoi ? `${avgRoi}%` : "—", color: "text-emerald-300" },
+          ].map((s, i) => (
+            <div key={i} className="px-3 py-2 text-center border-r border-white/5 last:border-0">
+              <p className={`text-sm font-black leading-none ${(s as any).color ?? "text-white"}`}>{s.value}</p>
+              <p className="text-[8px] font-bold text-white/30 tracking-widest mt-0.5">{s.label}</p>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* PWA Install Widget */}
-      <AnimatePresence>
-        {pwaVisible && (
-          <motion.div
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ type: "spring", stiffness: 280, damping: 24 }}
-            className="mx-4 mt-3"
-          >
-            {isIOS && !installPrompt ? (
-              <div className="bg-gradient-to-r from-[#052e16] to-[#166534] rounded-2xl p-3.5 flex items-start gap-3 shadow-lg">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                  <Smartphone size={20} className="text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm leading-tight">Add to Home Screen</p>
-                  <p className="text-white/70 text-[11px] mt-0.5 leading-relaxed">
-                    Tap <Share2 size={10} className="inline relative -top-[1px]" /> then <strong>"Add to Home Screen"</strong> for the full app experience — live prices, instant alerts.
-                  </p>
-                </div>
-                <button onClick={dismissPwa} className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <X size={11} className="text-white" />
-                </button>
-              </div>
-            ) : (
-              <div className="bg-gradient-to-r from-[#052e16] to-[#166534] rounded-2xl p-3.5 flex items-center gap-3 shadow-lg">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                  <Smartphone size={20} className="text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm leading-tight">Add to Home Screen</p>
-                  <p className="text-white/70 text-[11px] mt-0.5">Live prices, alerts & offline access</p>
-                </div>
-                <button onClick={handleInstall}
-                  className="bg-white text-[#14532d] font-bold text-[11px] px-3 py-1.5 rounded-lg flex-shrink-0 active:scale-95 transition-all">
-                  Install
-                </button>
-                <button onClick={dismissPwa} className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                  <X size={11} className="text-white" />
-                </button>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Search + Sort bar */}
+      <div className="px-4 pt-3 pb-2 space-y-2">
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+          <Search size={13} className="text-white/30 flex-shrink-0" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search farm, crop, or county…"
+            className="flex-1 bg-transparent text-white text-xs placeholder-white/25 outline-none font-medium"
+          />
+          {search && <button onClick={() => setSearch("")}><X size={11} className="text-white/40" /></button>}
+        </div>
 
-      {/* Category Filter Tabs */}
-      <div className="px-4 pt-4 pb-1">
-        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+        {/* Category tabs */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
           {CATEGORY_TABS.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveCategory(tab.key)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+            <button key={tab.key} onClick={() => setActiveCategory(tab.key)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider transition-all ${
                 activeCategory === tab.key
-                  ? "bg-primary text-white shadow-sm"
-                  : "bg-card border border-border text-muted-foreground"
+                  ? "text-black shadow-sm shadow-green-400/20"
+                  : "text-white/40 hover:text-white/70"
               }`}
-            >
-              <span>{tab.emoji}</span>
-              {tab.label}
+              style={activeCategory === tab.key ? { background: "#22c55e" } : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              {tab.short}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort indicator */}
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] text-white/25 uppercase tracking-widest">Sorted by</span>
+          {[{k:"roi",l:"Target ROI"},{k:"change",l:"% Change"},{k:"price",l:"Price"}].map(s => (
+            <button key={s.k} onClick={() => setSortBy(s.k as any)}
+              className={`text-[9px] font-bold px-2 py-0.5 rounded-full transition-all ${sortBy === s.k ? "text-green-400 bg-green-400/10" : "text-white/25"}`}>
+              {s.l}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Column header */}
-      <div className="px-5 pt-3 pb-1 grid grid-cols-[1fr_52px_52px_56px] gap-1 items-center">
-        <p className="text-muted-foreground text-[9px] font-semibold uppercase tracking-wider">Farm / Crop</p>
-        <p className="text-muted-foreground text-[9px] font-semibold uppercase tracking-wider text-center">ROI</p>
-        <p className="text-muted-foreground text-[9px] font-semibold uppercase tracking-wider text-center">Risk</p>
-        <p className="text-muted-foreground text-[9px] font-semibold uppercase tracking-wider text-center">Action</p>
+      {/* Column headers */}
+      <div className="px-4 grid grid-cols-[1fr_48px_44px_52px] gap-1 items-center mb-1 border-b border-white/5 pb-1.5">
+        <p className="text-[8px] font-black tracking-[0.15em] text-white/25 uppercase">ASSET / FARM</p>
+        <p className="text-[8px] font-black tracking-[0.15em] text-white/25 uppercase text-right">ROI</p>
+        <p className="text-[8px] font-black tracking-[0.15em] text-white/25 uppercase text-right">CHG%</p>
+        <p className="text-[8px] font-black tracking-[0.15em] text-white/25 uppercase text-center">ACTION</p>
       </div>
 
       {/* Listings */}
-      <div className="px-4 space-y-2.5 pb-2">
+      <div className="flex-1 px-4 space-y-1.5 pb-2">
         {isLoading
-          ? Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
+          ? Array(6).fill(0).map((_, i) => (
+              <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.03)" }} />
+            ))
           : filteredListings.length === 0
             ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground text-sm">No farms in this category yet.</p>
-                <button onClick={() => setActiveCategory("all")} className="text-primary text-sm mt-2 font-medium">
-                  Show all farms
-                </button>
+              <div className="text-center py-16">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.12)" }}>
+                  <TrendingUp size={24} className="text-green-500/40" />
+                </div>
+                <p className="text-white/30 text-sm font-semibold">No listings found</p>
+                <button onClick={() => { setActiveCategory("all"); setSearch(""); }} className="text-green-400 text-xs mt-2 font-bold">Clear filters</button>
               </div>
             )
-            : (filteredListings as any[]).map((listing) => {
+            : (filteredListings as Listing[]).map((listing, idx) => {
                 const isUp = listing.changePercent >= 0;
-                const risk = getRiskLevel(listing.cropType, listing.changePercent);
-                const targetRoi = getTargetRoi(listing.cropType, listing.changePercent);
+                const roi = getTargetRoi(listing.cropType, listing.changePercent);
                 const imgSrc = getCropImage(listing.cropType, listing.imageUrl ?? undefined);
                 const isExpanded = expandedId === listing.id;
-                const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
+                const sparkData = generateSparkData(listing.pricePerShare, 14, listing.changePercent / 100);
                 const seasonHistory = generateSeasonHistory(listing.pricePerShare, listing.changePercent);
-                const aiInsight = getAiInsight(listing.cropType, listing.changePercent, listing.id);
+                const insight = getAiInsight(listing.cropType, listing.changePercent, listing.id);
+                const risk = getRiskLevel(listing.cropType, listing.changePercent);
+                const ticker = listing.cropType.slice(0, 3).toUpperCase();
 
                 return (
-                  <div key={listing.id} data-testid={`primary-listing-${listing.id}`}
-                    className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+                  <motion.div key={listing.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.03 }}
+                    className="rounded-xl overflow-hidden"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
 
                     {/* Main row */}
-                    <div className="grid grid-cols-[1fr_52px_52px_56px] gap-1 items-center px-3 py-2">
-                      {/* Farm info with thumbnail */}
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
-                          <img src={imgSrc} alt={listing.farmName} className="w-full h-full object-cover" />
+                    <div className="grid grid-cols-[1fr_48px_44px_52px] gap-1 items-center px-3 py-2.5">
+                      {/* Asset info */}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative flex-shrink-0">
+                          <div className="w-9 h-9 rounded-lg overflow-hidden">
+                            <img src={imgSrc} alt={listing.farmName} className="w-full h-full object-cover" />
+                          </div>
+                          <span className={`absolute -bottom-0.5 -right-0.5 text-[7px] font-black px-1 rounded ${isUp ? "bg-green-500 text-black" : "bg-red-500 text-white"}`}>
+                            {ticker}
+                          </span>
                         </div>
                         <div className="min-w-0">
-                          <p className="font-bold text-xs text-foreground truncate leading-tight">{listing.farmName}</p>
-                          <p className="text-muted-foreground text-[10px] truncate">{listing.cropType} · {listing.location}</p>
-                          <div className="flex items-center gap-1 mt-1">
-                            <span className="inline-flex items-center gap-0.5 bg-violet-100 text-violet-700 border border-violet-200 rounded-full px-1.5 py-0.5 text-[9px] font-bold flex-shrink-0">
-                              🤖 AI
-                            </span>
-                            <span className="text-[10px] text-foreground/80 font-medium truncate leading-tight">{aiInsight}</span>
+                          <p className="font-extrabold text-[11px] text-white truncate leading-tight">{listing.farmName}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-white/40 text-[9px] font-mono">{formatAmount(listing.pricePerShare)}</span>
+                            <span className="text-white/20 text-[8px]">·</span>
+                            <span className="text-white/30 text-[9px] truncate">{listing.location.split(",")[0]}</span>
+                          </div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[8px] font-black text-purple-400/70 bg-purple-400/8 px-1 py-0.5 rounded">AI</span>
+                            <span className="text-[9px] text-white/35 truncate leading-tight">{insight}</span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Target ROI */}
-                      <div className="text-center">
-                        <p className="text-green-600 font-bold text-sm leading-tight">+{targetRoi}%</p>
-                        <p className="text-muted-foreground text-[9px]">target</p>
+                      {/* ROI */}
+                      <div className="text-right">
+                        <p className="text-green-400 font-black text-sm leading-none font-mono">+{roi}%</p>
+                        <p className="text-white/25 text-[8px] mt-0.5">target</p>
                       </div>
 
-                      {/* Risk dots */}
-                      <div className="flex justify-center">
-                        <div className="flex flex-col items-center gap-0.5">
-                          <RiskDots level={risk} />
-                          <p className="text-muted-foreground text-[9px]">{risk}</p>
-                        </div>
+                      {/* Change */}
+                      <div className="text-right">
+                        <p className={`font-black text-sm leading-none font-mono ${isUp ? "text-green-400" : "text-red-400"}`}>
+                          {isUp ? "+" : ""}{listing.changePercent.toFixed(1)}%
+                        </p>
+                        <p className="text-white/25 text-[8px] mt-0.5">{risk}</p>
                       </div>
 
                       {/* Buy button */}
                       <div className="flex justify-center">
                         <button
-                          data-testid={`button-buy-${listing.id}`}
-                          onClick={(e) => handleBuyClick(e, listing as Listing)}
-                          className="bg-primary text-white font-bold px-2.5 py-2 rounded-xl text-xs active:scale-95 transition-transform shadow-sm w-full"
-                        >
+                          onClick={(e) => { e.stopPropagation(); setSelectedListing(listing); setInvestOpen(true); }}
+                          className="px-2.5 py-2 rounded-lg text-[10px] font-black tracking-wide text-black active:scale-90 transition-transform shadow-sm shadow-green-500/20 w-full"
+                          style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
                           BUY
                         </button>
                       </div>
                     </div>
 
-                    {/* Price + sparkline + shares available + details toggle */}
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : listing.id)}
-                      className="w-full border-t border-border/50 px-3 py-2 flex items-center justify-between bg-muted/20 hover:bg-muted/40 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          <span className="text-foreground font-bold text-xs">{formatAmount(listing.pricePerShare)}</span>
-                          <span className="text-muted-foreground text-[10px]">/share</span>
+                    {/* Sparkline + expand row */}
+                    <button onClick={() => setExpandedId(isExpanded ? null : listing.id)}
+                      className="w-full px-3 pb-2.5 flex items-center gap-3 active:bg-white/2 transition-colors">
+                      <div className="flex-1 flex items-center gap-2">
+                        <div className="w-20 opacity-80">
+                          <Sparkline data={sparkData} color={isUp ? "#22c55e" : "#ef4444"} height={18} />
                         </div>
-                        <span className={`text-[10px] font-semibold ${isUp ? "text-green-600" : "text-red-500"}`}>
-                          {isUp ? "▲" : "▼"} {Math.abs(listing.changePercent).toFixed(1)}%
-                        </span>
-                        <div className="w-12 opacity-70">
-                          <Sparkline data={sparkData} color={isUp ? "#16a34a" : "#dc2626"} height={16} />
-                        </div>
-                        <div className="flex items-center gap-0.5 text-muted-foreground/70">
-                          <Users size={9} />
-                          <span className="text-[9px]">{listing.sharesAvailable.toLocaleString()} left</span>
+                        <div className="flex items-center gap-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+                          <Users size={8} />
+                          <span className="text-[9px] font-mono">{listing.sharesAvailable.toLocaleString()}</span>
+                          <span className="text-[8px]">avail</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-0.5 text-primary text-[10px] font-semibold">
-                        {isExpanded ? <><ChevronUp size={12} />Less</> : <><ChevronDown size={12} />Details</>}
+                      <div className="flex items-center gap-1">
+                        <button onClick={(e) => { e.stopPropagation(); setAlertListing(listing); setAlertOpen(true); }}
+                          className="w-6 h-6 rounded-md flex items-center justify-center active:scale-90 transition-transform"
+                          style={{ background: "rgba(255,255,255,0.05)" }}>
+                          <Bell size={9} className="text-white/40" />
+                        </button>
+                        <div className="flex items-center gap-0.5 text-white/25 text-[9px] font-semibold ml-1">
+                          {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                        </div>
                       </div>
                     </button>
 
-                    {/* Expanded details */}
-                    {isExpanded && (
-                      <div className="border-t border-border px-4 pb-4 pt-3 space-y-3">
-                        {/* Price chart — full width on top */}
-                        <div>
-                          <p className="text-xs font-semibold text-foreground mb-1.5">Today's Price</p>
-                          <div style={{ height: 120 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={seasonHistory} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                                <defs>
-                                  <linearGradient id={`grad-${listing.id}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor={isUp ? "#16a34a40" : "#dc262640"} />
-                                    <stop offset="95%" stopColor={isUp ? "#16a34a00" : "#dc262600"} />
-                                  </linearGradient>
-                                </defs>
-                                <XAxis dataKey="time" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval={1} />
-                                <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} width={38}
-                                  tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-                                <Tooltip
-                                  formatter={(v: number) => [formatKES(v), "KES"]}
-                                  labelFormatter={(l) => l}
-                                  contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", fontWeight: 600 }}
-                                />
-                                <Area type="monotone" dataKey="value"
-                                  stroke={isUp ? "#16a34a" : "#dc2626"} strokeWidth={2}
-                                  fill={`url(#grad-${listing.id})`} dot={{ fill: isUp ? "#16a34a" : "#dc2626", r: 2 }} />
-                              </AreaChart>
-                            </ResponsiveContainer>
-                          </div>
-                        </div>
-
-                        {/* Farm map — below chart */}
-                        {(() => {
-                          const [lat, lng] = getKenyaCoords(listing.location);
-                          const d = 0.06;
-                          const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${lng-d},${lat-d},${lng+d},${lat+d}&layer=mapnik&marker=${lat},${lng}`;
-                          return (
-                            <div className="rounded-xl overflow-hidden border border-border" style={{ height: 150, position: "relative" }}>
-                              <iframe
-                                src={mapUrl}
-                                style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-                                loading="lazy"
-                                title={`Map for ${listing.farmName}`}
-                              />
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5 flex items-center gap-1 pointer-events-none">
-                                <Navigation size={9} className="text-white flex-shrink-0" />
-                                <span className="text-white text-[9px] font-semibold truncate">{listing.location}</span>
+                    {/* Expanded detail panel */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden border-t border-white/5"
+                        >
+                          <div className="px-4 py-4 space-y-4">
+                            {/* Price chart */}
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-[9px] font-black tracking-widest text-white/40 uppercase">Today's Price Action</p>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded font-mono ${isUp ? "text-green-400 bg-green-400/10" : "text-red-400 bg-red-400/10"}`}>
+                                  {isUp ? "▲" : "▼"} {Math.abs(listing.changePercent).toFixed(2)}%
+                                </span>
+                              </div>
+                              <div style={{ height: 110 }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <AreaChart data={seasonHistory} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                                    <defs>
+                                      <linearGradient id={`g-${listing.id}`} x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={isUp ? "#22c55e" : "#ef4444"} stopOpacity={0.25} />
+                                        <stop offset="95%" stopColor={isUp ? "#22c55e" : "#ef4444"} stopOpacity={0} />
+                                      </linearGradient>
+                                    </defs>
+                                    <XAxis dataKey="time" tick={{ fontSize: 8, fill: "rgba(255,255,255,0.25)", fontFamily: "monospace" }} tickLine={false} axisLine={false} interval={1} />
+                                    <YAxis hide />
+                                    <Tooltip
+                                      contentStyle={{ background: "#0d1a0e", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 8, fontSize: 10, fontFamily: "monospace" }}
+                                      labelStyle={{ color: "rgba(255,255,255,0.4)", fontSize: 8 }}
+                                      itemStyle={{ color: isUp ? "#22c55e" : "#ef4444", fontWeight: 800 }}
+                                      formatter={(v: number) => [formatKES(v), "Price"]}
+                                    />
+                                    <Area type="monotone" dataKey="value" stroke={isUp ? "#22c55e" : "#ef4444"} strokeWidth={1.5} fill={`url(#g-${listing.id})`} dot={false} />
+                                  </AreaChart>
+                                </ResponsiveContainer>
                               </div>
                             </div>
-                          );
-                        })()}
 
-                        {/* Location + shares info */}
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <MapPin size={11} className="flex-shrink-0" />
-                            <span className="text-[10px]">{listing.location}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Users size={11} className="flex-shrink-0" />
-                            <span className="text-[10px]">{listing.sharesAvailable.toLocaleString()} shares left</span>
-                          </div>
-                          <div className="ml-auto">
-                            <span className="text-[9px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                              Min: {formatAmount(listing.pricePerShare * 10)} (10 shares)
-                            </span>
-                          </div>
-                        </div>
+                            {/* Key metrics grid */}
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { label: "Share Price", value: formatAmount(listing.pricePerShare) },
+                                { label: "Target ROI", value: `+${getTargetRoi(listing.cropType, listing.changePercent)}%`, color: "text-green-400" },
+                                { label: "Shares Left", value: listing.sharesAvailable.toLocaleString() },
+                              ].map((m, i) => (
+                                <div key={i} className="rounded-lg px-2.5 py-2 text-center"
+                                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                  <p className={`font-black text-xs leading-none ${(m as any).color ?? "text-white"}`}>{m.value}</p>
+                                  <p className="text-[8px] text-white/25 mt-1 tracking-wider uppercase">{m.label}</p>
+                                </div>
+                              ))}
+                            </div>
 
-                        {/* Funding progress bar */}
-                        {(listing as any).totalShares > 0 && (
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-[10px] font-semibold text-foreground">Funding Progress</p>
-                              <span className="text-[10px] text-primary font-bold">
-                                {Math.round(((listing as any).totalShares - listing.sharesAvailable) / (listing as any).totalShares * 100)}% funded
-                              </span>
-                            </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                              <div className="h-full bg-primary rounded-full transition-all"
-                                style={{ width: `${Math.min(100, Math.round(((listing as any).totalShares - listing.sharesAvailable) / (listing as any).totalShares * 100))}%` }} />
-                            </div>
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-[9px] text-muted-foreground">{listing.sharesAvailable.toLocaleString()} remaining</span>
-                              <span className="text-[9px] text-muted-foreground">{((listing as any).totalShares ?? 0).toLocaleString()} total shares</span>
+                            {/* Action buttons */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => { setSelectedListing(listing); setInvestOpen(true); }}
+                                className="py-3 rounded-xl text-xs font-black text-black tracking-wide active:scale-95 transition-transform shadow-sm shadow-green-500/20"
+                                style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
+                                ⚡ Invest Now
+                              </button>
+                              <button
+                                onClick={() => { setCalcListing(listing); setCalcOpen(true); }}
+                                className="py-3 rounded-xl text-xs font-bold text-white active:scale-95 transition-transform"
+                                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                                📊 Calculate
+                              </button>
                             </div>
                           </div>
-                        )}
-
-                        <div className="grid grid-cols-3 gap-2">
-                          {[
-                            { label: "Season Low",  value: formatAmount(Math.round(listing.pricePerShare * 0.85)), cls: "text-red-500" },
-                            { label: "Current",     value: formatAmount(listing.pricePerShare),                    cls: "text-foreground" },
-                            { label: "Target Exit", value: formatAmount(Math.round(listing.pricePerShare * (1 + targetRoi / 100))), cls: "text-green-600" },
-                          ].map(({ label, value, cls }) => (
-                            <div key={label} className="bg-muted/50 rounded-xl p-2 text-center">
-                              <p className="text-muted-foreground text-[8px]">{label}</p>
-                              <p className={`font-bold text-[10px] ${cls}`}>{value}</p>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-green-700 text-[10px] font-semibold">💰 Return Calculator (100 shares)</p>
-                            <AiSectionBot
-                              label="this farm's returns"
-                              context={`Farm: ${listing.farmName}, crop: ${listing.cropType}, Kenya. Price per share: KES ${listing.pricePerShare}. Market momentum: ${listing.changePercent}%. Risk level: ${getRiskLevel(listing.cropType, listing.changePercent)}. Expected ROI: ${targetRoi}%. Should I invest in this farm?`}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <p className="text-muted-foreground text-[9px]">⚡ Mid-Season (+10%)</p>
-                              <p className="text-orange-600 font-bold text-xs">{formatAmount(Math.round(listing.pricePerShare * 100 * 1.10))}</p>
-                              <p className="text-muted-foreground text-[8px]">30–60 days</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground text-[9px]">🌾 Full Season (+{targetRoi}%)</p>
-                              <p className="text-green-600 font-bold text-xs">{formatAmount(Math.round(listing.pricePerShare * 100 * (1 + targetRoi / 100)))}</p>
-                              <p className="text-muted-foreground text-[8px]">~6 months</p>
-                            </div>
-                          </div>
-                          {(listing as any).dcfFairValue && (
-                            <div className="mt-2 pt-2 border-t border-green-200/70 flex items-center justify-between">
-                              <span className="text-green-700 text-[9px] font-semibold">DCF Fair Value / share</span>
-                              <span className="text-green-800 font-bold text-[11px]">{formatAmount((listing as any).dcfFairValue)}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setCalcListing(listing as Listing); setCalcOpen(true); }}
-                            className="w-10 h-10 rounded-xl border border-border bg-muted flex items-center justify-center active:scale-95 transition-transform flex-shrink-0"
-                            title="Investment Calculator"
-                          >
-                            <Calculator size={16} className="text-muted-foreground" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setAlertListing(listing as Listing); setAlertOpen(true); }}
-                            className="w-10 h-10 rounded-xl border border-green-200 bg-green-50 flex items-center justify-center active:scale-95 transition-transform flex-shrink-0"
-                            title="Set Price Alert"
-                          >
-                            <BellRing size={16} className="text-green-600" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const l = listing as CompareListing;
-                              if (!compareA || compareA.id === l.id) {
-                                setCompareA(l);
-                                setCompareB(null);
-                              } else {
-                                setCompareB(l);
-                                setCompareOpen(true);
-                              }
-                            }}
-                            className={`w-10 h-10 rounded-xl border flex items-center justify-center active:scale-95 transition-transform flex-shrink-0 ${
-                              compareA?.id === listing.id
-                                ? "bg-violet-100 border-violet-300"
-                                : "border-violet-200 bg-violet-50"
-                            }`}
-                            title="Compare Farm"
-                          >
-                            <Scale size={15} className="text-violet-600" />
-                          </button>
-                          <button
-                            onClick={(e) => handleBuyClick(e, listing as Listing)}
-                            className="flex-1 bg-primary text-white font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform"
-                          >
-                            Invest in {listing.cropType} →
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
                 );
               })
         }
       </div>
 
-      {/* Floating compare bar — shown when Farm A is pinned but Farm B not yet chosen */}
-      {compareA && !compareOpen && (
-        <div className="fixed bottom-20 left-4 right-4 z-[60] pointer-events-none">
-          <div className="bg-violet-600 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-xl pointer-events-auto">
-            <Scale size={16} className="flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm leading-tight truncate">{compareA.farmName} selected</p>
-              <p className="text-violet-200 text-[10px]">Tap ⚖️ on another farm to compare</p>
-            </div>
-            <button onClick={() => setCompareA(null)} className="w-7 h-7 rounded-full bg-violet-500 flex items-center justify-center flex-shrink-0">
-              <X size={12} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <InvestModal open={investOpen} onClose={() => setInvestOpen(false)} listing={selectedListing} />
-      <PriceAlertModal open={alertOpen} onClose={() => setAlertOpen(false)} listing={alertListing} />
-      <InvestmentCalculator open={calcOpen} onClose={() => setCalcOpen(false)} listing={calcListing} />
-      <CompareFarmsModal
-        open={compareOpen}
-        farmA={compareA}
-        farmB={compareB}
-        onClose={() => { setCompareOpen(false); setCompareA(null); setCompareB(null); }}
-      />
       <BottomNav role="investor" />
+
+      {selectedListing && investOpen && (
+        <InvestModal open={investOpen} onClose={() => setInvestOpen(false)} listing={selectedListing as any} />
+      )}
+      {alertListing && alertOpen && (
+        <PriceAlertModal open={alertOpen} onClose={() => setAlertOpen(false)} listing={alertListing as any} />
+      )}
+      {calcListing && calcOpen && (
+        <InvestmentCalculator open={calcOpen} onClose={() => setCalcOpen(false)} listing={calcListing as any} />
+      )}
     </div>
   );
 }

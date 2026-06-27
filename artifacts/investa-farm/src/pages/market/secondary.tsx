@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useListSecondaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES, formatChange, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowLeft, Users2, MapPin, Tag, X, Clock, CheckCircle2, XCircle, Loader2, ChevronRight, BellRing, ShoppingBag, BookOpen, Plus, Minus, ChevronDown, ChevronUp, BarChart2, Info, ExternalLink, Map as MapIcon } from "lucide-react";
+import { formatKES, formatChange, getToken, getStoredUser } from "@/lib/auth";
+import { TrendingUp, TrendingDown, ArrowLeft, Users2, Tag, X, Clock, CheckCircle2, XCircle, Loader2, BookOpen, Bell, Search, ChevronRight, ChevronDown } from "lucide-react";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { useLocation } from "wouter";
@@ -12,7 +12,6 @@ import { getCropImage } from "@/lib/crops";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRiskLevel, RiskBadge } from "@/components/risk-badge";
-import { AiSectionBot } from "@/components/ai-section-bot";
 
 type Listing = {
   id: number; farmId: number; farmName: string; cropType: string;
@@ -40,51 +39,56 @@ function CancelListingModal({ listing, onClose, onCancelled }: { listing: Listin
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 28, stiffness: 300 }}
-        className="relative w-full max-w-[430px] bg-white rounded-t-3xl shadow-xl px-5 pt-5 pb-10">
+        className="relative w-full max-w-[430px] rounded-t-3xl shadow-2xl px-5 pt-5 pb-10"
+        style={{ background: "#0d1a0e", border: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="flex items-center justify-between mb-4">
-          <p className="font-bold text-foreground">Cancel Listing</p>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-            <X size={14} />
+          <p className="font-bold text-white text-sm">Cancel Listing</p>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.06)" }}>
+            <X size={14} className="text-white/60" />
           </button>
         </div>
         {step === "confirm" ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 bg-muted/50 rounded-2xl p-3">
+            <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
               <img src={getCropImage(listing.cropType, listing.imageUrl)} alt={listing.farmName}
                 className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
               <div>
-                <p className="font-semibold text-sm">{listing.farmName}</p>
-                <p className="text-muted-foreground text-xs">{listing.sharesAvailable} shares · {formatKES(listing.pricePerShare)}/share</p>
+                <p className="font-bold text-white text-sm">{listing.farmName}</p>
+                <p className="text-white/40 text-xs">{listing.sharesAvailable} shares · {formatKES(listing.pricePerShare)}/share</p>
               </div>
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-              <p className="text-amber-700 text-xs leading-relaxed">
-                Cancelling this listing will remove it from the Secondary Market. You'll keep the shares in your portfolio.
+            <div className="rounded-xl p-3" style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.15)" }}>
+              <p className="text-amber-300/80 text-xs leading-relaxed">
+                Cancelling will remove this listing from the exchange. Your shares return to your portfolio.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={onClose}
-                className="py-3 rounded-xl border border-border text-foreground text-sm font-semibold active:scale-95 transition-transform">
+                className="py-3 rounded-xl text-sm font-semibold text-white/60 active:scale-95 transition-transform"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
                 Keep Listing
               </button>
               <button onClick={handleCancel} disabled={loading}
-                className="py-3 rounded-xl bg-red-500 text-white text-sm font-bold active:scale-95 transition-all flex items-center justify-center gap-1.5">
-                {loading ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
-                {loading ? "Cancelling..." : "Cancel Listing"}
+                className="py-3 rounded-xl text-sm font-bold text-white active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}>
+                {loading ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} className="text-red-400" />}
+                <span className="text-red-400">{loading ? "Cancelling…" : "Cancel"}</span>
               </button>
             </div>
           </div>
         ) : (
           <div className="py-6 flex flex-col items-center gap-3 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-              <CheckCircle2 size={32} className="text-green-500" />
+            <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.12)" }}>
+              <CheckCircle2 size={32} className="text-green-400" />
             </div>
-            <p className="font-bold text-foreground text-lg">Listing Cancelled</p>
-            <p className="text-muted-foreground text-sm">Your shares are back in your portfolio.</p>
-            <button onClick={onClose} className="w-full bg-primary text-white font-bold py-3 rounded-xl active:scale-95 transition-all">Done</button>
+            <p className="font-bold text-white text-lg">Listing Removed</p>
+            <p className="text-white/40 text-sm">Your shares are back in your portfolio.</p>
+            <button onClick={onClose} className="w-full font-bold py-3 rounded-xl text-black text-sm active:scale-95 transition-all"
+              style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>Done</button>
           </div>
         )}
       </motion.div>
@@ -92,7 +96,6 @@ function CancelListingModal({ listing, onClose, onCancelled }: { listing: Listin
   );
 }
 
-// Group listings by crop type
 function groupByCrop(listings: Listing[]): Record<string, Listing[]> {
   return listings.reduce((acc, l) => {
     const key = l.cropType ?? "Other";
@@ -109,10 +112,11 @@ export default function SecondaryMarket() {
   const [investOpen, setInvestOpen] = useState(false);
   const [cancelListing, setCancelListing] = useState<Listing | null>(null);
   const [alertListing, setAlertListing] = useState<Listing | null>(null);
+  const [alertOpen, setAlertOpen] = useState(false);
   const [tab, setTab] = useState<"market" | "mine" | "orders">("market");
   const [cropFilter, setCropFilter] = useState<string>("all");
   const [expandedCrop, setExpandedCrop] = useState<string | null>(null);
-  const [moreListing, setMoreListing] = useState<Listing | null>(null);
+  const [search, setSearch] = useState("");
   const token = getToken();
   const qc = useQueryClient();
 
@@ -124,12 +128,6 @@ export default function SecondaryMarket() {
     },
   });
 
-  const handleBuyClick = (e: React.MouseEvent, listing: Listing) => {
-    e.preventDefault(); e.stopPropagation();
-    setSelectedListing(listing); setInvestOpen(true);
-  };
-
-  // Order book state
   const [orderFarmId, setOrderFarmId] = useState<number | "">("");
   const [orderSide, setOrderSide] = useState<"buy" | "sell">("buy");
   const [orderPrice, setOrderPrice] = useState("");
@@ -192,344 +190,497 @@ export default function SecondaryMarket() {
   });
 
   const allFarms = listings ? (() => {
-    const m = new globalThis.Map<number, {id: number; name: string; price: number}>();
+    const m = new globalThis.Map<number, { id: number; name: string; price: number }>();
     for (const l of listings as Listing[]) m.set(l.farmId, { id: l.farmId, name: l.farmName, price: l.pricePerShare });
     return [...m.values()];
   })() : [];
 
   const activeMyListings = myListings.filter(l => l.isActive !== false);
   const inactiveMyListings = myListings.filter(l => l.isActive === false);
-  const totalVolume = (listings as Listing[] ?? []).reduce((s: number, l: Listing) => s + l.pricePerShare * l.sharesAvailable, 0);
-  const filtered = (listings as Listing[] ?? []).filter((l: Listing) => cropFilter === "all" || l.cropType === cropFilter);
+  const totalVolume = (listings as Listing[] ?? []).reduce((s, l) => s + l.pricePerShare * l.sharesAvailable, 0);
+  const allListings = (listings as Listing[] ?? []);
+
+  let filtered = allListings.filter(l => cropFilter === "all" || l.cropType === cropFilter);
+  if (search.trim()) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(l => l.farmName.toLowerCase().includes(q) || l.cropType.toLowerCase().includes(q) || (l.location ?? "").toLowerCase().includes(q));
+  }
   const grouped = groupByCrop(filtered);
   const cropKeys = Object.keys(grouped);
+  const uniqueCrops = [...new Set(allListings.map(l => l.cropType))];
+
+  const gainers = allListings.filter(l => l.changePercent > 0).length;
+  const losers = allListings.filter(l => l.changePercent < 0).length;
 
   return (
-    <div className="app-shell pb-20 page-enter" data-testid="secondary-market">
-      {/* Grass-green header */}
-      <div className="relative overflow-hidden pt-10 pb-4 px-4"
-        style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
-        <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-15 blur-3xl pointer-events-none"
-          style={{ background: "radial-gradient(circle, #22c55e, transparent)" }} />
-        <div className="absolute bottom-0 left-0 w-24 h-20 rounded-full opacity-10 blur-2xl pointer-events-none"
-          style={{ background: "radial-gradient(circle, #bbf7d0, transparent)" }} />
+    <div className="min-h-dvh w-full max-w-[430px] mx-auto flex flex-col pb-20"
+      style={{ background: "linear-gradient(180deg, #070d07 0%, #0a150a 40%, #0d1a0e 100%)" }}>
 
-        <div className="flex items-center gap-2.5">
-          <button data-testid="button-back" onClick={() => setLocation("/market")}
-            className="w-8 h-8 rounded-full bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform">
+      {/* Header */}
+      <div style={{ background: "linear-gradient(180deg, #050d05 0%, #091409 100%)", borderBottom: "1px solid rgba(34,197,94,0.12)" }}>
+        <div className="flex items-center gap-3 px-4 pt-12 pb-3">
+          <button onClick={() => setLocation("/market")}
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <ArrowLeft size={14} className="text-white" />
           </button>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-green-300/80 text-[9px] font-bold uppercase tracking-widest">P2P · Investor to Investor</span>
-              <span className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 bg-green-500/20 border border-green-400/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-green-300 text-[8px] font-bold tracking-wider">LIVE</span>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-[9px] font-bold tracking-[0.15em] text-green-400/60 uppercase">P2P Exchange</span>
+              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.18)" }}>
+                <span className="w-1 h-1 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-[8px] font-black text-green-400 tracking-wider">LIVE</span>
               </span>
             </div>
-            <h1 className="text-white text-base font-extrabold leading-tight tracking-tight">Secondary Market</h1>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="rounded-xl px-2.5 py-1.5 text-right bg-white/10 border border-white/15">
-              <p className="text-white font-bold text-sm leading-none">{listings?.length ?? "—"}</p>
-              <p className="text-white/50 text-[8px]">listings</p>
-            </div>
-            {totalVolume > 0 && (
-              <div className="rounded-xl px-2.5 py-1.5 text-right bg-green-500/20 border border-green-400/30">
-                <p className="text-green-200 text-[9px] font-bold leading-none">{formatKES(totalVolume)}</p>
-                <p className="text-white/40 text-[8px]">volume</p>
-              </div>
-            )}
+            <h1 className="text-white font-extrabold text-lg tracking-tight leading-none">Secondary Market</h1>
           </div>
         </div>
 
-        <div className="absolute bottom-0 inset-x-0 h-px"
-          style={{ background: "linear-gradient(90deg, transparent, rgba(134,239,172,0.5), transparent)" }} />
-      </div>
+        {/* Market stats */}
+        <div className="grid grid-cols-4 border-t border-white/5">
+          {[
+            { label: "LISTINGS", value: allListings.length || "—" },
+            { label: "GAINERS",  value: gainers, color: "text-green-400" },
+            { label: "LOSERS",   value: losers,  color: "text-red-400" },
+            { label: "VOLUME",   value: totalVolume > 0 ? `${(totalVolume / 1_000_000).toFixed(1)}M` : "—", color: "text-emerald-300" },
+          ].map((s, i) => (
+            <div key={i} className="px-3 py-2 text-center border-r border-white/5 last:border-0">
+              <p className={`text-sm font-black leading-none font-mono ${(s as any).color ?? "text-white"}`}>{s.value}</p>
+              <p className="text-[8px] font-bold text-white/25 tracking-widest mt-0.5">{s.label}</p>
+            </div>
+          ))}
+        </div>
 
-      {/* Tabs */}
-      <div className="px-4 pt-3 pb-0">
-        <div className="flex rounded-2xl p-1 gap-0.5 bg-muted border border-border">
-          <button onClick={() => setTab("market")}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === "market" ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-            All Listings
-          </button>
-          <button onClick={() => setTab("orders")}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${tab === "orders" ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-            <BookOpen size={11} /> Order Book
-          </button>
-          <button onClick={() => setTab("mine")}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${tab === "mine" ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-            <Tag size={11} />
-            Mine
-            {activeMyListings.length > 0 && (
-              <span className={`text-[9px] font-bold px-1 py-0.5 rounded-full ml-0.5 ${tab === "mine" ? "bg-white/20 text-white" : "bg-primary/15 text-primary"}`}>
-                {activeMyListings.length}
-              </span>
-            )}
-          </button>
+        {/* Tabs */}
+        <div className="flex px-4 pb-0 pt-1 gap-1">
+          {[
+            { id: "market", label: "Market", icon: null },
+            { id: "orders", label: "Order Book", icon: <BookOpen size={10} /> },
+            { id: "mine",   label: "My Listings", badge: activeMyListings.length },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTab(t.id as any)}
+              className={`flex-1 py-2.5 text-[10px] font-black tracking-wide transition-all flex items-center justify-center gap-1 relative ${
+                tab === t.id ? "text-green-400" : "text-white/30"
+              }`}>
+              {t.icon}
+              {t.label}
+              {(t as any).badge > 0 && (
+                <span className="text-[8px] font-black px-1 rounded-full ml-0.5"
+                  style={{ background: tab === t.id ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)", color: tab === t.id ? "#4ade80" : "rgba(255,255,255,0.3)" }}>
+                  {(t as any).badge}
+                </span>
+              )}
+              {tab === t.id && (
+                <motion.div layoutId="tab-underline" className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-green-400" />
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
       <AnimatePresence mode="wait">
+
+        {/* ─── MARKET TAB ─────────────────────────────────────────────── */}
         {tab === "market" && (
-          <motion.div key="market" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-3 pb-4 space-y-1">
-            {/* Crop filter + info */}
-            {!isLoading && (listings?.length ?? 0) > 0 && (
-              <div className="px-4 mb-3">
-                {/* Horizontal chip filter */}
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                  <button
-                    onClick={() => { setCropFilter("all"); setExpandedCrop(null); }}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${cropFilter === "all" ? "bg-primary text-white border-primary shadow-sm shadow-green-500/30" : "bg-white text-muted-foreground border-border"}`}
-                  >
-                    🌍 All
+          <motion.div key="market" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-3 pb-4 space-y-2 flex-1">
+
+            {/* Search + filter bar */}
+            <div className="px-4 space-y-2">
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <Search size={13} className="text-white/30 flex-shrink-0" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search farm, crop, county…"
+                  className="flex-1 bg-transparent text-white text-xs placeholder-white/25 outline-none font-medium"
+                />
+                {search && <button onClick={() => setSearch("")}><X size={11} className="text-white/40" /></button>}
+              </div>
+
+              {/* Crop filter chips */}
+              {uniqueCrops.length > 0 && (
+                <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                  <button onClick={() => { setCropFilter("all"); setExpandedCrop(null); }}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wide transition-all ${
+                      cropFilter === "all" ? "text-black" : "text-white/40"
+                    }`}
+                    style={cropFilter === "all" ? { background: "#22c55e" } : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    ALL
                   </button>
-                  {Array.from(new Set((listings as Listing[] ?? []).map((l: Listing) => l.cropType))).map((crop: string) => (
-                    <button
-                      key={crop}
-                      onClick={() => { setCropFilter(crop); setExpandedCrop(null); }}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${cropFilter === crop ? "bg-primary text-white border-primary shadow-sm shadow-green-500/30" : "bg-white text-muted-foreground border-border"}`}
-                    >
-                      🌾 {crop}
+                  {uniqueCrops.map(crop => (
+                    <button key={crop} onClick={() => { setCropFilter(crop); setExpandedCrop(null); }}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wide transition-all ${
+                        cropFilter === crop ? "text-black" : "text-white/40"
+                      }`}
+                      style={cropFilter === crop ? { background: "#22c55e" } : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                      {crop.toUpperCase().slice(0, 5)}
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-1.5 mt-2 px-1">
-                  <p className="text-muted-foreground text-xs">Investors reselling shares · prices reflect market conditions</p>
-                  <AiSectionBot context="How does the secondary market work on Investa Farm? There is a 0.5% broker fee on both buyer and seller. How does this affect returns compared to the primary market?" label="secondary market" />
+              )}
+            </div>
+
+            {/* Listings */}
+            <div className="px-4 space-y-2">
+              {isLoading
+                ? Array(4).fill(0).map((_, i) => (
+                    <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.03)" }} />
+                  ))
+                : filtered.length === 0
+                  ? (
+                    <div className="text-center py-16">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
+                        style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.1)" }}>
+                        <Users2 size={24} className="text-green-500/30" />
+                      </div>
+                      <p className="text-white/30 text-sm font-semibold">No secondary listings</p>
+                      <p className="text-white/20 text-xs mt-1">Investors can relist primary shares here</p>
+                      <button onClick={() => setLocation("/market/primary")}
+                        className="mt-4 text-xs font-black px-5 py-2.5 rounded-xl text-black active:scale-95"
+                        style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
+                        Browse Primary Market
+                      </button>
+                    </div>
+                  )
+                  : cropKeys.map(crop => {
+                    const cropListings = grouped[crop];
+                    const isExp = expandedCrop === crop || cropFilter !== "all";
+                    const bestPrice = Math.min(...cropListings.map(l => l.pricePerShare));
+                    const avgChange = cropListings.reduce((s, l) => s + l.changePercent, 0) / cropListings.length;
+                    const isUp = avgChange >= 0;
+                    const totalShares = cropListings.reduce((s, l) => s + l.sharesAvailable, 0);
+
+                    return (
+                      <div key={crop} className="rounded-xl overflow-hidden"
+                        style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${isUp ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.12)"}` }}>
+
+                        {/* Crop header */}
+                        <button className="w-full flex items-center gap-3 px-3 py-3 active:bg-white/2 transition-colors"
+                          onClick={() => setExpandedCrop(isExp ? null : crop)}>
+                          <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                            <img src={getCropImage(crop, undefined)} alt={crop} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-white font-extrabold text-sm">{crop}</p>
+                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full text-green-400"
+                                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.15)" }}>
+                                {cropListings.length}
+                              </span>
+                            </div>
+                            <p className="text-white/30 text-[9px] mt-0.5 font-mono">{totalShares.toLocaleString()} shares · {cropListings.length} seller{cropListings.length !== 1 ? "s" : ""}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                            <p className="text-white font-black text-sm leading-none font-mono">{formatKES(bestPrice)}</p>
+                            <span className={`text-[9px] font-black flex items-center gap-0.5 px-1.5 py-0.5 rounded font-mono ${isUp ? "text-green-400 bg-green-400/10" : "text-red-400 bg-red-400/10"}`}>
+                              {isUp ? <TrendingUp size={8} /> : <TrendingDown size={8} />}
+                              {formatChange(avgChange)}
+                            </span>
+                          </div>
+                          <ChevronRight size={12} className={`text-white/20 transition-transform ml-1 ${isExp ? "rotate-90" : ""}`} />
+                        </button>
+
+                        {/* Expanded sellers */}
+                        <AnimatePresence>
+                          {isExp && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden border-t border-white/5"
+                            >
+                              {cropListings.map((listing, i) => {
+                                const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
+                                const up = listing.changePercent >= 0;
+                                const risk = getRiskLevel(listing.cropType, listing.changePercent);
+                                const region = listing.location?.split(",")[0]?.trim() ?? "Kenya";
+
+                                return (
+                                  <div key={listing.id}
+                                    className={`px-3 py-3 ${i < cropListings.length - 1 ? "border-b border-white/4" : ""}`}
+                                    style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.01)" : "transparent" }}>
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                          <p className="text-white text-[11px] font-extrabold truncate">{listing.farmName}</p>
+                                          <span className="text-[7px] font-black px-1 py-0.5 rounded text-green-400/70"
+                                            style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.12)" }}>P2P</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-white/25 text-[9px]">{region}</span>
+                                          <span className="text-white/15 text-[8px]">·</span>
+                                          <RiskBadge level={risk} />
+                                          {listing.sellerName && (
+                                            <span className="text-white/20 text-[9px] truncate">by {listing.sellerName}</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="w-14 flex-shrink-0">
+                                        <Sparkline data={sparkData} color={up ? "#22c55e" : "#ef4444"} height={24} />
+                                      </div>
+
+                                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                        <p className="text-white font-black text-sm leading-none font-mono">{formatKES(listing.pricePerShare)}</p>
+                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded font-mono ${up ? "text-green-400 bg-green-400/10" : "text-red-400 bg-red-400/10"}`}>
+                                          {formatChange(listing.changePercent)}
+                                        </span>
+                                        <div className="flex items-center gap-1 mt-0.5">
+                                          <button onClick={(e) => { e.stopPropagation(); setAlertListing(listing); setAlertOpen(true); }}
+                                            className="w-6 h-6 rounded-md flex items-center justify-center active:scale-90 transition-transform"
+                                            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                                            <Bell size={9} className="text-white/30" />
+                                          </button>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); setSelectedListing(listing); setInvestOpen(true); }}
+                                            className="px-2.5 py-1.5 rounded-lg text-[10px] font-black text-black active:scale-90 transition-transform"
+                                            style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
+                                            BUY
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })
+              }
+            </div>
+          </motion.div>
+        )}
+
+        {/* ─── ORDER BOOK TAB ─────────────────────────────────────────── */}
+        {tab === "orders" && (
+          <motion.div key="orders" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-4 pb-4 px-4 space-y-4">
+
+            {/* Farm selector */}
+            <div>
+              <p className="text-[9px] font-black tracking-widest text-white/30 uppercase mb-2">Select Asset</p>
+              <select
+                value={orderFarmId}
+                onChange={e => setOrderFarmId(e.target.value ? Number(e.target.value) : "")}
+                className="w-full rounded-xl px-4 py-3 text-white text-sm font-bold appearance-none outline-none"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <option value="" style={{ background: "#0d1a0e" }}>Choose a farm…</option>
+                {allFarms.map(f => (
+                  <option key={f.id} value={f.id} style={{ background: "#0d1a0e" }}>{f.name} — {formatKES(f.price)}/share</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Order book depth */}
+            {orderFarmId && orderBookDepth && (
+              <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                <div className="grid grid-cols-2">
+                  {/* Bids */}
+                  <div className="border-r border-white/5">
+                    <div className="px-3 py-2 border-b border-white/5 flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                      <p className="text-[9px] font-black tracking-widest text-green-400/60 uppercase">Bids</p>
+                    </div>
+                    {(orderBookDepth.buys ?? []).slice(0, 6).map((b, i) => (
+                      <div key={i} className="px-3 py-1.5 relative overflow-hidden">
+                        <div className="absolute inset-y-0 left-0 bg-green-400/6"
+                          style={{ width: `${Math.min(100, (b.quantity / Math.max(...(orderBookDepth.buys ?? [{ quantity: 1 }]).map(x => x.quantity))) * 100)}%` }} />
+                        <div className="relative flex justify-between">
+                          <span className="text-green-400 font-mono text-[10px] font-bold">{formatKES(b.price)}</span>
+                          <span className="text-white/30 font-mono text-[10px]">{b.quantity}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {(orderBookDepth.buys ?? []).length === 0 && (
+                      <p className="text-white/20 text-[10px] text-center py-4">No bids</p>
+                    )}
+                  </div>
+                  {/* Asks */}
+                  <div>
+                    <div className="px-3 py-2 border-b border-white/5 flex items-center gap-1.5 justify-end">
+                      <p className="text-[9px] font-black tracking-widest text-red-400/60 uppercase">Asks</p>
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                    </div>
+                    {(orderBookDepth.sells ?? []).slice(0, 6).map((s, i) => (
+                      <div key={i} className="px-3 py-1.5 relative overflow-hidden">
+                        <div className="absolute inset-y-0 right-0 bg-red-400/6"
+                          style={{ width: `${Math.min(100, (s.quantity / Math.max(...(orderBookDepth.sells ?? [{ quantity: 1 }]).map(x => x.quantity))) * 100)}%` }} />
+                        <div className="relative flex justify-between">
+                          <span className="text-white/30 font-mono text-[10px]">{s.quantity}</span>
+                          <span className="text-red-400 font-mono text-[10px] font-bold">{formatKES(s.price)}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {(orderBookDepth.sells ?? []).length === 0 && (
+                      <p className="text-white/20 text-[10px] text-center py-4">No asks</p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
 
-            <div className="px-4 space-y-4">
-            {isLoading ? (
-              Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-3">
-                  <Users2 size={28} className="text-primary" />
-                </div>
-                <p className="text-foreground text-sm font-semibold">No secondary listings yet</p>
-                <p className="text-muted-foreground text-xs mt-1 max-w-[220px] mx-auto">
-                  Investors who bought primary shares can list them here for resale.
-                </p>
-                <button onClick={() => setLocation("/market/primary")}
-                  className="mt-4 bg-primary text-white text-xs font-bold px-5 py-2.5 rounded-xl active:scale-95 transition-transform">
-                  Browse Primary Market
+            {/* Place order */}
+            <div className="rounded-xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <p className="text-[9px] font-black tracking-widest text-white/30 uppercase">Place Limit Order</p>
+
+              {/* Buy / Sell toggle */}
+              <div className="grid grid-cols-2 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                <button onClick={() => setOrderSide("buy")}
+                  className={`py-2.5 text-xs font-black tracking-wide transition-all ${orderSide === "buy" ? "text-black" : "text-white/30"}`}
+                  style={orderSide === "buy" ? { background: "#22c55e" } : {}}>
+                  BUY
+                </button>
+                <button onClick={() => setOrderSide("sell")}
+                  className={`py-2.5 text-xs font-black tracking-wide transition-all ${orderSide === "sell" ? "text-white" : "text-white/30"}`}
+                  style={orderSide === "sell" ? { background: "#ef4444" } : {}}>
+                  SELL
                 </button>
               </div>
-            ) : cropKeys.map(crop => {
-              const cropListings = grouped[crop];
-              const isExpanded = expandedCrop === crop || cropFilter !== "all";
-              const bestPrice = Math.min(...cropListings.map(l => l.pricePerShare));
-              const avgChange = cropListings.reduce((s, l) => s + l.changePercent, 0) / cropListings.length;
-              const isUp = avgChange >= 0;
-              const regions = [...new Set(cropListings.map(l => l.location?.split(",")[0]?.trim() ?? "Kenya"))].slice(0, 3);
-              return (
-                <div key={crop} className="rounded-2xl border overflow-hidden shadow-md"
-                  style={{ borderColor: isUp ? "rgba(22,163,74,0.2)" : "rgba(220,38,38,0.15)", background: "var(--card)" }}>
-                  {/* Crop group header */}
-                  <button
-                    className="w-full flex items-center gap-3 p-3 active:bg-muted/40 transition-colors"
-                    onClick={() => setExpandedCrop(isExpanded ? null : crop)}
-                  >
-                    <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm">
-                      <img src={getCropImage(crop, undefined)} alt={crop} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-foreground font-extrabold text-sm">{crop}</p>
-                        <span className="text-[9px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded-full border border-primary/20">{cropListings.length} seller{cropListings.length !== 1 ? "s" : ""}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        <MapPin size={9} className="text-muted-foreground" />
-                        <span className="text-muted-foreground text-[10px] truncate">{regions.join(" · ")}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <p className="text-foreground font-extrabold text-base leading-none">{formatKES(bestPrice)}</p>
-                      <span className={`text-[10px] font-bold flex items-center gap-0.5 px-2 py-0.5 rounded-full ${isUp ? "text-green-600 bg-green-50" : "text-red-500 bg-red-50"}`}>
-                        {isUp ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-                        {formatChange(avgChange)}
-                      </span>
-                      <ChevronRight size={13} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                    </div>
-                  </button>
 
-                  {/* Expanded: individual sellers */}
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        key="expanded"
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden border-t border-green-100"
-                      >
-                        {cropListings.map((listing, i) => {
-                          const sparkData = generateSparkData(listing.pricePerShare, 12, listing.changePercent / 100);
-                          const up = listing.changePercent >= 0;
-                          const risk = getRiskLevel(listing.cropType, listing.changePercent);
-                          const region = listing.location?.split(",")[0]?.trim() ?? "Kenya";
-                          return (
-                            <div key={listing.id}
-                              data-testid={`secondary-listing-${listing.id}`}
-                              className={`px-3 py-3 ${i < cropListings.length - 1 ? "border-b border-border/60" : ""} ${i % 2 === 0 ? "bg-muted/20" : ""}`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    <p className="text-foreground text-xs font-bold truncate">{listing.farmName}</p>
-                                    <span className="text-[8px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 border border-primary/20">P2P</span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <MapPin size={9} className="text-muted-foreground flex-shrink-0" />
-                                    <span className="text-muted-foreground text-[10px] truncate">{region}</span>
-                                    <RiskBadge level={risk} />
-                                  </div>
-                                  {listing.sellerName && (
-                                    <p className="text-muted-foreground text-[9px] mt-0.5 flex items-center gap-1">
-                                      <span className="opacity-60">↑</span> {listing.sellerName}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="w-16 flex-shrink-0">
-                                  <Sparkline data={sparkData} color={up ? "#16a34a" : "#dc2626"} height={28} />
-                                </div>
-                                <div className="flex flex-col items-end gap-1 flex-shrink-0 min-w-[88px]">
-                                  <p className="text-foreground font-extrabold text-sm leading-none">{formatKES(listing.pricePerShare)}</p>
-                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${up ? "text-green-600 bg-green-50" : "text-red-500 bg-red-50"}`}>
-                                    {formatChange(listing.changePercent)}
-                                  </span>
-                                  {(listing as any).dcfFairValue && (
-                                    <span className={`text-[8px] font-semibold px-1 py-0.5 rounded ${
-                                      (listing as any).dcfPremiumPct > 5
-                                        ? "bg-amber-50 text-amber-600"
-                                        : (listing as any).dcfPremiumPct < -5
-                                          ? "bg-green-50 text-green-600"
-                                          : "bg-muted text-muted-foreground"
-                                    }`}>
-                                      {(listing as any).dcfPremiumPct > 0 ? "+" : ""}{(listing as any).dcfPremiumPct?.toFixed(1)}% DCF
-                                    </span>
-                                  )}
-                                  <div className="flex items-center gap-1 mt-0.5">
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setMoreListing(listing); }}
-                                      title="More details"
-                                      className="w-7 h-7 rounded-lg border border-border flex items-center justify-center active:scale-95 transition-transform hover:bg-primary/5 hover:border-primary/30"
-                                    >
-                                      <Info size={11} className="text-muted-foreground" />
-                                    </button>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setAlertListing(listing); }}
-                                      title="Set price alert"
-                                      className="w-7 h-7 rounded-lg border border-border flex items-center justify-center active:scale-95 transition-transform hover:bg-amber-50 hover:border-amber-300 group"
-                                    >
-                                      <BellRing size={12} className="text-muted-foreground group-hover:text-amber-500" />
-                                    </button>
-                                    <button
-                                      data-testid={`button-buy-${listing.id}`}
-                                      onClick={(e) => handleBuyClick(e, listing)}
-                                      className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm shadow-green-500/30"
-                                    >
-                                      BUY
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-[9px] font-black tracking-widest text-white/25 uppercase block mb-1">Limit Price (KES)</label>
+                  <input type="number" value={orderPrice} onChange={e => setOrderPrice(e.target.value)}
+                    placeholder="e.g. 12500"
+                    className="w-full rounded-lg px-3 py-2.5 text-white text-sm font-mono font-bold outline-none"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }} />
                 </div>
-              );
-            })}
+                <div>
+                  <label className="text-[9px] font-black tracking-widest text-white/25 uppercase block mb-1">Quantity (shares)</label>
+                  <input type="number" value={orderQty} onChange={e => setOrderQty(e.target.value)}
+                    placeholder="e.g. 10"
+                    className="w-full rounded-lg px-3 py-2.5 text-white text-sm font-mono font-bold outline-none"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }} />
+                </div>
+              </div>
+
+              {orderPrice && orderQty && (
+                <div className="rounded-lg px-3 py-2 flex justify-between" style={{ background: "rgba(255,255,255,0.03)" }}>
+                  <span className="text-white/40 text-[10px]">Order Total</span>
+                  <span className="text-white font-black text-[10px] font-mono">{formatKES(parseFloat(orderPrice) * parseFloat(orderQty) || 0)}</span>
+                </div>
+              )}
+
+              {orderSuccess && (
+                <div className="rounded-lg px-3 py-2 flex items-center gap-2" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
+                  <CheckCircle2 size={12} className="text-green-400" />
+                  <p className="text-green-400 text-xs font-bold">Order placed successfully!</p>
+                </div>
+              )}
+
+              <button
+                onClick={() => placeOrder.mutate()}
+                disabled={!orderFarmId || !orderPrice || !orderQty || placeOrder.isPending}
+                className="w-full py-3.5 rounded-xl text-sm font-black tracking-wide transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"
+                style={orderSide === "buy"
+                  ? { background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#000" }
+                  : { background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "#fff" }}>
+                {placeOrder.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
+                {placeOrder.isPending ? "Placing…" : `Place ${orderSide === "buy" ? "Buy" : "Sell"} Order`}
+              </button>
             </div>
+
+            {/* My open orders */}
+            {myOrders.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[9px] font-black tracking-widest text-white/25 uppercase">Open Orders</p>
+                {myOrders.filter(o => o.status === "pending").map(order => (
+                  <div key={order.id} className="flex items-center justify-between rounded-xl px-3 py-3"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${order.side === "buy" ? "text-green-400 bg-green-400/10" : "text-red-400 bg-red-400/10"}`}>
+                          {order.side?.toUpperCase()}
+                        </span>
+                        <p className="text-white text-xs font-bold truncate max-w-[130px]">{order.farmName ?? "Farm"}</p>
+                      </div>
+                      <p className="text-white/30 text-[9px] mt-0.5 font-mono">{formatKES(order.limitPrice)} × {order.quantity} shares</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-0.5 text-amber-400/70 text-[9px]">
+                        <Clock size={9} /> Pending
+                      </span>
+                      <button onClick={() => cancelOrder.mutate(order.id)}
+                        disabled={cancelOrder.isPending}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90 transition-transform"
+                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                        <X size={11} className="text-red-400" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
+
+        {/* ─── MY LISTINGS TAB ─────────────────────────────────────────── */}
         {tab === "mine" && (
-          <motion.div key="mine" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="px-4 pt-3 space-y-3">
+          <motion.div key="mine" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-4 pb-4 px-4 space-y-3">
+
             {myLoading ? (
-              Array(2).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
-            ) : myListings.length === 0 ? (
-              <div className="text-center py-10">
-                <div className="w-16 h-16 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-3">
-                  <Tag size={28} className="text-primary" />
+              Array(3).fill(0).map((_, i) => (
+                <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.03)" }} />
+              ))
+            ) : activeMyListings.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
+                  style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.1)" }}>
+                  <Tag size={22} className="text-green-400/30" />
                 </div>
-                <p className="text-foreground text-sm font-semibold">No listings yet</p>
-                <p className="text-muted-foreground text-xs mt-1 max-w-[220px] mx-auto leading-relaxed">
-                  Go to your Portfolio and tap "Sell" on any holding to list shares here.
-                </p>
-                <button onClick={() => setLocation("/portfolio")}
-                  className="mt-4 bg-primary text-white text-xs font-bold px-5 py-2.5 rounded-xl active:scale-95 transition-transform flex items-center gap-1.5 mx-auto">
-                  <ShoppingBag size={13} /> Go to Portfolio → Sell
-                </button>
+                <p className="text-white/30 text-sm font-semibold">No active listings</p>
+                <p className="text-white/20 text-xs mt-1">List shares from your portfolio to earn on the exchange</p>
               </div>
             ) : (
               <>
-                {activeMyListings.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Active ({activeMyListings.length})
-                    </p>
-                    {activeMyListings.map(listing => {
-                      const imgSrc = getCropImage(listing.cropType, listing.imageUrl);
-                      const isUp = listing.changePercent >= 0;
-                      return (
-                        <div key={listing.id} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-                          <div className="flex items-center gap-3 p-3">
-                            <img src={imgSrc} alt={listing.farmName} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 mb-0.5">
-                                <p className="text-foreground font-bold text-sm truncate">{listing.farmName}</p>
-                                <span className="text-[9px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">Live</span>
-                              </div>
-                              <p className="text-muted-foreground text-[10px]">{listing.cropType} · {listing.sharesAvailable} shares</p>
-                              <p className="text-foreground font-semibold text-xs mt-0.5">{formatKES(listing.pricePerShare)}/share</p>
-                            </div>
-                            <div className="flex flex-col items-end gap-1.5">
-                              <span className={`text-[10px] font-bold ${isUp ? "text-green-600" : "text-red-500"}`}>
-                                {formatChange(listing.changePercent)}
-                              </span>
-                              <div className="flex items-center gap-1 text-muted-foreground text-[10px]">
-                                <Clock size={9} />
-                                <span>{listing.createdAt ? new Date(listing.createdAt).toLocaleDateString("en-KE", { month: "short", day: "numeric" }) : "Recent"}</span>
-                              </div>
-                              <button onClick={() => setCancelListing(listing)}
-                                className="px-2.5 py-1 rounded-lg border border-red-200 text-red-600 text-[10px] font-semibold active:scale-95 flex items-center gap-1">
-                                <X size={10} /> Cancel
-                              </button>
-                            </div>
-                          </div>
+                <p className="text-[9px] font-black tracking-widest text-white/25 uppercase">Active Listings</p>
+                {activeMyListings.map(listing => {
+                  const up = listing.changePercent >= 0;
+                  return (
+                    <div key={listing.id} className="rounded-xl overflow-hidden"
+                      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div className="flex items-center gap-3 px-3 py-3">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                          <img src={getCropImage(listing.cropType, listing.imageUrl)} alt={listing.farmName}
+                            className="w-full h-full object-cover" />
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-extrabold text-sm truncate">{listing.farmName}</p>
+                          <p className="text-white/30 text-[9px] font-mono mt-0.5">{listing.sharesAvailable} shares · {formatKES(listing.pricePerShare)}/share</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded font-mono ${up ? "text-green-400 bg-green-400/10" : "text-red-400 bg-red-400/10"}`}>
+                            {formatChange(listing.changePercent)}
+                          </span>
+                          <button onClick={() => setCancelListing(listing)}
+                            className="text-[9px] font-bold text-red-400/60 px-2 py-1 rounded active:scale-90 transition-transform"
+                            style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)" }}>
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
                 {inactiveMyListings.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> Cancelled / Sold ({inactiveMyListings.length})
-                    </p>
+                  <>
+                    <p className="text-[9px] font-black tracking-widest text-white/15 uppercase pt-2">Completed / Cancelled</p>
                     {inactiveMyListings.map(listing => (
-                      <div key={listing.id} className="bg-card rounded-2xl border border-border overflow-hidden opacity-60">
-                        <div className="flex items-center gap-3 p-3">
-                          <img src={getCropImage(listing.cropType, listing.imageUrl)}
-                            alt={listing.farmName} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 grayscale" />
-                          <div className="flex-1">
-                            <p className="text-foreground text-sm font-medium">{listing.farmName}</p>
-                            <p className="text-muted-foreground text-[10px]">{listing.sharesAvailable} shares · {formatKES(listing.pricePerShare)}/share</p>
-                            <span className="text-[9px] bg-gray-100 text-gray-500 font-semibold px-1.5 py-0.5 rounded-full mt-0.5 inline-block">Inactive</span>
-                          </div>
+                      <div key={listing.id} className="flex items-center gap-3 rounded-xl px-3 py-3 opacity-40"
+                        style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0">
+                          <img src={getCropImage(listing.cropType, listing.imageUrl)} alt={listing.farmName} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-bold text-xs truncate">{listing.farmName}</p>
+                          <p className="text-white/40 text-[9px]">Inactive · {listing.sharesAvailable} shares</p>
                         </div>
                       </div>
                     ))}
-                  </div>
+                  </>
                 )}
               </>
             )}
@@ -537,331 +688,21 @@ export default function SecondaryMarket() {
         )}
       </AnimatePresence>
 
-      {/* ── ORDER BOOK TAB ── */}
-      <AnimatePresence mode="wait">
-        {tab === "orders" && (
-          <motion.div key="orders" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="pt-3 pb-4 space-y-3 px-4">
-
-            {/* Explainer */}
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3">
-              <p className="text-blue-800 font-semibold text-xs mb-0.5">📖 Limit Order Book</p>
-              <p className="text-blue-700 text-[11px] leading-relaxed">Place a buy or sell order at a specific price. The matching engine pairs compatible orders automatically every 2 minutes. Your order stays open until it fills or you cancel it.</p>
-            </div>
-
-            {/* Farm selector */}
-            <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1.5">Select Farm</label>
-              <select
-                value={orderFarmId}
-                onChange={e => setOrderFarmId(Number(e.target.value) || "")}
-                className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:border-primary"
-              >
-                <option value="">— Choose a farm —</option>
-                {allFarms.map(f => (
-                  <option key={f.id} value={f.id}>{f.name} · {formatKES(f.price)}/share</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Order book depth — light theme */}
-            {orderFarmId && (
-              <div className="rounded-2xl overflow-hidden bg-card border border-border">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-                  <p className="font-semibold text-sm flex items-center gap-1.5 text-foreground"><BarChart2 size={14} className="text-primary" /> Market Depth</p>
-                  <span className="flex items-center gap-1 text-[9px] font-bold text-green-600">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> LIVE
-                  </span>
-                </div>
-                {/* Asks */}
-                <div className="px-4 pt-2 pb-1">
-                  <p className="text-[9px] font-bold uppercase tracking-wider mb-1 text-red-500">Asks · Sell Orders</p>
-                  {(!orderBookDepth?.sells || orderBookDepth.sells.length === 0) ? (
-                    <p className="text-center text-xs py-2 text-muted-foreground">No sell orders</p>
-                  ) : orderBookDepth.sells.slice(0, 5).map((level, i) => {
-                    const maxQty = Math.max(...orderBookDepth.sells.map(s => s.quantity));
-                    const pct = (level.quantity / maxQty) * 100;
-                    return (
-                      <div key={i} className="relative flex items-center justify-between py-1 text-xs">
-                        <div className="absolute inset-y-0 right-0 rounded-sm bg-red-50" style={{ width: `${pct}%` }} />
-                        <span className="relative font-bold text-red-500">{formatKES(level.price)}</span>
-                        <span className="relative text-muted-foreground">{level.quantity.toFixed(2)} sh</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* Spread */}
-                {orderBookDepth?.buys?.length && orderBookDepth?.sells?.length ? (
-                  <div className="mx-4 py-1.5 flex items-center justify-center gap-2 border-t border-b border-border">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-primary">
-                      Spread {formatKES(Math.abs((orderBookDepth.sells[0]?.price ?? 0) - (orderBookDepth.buys[0]?.price ?? 0)))}
-                    </span>
-                    <div className="h-px flex-1 bg-border" />
-                  </div>
-                ) : <div className="my-1 border-t border-border" />}
-                {/* Bids */}
-                <div className="px-4 pt-1 pb-2">
-                  <p className="text-[9px] font-bold uppercase tracking-wider mb-1 text-green-600">Bids · Buy Orders</p>
-                  {(!orderBookDepth?.buys || orderBookDepth.buys.length === 0) ? (
-                    <p className="text-center text-xs py-2 text-muted-foreground">No buy orders</p>
-                  ) : orderBookDepth.buys.slice(0, 5).map((level, i) => {
-                    const maxQty = Math.max(...orderBookDepth.buys.map(b => b.quantity));
-                    const pct = (level.quantity / maxQty) * 100;
-                    return (
-                      <div key={i} className="relative flex items-center justify-between py-1 text-xs">
-                        <div className="absolute inset-y-0 left-0 rounded-sm bg-green-50" style={{ width: `${pct}%` }} />
-                        <span className="relative font-bold text-green-600">{formatKES(level.price)}</span>
-                        <span className="relative text-muted-foreground">{level.quantity.toFixed(2)} sh</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Place limit order — light card */}
-            <div className="rounded-2xl p-4 bg-card border border-border">
-              <p className="font-semibold text-sm mb-1 flex items-center gap-1.5 text-foreground"><Plus size={14} className="text-primary" /> Place Limit Order</p>
-              <p className="text-muted-foreground text-[11px] mb-3">Your order stays open until matched or cancelled</p>
-              {orderSuccess && (
-                <div className="rounded-xl px-3 py-2 flex items-center gap-2 mb-3 bg-green-50 border border-green-200">
-                  <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
-                  <p className="text-xs font-semibold text-green-700">Order placed! Matching engine will fill it automatically.</p>
-                </div>
-              )}
-              {/* Side toggle */}
-              <div className="flex rounded-xl p-0.5 mb-3 gap-0.5 bg-muted">
-                <button onClick={() => setOrderSide("buy")}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${orderSide === "buy" ? "bg-green-500 text-white shadow-sm" : "text-muted-foreground"}`}>
-                  <ChevronUp size={12} /> Buy
-                </button>
-                <button onClick={() => setOrderSide("sell")}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${orderSide === "sell" ? "bg-red-500 text-white shadow-sm" : "text-muted-foreground"}`}>
-                  <ChevronDown size={12} /> Sell
-                </button>
-              </div>
-              <div className="space-y-2.5">
-                <div>
-                  <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1 text-muted-foreground">Limit Price (KES)</label>
-                  <input type="number" value={orderPrice} onChange={e => setOrderPrice(e.target.value)} placeholder="e.g. 28.50"
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:border-primary" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1 text-muted-foreground">Quantity (shares)</label>
-                  <input type="number" value={orderQty} onChange={e => setOrderQty(e.target.value)} placeholder="e.g. 10"
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:border-primary" />
-                </div>
-                {orderPrice && orderQty && (
-                  <div className="rounded-xl px-3 py-2 flex items-center justify-between bg-muted/50 border border-border">
-                    <span className="text-xs text-muted-foreground">Order total</span>
-                    <span className="text-sm font-bold text-foreground">{formatKES(Number(orderPrice) * Number(orderQty))}</span>
-                  </div>
-                )}
-                <button
-                  onClick={() => placeOrder.mutate()}
-                  disabled={!orderFarmId || !orderPrice || !orderQty || placeOrder.isPending}
-                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40 ${orderSide === "buy" ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}
-                >
-                  {placeOrder.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
-                  {orderSide === "buy" ? "Place Buy Order" : "Place Sell Order"}
-                </button>
-              </div>
-            </div>
-
-            {/* My open orders */}
-            <div>
-              <p className="font-semibold text-sm mb-2 px-1 text-foreground">My Orders</p>
-              {myOrders.length === 0 ? (
-                <div className="rounded-2xl p-5 text-center bg-card border border-border">
-                  <BookOpen size={24} className="text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm font-medium text-foreground">No orders yet</p>
-                  <p className="text-xs mt-0.5 text-muted-foreground">Place a limit order above to start trading</p>
-                </div>
-              ) : myOrders.map((order: any) => (
-                <div key={order.id} className="rounded-2xl p-3.5 mb-2 bg-card border border-border">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${order.side === "buy" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
-                          {order.side.toUpperCase()}
-                        </span>
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                          order.status === "filled" ? "bg-blue-100 text-blue-700" :
-                          order.status === "cancelled" ? "bg-gray-100 text-gray-500" :
-                          order.status === "partially_filled" ? "bg-amber-100 text-amber-700" :
-                          "bg-purple-100 text-purple-700"
-                        }`}>{order.status.replace("_", " ")}</span>
-                      </div>
-                      <p className="text-foreground font-semibold text-sm">{order.farmName ?? `Farm #${order.farmId}`}</p>
-                      <p className="text-muted-foreground text-xs mt-0.5">
-                        {order.filledQuantity > 0 ? `${order.filledQuantity}/${order.quantity}` : order.quantity} shares · {formatKES(order.limitPrice)}/share
-                      </p>
-                    </div>
-                    {(order.status === "open" || order.status === "partially_filled") && (
-                      <button
-                        onClick={() => cancelOrder.mutate(order.id)}
-                        disabled={cancelOrder.isPending}
-                        className="text-red-500 text-xs font-semibold flex items-center gap-1 border border-red-200 rounded-lg px-2 py-1 active:scale-95"
-                      >
-                        <XCircle size={11} /> Cancel
-                      </button>
-                    )}
-                  </div>
-                  {order.status === "partially_filled" && (
-                    <div className="mt-2">
-                      <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-400 rounded-full" style={{ width: `${(order.filledQuantity / order.quantity) * 100}%` }} />
-                      </div>
-                      <p className="text-[9px] text-muted-foreground mt-0.5">{((order.filledQuantity / order.quantity) * 100).toFixed(0)}% filled</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <InvestModal open={investOpen} onClose={() => setInvestOpen(false)} listing={selectedListing} />
-
-      <PriceAlertModal
-        open={!!alertListing}
-        onClose={() => setAlertListing(null)}
-        listing={alertListing ? {
-          farmId: alertListing.farmId,
-          farmName: alertListing.farmName,
-          pricePerShare: alertListing.pricePerShare,
-          cropType: alertListing.cropType,
-        } : null}
-      />
-
-      <AnimatePresence>
-        {cancelListing && (
-          <CancelListingModal
-            listing={cancelListing}
-            onClose={() => setCancelListing(null)}
-            onCancelled={() => {
-              qc.invalidateQueries({ queryKey: ["my-listings"] });
-              qc.invalidateQueries({ queryKey: ["secondary"] });
-              setCancelListing(null);
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* "More Details" bottom sheet */}
-      <AnimatePresence>
-        {moreListing && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
-              onClick={() => setMoreListing(null)} />
-            <motion.div
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="fixed inset-x-0 bottom-0 z-[61] max-w-[430px] mx-auto bg-white rounded-t-3xl shadow-2xl px-5 pt-5 pb-10"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <img src={getCropImage(moreListing.cropType)} alt={moreListing.cropType}
-                    className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
-                  <div>
-                    <p className="text-foreground font-bold text-base leading-tight">{moreListing.farmName}</p>
-                    <p className="text-muted-foreground text-xs">{moreListing.cropType} · {moreListing.location}</p>
-                  </div>
-                </div>
-                <button onClick={() => setMoreListing(null)}
-                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <X size={14} />
-                </button>
-              </div>
-
-              {/* Stats grid */}
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                {[
-                  { label: "Price / Share", val: formatKES(moreListing.pricePerShare), cls: "text-foreground" },
-                  { label: "Shares Listed", val: moreListing.sharesAvailable.toLocaleString(), cls: "text-foreground" },
-                  { label: "Market Change", val: `${moreListing.changePercent >= 0 ? "+" : ""}${moreListing.changePercent.toFixed(2)}%`, cls: moreListing.changePercent >= 0 ? "text-green-600" : "text-red-500" },
-                  { label: "Est. Mid-Season", val: "+10%", cls: "text-orange-500" },
-                  { label: "Est. Full Season", val: "+28%", cls: "text-green-600" },
-                  { label: "Status", val: "Active Resale", cls: "text-primary" },
-                ].map(({ label, val, cls }) => (
-                  <div key={label} className="bg-muted/50 rounded-xl p-3">
-                    <p className="text-muted-foreground text-[10px]">{label}</p>
-                    <p className={`font-bold text-sm ${cls}`}>{val}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Trade math — 10 share quick calc */}
-              {(() => {
-                const qty = Math.min(10, moreListing.sharesAvailable);
-                const cost = qty * moreListing.pricePerShare;
-                const brokerFee = cost * 0.01;
-                const totalCost = cost + brokerFee;
-                const resellAt10 = cost * 1.10 * 0.995;
-                const resellAt28 = cost * 1.28 * 0.995;
-                return (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-3 mb-4">
-                    <p className="text-green-800 font-bold text-[10px] uppercase tracking-wider mb-2.5">📊 Trade Math ({qty} shares)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="text-muted-foreground text-[9px]">You pay (incl. 1% fee)</p>
-                        <p className="font-bold text-sm text-foreground">{formatKES(totalCost)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-[9px]">Mid-season resell (+10%)</p>
-                        <p className="font-bold text-sm text-orange-600">+{formatKES(resellAt10 - totalCost)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-[9px]">Full harvest payout (+28%)</p>
-                        <p className="font-bold text-sm text-green-600">+{formatKES(resellAt28 - totalCost)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-[9px]">Break-even price/share</p>
-                        <p className="font-bold text-sm text-foreground">{formatKES(totalCost / qty)}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Broker fee note */}
-              <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 mb-4 flex items-start gap-2">
-                <span className="text-base">🤝</span>
-                <div>
-                  <p className="text-violet-700 font-semibold text-xs">1% Broker Fee + 0.5% Trade Fee</p>
-                  <p className="text-violet-600 text-[10px]">1% entry fee on secondary market purchases. An additional 0.5% is deducted when you re-sell.</p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setMoreListing(null); setLocation(`/market/exchange/${moreListing.farmId}`); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-border text-foreground text-sm font-semibold active:scale-95 transition-all"
-                >
-                  <MapIcon size={14} /> Farm Map
-                </button>
-                <button
-                  onClick={(e) => { setAlertListing(moreListing); setMoreListing(null); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-green-200 bg-green-50 text-green-700 text-sm font-semibold active:scale-95 transition-all"
-                >
-                  <BellRing size={14} /> Alert
-                </button>
-                <button
-                  onClick={(e: React.MouseEvent) => { handleBuyClick(e, moreListing); setMoreListing(null); }}
-                  className="flex-1 py-3 rounded-xl bg-primary text-white text-sm font-bold active:scale-95 transition-all"
-                >
-                  BUY
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
       <BottomNav role="investor" />
+
+      {selectedListing && investOpen && (
+        <InvestModal open={investOpen} onClose={() => setInvestOpen(false)} listing={selectedListing as any} />
+      )}
+      {alertListing && alertOpen && (
+        <PriceAlertModal open={alertOpen} onClose={() => setAlertOpen(false)} listing={alertListing as any} />
+      )}
+      {cancelListing && (
+        <CancelListingModal
+          listing={cancelListing}
+          onClose={() => setCancelListing(null)}
+          onCancelled={() => { qc.invalidateQueries({ queryKey: ["my-listings"] }); }}
+        />
+      )}
     </div>
   );
 }
