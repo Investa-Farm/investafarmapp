@@ -78,7 +78,11 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
 
   useEffect(() => {
     if (step === "done") {
-      const t = setTimeout(() => resetAndClose(), 2500);
+      import("@/components/confetti-overlay").then(({ showConfetti }) => showConfetti(3500));
+      import("@/components/success-toast").then(({ showMilestoneToast }) => {
+        showMilestoneToast("Investment placed! 🌱", `${quantity} shares in ${listing?.farmName}`);
+      });
+      const t = setTimeout(() => resetAndClose(), 4000);
       return () => clearTimeout(t);
     }
     return undefined;

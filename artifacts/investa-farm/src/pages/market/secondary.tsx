@@ -172,6 +172,12 @@ export default function SecondaryMarket() {
       setOrderPrice(""); setOrderQty("");
       refetchOrders();
       qc.invalidateQueries({ queryKey: ["orderbook", orderFarmId] });
+      import("@/components/success-toast").then(({ showSuccessToast }) => {
+        showSuccessToast(
+          orderSide === "buy" ? "Buy order placed! 📈" : "Sell order placed! 📊",
+          "Order entered the exchange book"
+        );
+      });
       setTimeout(() => setOrderSuccess(false), 3000);
     },
   });

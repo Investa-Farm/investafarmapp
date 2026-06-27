@@ -75,6 +75,9 @@ export function WalletModal({ open, onClose }: Props) {
       qc.invalidateQueries({ queryKey: ["wallet"] });
       setModal(null); setAmount(""); setPhone("");
       setSuccess("Withdrawal initiated to M-Pesa.");
+      import("@/components/success-toast").then(({ showSuccessToast }) => {
+        showSuccessToast("Withdrawal initiated!", "Funds sent to M-Pesa · usually instant");
+      });
       setTimeout(() => setSuccess(null), 4000);
     },
   });

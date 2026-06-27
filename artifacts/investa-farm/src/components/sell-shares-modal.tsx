@@ -50,6 +50,9 @@ export function SellSharesModal({ open, onClose, holding, seasonStatus = "mid_se
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ["portfolio"] });
           setStep("done");
+          import("@/components/success-toast").then(({ showSuccessToast }) => {
+            showSuccessToast("Shares listed! 📊", `${quantity} shares listed at ${formatKES(effectivePrice)} each`);
+          });
         },
         onError: (err: any) => {
           const msg = err?.response?.data?.error ?? err?.message ?? "Listing failed. Please try again.";

@@ -191,6 +191,10 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     import("@/components/transaction-notification").then(({ showCompletedTransactionFlow }) => {
       showCompletedTransactionFlow({ type: "deposit", amount: amt });
     });
+    import("@/components/confetti-overlay").then(({ showConfetti }) => showConfetti(3200));
+    import("@/components/success-toast").then(({ showSuccessToast }) => {
+      showSuccessToast("Wallet funded! 💰", `KES ${amt.toLocaleString("en-KE")} credited to your account`);
+    });
     setTimeout(() => { setSuccess(false); onClose(); }, 2200);
   }
 

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
 import { PriceAlertWatcher } from "@/components/price-alert-watcher";
+import { PushScheduler } from "@/components/push-scheduler";
 import { RateAppModal, useRateAppTrigger } from "@/components/rate-app-modal";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getToken, getStoredUser } from "@/lib/auth";
@@ -636,6 +637,7 @@ function App() {
           <Toaster />
           <SonnerToaster position="top-center" richColors={false} />
           <PriceAlertWatcher />
+          <PushScheduler />
           <PwaInstallBanner />
         </TooltipProvider>
       </CurrencyProvider>

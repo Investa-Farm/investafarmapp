@@ -36,7 +36,13 @@ function CommissionWithdrawal({ token, agentCode, availableKes }: { token: strin
         body: JSON.stringify({ mpesaNumber: `${mpesaCode}${mpesaNumber.replace(/^0/, "")}`, amount: amt }),
       });
       const data = await r.json();
-      if (r.ok) { setRefCode(data.referenceCode ?? `WDL-${agentCode}-${Date.now().toString(36).toUpperCase()}`); setStep("done"); }
+      if (r.ok) {
+        setRefCode(data.referenceCode ?? `WDL-${agentCode}-${Date.now().toString(36).toUpperCase()}`);
+        setStep("done");
+        import("@/components/success-toast").then(({ showSuccessToast }) => {
+          showSuccessToast("Withdrawal requested!", "Commission will arrive via M-Pesa shortly");
+        });
+      }
       else { setError(data.error ?? "Withdrawal request failed. Please try again."); }
     } catch { setError("Connection error. Please try again."); }
     finally { setSubmitting(false); }
@@ -173,6 +179,9 @@ export default function SalesAgentDashboard() {
   async function copyLink() {
     await navigator.clipboard.writeText(referralLink).catch(() => {});
     setCopiedLink(true);
+    import("@/components/success-toast").then(({ showCopiedToast }) => {
+      showCopiedToast("Referral link copied!");
+    });
     setTimeout(() => setCopiedLink(false), 2000);
   }
 
