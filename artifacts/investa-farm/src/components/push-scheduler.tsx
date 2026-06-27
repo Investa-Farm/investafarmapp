@@ -1,15 +1,14 @@
 /**
- * Random push notification scheduler.
- * Mounts once in App.tsx. Fires showRichNotification() at random intervals
- * with varied, realistic Kenyan agri-finance content.
- * Only active when a user is authenticated.
+ * Push notification scheduler.
+ * Fires native phone notifications via the service worker's showNotification()
+ * when the user has granted permission. Falls back silently if not granted.
+ * Never shows in-app banners — those are handled separately for real-time events.
  */
 import { useEffect } from "react";
 import { getToken, getStoredUser } from "@/lib/auth";
-import { showRichNotification, RichNotifType } from "@/components/rich-push-notification";
 
 interface NotifTemplate {
-  type: RichNotifType;
+  type: string;
   title: string;
   body?: string;
   amount?: number;
@@ -29,24 +28,12 @@ const CROP_TYPES = [
   "french beans", "mangoes", "passion fruit", "sunflower",
 ];
 
-function randomFarm() {
-  return FARM_NAMES[Math.floor(Math.random() * FARM_NAMES.length)];
-}
-function randomCrop() {
-  return CROP_TYPES[Math.floor(Math.random() * CROP_TYPES.length)];
-}
-function randomAmount(min: number, max: number) {
-  return Math.round((Math.random() * (max - min) + min) / 100) * 100;
-}
-function randomReturn() {
-  return (8 + Math.random() * 22).toFixed(1);
-}
-function randomInvestors() {
-  return Math.floor(12 + Math.random() * 180);
-}
-function randomPercent(min = 1, max = 8) {
-  return (Math.random() * (max - min) + min).toFixed(1);
-}
+function randomFarm() { return FARM_NAMES[Math.floor(Math.random() * FARM_NAMES.length)]; }
+function randomCrop() { return CROP_TYPES[Math.floor(Math.random() * CROP_TYPES.length)]; }
+function randomAmount(min: number, max: number) { return Math.round((Math.random() * (max - min) + min) / 100) * 100; }
+function randomReturn() { return (8 + Math.random() * 22).toFixed(1); }
+function randomInvestors() { return Math.floor(12 + Math.random() * 180); }
+function randomPercent(min = 1, max = 8) { return (Math.random() * (max - min) + min).toFixed(1); }
 
 function buildTemplate(): NotifTemplate {
   const farm = randomFarm();
@@ -93,26 +80,26 @@ function buildTemplate(): NotifTemplate {
     {
       type: "order_filled",
       title: `Your sell order was filled`,
-      body: `Secondary market order for ${randomAmount(500, 5000) / 100} shares at KES ${randomAmount(240, 380)} each completed.`,
+      body: `Secondary market order completed at KES ${randomAmount(240, 380)}/share.`,
       amount: randomAmount(1200, 12000),
       url: "/market/secondary",
     },
     {
       type: "investment",
       title: `Portfolio milestone reached`,
-      body: `Your total farmland holdings just crossed KES ${(randomAmount(50000, 500000)).toLocaleString("en-KE")}. 🎯`,
+      body: `Your total farmland holdings just crossed KES ${randomAmount(50000, 500000).toLocaleString("en-KE")}. 🎯`,
       url: "/portfolio",
     },
     {
       type: "price_alert",
       title: `Avocado demand surge in EU market`,
-      body: `Export prices up ${randomPercent(4, 12)}% — Kenyan avocado farms benefit directly. ${farm} highlighted.`,
+      body: `Export prices up ${randomPercent(4, 12)}% — Kenyan avocado farms benefit directly.`,
       url: "/market/secondary",
     },
     {
       type: "farm_update",
       title: `Rain forecast: ${farm}`,
-      body: `MET Kenya forecasts 45mm rainfall this week in the region — optimal for ${crop} growth.`,
+      body: `MET Kenya forecasts 45mm rainfall this week — optimal for ${crop} growth.`,
     },
     {
       type: "general",
@@ -127,35 +114,37 @@ function buildTemplate(): NotifTemplate {
       amount: randomAmount(4000, 22000),
       url: "/portfolio",
     },
-    {
-      type: "farm_funded",
-      title: `Fast-fill alert: ${farm}`,
-      body: `Only ${Math.floor(Math.random() * 20 + 5)}% of shares remain. ${randomInvestors()} investors watching this listing.`,
-      url: "/market/primary",
-    },
-    {
-      type: "price_alert",
-      title: `Market closes in 2 hours`,
-      body: `Secondary market settlement window closes at 18:00 EAT. Review your open orders.`,
-      url: "/market/secondary",
-    },
-    {
-      type: "general",
-      title: `Weekly portfolio digest`,
-      body: `Your farmland portfolio performance: +${randomPercent(1, 5)}% this week. ${randomFarm()} leads.`,
-      url: "/portfolio",
-    },
   ];
-
   return pool[Math.floor(Math.random() * pool.length)];
+}
+
+async function firePhoneNotification(tpl: NotifTemplate) {
+  if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const body = tpl.amount
+      ? `KES ${tpl.amount.toLocaleString("en-KE")} · ${tpl.body ?? ""}`
+      : (tpl.body ?? "");
+
+    await registration.showNotification(`Investa Farm`, {
+      body: `${tpl.title}${body ? `\n${body}` : ""}`,
+      icon: "/logo.png",
+      badge: "/favicon.png",
+      tag: `investa-${tpl.type}-${Date.now()}`,
+      data: { url: tpl.url ?? "/" },
+      vibrate: [150, 50, 150],
+      silent: false,
+    } as NotificationOptions);
+  } catch {
+    // Permission revoked mid-session or SW not ready — ignore
+  }
 }
 
 const MIN_INTERVAL_MS = 45_000;
 const MAX_INTERVAL_MS = 110_000;
-
-function randomDelay() {
-  return MIN_INTERVAL_MS + Math.random() * (MAX_INTERVAL_MS - MIN_INTERVAL_MS);
-}
+function randomDelay() { return MIN_INTERVAL_MS + Math.random() * (MAX_INTERVAL_MS - MIN_INTERVAL_MS); }
 
 export function PushScheduler() {
   useEffect(() => {
@@ -167,14 +156,7 @@ export function PushScheduler() {
 
     const fire = () => {
       const tpl = buildTemplate();
-      showRichNotification({
-        type: tpl.type,
-        title: tpl.title,
-        body: tpl.body,
-        amount: tpl.amount,
-        url: tpl.url,
-        durationMs: 9000,
-      });
+      firePhoneNotification(tpl);
       timeoutId = setTimeout(fire, randomDelay());
     };
 

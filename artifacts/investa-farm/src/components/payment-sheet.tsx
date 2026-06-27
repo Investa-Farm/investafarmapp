@@ -215,6 +215,20 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     });
   }
 
+  // Mount Stripe card element once the form step renders and the ref is available
+  useEffect(() => {
+    if (stripeStep !== "form" || !stripeElementsRef.current || !stripeContainerRef.current) return;
+    // Avoid double-mounting
+    if (stripeContainerRef.current.childElementCount > 0) return;
+    const cardEl = stripeElementsRef.current.create("card", {
+      style: {
+        base: { fontSize: "15px", color: "#111827", "::placeholder": { color: "#9ca3af" } },
+      },
+      hidePostalCode: true,
+    });
+    cardEl.mount(stripeContainerRef.current);
+  }, [stripeStep]);
+
   async function handleStripeInit() {
     const amt = parseFloat(amount);
     if (!amt || amt < 100) return;
@@ -244,20 +258,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       });
       stripeElementsRef.current = elements;
 
+      // Setting step to "form" triggers the useEffect above which mounts the card element
       setStripeStep("form");
-
-      // Mount a card element (not payment element — avoids link/apple_pay warnings)
-      requestAnimationFrame(() => {
-        if (stripeContainerRef.current) {
-          const cardEl = elements.create("card", {
-            style: {
-              base: { fontSize: "15px", color: "#111827", "::placeholder": { color: "#9ca3af" } },
-            },
-            hidePostalCode: true,
-          });
-          cardEl.mount(stripeContainerRef.current);
-        }
-      });
     } catch (err) {
       setCardError((err as Error).message);
       setStripeStep("idle");
