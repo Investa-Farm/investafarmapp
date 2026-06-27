@@ -17,11 +17,23 @@ interface WalletInfo {
   description: string;
 }
 
+const BinanceIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 126.61 126.61" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g fill="#F3BA2F">
+      <path d="M38.73 53.2L63.3 28.58l24.58 24.63 14.3-14.3L63.3 0 24.43 38.9z"/>
+      <path d="M0 63.31l14.3-14.31 14.31 14.31-14.31 14.3z"/>
+      <path d="M38.73 73.41L63.3 98 87.88 73.41l14.31 14.28-.05.05L63.3 126.61l-38.87-38.9-.17-.17z"/>
+      <path d="M98 63.31l14.3-14.31 14.31 14.3-14.31 14.32z"/>
+      <path d="M77.83 63.3l-14.53-14.54-10.73 10.74-1.24 1.23-2.55 2.56 14.52 14.52 14.53-14.51z"/>
+    </g>
+  </svg>
+);
+
 const WALLETS: WalletInfo[] = [
   {
     id: "binance",
     name: "Binance Web3 Wallet",
-    icon: "🟡",
+    icon: "binance",
     color: "#F3BA2F",
     deepLink: (addr: string, amt: string) =>
       `bnc://app.binance.com/payment/pay?to=${addr}&amount=${amt}&symbol=USDC`,
@@ -217,7 +229,7 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
                       className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
                       style={{ background: `${wallet.color}18` }}
                     >
-                      {wallet.icon}
+                      {wallet.icon === "binance" ? <BinanceIcon /> : wallet.icon}
                     </div>
                     <div className="flex-1 text-left">
                       <p className="text-foreground font-bold text-sm">{wallet.name}</p>
@@ -288,8 +300,11 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
             {/* Step: Deep link sent */}
             {step === "deeplink" && (
               <div className="space-y-4 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-purple-100 flex items-center justify-center mx-auto text-3xl">
-                  {selectedWallet?.icon}
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"
+                  style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
+                  {selectedWallet?.icon === "binance"
+                    ? <BinanceIcon />
+                    : <span className="text-3xl">{selectedWallet?.icon}</span>}
                 </div>
                 <div>
                   <p className="text-foreground font-bold text-base">Opening {selectedWallet?.name}</p>
