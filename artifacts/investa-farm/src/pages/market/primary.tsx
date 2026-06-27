@@ -94,7 +94,7 @@ function TickerTape({ listings }: { listings: Listing[] }) {
   const items = listings.slice(0, 8);
   if (!items.length) return null;
   return (
-    <div className="overflow-hidden border-b border-white/10 bg-black/30">
+    <div className="overflow-hidden border-b border-border bg-muted/40">
       <motion.div
         className="flex gap-6 whitespace-nowrap py-1.5 px-3"
         animate={{ x: [0, -1200] }}
@@ -105,9 +105,9 @@ function TickerTape({ listings }: { listings: Listing[] }) {
           const ticker = l.cropType.slice(0, 4).toUpperCase();
           return (
             <span key={i} className="text-[10px] font-bold tracking-wide inline-flex items-center gap-1.5">
-              <span className="text-white/60">{ticker}</span>
-              <span className="text-white font-mono">{formatKES(l.pricePerShare)}</span>
-              <span className={up ? "text-green-400" : "text-red-400"}>
+              <span className="text-muted-foreground">{ticker}</span>
+              <span className="text-foreground font-mono">{formatKES(l.pricePerShare)}</span>
+              <span className={up ? "text-green-600" : "text-red-500"}>
                 {up ? "▲" : "▼"}{Math.abs(l.changePercent).toFixed(1)}%
               </span>
             </span>
@@ -153,32 +153,29 @@ export default function PrimaryMarket() {
   const avgRoi  = allListings.length ? (allListings.reduce((s, l) => s + getTargetRoi(l.cropType, l.changePercent), 0) / allListings.length).toFixed(1) : "—";
 
   return (
-    <div className="min-h-dvh w-full max-w-[430px] mx-auto flex flex-col pb-20"
-      style={{ background: "linear-gradient(180deg, #0a0f0a 0%, #0d1a0e 40%, #111 100%)" }}>
+    <div className="min-h-dvh w-full max-w-[430px] mx-auto flex flex-col pb-20 bg-background">
 
       {/* Header */}
-      <div style={{ background: "linear-gradient(180deg, #051a06 0%, #0b2010 100%)", borderBottom: "1px solid rgba(34,197,94,0.15)" }}>
+      <div className="bg-background border-b border-border">
         <div className="flex items-center gap-3 px-4 pt-12 pb-3">
           <button onClick={() => setLocation("/market")}
-            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <ArrowLeft size={14} className="text-white" />
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform bg-muted border border-border">
+            <ArrowLeft size={14} className="text-foreground" />
           </button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[9px] font-bold tracking-[0.15em] text-green-400/70 uppercase">Primary Exchange</span>
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.2)" }}>
-                <span className="w-1 h-1 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-[8px] font-bold text-green-400 tracking-wider">OPEN</span>
+              <span className="text-[9px] font-bold tracking-[0.15em] text-primary/70 uppercase">Primary Exchange</span>
+              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-100 border border-green-200">
+                <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[8px] font-bold text-green-700 tracking-wider">OPEN</span>
               </span>
             </div>
-            <h1 className="text-white font-extrabold text-lg tracking-tight leading-none">Primary Market</h1>
+            <h1 className="text-foreground font-extrabold text-lg tracking-tight leading-none">Primary Market</h1>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setSortBy(s => s === "roi" ? "price" : s === "price" ? "change" : "roi")}
-              className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-transform"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
-              <SlidersHorizontal size={13} className="text-white/70" />
+              className="w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-transform bg-muted border border-border">
+              <SlidersHorizontal size={13} className="text-muted-foreground" />
             </button>
           </div>
         </div>
@@ -187,32 +184,32 @@ export default function PrimaryMarket() {
         {!isLoading && allListings.length > 0 && <TickerTape listings={allListings} />}
 
         {/* Market summary stats */}
-        <div className="grid grid-cols-4 border-t border-white/5">
+        <div className="grid grid-cols-4 border-t border-border">
           {[
-            { label: "LISTED", value: allListings.length || "—" },
-            { label: "GAINERS", value: gainers, color: "text-green-400" },
-            { label: "LOSERS", value: losers, color: "text-red-400" },
-            { label: "AVG ROI", value: avgRoi ? `${avgRoi}%` : "—", color: "text-emerald-300" },
+            { label: "LISTED", value: allListings.length || "—", color: "text-foreground" },
+            { label: "GAINERS", value: gainers, color: "text-green-600" },
+            { label: "LOSERS", value: losers, color: "text-red-500" },
+            { label: "AVG ROI", value: avgRoi ? `${avgRoi}%` : "—", color: "text-green-700" },
           ].map((s, i) => (
-            <div key={i} className="px-3 py-2 text-center border-r border-white/5 last:border-0">
-              <p className={`text-sm font-black leading-none ${(s as any).color ?? "text-white"}`}>{s.value}</p>
-              <p className="text-[8px] font-bold text-white/30 tracking-widest mt-0.5">{s.label}</p>
+            <div key={i} className="px-3 py-2 text-center border-r border-border last:border-0">
+              <p className={`text-sm font-black leading-none ${s.color}`}>{s.value}</p>
+              <p className="text-[8px] font-bold text-muted-foreground tracking-widest mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Search + Sort bar */}
-      <div className="px-4 pt-3 pb-2 space-y-2">
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-          <Search size={13} className="text-white/30 flex-shrink-0" />
+      <div className="px-4 pt-3 pb-2 space-y-2 bg-background">
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted border border-border">
+          <Search size={13} className="text-muted-foreground flex-shrink-0" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search farm, crop, or county…"
-            className="flex-1 bg-transparent text-white text-xs placeholder-white/25 outline-none font-medium"
+            className="flex-1 bg-transparent text-foreground text-xs placeholder-muted-foreground outline-none font-medium"
           />
-          {search && <button onClick={() => setSearch("")}><X size={11} className="text-white/40" /></button>}
+          {search && <button onClick={() => setSearch("")}><X size={11} className="text-muted-foreground" /></button>}
         </div>
 
         {/* Category tabs */}
@@ -221,10 +218,9 @@ export default function PrimaryMarket() {
             <button key={tab.key} onClick={() => setActiveCategory(tab.key)}
               className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider transition-all ${
                 activeCategory === tab.key
-                  ? "text-black shadow-sm shadow-green-400/20"
-                  : "text-white/40 hover:text-white/70"
-              }`}
-              style={activeCategory === tab.key ? { background: "#22c55e" } : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  ? "text-white bg-primary shadow-sm"
+                  : "text-muted-foreground bg-muted border border-border hover:text-foreground"
+              }`}>
               {tab.short}
             </button>
           ))}
@@ -232,10 +228,10 @@ export default function PrimaryMarket() {
 
         {/* Sort indicator */}
         <div className="flex items-center gap-2">
-          <span className="text-[9px] text-white/25 uppercase tracking-widest">Sorted by</span>
+          <span className="text-[9px] text-muted-foreground uppercase tracking-widest">Sorted by</span>
           {[{k:"roi",l:"Target ROI"},{k:"change",l:"% Change"},{k:"price",l:"Price"}].map(s => (
             <button key={s.k} onClick={() => setSortBy(s.k as any)}
-              className={`text-[9px] font-bold px-2 py-0.5 rounded-full transition-all ${sortBy === s.k ? "text-green-400 bg-green-400/10" : "text-white/25"}`}>
+              className={`text-[9px] font-bold px-2 py-0.5 rounded-full transition-all ${sortBy === s.k ? "text-primary bg-primary/10" : "text-muted-foreground"}`}>
               {s.l}
             </button>
           ))}
@@ -243,27 +239,27 @@ export default function PrimaryMarket() {
       </div>
 
       {/* Column headers */}
-      <div className="px-4 grid grid-cols-[1fr_48px_44px_52px] gap-1 items-center mb-1 border-b border-white/5 pb-1.5">
-        <p className="text-[8px] font-black tracking-[0.15em] text-white/25 uppercase">ASSET / FARM</p>
-        <p className="text-[8px] font-black tracking-[0.15em] text-white/25 uppercase text-right">ROI</p>
-        <p className="text-[8px] font-black tracking-[0.15em] text-white/25 uppercase text-right">CHG%</p>
-        <p className="text-[8px] font-black tracking-[0.15em] text-white/25 uppercase text-center">ACTION</p>
+      <div className="px-4 grid grid-cols-[1fr_48px_44px_52px] gap-1 items-center mb-1 border-b border-border pb-1.5 bg-background">
+        <p className="text-[8px] font-black tracking-[0.15em] text-muted-foreground uppercase">ASSET / FARM</p>
+        <p className="text-[8px] font-black tracking-[0.15em] text-muted-foreground uppercase text-right">ROI</p>
+        <p className="text-[8px] font-black tracking-[0.15em] text-muted-foreground uppercase text-right">CHG%</p>
+        <p className="text-[8px] font-black tracking-[0.15em] text-muted-foreground uppercase text-center">ACTION</p>
       </div>
 
       {/* Listings */}
       <div className="flex-1 px-4 space-y-1.5 pb-2">
         {isLoading
           ? Array(6).fill(0).map((_, i) => (
-              <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.03)" }} />
+              <div key={i} className="h-16 rounded-xl animate-pulse bg-muted" />
             ))
           : filteredListings.length === 0
             ? (
               <div className="text-center py-16">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.12)" }}>
-                  <TrendingUp size={24} className="text-green-500/40" />
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 bg-primary/5 border border-primary/10">
+                  <TrendingUp size={24} className="text-primary/40" />
                 </div>
-                <p className="text-white/30 text-sm font-semibold">No listings found</p>
-                <button onClick={() => { setActiveCategory("all"); setSearch(""); }} className="text-green-400 text-xs mt-2 font-bold">Clear filters</button>
+                <p className="text-muted-foreground text-sm font-semibold">No listings found</p>
+                <button onClick={() => { setActiveCategory("all"); setSearch(""); }} className="text-primary text-xs mt-2 font-bold">Clear filters</button>
               </div>
             )
             : (filteredListings as Listing[]).map((listing, idx) => {
@@ -282,8 +278,7 @@ export default function PrimaryMarket() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.03 }}
-                    className="rounded-xl overflow-hidden"
-                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    className="rounded-xl overflow-hidden bg-card border border-border shadow-sm">
 
                     {/* Main row */}
                     <div className="grid grid-cols-[1fr_48px_44px_52px] gap-1 items-center px-3 py-2.5">
@@ -293,44 +288,43 @@ export default function PrimaryMarket() {
                           <div className="w-9 h-9 rounded-lg overflow-hidden">
                             <img src={imgSrc} alt={listing.farmName} className="w-full h-full object-cover" />
                           </div>
-                          <span className={`absolute -bottom-0.5 -right-0.5 text-[7px] font-black px-1 rounded ${isUp ? "bg-green-500 text-black" : "bg-red-500 text-white"}`}>
+                          <span className={`absolute -bottom-0.5 -right-0.5 text-[7px] font-black px-1 rounded ${isUp ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
                             {ticker}
                           </span>
                         </div>
                         <div className="min-w-0">
-                          <p className="font-extrabold text-[11px] text-white truncate leading-tight">{listing.farmName}</p>
+                          <p className="font-extrabold text-[11px] text-foreground truncate leading-tight">{listing.farmName}</p>
                           <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-white/40 text-[9px] font-mono">{formatAmount(listing.pricePerShare)}</span>
-                            <span className="text-white/20 text-[8px]">·</span>
-                            <span className="text-white/30 text-[9px] truncate">{listing.location.split(",")[0]}</span>
+                            <span className="text-muted-foreground text-[9px] font-mono">{formatAmount(listing.pricePerShare)}</span>
+                            <span className="text-muted-foreground/40 text-[8px]">·</span>
+                            <span className="text-muted-foreground text-[9px] truncate">{listing.location.split(",")[0]}</span>
                           </div>
                           <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-[8px] font-black text-purple-400/70 bg-purple-400/8 px-1 py-0.5 rounded">AI</span>
-                            <span className="text-[9px] text-white/35 truncate leading-tight">{insight}</span>
+                            <span className="text-[8px] font-black text-violet-600 bg-violet-50 border border-violet-100 px-1 py-0.5 rounded">AI</span>
+                            <span className="text-[9px] text-muted-foreground truncate leading-tight">{insight}</span>
                           </div>
                         </div>
                       </div>
 
                       {/* ROI */}
                       <div className="text-right">
-                        <p className="text-green-400 font-black text-sm leading-none font-mono">+{roi}%</p>
-                        <p className="text-white/25 text-[8px] mt-0.5">target</p>
+                        <p className="text-green-600 font-black text-sm leading-none font-mono">+{roi}%</p>
+                        <p className="text-muted-foreground text-[8px] mt-0.5">target</p>
                       </div>
 
                       {/* Change */}
                       <div className="text-right">
-                        <p className={`font-black text-sm leading-none font-mono ${isUp ? "text-green-400" : "text-red-400"}`}>
+                        <p className={`font-black text-sm leading-none font-mono ${isUp ? "text-green-600" : "text-red-500"}`}>
                           {isUp ? "+" : ""}{listing.changePercent.toFixed(1)}%
                         </p>
-                        <p className="text-white/25 text-[8px] mt-0.5">{risk}</p>
+                        <p className="text-muted-foreground text-[8px] mt-0.5">{risk}</p>
                       </div>
 
                       {/* Buy button */}
                       <div className="flex justify-center">
                         <button
                           onClick={(e) => { e.stopPropagation(); setSelectedListing(listing); setInvestOpen(true); }}
-                          className="px-2.5 py-2 rounded-lg text-[10px] font-black tracking-wide text-black active:scale-90 transition-transform shadow-sm shadow-green-500/20 w-full"
-                          style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
+                          className="px-2.5 py-2 rounded-lg text-[10px] font-black tracking-wide text-white active:scale-90 transition-transform shadow-sm w-full bg-primary hover:bg-primary/90">
                           BUY
                         </button>
                       </div>
@@ -338,12 +332,12 @@ export default function PrimaryMarket() {
 
                     {/* Sparkline + expand row */}
                     <button onClick={() => setExpandedId(isExpanded ? null : listing.id)}
-                      className="w-full px-3 pb-2.5 flex items-center gap-3 active:bg-white/2 transition-colors">
+                      className="w-full px-3 pb-2.5 flex items-center gap-3 active:bg-muted/50 transition-colors">
                       <div className="flex-1 flex items-center gap-2">
                         <div className="w-20 opacity-80">
-                          <Sparkline data={sparkData} color={isUp ? "#22c55e" : "#ef4444"} height={18} />
+                          <Sparkline data={sparkData} color={isUp ? "#16a34a" : "#ef4444"} height={18} />
                         </div>
-                        <div className="flex items-center gap-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+                        <div className="flex items-center gap-1 text-muted-foreground">
                           <Users size={8} />
                           <span className="text-[9px] font-mono">{listing.sharesAvailable.toLocaleString()}</span>
                           <span className="text-[8px]">avail</span>
@@ -351,11 +345,10 @@ export default function PrimaryMarket() {
                       </div>
                       <div className="flex items-center gap-1">
                         <button onClick={(e) => { e.stopPropagation(); setAlertListing(listing); setAlertOpen(true); }}
-                          className="w-6 h-6 rounded-md flex items-center justify-center active:scale-90 transition-transform"
-                          style={{ background: "rgba(255,255,255,0.05)" }}>
-                          <Bell size={9} className="text-white/40" />
+                          className="w-6 h-6 rounded-md flex items-center justify-center active:scale-90 transition-transform bg-muted border border-border">
+                          <Bell size={9} className="text-muted-foreground" />
                         </button>
-                        <div className="flex items-center gap-0.5 text-white/25 text-[9px] font-semibold ml-1">
+                        <div className="flex items-center gap-0.5 text-muted-foreground text-[9px] font-semibold ml-1">
                           {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                         </div>
                       </div>
@@ -369,14 +362,14 @@ export default function PrimaryMarket() {
                           animate={{ height: "auto", opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="overflow-hidden border-t border-white/5"
+                          className="overflow-hidden border-t border-border"
                         >
-                          <div className="px-4 py-4 space-y-4">
+                          <div className="px-4 py-4 space-y-4 bg-muted/20">
                             {/* Price chart */}
                             <div>
                               <div className="flex items-center justify-between mb-2">
-                                <p className="text-[9px] font-black tracking-widest text-white/40 uppercase">Today's Price Action</p>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded font-mono ${isUp ? "text-green-400 bg-green-400/10" : "text-red-400 bg-red-400/10"}`}>
+                                <p className="text-[9px] font-black tracking-widest text-muted-foreground uppercase">Today's Price Action</p>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded font-mono ${isUp ? "text-green-600 bg-green-50" : "text-red-500 bg-red-50"}`}>
                                   {isUp ? "▲" : "▼"} {Math.abs(listing.changePercent).toFixed(2)}%
                                 </span>
                               </div>
@@ -385,19 +378,19 @@ export default function PrimaryMarket() {
                                   <AreaChart data={seasonHistory} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
                                     <defs>
                                       <linearGradient id={`g-${listing.id}`} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={isUp ? "#22c55e" : "#ef4444"} stopOpacity={0.25} />
-                                        <stop offset="95%" stopColor={isUp ? "#22c55e" : "#ef4444"} stopOpacity={0} />
+                                        <stop offset="5%" stopColor={isUp ? "#16a34a" : "#ef4444"} stopOpacity={0.15} />
+                                        <stop offset="95%" stopColor={isUp ? "#16a34a" : "#ef4444"} stopOpacity={0} />
                                       </linearGradient>
                                     </defs>
-                                    <XAxis dataKey="time" tick={{ fontSize: 8, fill: "rgba(255,255,255,0.25)", fontFamily: "monospace" }} tickLine={false} axisLine={false} interval={1} />
+                                    <XAxis dataKey="time" tick={{ fontSize: 8, fill: "#94a3b8", fontFamily: "monospace" }} tickLine={false} axisLine={false} interval={1} />
                                     <YAxis hide />
                                     <Tooltip
-                                      contentStyle={{ background: "#0d1a0e", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 8, fontSize: 10, fontFamily: "monospace" }}
-                                      labelStyle={{ color: "rgba(255,255,255,0.4)", fontSize: 8 }}
-                                      itemStyle={{ color: isUp ? "#22c55e" : "#ef4444", fontWeight: 800 }}
+                                      contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 10, fontFamily: "monospace" }}
+                                      labelStyle={{ color: "#94a3b8", fontSize: 8 }}
+                                      itemStyle={{ color: isUp ? "#16a34a" : "#ef4444", fontWeight: 800 }}
                                       formatter={(v: number) => [formatKES(v), "Price"]}
                                     />
-                                    <Area type="monotone" dataKey="value" stroke={isUp ? "#22c55e" : "#ef4444"} strokeWidth={1.5} fill={`url(#g-${listing.id})`} dot={false} />
+                                    <Area type="monotone" dataKey="value" stroke={isUp ? "#16a34a" : "#ef4444"} strokeWidth={1.5} fill={`url(#g-${listing.id})`} dot={false} />
                                   </AreaChart>
                                 </ResponsiveContainer>
                               </div>
@@ -407,13 +400,12 @@ export default function PrimaryMarket() {
                             <div className="grid grid-cols-3 gap-2">
                               {[
                                 { label: "Share Price", value: formatAmount(listing.pricePerShare) },
-                                { label: "Target ROI", value: `+${getTargetRoi(listing.cropType, listing.changePercent)}%`, color: "text-green-400" },
+                                { label: "Target ROI", value: `+${getTargetRoi(listing.cropType, listing.changePercent)}%`, color: "text-green-600" },
                                 { label: "Shares Left", value: listing.sharesAvailable.toLocaleString() },
                               ].map((m, i) => (
-                                <div key={i} className="rounded-lg px-2.5 py-2 text-center"
-                                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                                  <p className={`font-black text-xs leading-none ${(m as any).color ?? "text-white"}`}>{m.value}</p>
-                                  <p className="text-[8px] text-white/25 mt-1 tracking-wider uppercase">{m.label}</p>
+                                <div key={i} className="rounded-lg px-2.5 py-2 text-center bg-card border border-border">
+                                  <p className={`font-black text-xs leading-none ${(m as any).color ?? "text-foreground"}`}>{m.value}</p>
+                                  <p className="text-[8px] text-muted-foreground mt-1 tracking-wider uppercase">{m.label}</p>
                                 </div>
                               ))}
                             </div>
@@ -422,14 +414,12 @@ export default function PrimaryMarket() {
                             <div className="grid grid-cols-2 gap-2">
                               <button
                                 onClick={() => { setSelectedListing(listing); setInvestOpen(true); }}
-                                className="py-3 rounded-xl text-xs font-black text-black tracking-wide active:scale-95 transition-transform shadow-sm shadow-green-500/20"
-                                style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
+                                className="py-3 rounded-xl text-xs font-black text-white tracking-wide active:scale-95 transition-transform bg-primary hover:bg-primary/90">
                                 ⚡ Invest Now
                               </button>
                               <button
                                 onClick={() => { setCalcListing(listing); setCalcOpen(true); }}
-                                className="py-3 rounded-xl text-xs font-bold text-white active:scale-95 transition-transform"
-                                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                                className="py-3 rounded-xl text-xs font-bold text-foreground active:scale-95 transition-transform bg-muted border border-border">
                                 📊 Calculate
                               </button>
                             </div>

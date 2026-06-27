@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
 import { useGetFarm, getGetFarmQueryKey, useListPrimaryMarket } from "@workspace/api-client-react";
-import { ArrowLeft, TrendingUp, TrendingDown, Users, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles, BarChart2, Navigation, CloudRain, Wind, Thermometer, Droplet, Newspaper, RefreshCw, Globe, Layers, Cpu } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Users, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles, BarChart2, Navigation, CloudRain, Wind, Thermometer, Droplet, Newspaper, RefreshCw, Globe, Layers, Cpu, Scale } from "lucide-react";
 import { ShareModal } from "@/components/share-modal";
 import { AiSectionBot } from "@/components/ai-section-bot";
+import { CompareFarmsModal, type CompareListing } from "@/components/compare-farms-modal";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, LineChart, Line, YAxis, CartesianGrid } from "recharts";
 import { formatKES, formatChange, getToken } from "@/lib/auth";
 import { getCropImage } from "@/lib/crops";
@@ -383,7 +384,16 @@ export default function FarmDetail() {
   const [investOpen, setInvestOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [compareOpen, setCompareOpen] = useState(false);
   const token = getToken();
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSlideIndex(i => (i + 1) % 4);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
 
   const { data: farm, isLoading } = useGetFarm(farmId, {
     query: { enabled: !!farmId, queryKey: getGetFarmQueryKey(farmId), staleTime: 3 * 60 * 1000 },
@@ -498,27 +508,125 @@ export default function FarmDetail() {
         </div>
       </div>
 
-      {/* Price summary strip */}
-      <div className="px-4 py-3 bg-card border-b border-border flex items-center justify-between">
-        <div>
-          <p className="text-2xl font-bold text-foreground" style={{ fontFamily: "Space Grotesk, sans-serif" }}>{formatKES(farm.currentPrice)}</p>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            {isUp ? <TrendingUp size={12} className="text-[#16a34a]" /> : <TrendingDown size={12} className="text-red-500" />}
-            <span className={`text-sm font-semibold ${isUp ? "text-[#16a34a]" : "text-red-500"}`}>
-              {formatChange(farm.changePercent)} today
-            </span>
+      {/* Feature slideshow — cycles price / AI insights / map / compare */}
+      {(() => {
+        const compareFarm = (primaryListings as CompareListing[] | undefined)?.find(l => l.farmId !== farmId);
+        const slides = [
+          /* 0 — Price strip */
+          <div key="price" className="px-4 py-3 bg-card border-b border-border flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-foreground" style={{ fontFamily: "Space Grotesk, sans-serif" }}>{formatKES(farm.currentPrice)}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {isUp ? <TrendingUp size={12} className="text-[#16a34a]" /> : <TrendingDown size={12} className="text-red-500" />}
+                <span className={`text-sm font-semibold ${isUp ? "text-[#16a34a]" : "text-red-500"}`}>
+                  {formatChange(farm.changePercent)} today
+                </span>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-1 text-muted-foreground text-xs justify-end">
+                <Users size={11} /> <span>{farm.investors} investors</span>
+              </div>
+              <p className="text-muted-foreground text-xs mt-0.5">{farm.tradeCount} trades</p>
+              <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/10 text-[#16a34a]">
+                {farm.fundingPercent}% funded
+              </span>
+            </div>
+          </div>,
+
+          /* 1 — AI insights */
+          <div key="ai" className="bg-card border-b border-border px-4 py-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Sparkles size={13} className="text-[#16a34a]" />
+              <p className="text-xs font-semibold text-foreground">AI Investment Insights</p>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(() => {
+                const tags: { text: string; color: string }[] = [];
+                if (farm.changePercent > 3) tags.push({ text: `📈 Strong +${farm.changePercent.toFixed(1)}% momentum`, color: "bg-[#16a34a]/5 border-[#16a34a]/20 text-[#16a34a]" });
+                if (farm.changePercent < -2) tags.push({ text: "📉 Price dip — buying opportunity", color: "bg-amber-50 border-amber-200 text-amber-700" });
+                if (growth?.stage === "growing") tags.push({ text: "🌱 In peak growing phase", color: "bg-blue-50 border-blue-200 text-blue-700" });
+                if (growth?.stage === "harvest") tags.push({ text: "🌾 Near harvest — high confidence", color: "bg-orange-50 border-orange-200 text-orange-700" });
+                if (farm.fundingPercent > 70) tags.push({ text: `⚡ ${farm.fundingPercent}% funded — almost full`, color: "bg-red-50 border-red-200 text-red-700" });
+                if (farm.fundingPercent < 30) tags.push({ text: "🎯 Early entry — best price", color: "bg-violet-50 border-violet-200 text-violet-700" });
+                const cropTags: Record<string, string> = {
+                  maize: "🌽 Maize — highest demand crop in Kenya",
+                  coffee: "☕ Coffee — premium export demand",
+                  avocado: "🥑 Avocado — EU export season",
+                  tea: "🍵 Tea — stable year-round prices",
+                  horticulture: "🥦 Horticulture — fast ROI cycle",
+                };
+                const key = farm.cropType?.toLowerCase();
+                for (const [k, v] of Object.entries(cropTags)) {
+                  if (key?.includes(k)) { tags.push({ text: v, color: "bg-[#16a34a]/5 border-[#16a34a]/20 text-[#16a34a]" }); break; }
+                }
+                if (tags.length === 0) tags.push({ text: "✅ Verified farm — audited by Investa", color: "bg-[#16a34a]/5 border-[#16a34a]/20 text-[#16a34a]" });
+                return tags.slice(0, 4).map((tag, i) => (
+                  <span key={i} className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${tag.color}`}>{tag.text}</span>
+                ));
+              })()}
+            </div>
+          </div>,
+
+          /* 2 — Farm boundary map */
+          <div key="map" className="border-b border-border overflow-hidden" style={{ height: 220 }}>
+            <div className="relative h-full">
+              <FarmLeafletMap lat={mapLat} lng={mapLng} label={farm.name} />
+              <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center gap-1 shadow-sm border border-border">
+                <MapPin size={10} className="text-[#16a34a]" />
+                <span className="text-[10px] font-bold text-foreground">Farm Boundary</span>
+              </div>
+            </div>
+          </div>,
+
+          /* 3 — Compare farms */
+          <div key="compare" className="px-4 py-3 bg-card border-b border-border">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Scale size={13} className="text-primary" />
+              <p className="text-xs font-semibold text-foreground">Compare Farms</p>
+            </div>
+            {compareFarm ? (
+              <button
+                onClick={() => setCompareOpen(true)}
+                className="w-full flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2.5 active:scale-[0.98] transition-transform">
+                <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                  <img src={getCropImage(compareFarm.cropType, compareFarm.imageUrl)} alt={compareFarm.farmName} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-[11px] font-bold text-foreground truncate">{farm.name} vs {compareFarm.farmName}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{farm.cropType} · {compareFarm.cropType} — tap to compare side-by-side</p>
+                </div>
+                <div className="flex-shrink-0">
+                  <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-1 rounded-full">Compare →</span>
+                </div>
+              </button>
+            ) : (
+              <p className="text-xs text-muted-foreground">No other farms available to compare.</p>
+            )}
+          </div>,
+        ];
+
+        return (
+          <div className="relative overflow-hidden">
+            <motion.div
+              key={slideIndex}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.35 }}
+            >
+              {slides[slideIndex]}
+            </motion.div>
+            {/* Slide dots */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {slides.map((_, i) => (
+                <button key={i} onClick={() => setSlideIndex(i)}
+                  className={`rounded-full transition-all ${i === slideIndex ? "w-4 h-1.5 bg-[#16a34a]" : "w-1.5 h-1.5 bg-muted-foreground/30"}`} />
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="text-right">
-          <div className="flex items-center gap-1 text-muted-foreground text-xs justify-end">
-            <Users size={11} /> <span>{farm.investors} investors</span>
-          </div>
-          <p className="text-muted-foreground text-xs mt-0.5">{farm.tradeCount} trades</p>
-          <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/10 text-[#16a34a]">
-            {farm.fundingPercent}% funded
-          </span>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Sub-tabs */}
       <div className="px-4 pt-3 pb-1 sticky top-0 bg-background z-20 border-b border-border">
@@ -543,12 +651,6 @@ export default function FarmDetail() {
         {/* ── OVERVIEW TAB ── */}
         {activeTab === "overview" && (
           <>
-            <AiInsightTags
-              cropType={farm.cropType}
-              changePercent={farm.changePercent}
-              stage={growth?.stage}
-              fundingPercent={farm.fundingPercent}
-            />
 
             {/* Quick stats */}
             <div className="grid grid-cols-2 gap-2.5">
@@ -1157,6 +1259,30 @@ export default function FarmDetail() {
           imageUrl: farm.imageUrl ?? undefined,
         } : null}
       />
+
+      {(() => {
+        const compareFarm = (primaryListings as CompareListing[] | undefined)?.find(l => l.farmId !== farmId);
+        const thisListing: CompareListing | null = listing ? {
+          id: listing.id,
+          farmId: listing.farmId,
+          farmName: listing.farmName,
+          cropType: listing.cropType,
+          location: listing.location,
+          pricePerShare: listing.pricePerShare,
+          sharesAvailable: listing.sharesAvailable,
+          changePercent: listing.changePercent,
+          imageUrl: farm.imageUrl ?? undefined,
+          totalShares: farm.totalShares,
+        } : null;
+        return (
+          <CompareFarmsModal
+            open={compareOpen}
+            onClose={() => setCompareOpen(false)}
+            farmA={thisListing}
+            farmB={compareFarm ?? null}
+          />
+        );
+      })()}
     </div>
   );
 }
