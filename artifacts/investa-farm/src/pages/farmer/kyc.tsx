@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Upload, FileText, CheckCircle2, Clock, XCircle, Trash2, Plus, Loader2, X, Image } from "lucide-react";
+import { ArrowLeft, Upload, FileText, CheckCircle2, Clock, XCircle, Trash2, Plus, Loader2, X, Image, Eye, FileImage, ExternalLink } from "lucide-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { getToken } from "@/lib/auth";
@@ -31,10 +31,101 @@ const statusIcon = (s: string) => {
 const statusClass = (s: string) =>
   s === "approved" ? "badge-approved" : s === "rejected" ? "badge-rejected" : s === "submitted" ? "badge-submitted" : "badge-pending";
 
+function isPdf(url: string) {
+  return /\.pdf($|\?)/i.test(url) || url.includes("application/pdf");
+}
+function isImage(url: string) {
+  return /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(url);
+}
+
+function DocViewerModal({ doc, onClose }: { doc: KycDoc; onClose: () => void }) {
+  const pdf = isPdf(doc.fileUrl);
+  const img = isImage(doc.fileUrl);
+
+  return createPortal(
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[80] bg-black/80 flex flex-col"
+        onClick={onClose}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 bg-black/90 flex-shrink-0" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+              {pdf ? <FileText size={15} className="text-white" /> : <FileImage size={15} className="text-white" />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-bold text-sm truncate">{doc.title}</p>
+              <p className="text-white/50 text-[10px]">{DOC_TYPES.find(d => d.value === doc.docType)?.label ?? doc.docType}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <a
+              href={doc.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center"
+            >
+              <ExternalLink size={14} className="text-white" />
+            </a>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center"
+            >
+              <X size={15} className="text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Viewer body */}
+        <div className="flex-1 overflow-hidden flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
+          {pdf ? (
+            <div className="w-full h-full rounded-xl overflow-hidden bg-white">
+              <iframe
+                src={doc.fileUrl + "#toolbar=0&navpanes=0"}
+                className="w-full h-full border-0"
+                title={doc.title}
+                onLoad={() => {}}
+              />
+            </div>
+          ) : img ? (
+            <div className="max-w-full max-h-full flex items-center justify-center">
+              <img
+                src={doc.fileUrl}
+                alt={doc.title}
+                className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl"
+              />
+            </div>
+          ) : (
+            <div className="bg-white/10 rounded-2xl p-8 text-center">
+              <FileText size={48} className="text-white/50 mx-auto mb-4" />
+              <p className="text-white font-semibold mb-2">Cannot preview this file type</p>
+              <a
+                href={doc.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-primary text-white font-bold px-5 py-2.5 rounded-xl text-sm"
+              >
+                <ExternalLink size={14} /> Open File
+              </a>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body
+  );
+}
+
 export default function FarmerKyc() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const [popupDocType, setPopupDocType] = useState<string | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<KycDoc | null>(null);
   const [docType, setDocType] = useState("farm_report");
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
@@ -139,62 +230,68 @@ export default function FarmerKyc() {
   };
 
   const isUploading = upload.isPending;
-  const isBusy = isUploading;
 
   const popup = popupDocType !== null ? createPortal(
     <AnimatePresence>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] bg-black/50 flex items-end justify-center"
+        className="fixed inset-0 z-[60] bg-black/60 flex items-end justify-center"
         onClick={closePopup}>
         <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 28, stiffness: 300 }}
-          className="w-full max-w-[430px] bg-background rounded-t-3xl p-5 pb-10"
+          className="w-full max-w-[430px] bg-background rounded-t-3xl p-5 pb-10 shadow-2xl"
           onClick={e => e.stopPropagation()}>
 
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Upload size={15} className="text-primary" />
+          {/* Handle bar */}
+          <div className="w-10 h-1 bg-muted-foreground/20 rounded-full mx-auto mb-4" />
+
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Upload size={18} className="text-primary" />
               </div>
               <div>
-                <p className="font-bold text-sm">Upload Document</p>
-                <p className="text-muted-foreground text-[10px]">{DOC_TYPES.find(d => d.value === popupDocType)?.label}</p>
+                <p className="font-bold text-base">Upload Document</p>
+                <p className="text-muted-foreground text-xs">{DOC_TYPES.find(d => d.value === popupDocType)?.label}</p>
               </div>
             </div>
-            <button onClick={closePopup} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
-              <X size={14} className="text-muted-foreground" />
+            <button onClick={closePopup} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+              <X size={15} className="text-muted-foreground" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-foreground mb-1.5 block">Document Title *</label>
               <input value={title} onChange={e => setTitle(e.target.value)}
                 placeholder="e.g. National ID – John Kamau" required
-                className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
             </div>
 
             {/* File picker */}
             <div>
               <label className="text-xs font-semibold text-foreground mb-1.5 block">Select File *</label>
-              <label className={`w-full border-2 border-dashed rounded-xl overflow-hidden cursor-pointer transition-colors flex items-center justify-center min-h-[100px] ${filePreview ? "border-green-300 bg-green-50" : "border-border hover:border-primary/50 bg-muted/30"}`}>
+              <label className={`w-full border-2 border-dashed rounded-2xl overflow-hidden cursor-pointer transition-all flex items-center justify-center min-h-[110px] ${filePreview ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/50 bg-muted/30"}`}>
                 <input type="file" className="hidden"
                   accept="image/*,application/pdf,.pdf,.doc,.docx"
                   onChange={handleFileChange} />
                 {imagePreviewUrl ? (
                   <img src={imagePreviewUrl} alt="Preview"
-                    className="w-full h-40 object-cover rounded-xl" />
+                    className="w-full h-44 object-cover rounded-2xl" />
                 ) : filePreview ? (
-                  <div className="p-4 text-center">
-                    <FileText size={28} className="text-green-600 mx-auto mb-2" />
-                    <p className="text-green-700 text-sm font-medium text-center break-all">{filePreview}</p>
-                    <p className="text-green-500 text-xs mt-1">File selected — ready to upload</p>
+                  <div className="p-5 text-center">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-2">
+                      <FileText size={24} className="text-primary" />
+                    </div>
+                    <p className="text-foreground text-sm font-semibold text-center break-all">{filePreview}</p>
+                    <p className="text-primary text-xs mt-1 font-medium">✓ File selected — ready to upload</p>
                   </div>
                 ) : (
                   <div className="p-6 text-center">
-                    <Image size={28} className="text-muted-foreground mx-auto mb-2" />
-                    <p className="text-foreground text-sm font-medium">Tap to select file</p>
-                    <p className="text-muted-foreground text-xs mt-0.5">JPG, PNG, WEBP or PDF · max 10 MB</p>
+                    <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto mb-2">
+                      <Image size={24} className="text-muted-foreground" />
+                    </div>
+                    <p className="text-foreground text-sm font-semibold">Tap to select file</p>
+                    <p className="text-muted-foreground text-xs mt-1">JPG, PNG, WEBP or PDF · max 10 MB</p>
                   </div>
                 )}
               </label>
@@ -204,18 +301,18 @@ export default function FarmerKyc() {
               <label className="text-xs font-semibold text-foreground mb-1.5 block">Notes (optional)</label>
               <textarea value={notes} onChange={e => setNotes(e.target.value)}
                 rows={2} placeholder="Any additional information…"
-                className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
             </div>
 
             {uploadError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                <p className="text-red-700 text-xs">{uploadError}</p>
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <p className="text-red-700 text-sm font-medium">{uploadError}</p>
               </div>
             )}
 
-            <button type="submit" disabled={!selectedFile || isBusy}
-              className="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50">
-              {isBusy ? <><Loader2 size={15} className="animate-spin" /> Uploading…</> : <><Upload size={15} /> Upload Document</>}
+            <button type="submit" disabled={!selectedFile || isUploading}
+              className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50 shadow-lg shadow-primary/20">
+              {isUploading ? <><Loader2 size={16} className="animate-spin" /> Uploading…</> : <><Upload size={16} /> Upload Document</>}
             </button>
           </form>
         </motion.div>
@@ -286,6 +383,7 @@ export default function FarmerKyc() {
   return (
     <div className="app-shell pb-20 page-enter">
       {popup}
+      {viewingDoc && <DocViewerModal doc={viewingDoc} onClose={() => setViewingDoc(null)} />}
 
       <div className="hero-header pt-12 pb-5 px-5">
         <div className="flex items-center gap-3 mb-2">
@@ -330,25 +428,33 @@ export default function FarmerKyc() {
             {DOC_TYPES.map(dt => {
               const uploaded = docs.find(d => d.docType === dt.value);
               return (
-                <div key={dt.value} className={`flex items-center gap-3 p-3 rounded-xl border ${uploaded ? "border-green-200 bg-green-50" : "border-border bg-white"}`}>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${uploaded ? "bg-green-100" : "bg-muted"}`}>
-                    <FileText size={15} className={uploaded ? "text-green-600" : "text-muted-foreground"} />
+                <div key={dt.value} className={`flex items-center gap-3 p-3.5 rounded-2xl border ${uploaded ? "border-green-200 bg-green-50/70" : "border-border bg-card"}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${uploaded ? "bg-green-100" : "bg-muted"}`}>
+                    <FileText size={16} className={uploaded ? "text-green-600" : "text-muted-foreground"} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium ${uploaded ? "text-green-700" : "text-foreground"}`}>{dt.label}</p>
+                    <p className={`text-sm font-semibold ${uploaded ? "text-green-700" : "text-foreground"}`}>{dt.label}</p>
                     <p className="text-muted-foreground text-[10px]">{dt.desc}</p>
                   </div>
                   {uploaded ? (
-                    <div className="flex items-center gap-1.5">
-                      {statusIcon(uploaded.status)}
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusClass(uploaded.status)}`}>
-                        {uploaded.status}
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setViewingDoc(uploaded)}
+                        className="flex items-center gap-1 bg-white border border-green-200 text-green-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm"
+                      >
+                        <Eye size={11} /> View
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {statusIcon(uploaded.status)}
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusClass(uploaded.status)}`}>
+                          {uploaded.status}
+                        </span>
+                      </div>
                     </div>
                   ) : (
                     <button onClick={() => openPopup(dt.value)}
-                      className="bg-primary text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 active:scale-95 transition-transform">
-                      <Plus size={10} /> Upload
+                      className="bg-primary text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 active:scale-95 transition-transform shadow-sm shadow-primary/20">
+                      <Plus size={12} /> Upload
                     </button>
                   )}
                 </div>
@@ -363,39 +469,61 @@ export default function FarmerKyc() {
             <div className="flex items-center justify-between mb-2.5">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Uploaded Documents</p>
               <button onClick={() => openPopup("other")}
-                className="text-primary text-xs font-medium flex items-center gap-1">
+                className="text-primary text-xs font-semibold flex items-center gap-1">
                 <Plus size={12} /> Add More
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {isLoading ? (
                 [1, 2].map(i => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)
               ) : (
-                docs.map(doc => (
-                  <div key={doc.id} className="bg-card border border-border rounded-2xl p-3 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      {doc.fileUrl && (doc.fileUrl.match(/\.(jpg|jpeg|png|webp)/i)) ? (
-                        <img src={doc.fileUrl} alt="" className="w-9 h-9 rounded-xl object-cover" />
-                      ) : (
-                        <FileText size={16} className="text-primary" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-foreground text-sm font-medium truncate">{doc.title}</p>
-                      <p className="text-muted-foreground text-[10px]">{DOC_TYPES.find(d => d.value === doc.docType)?.label ?? doc.docType}</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {statusIcon(doc.status)}
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${statusClass(doc.status)}`}>{doc.status}</span>
-                      {doc.status !== "approved" && (
-                        <button onClick={() => remove.mutate(doc.id)}
-                          className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center active:scale-90 transition-transform flex-shrink-0">
-                          <Trash2 size={12} className="text-red-500" />
+                docs.map(doc => {
+                  const pdf = isPdf(doc.fileUrl);
+                  const img = isImage(doc.fileUrl);
+                  return (
+                    <div key={doc.id} className="bg-card border border-border rounded-2xl p-3.5 flex items-center gap-3">
+                      {/* Thumbnail */}
+                      <button
+                        onClick={() => setViewingDoc(doc)}
+                        className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-muted flex items-center justify-center active:scale-90 transition-transform"
+                      >
+                        {img ? (
+                          <img src={doc.fileUrl} alt="" className="w-11 h-11 object-cover" />
+                        ) : pdf ? (
+                          <div className="w-11 h-11 bg-red-50 flex items-center justify-center">
+                            <FileText size={20} className="text-red-500" />
+                          </div>
+                        ) : (
+                          <FileText size={18} className="text-primary" />
+                        )}
+                      </button>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground text-sm font-semibold truncate">{doc.title}</p>
+                        <p className="text-muted-foreground text-[10px]">{DOC_TYPES.find(d => d.value === doc.docType)?.label ?? doc.docType} · {pdf ? "PDF" : img ? "Image" : "File"}</p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {/* View button */}
+                        <button
+                          onClick={() => setViewingDoc(doc)}
+                          className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center active:scale-90 transition-transform"
+                          title="View document"
+                        >
+                          <Eye size={14} className="text-primary" />
                         </button>
-                      )}
+                        {statusIcon(doc.status)}
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${statusClass(doc.status)}`}>{doc.status}</span>
+                        {doc.status !== "approved" && (
+                          <button onClick={() => remove.mutate(doc.id)}
+                            className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center active:scale-90 transition-transform">
+                            <Trash2 size={13} className="text-red-500" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -404,13 +532,15 @@ export default function FarmerKyc() {
         {/* Empty state */}
         {!isLoading && docs.length === 0 && (
           <div className="bg-muted/40 rounded-2xl border border-border p-8 text-center">
-            <Upload size={28} className="text-muted-foreground mx-auto mb-3" />
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+              <Upload size={28} className="text-primary" />
+            </div>
             <p className="text-foreground font-semibold text-sm">No documents uploaded yet</p>
             <p className="text-muted-foreground text-xs mt-1 leading-relaxed">
               Start uploading your KYC documents to get verified and access full platform features.
             </p>
             <button onClick={() => openPopup("national_id")}
-              className="mt-4 bg-primary text-white font-bold py-2.5 px-5 rounded-xl text-sm flex items-center gap-2 mx-auto active:scale-95 transition-transform">
+              className="mt-4 bg-primary text-white font-bold py-3 px-6 rounded-2xl text-sm flex items-center gap-2 mx-auto active:scale-95 transition-transform shadow-lg shadow-primary/20">
               <Plus size={14} /> Upload First Document
             </button>
           </div>

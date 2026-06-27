@@ -356,9 +356,11 @@ export default function PrimaryMarket() {
                         <div className="min-w-0">
                           <p className="font-bold text-xs text-foreground truncate leading-tight">{listing.farmName}</p>
                           <p className="text-muted-foreground text-[10px] truncate">{listing.cropType} · {listing.location}</p>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-[9px] font-bold text-violet-600">🤖 AI</span>
-                            <span className="text-[9px] text-muted-foreground truncate">{aiInsight}</span>
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="inline-flex items-center gap-0.5 bg-violet-100 text-violet-700 border border-violet-200 rounded-full px-1.5 py-0.5 text-[9px] font-bold flex-shrink-0">
+                              🤖 AI
+                            </span>
+                            <span className="text-[10px] text-foreground/80 font-medium truncate leading-tight">{aiInsight}</span>
                           </div>
                         </div>
                       </div>
