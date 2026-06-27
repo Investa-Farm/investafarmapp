@@ -1,9 +1,6 @@
 # Investa Farm 🌾
 
-Africa's leading farm investment platform — a mobile-first PWA where farmers raise capital by listing farm shares and investors buy, trade, and earn harvest returns. Built for Kenya, priced in KES.
-
-[![Deploy on Railway](https://img.shields.io/badge/Deploy-Railway-blueviolet?logo=railway)](https://railway.app)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+Africa's leading farm investment platform — a mobile-first PWA where farmers raise capital by listing farm shares and investors buy, trade, and earn harvest returns. Built for Kenya, priced in KES. Hosted on Replit.
 
 ---
 
@@ -11,7 +8,7 @@ Africa's leading farm investment platform — a mobile-first PWA where farmers r
 
 | Role | What they do |
 |------|-------------|
-| **Farmers** | Register a group, list their farm for investment, upload KYC docs, apply for funding, post field updates, and track earnings |
+| **Farmers** | Register, list their farm for investment, upload KYC docs, post field updates, and track earnings |
 | **Investors** | Browse live farm listings with AI insights, buy fractional shares, manage a portfolio, and request exits at harvest |
 | **Cooperatives / Agribusinesses** | Manage farmer groups, source agri-inputs, view network analytics |
 | **Admins** | Approve KYC, manage payouts, trigger dividends, view platform analytics |
@@ -24,13 +21,15 @@ Africa's leading farm investment platform — a mobile-first PWA where farmers r
 |-------|-----------|
 | Frontend | React 19, Vite 7, Tailwind CSS v4, Wouter, TanStack Query, Framer Motion, Recharts |
 | Backend | Node.js 24, Express 5, Pino logging, node-cron |
-| Database | PostgreSQL + Drizzle ORM |
+| Database | PostgreSQL + Drizzle ORM (Replit managed) |
 | Validation | Zod, OpenAPI spec → Orval codegen |
 | Auth | bcrypt + Base64 pseudo-JWT, email OTP verification |
 | Push | Web Push (VAPID) |
-| AI | Groq (llama-3.3-70b-versatile) |
-| Payments | Paystack (M-Pesa / card) |
+| AI | Groq (llama-3.3-70b-versatile) — farm insights, sentiment, yield prediction |
+| Payments | Stripe (card + M-Pesa), Paystack (M-Pesa STK push), Circle (USDC) |
 | Email | Resend / Gmail SMTP |
+| Blockchain | Stellar SDK (custodial wallets, tokenised farm shares) |
+| Monorepo | pnpm workspaces |
 
 ---
 
@@ -42,13 +41,13 @@ investa-farm/                  ← monorepo root (pnpm workspaces)
 │   ├── api-server/            ← Express backend (port 8080)
 │   │   └── src/
 │   │       ├── routes/        ← auth, farms, market, wallet, portfolio, farmer, admin …
-│   │       └── lib/           ← security.ts, email.ts, stellar.ts, rainfall.ts, roi.ts
-│   └── investa-farm/          ← React PWA frontend (port 5000)
+│   │       └── lib/           ← stripe.ts, paystack.ts, circle.ts, email.ts, stellar.ts, push.ts, security.ts
+│   └── investa-farm/          ← React PWA frontend (port 5000 via proxy)
 │       └── src/
-│           ├── pages/         ← market/, farmer/, agribusiness/, admin pages
-│           └── components/    ← invest-modal, wallet-modal, kyc-modal, ai-assistant …
+│           ├── pages/         ← market/, farmer/, agribusiness/, admin/, portfolio.tsx, wallet.tsx …
+│           └── components/    ← invest-modal, wallet-modal, kyc-modal, ai-assistant, sparkline …
 ├── lib/
-│   ├── db/                    ← Drizzle schema + migrations
+│   ├── db/                    ← Drizzle schema (users, farms, investments, wallet, transactions …)
 │   ├── api-spec/              ← OpenAPI source of truth (openapi.yaml)
 │   ├── api-client-react/      ← Generated TanStack Query hooks
 │   └── api-zod/               ← Generated Zod validators
@@ -57,65 +56,77 @@ investa-farm/                  ← monorepo root (pnpm workspaces)
 
 ---
 
-## Getting Started
+## Running on Replit
 
-### Prerequisites
+Press **Run** — Replit starts both servers via `start.sh`:
 
-- Node.js 20+
-- pnpm 10+
-- PostgreSQL database
+- API server → `http://localhost:8080`
+- React frontend → `http://localhost:5000` (proxies `/api` and `/uploads` to `:8080`)
 
-### 1. Clone & install
+The frontend is visible in the preview pane on port **80** (mapped from 5000).
 
-```bash
-git clone <repo-url>
-cd investa-farm
-pnpm install
-```
+---
 
-### 2. Environment variables
+## Environment Variables & Secrets
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
+Set these in the **Replit Secrets** panel (padlock icon). Never paste them in code.
+
+### Required
+
+| Secret | Description |
+|--------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string (auto-set by Replit DB integration) |
 | `SESSION_SECRET` | Long random string for session signing |
-| `GROQ_API_KEY` | Groq API key for AI features |
-| `PAYSTACK_SECRET_KEY` | Paystack secret key |
-| `PAYSTACK_PUBLIC_KEY` | Paystack public key |
+| `ADMIN_EMAIL` | Email for the initial admin account |
+| `ADMIN_PASSWORD` | Password for the initial admin account |
+
+### Payments
+
+| Secret | Description |
+|--------|-------------|
+| `STRIPE_SECRET_KEY` | `sk_test_…` or `sk_live_…` — enables card deposits |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` — validates Stripe webhook events (optional but recommended) |
+| `PAYSTACK_SECRET_KEY` | Paystack secret key — enables M-Pesa STK push |
+| `CIRCLE_API_KEY` | Circle developer key — enables USDC deposits |
+
+### AI & Comms
+
+| Secret | Description |
+|--------|-------------|
+| `GROQ_API_KEY` | Groq key for AI farm insights, news summarisation |
 | `GOOGLE_SMTP_USER` | Gmail address for sending emails |
-| `GOOGLE_SMTP_PASS` | Gmail App Password (not your login password) |
-| `ADMIN_EMAIL` | Initial admin account email |
-| `ADMIN_PASSWORD` | Initial admin account password |
-| `VAPID_PUBLIC_KEY` | Web push VAPID public key |
-| `VAPID_PRIVATE_KEY` | Web push VAPID private key |
-| `STELLAR_ISSUER_SECRET_KEY` | Stellar custodial wallet issuer secret (XDR format secret starting with `S…`) |
-| `STELLAR_NETWORK` | `testnet` (default) or `mainnet` |
-| `CIRCLE_API_KEY` | Circle developer API key for stablecoin wallet ops (format: `uuid:secret`) |
-| `KYC_ADMIN_PASSWORD` | Password for the KYC-only sub-admin login |
-| `ALLOWED_ORIGINS` | CORS allowed origins (e.g. `https://your-app.replit.app`) |
+| `GOOGLE_SMTP_PASS` | Gmail App Password (16-char code, not your login password) |
+| `RESEND_API_KEY` | Alternative to Gmail SMTP — Resend transactional email |
+| `BREVO_API_KEY` | (Optional) Brevo SMS OTP on signup |
+| `VAPID_PRIVATE_KEY` | Web Push private key |
 
-Optional (news / additional AI sources):
+### Blockchain
 
-| Variable | Description |
-|----------|-------------|
-| `GNEWS_API_KEY` | GNews API key |
-| `CURRENTS_API_KEY` | Currents API key |
-| `THENEWSAPI_TOKEN` | TheNewsAPI token |
-| `MEDIASTACK_API_KEY` | Mediastack access key |
+| Secret | Description |
+|--------|-------------|
+| `STELLAR_ISSUER_SECRET_KEY` | Stellar issuer secret for custodial wallets (starts with `S…`) |
 
-### 3. Push the database schema
+### Non-sensitive config (already set in `.replit`)
 
-```bash
-pnpm --filter @workspace/db run push
-```
+| Variable | Value |
+|----------|-------|
+| `PORT` | `8080` |
+| `NODE_ENV` | `development` |
+| `BASE_PATH` | `/` |
+| `VAPID_PUBLIC_KEY` | Pre-set VAPID public key |
+| `STELLAR_ISSUER_PUBLIC_KEY` | Pre-set Stellar issuer public key |
+| `STRIPE_PUBLIC_KEY` | Your Stripe publishable key (`pk_test_…` / `pk_live_…`) |
+| `ALLOWED_ORIGINS` | Replit dev + prod domains |
 
-### 4. Run in development
+---
 
-```bash
-bash start.sh   # API on :8080, frontend on :5000
-```
+## How Stripe Deposits Work
 
-Or press **Run** in Replit — it uses `start.sh` automatically.
+1. Frontend calls `POST /api/wallet/stripe/create-intent` → gets a `clientSecret`
+2. User completes the card payment in the Stripe Elements UI
+3. Frontend calls `POST /api/wallet/stripe/confirm` with the `intentId`
+4. Server verifies the PaymentIntent status with Stripe → credits the user's wallet
+5. *(Backup)* Stripe fires `payment_intent.succeeded` to `POST /api/wallet/stripe/webhook` → server credits wallet automatically (idempotent — safe if both run)
 
 ---
 
@@ -125,9 +136,9 @@ Or press **Run** in Replit — it uses `start.sh` automatically.
 |------|-------|----------|
 | Farmer | `john.farmer@investafarm.com` | `password123` |
 | Investor | `david.investor@investafarm.com` | `password123` |
-| Admin | set via `ADMIN_EMAIL` / `ADMIN_PASSWORD` | — |
+| Admin | value of `ADMIN_EMAIL` secret | value of `ADMIN_PASSWORD` secret |
 
-> **Note:** Demo accounts display curated sample data (hardcoded ticker, buyer offers, demand charts). Real registered users see only live database data.
+> Demo accounts display curated sample data. Real registered users see only live database data.
 
 ---
 
@@ -139,13 +150,12 @@ pnpm run build                                 # Typecheck + build all packages
 pnpm --filter @workspace/api-spec run codegen  # Regenerate API hooks from OpenAPI spec
 pnpm --filter @workspace/db run push           # Push DB schema changes (dev only)
 pnpm --filter @workspace/api-server run build  # Build API server bundle only
+bash start.sh                                  # Start both servers locally
 ```
 
 ---
 
 ## Security
-
-The platform ships with a production-ready security layer:
 
 | Feature | Detail |
 |---------|--------|
@@ -154,60 +164,33 @@ The platform ships with a production-ready security layer:
 | **Velocity caps** | Per-user daily limits on deposits, withdrawals, and investments |
 | **Security headers** | X-Frame-Options, CSP, HSTS, X-Content-Type-Options on every response |
 | **Input sanitisation** | XSS stripping, null-byte removal, JS-protocol injection prevention |
-| **Bot detection** | Headless-browser and automation UA blocking on write endpoints |
+| **Webhook verification** | Stripe signature verified via `stripe-signature` header; Paystack via HMAC-SHA512 |
 | **Payload guard** | Requests over 512 KB rejected before parsing |
-| **Enum prevention** | Constant-time responses for unknown email addresses |
 
 ---
 
 ## Architecture Notes
 
-- **Contract-first API** — `lib/api-spec/src/openapi.yaml` is the single source of truth. Run codegen after any schema change. Do NOT re-run without verifying `mode: "single"` in the Orval config — output must target `generated/api.ts`.
+- **Contract-first API** — `lib/api-spec/src/openapi.yaml` is the single source of truth. Run codegen after any schema change. Do NOT re-run without verifying `mode: "single"` in the Orval config.
 - **Auth** — bcrypt password hashing + Base64 pseudo-JWT in `localStorage`. Email OTP required before first login.
 - **Role routing** — `AuthGuard` redirects: `farmer → /farmer/*`, `investor → /market/*`, `cooperative → /cooperative/*`.
-- **Currency** — All monetary values stored and displayed in KES. Users can switch display currency via `CurrencyProvider`.
-- **Demo vs. real users** — Hardcoded sample data is gated behind `isDemoAccount()`. Real registered users see only live data.
-- **Seed data** — Demo accounts are inserted idempotently on every server start.
+- **Currency** — All values stored in KES. Users can switch display currency via `CurrencyProvider`.
+- **Wallet idempotency** — Every credit operation checks the `reference` field first — duplicate webhook/confirm calls are safely ignored.
 
 ---
 
 ## Deploying to Production
 
-### Railway (recommended — single service)
+Click **Deploy** in Replit. Replit builds the frontend, bundles the API server, and serves everything under your `.replit.app` domain. Make sure all secrets are set before deploying.
 
-`railway.toml` is pre-configured. Steps:
+Build command (runs automatically):
+```bash
+pnpm install && PORT=5000 BASE_PATH=/ pnpm --filter @workspace/investa-farm run build && pnpm --filter @workspace/api-server run build
+```
 
-1. Push code to GitHub
-2. Railway → New Project → Deploy from GitHub repo
-3. Add a **PostgreSQL** plugin (auto-sets `DATABASE_URL`)
-4. In **Variables**, add all env vars from the table above
-5. Deploy — live at `https://your-app.railway.app`
+Start command (production):
+```bash
+NODE_ENV=production node --enable-source-maps artifacts/api-server/dist/index.mjs
+```
 
-> Do NOT set `VITE_API_URL` — frontend and backend share the same origin on Railway.
-
-### Replit Deployments
-
-Click **Deploy** in the Replit header. Replit builds, provisions PostgreSQL, and serves under your `.replit.app` domain. Set all secrets in the Replit Secrets panel first.
-
----
-
-## Gmail App Password Setup
-
-1. Go to [myaccount.google.com](https://myaccount.google.com)
-2. Security → 2-Step Verification → App Passwords
-3. Create an app password for "Mail"
-4. Use the 16-character code as `GOOGLE_SMTP_PASS`
-
----
-
-## Roadmap Ideas
-
-| Feature | Description |
-|---------|-------------|
-| SMS OTP | Augment email OTP with M-Pesa SMS via Africa's Talking |
-| In-app chat | Farmer ↔ investor messaging for deal negotiation |
-| Mobile app | Native iOS/Android via Expo using the same API |
-| Multi-language | Swahili + English toggle |
-| Insurance module | Crop insurance integration with APA Insurance |
-| Carbon credits | Track and monetise sequestration per farm |
-| Stripe / PayPal | Additional payment rails for diaspora investors |
+> The Express server serves the built React SPA from `artifacts/investa-farm/dist/public` in production, so no separate Vite server is needed.

@@ -7,6 +7,7 @@ import {
   TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck,
   Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen,
   Star, Plus, RefreshCw, Bell, CreditCard, X, Info, ChevronLeft, ChevronRight,
+  Wallet, BarChart3, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import { PortfolioWizard } from "@/components/portfolio-wizard";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
@@ -88,7 +89,7 @@ function buildChartData(totalInvested: number, totalValue: number, period: Perio
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-border rounded-xl px-3 py-2 shadow-lg text-xs">
+    <div className="bg-white border border-border rounded-xl px-3 py-2 shadow-xl text-xs">
       <p className="text-muted-foreground mb-0.5">{label}</p>
       <p className="text-foreground font-bold">{formatKES(payload[0].value)}</p>
     </div>
@@ -218,7 +219,6 @@ export default function Portfolio() {
   const holdingsList = (holdings as Holding[]) ?? [];
   const currentHolding = holdingsList[holdingIdx] ?? null;
 
-  // Crop-specific minimum hold days before secondary listing
   const SECONDARY_HOLD_DAYS: Record<string, number> = {
     kale: 30, cabbage: 30, tomatoes: 30, poultry: 30, chicken: 30, spinach: 30,
     maize: 45, beans: 45, sunflower: 45, rice: 45, wheat: 45, dairy: 45, cattle: 45,
@@ -249,98 +249,146 @@ export default function Portfolio() {
     return getHoldInfo(h).status;
   }
 
+  const totalGain = summary ? summary.totalValue - summary.totalInvested : 0;
+
   return (
-    <div className="app-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }} data-testid="portfolio-page">
+    <div className="app-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", background: "#f0fdf4" }} data-testid="portfolio-page">
 
-      {/* ── Hero header ── */}
-      <div className="hero-header pt-10 pb-3 px-5 flex-shrink-0">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-white/80 text-xs font-medium">My Portfolio</p>
-          <button
-            onClick={() => setLocation("/market")}
-            className="w-8 h-8 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
-            <Bell size={14} className="text-white" />
-          </button>
-        </div>
+      {/* ── Premium Hero Header ── */}
+      <div className="flex-shrink-0 relative overflow-hidden"
+        style={{
+          background: "linear-gradient(135deg, #0d4f2e 0%, #16a34a 55%, #22c55e 100%)",
+          paddingTop: "env(safe-area-inset-top, 16px)",
+        }}>
+        {/* Decorative blobs */}
+        <div style={{ position: "absolute", top: -32, right: -32, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -40, left: -20, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: 28, left: "40%", width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
 
-        {/* Stats row */}
-        {summary ? (
-          <div>
-            <p className="text-white/60 text-xs mt-0.5">Portfolio Value</p>
-            <motion.p key={summary.totalValue} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-              className="text-white text-2xl font-bold mt-0.5">
-              <AnimatedKES value={summary.totalValue} />
-            </motion.p>
-            <div className="flex items-center gap-3 mt-1">
-              <div className="flex items-center gap-1">
-                {summary.todayReturn >= 0
-                  ? <TrendingUp size={10} className="text-green-300" />
-                  : <TrendingDown size={10} className="text-red-300" />}
-                <span className={`text-[11px] font-semibold ${summary.todayReturn >= 0 ? "text-green-300" : "text-red-300"}`}>
-                  {formatChange(summary.todayReturnPercent)} today
-                </span>
-              </div>
-              <span className="text-white/30">|</span>
-              <span className="text-white/60 text-[11px]">{formatChange(summary.weekReturnPercent)} this week</span>
+        <div className="px-5 pt-4 pb-5 relative">
+          {/* Top row */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-white/60 text-[11px] font-semibold uppercase tracking-widest">My Portfolio</p>
             </div>
-            {/* 3-stat row */}
-            <div className="flex items-center mt-2 divide-x divide-white/20">
-              {([
-                { key: "invested" as const, label: "Invested", value: summary.totalInvested, isKES: true, color: "text-white" },
-                { key: "pnl" as const, label: "P&L", value: summary.todayReturn, isKES: true, color: summary.todayReturn >= 0 ? "text-green-300" : "text-red-300" },
-                { key: "holdings" as const, label: "Holdings", value: summary.holdings, isKES: false, color: "text-white" },
-              ]).map(({ key, label, value, isKES, color }) => (
-                <button key={key} onClick={() => setStatDetail(key)}
-                  className="flex-1 text-center px-2 active:opacity-60 transition-opacity group">
-                  <p className={`font-bold text-xs leading-tight truncate ${color}`}>
-                    {isKES ? <AnimatedKES value={value} /> : <>{value}</>}
-                  </p>
-                  <p className="text-white/40 text-[9px] mt-0.5 flex items-center justify-center gap-0.5">
-                    {label} <Info size={6} className="opacity-50" />
-                  </p>
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLocation("/wallet")}
+                className="flex items-center gap-1.5 bg-white/15 border border-white/25 rounded-full px-3 py-1.5 active:scale-95 transition-all">
+                <Wallet size={11} className="text-white" />
+                <span className="text-white text-[11px] font-semibold">Wallet</span>
+              </button>
+              <button
+                onClick={() => setLocation("/market")}
+                className="w-8 h-8 rounded-full bg-white/15 border border-white/25 flex items-center justify-center active:scale-95 transition-all">
+                <Bell size={13} className="text-white" />
+              </button>
             </div>
           </div>
-        ) : (
-          <Skeleton className="h-20 mt-2 rounded-2xl bg-white/20" />
-        )}
+
+          {/* Portfolio value */}
+          {summary ? (
+            <>
+              <motion.div key={summary.totalValue} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+                <p className="text-white/70 text-xs mb-0.5">Total Portfolio Value</p>
+                <p className="text-white font-extrabold" style={{ fontSize: 34, letterSpacing: -1, lineHeight: 1.1 }}>
+                  <AnimatedKES value={summary.totalValue} />
+                </p>
+                {/* Return badge */}
+                <div className="flex items-center gap-2 mt-2">
+                  <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full ${totalGain >= 0 ? "bg-white/20" : "bg-red-500/30"}`}>
+                    {totalGain >= 0
+                      ? <ArrowUpRight size={11} className="text-green-200" />
+                      : <ArrowDownRight size={11} className="text-red-200" />}
+                    <span className={`text-[11px] font-bold ${totalGain >= 0 ? "text-green-100" : "text-red-200"}`}>
+                      {totalGain >= 0 ? "+" : ""}{formatKES(totalGain)}
+                    </span>
+                    <span className="text-white/50 text-[10px]">all time</span>
+                  </div>
+                  <div className="h-4 w-px bg-white/20" />
+                  <span className={`text-[11px] font-semibold ${summary.todayReturn >= 0 ? "text-green-200" : "text-red-300"}`}>
+                    {formatChange(summary.todayReturnPercent)} today
+                  </span>
+                </div>
+              </motion.div>
+
+              {/* 3-stat glassmorphism row */}
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                {([
+                  { key: "invested" as const, label: "Invested", value: formatKES(summary.totalInvested), icon: "💰" },
+                  { key: "pnl" as const, label: "P&L", value: (summary.todayReturn >= 0 ? "+" : "") + formatKES(summary.todayReturn), icon: summary.todayReturn >= 0 ? "📈" : "📉", highlight: true, up: summary.todayReturn >= 0 },
+                  { key: "holdings" as const, label: "Holdings", value: String(summary.holdings), icon: "🌾" },
+                ]).map(({ key, label, value, icon, highlight, up }) => (
+                  <button key={key} onClick={() => setStatDetail(key)}
+                    className="relative rounded-2xl p-3 text-left active:scale-95 transition-all overflow-hidden"
+                    style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.18)" }}>
+                    <span className="text-base leading-none block mb-1">{icon}</span>
+                    <p className={`font-bold text-xs leading-tight truncate ${highlight ? (up ? "text-green-200" : "text-red-300") : "text-white"}`}>{value}</p>
+                    <p className="text-white/50 text-[9px] mt-0.5 flex items-center gap-0.5">{label} <Info size={6} className="opacity-60" /></p>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <Skeleton className="h-9 w-48 rounded-xl bg-white/20" />
+              <Skeleton className="h-5 w-32 rounded-full bg-white/15" />
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                {[0,1,2].map(i => <Skeleton key={i} className="h-16 rounded-2xl bg-white/15" />)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Curved bottom edge */}
+        <div style={{ height: 20, background: "#f0fdf4", borderRadius: "50% 50% 0 0 / 100% 100% 0 0", marginTop: -1 }} />
       </div>
 
       {/* ── Tab switcher ── */}
-      <div className="px-4 pt-2 pb-2 flex-shrink-0">
-        <div className="flex bg-muted rounded-2xl p-1 gap-1">
-          <button onClick={() => setActiveTab("overview")}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${activeTab === "overview" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            📈 Overview
-          </button>
-          <button onClick={() => setActiveTab("holdings")}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${activeTab === "holdings" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            🌾 My Holdings
-          </button>
+      <div className="px-4 pt-1 pb-2 flex-shrink-0">
+        <div className="flex rounded-2xl p-1 gap-1" style={{ background: "rgba(0,0,0,0.06)" }}>
+          {([
+            { id: "overview" as const, emoji: "📈", label: "Overview" },
+            { id: "holdings" as const, emoji: "🌾", label: "My Holdings" },
+          ]).map(({ id, emoji, label }) => (
+            <button key={id} onClick={() => setActiveTab(id)}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === id ? "bg-white text-foreground shadow-md" : "text-muted-foreground"}`}>
+              <span>{emoji}</span>{label}
+              {id === "holdings" && holdingsList.length > 0 && (
+                <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${activeTab === id ? "bg-primary/10 text-primary" : "bg-muted-foreground/20 text-muted-foreground"}`}>
+                  {holdingsList.length}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* ══ OVERVIEW TAB ══ */}
       {activeTab === "overview" && (
-        <div className="flex-1 overflow-hidden flex flex-col gap-2.5 px-4 pb-2" style={{ minHeight: 0 }}>
+        <div className="flex-1 overflow-hidden flex flex-col gap-3 px-4 pb-2" style={{ minHeight: 0 }}>
 
-          {/* Performance Chart — fills remaining space */}
-          <div className="bg-white border border-border rounded-2xl overflow-hidden flex flex-col flex-1" style={{ minHeight: 0 }}>
-            <div className="px-4 pt-3 pb-1 flex items-center justify-between flex-shrink-0">
+          {/* Performance Chart */}
+          <div className="bg-white border border-border rounded-2xl overflow-hidden flex flex-col flex-1 shadow-sm" style={{ minHeight: 0 }}>
+            <div className="px-4 pt-3.5 pb-2 flex items-center justify-between flex-shrink-0">
               <div>
-                <p className="text-foreground font-bold text-sm">Performance</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <BarChart3 size={13} className="text-primary" />
+                  </div>
+                  <p className="text-foreground font-bold text-sm">Performance</p>
+                </div>
                 {summary && (
-                  <p className={`text-xs font-semibold mt-0.5 ${isPortfolioUp ? "text-green-600" : "text-red-500"}`}>
+                  <p className={`text-xs font-semibold mt-1 ml-9 ${isPortfolioUp ? "text-green-600" : "text-red-500"}`}>
                     {isPortfolioUp ? "+" : ""}{formatKES(summary.totalValue - summary.totalInvested)}
                     <span className="font-normal text-muted-foreground ml-1">total return</span>
                   </p>
                 )}
               </div>
-              <div className="flex bg-muted rounded-xl p-0.5 gap-0.5">
+              <div className="flex rounded-xl p-0.5 gap-0.5" style={{ background: "rgba(0,0,0,0.05)" }}>
                 {(["1W", "1M", "3M"] as Period[]).map(p => (
                   <button key={p} onClick={() => setPeriod(p)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${period === p ? "bg-primary text-white shadow-sm" : "text-muted-foreground"}`}>
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${period === p ? "bg-primary text-white shadow-sm" : "text-muted-foreground"}`}>
                     {p}
                   </button>
                 ))}
@@ -351,43 +399,44 @@ export default function Portfolio() {
               {!summary ? (
                 <div className="h-full flex items-center justify-center"><Skeleton className="w-full h-full rounded-xl" /></div>
               ) : summary.totalInvested === 0 ? (
-                <div className="h-full flex items-center justify-center bg-muted/30 rounded-xl mx-2">
-                  <div className="text-center">
-                    <TrendingUp size={24} className="text-muted-foreground mx-auto mb-2" />
-                    <p className="text-muted-foreground text-xs">Invest to see your growth chart</p>
+                <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50/50 rounded-xl mx-2">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
+                    <TrendingUp size={24} className="text-primary" />
                   </div>
+                  <p className="text-foreground font-bold text-sm">No investments yet</p>
+                  <p className="text-muted-foreground text-xs mt-1">Invest in a farm to see your growth chart</p>
                 </div>
               ) : (
                 <>
                   <ResponsiveContainer width="100%" height="80%">
-                    <AreaChart data={chartData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                    <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={isPortfolioUp ? "#16a34a" : "#dc2626"} stopOpacity={0.18} />
+                          <stop offset="5%" stopColor={isPortfolioUp ? "#16a34a" : "#dc2626"} stopOpacity={0.2} />
                           <stop offset="95%" stopColor={isPortfolioUp ? "#16a34a" : "#dc2626"} stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 13% 91%)" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 9, fill: "hsl(220 9% 46%)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                      <YAxis tick={{ fontSize: 9, fill: "hsl(220 9% 46%)" }} axisLine={false} tickLine={false}
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 13% 93%)" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 9, fill: "hsl(220 9% 50%)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                      <YAxis tick={{ fontSize: 9, fill: "hsl(220 9% 50%)" }} axisLine={false} tickLine={false}
                         domain={[chartMin, chartMax]} tickFormatter={v => `${(v / 1000).toFixed(0)}K`} width={34} />
                       <Tooltip content={<CustomTooltip />} />
-                      <ReferenceLine y={summary.totalInvested} stroke="hsl(220 9% 46%)" strokeDasharray="4 3" strokeWidth={1}
-                        label={{ value: "Invested", position: "insideTopRight", fontSize: 8, fill: "hsl(220 9% 46%)" }} />
+                      <ReferenceLine y={summary.totalInvested} stroke="hsl(220 9% 70%)" strokeDasharray="4 3" strokeWidth={1}
+                        label={{ value: "Cost", position: "insideTopRight", fontSize: 8, fill: "hsl(220 9% 60%)" }} />
                       <Area type="monotone" dataKey="value" stroke={isPortfolioUp ? "#16a34a" : "#dc2626"}
-                        strokeWidth={2} fill="url(#perfGrad)" dot={false}
-                        activeDot={{ r: 4, fill: isPortfolioUp ? "#16a34a" : "#dc2626", strokeWidth: 2, stroke: "#fff" }} />
+                        strokeWidth={2.5} fill="url(#perfGrad)" dot={false}
+                        activeDot={{ r: 5, fill: isPortfolioUp ? "#16a34a" : "#dc2626", strokeWidth: 2.5, stroke: "#fff" }} />
                     </AreaChart>
                   </ResponsiveContainer>
-                  <div className="flex justify-around px-2 pt-0.5">
+                  <div className="flex justify-around px-2 pt-1">
                     {[
-                      { label: "Overall", val: `${formatChange(summary.overallGainLossPercent)}`, color: isPortfolioUp ? "text-green-600" : "text-red-500" },
-                      { label: "Today", val: formatChange(summary.todayReturnPercent), color: "text-green-600" },
-                      { label: "This Week", val: formatChange(summary.weekReturnPercent), color: "text-green-600" },
+                      { label: "Overall", val: formatChange(summary.overallGainLossPercent), color: isPortfolioUp ? "text-green-600" : "text-red-500" },
+                      { label: "Today", val: formatChange(summary.todayReturnPercent), color: summary.todayReturn >= 0 ? "text-green-600" : "text-red-500" },
+                      { label: "This Week", val: formatChange(summary.weekReturnPercent), color: summary.weekReturnPercent >= 0 ? "text-green-600" : "text-red-500" },
                     ].map(({ label, val, color }) => (
                       <div key={label} className="text-center">
                         <p className={`text-xs font-bold ${color}`}>{val}</p>
-                        <p className="text-muted-foreground text-[9px]">{label}</p>
+                        <p className="text-muted-foreground text-[9px] mt-0.5">{label}</p>
                       </div>
                     ))}
                   </div>
@@ -396,48 +445,54 @@ export default function Portfolio() {
             </div>
           </div>
 
-          {/* Bottom 2-column grid: Quick Actions + Exit Options */}
-          <div className="grid grid-cols-2 gap-2.5 flex-shrink-0">
+          {/* Bottom 2-column grid */}
+          <div className="grid grid-cols-2 gap-3 flex-shrink-0">
             {/* Quick actions */}
-            <div className="bg-white border border-border rounded-2xl p-3 space-y-1.5">
-              <p className="text-muted-foreground text-[9px] font-bold uppercase tracking-wider mb-2">Quick Actions</p>
+            <div className="bg-white border border-border rounded-2xl p-3.5 space-y-0.5 shadow-sm">
+              <p className="text-muted-foreground text-[9px] font-bold uppercase tracking-widest mb-2.5">Quick Actions</p>
               {[
                 { icon: "🛒", label: "Browse Farms", href: "/market/primary" },
                 { icon: "📊", label: "Trade Shares", href: "/market/secondary" },
                 { icon: "🔔", label: "Price Alerts", href: "/market" },
               ].map(item => (
                 <a key={item.label} href={item.href}
-                  className="flex items-center gap-2 py-1.5 active:opacity-60 transition-opacity">
-                  <span className="text-base leading-none">{item.icon}</span>
-                  <span className="text-foreground font-medium text-xs">{item.label}</span>
+                  className="flex items-center gap-2 py-2 active:opacity-60 transition-opacity rounded-xl">
+                  <span className="w-7 h-7 rounded-xl bg-muted flex items-center justify-center text-sm flex-shrink-0">{item.icon}</span>
+                  <span className="text-foreground font-semibold text-xs">{item.label}</span>
                   <ChevRight size={10} className="text-muted-foreground ml-auto" />
                 </a>
               ))}
               <button onClick={() => { const first = holdingsList.find(h => h.status === "active"); if (first) { setActiveTab("holdings"); handleExitClick(first); } else setActiveTab("holdings"); }}
-                className="flex items-center gap-2 py-1.5 active:opacity-60 transition-opacity w-full text-left">
-                <span className="text-base">⚡</span>
-                <span className="text-foreground font-medium text-xs">Exit Holding</span>
+                className="flex items-center gap-2 py-2 active:opacity-60 transition-opacity w-full text-left rounded-xl">
+                <span className="w-7 h-7 rounded-xl bg-muted flex items-center justify-center text-sm flex-shrink-0">⚡</span>
+                <span className="text-foreground font-semibold text-xs">Exit Holding</span>
                 <ChevRight size={10} className="text-muted-foreground ml-auto" />
               </button>
             </div>
 
             {/* Exit options */}
-            <div className="space-y-2">
-              <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-3 flex-1">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-base">⚡</span>
-                  <p className="text-xs font-bold text-orange-700">Mid-Season</p>
+            <div className="space-y-3">
+              <div className="rounded-2xl p-3.5 shadow-sm"
+                style={{ background: "linear-gradient(135deg, #fff7ed, #fffbeb)", border: "1px solid #fed7aa" }}>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className="w-6 h-6 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <Zap size={11} className="text-orange-600" />
+                  </div>
+                  <p className="text-xs font-bold text-orange-800">Mid-Season</p>
                 </div>
-                <p className="text-orange-600 font-bold text-base">+10% base</p>
-                <p className="text-muted-foreground text-[10px]">30–60 days</p>
+                <p className="text-orange-600 font-extrabold text-lg leading-none">+10%</p>
+                <p className="text-orange-400 text-[10px] mt-0.5 font-medium">30–60 days</p>
               </div>
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-3 flex-1">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-base">🌾</span>
-                  <p className="text-xs font-bold text-green-700">Full Season</p>
+              <div className="rounded-2xl p-3.5 shadow-sm"
+                style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", border: "1px solid #bbf7d0" }}>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className="w-6 h-6 rounded-lg bg-green-100 flex items-center justify-center">
+                    <span className="text-xs">🌾</span>
+                  </div>
+                  <p className="text-xs font-bold text-green-800">Full Season</p>
                 </div>
-                <p className="text-green-600 font-bold text-base">Up to +22%</p>
-                <p className="text-muted-foreground text-[10px]">~6 months</p>
+                <p className="text-green-600 font-extrabold text-lg leading-none">+22%</p>
+                <p className="text-green-400 text-[10px] mt-0.5 font-medium">~6 months</p>
               </div>
             </div>
           </div>
@@ -446,7 +501,7 @@ export default function Portfolio() {
 
       {/* ══ HOLDINGS TAB ══ */}
       {activeTab === "holdings" && (
-        <div className="flex-1 overflow-y-auto flex flex-col gap-2 px-4 pb-24">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-3 px-4 pb-24">
 
           {/* AI insight strip */}
           {holdingsList.length > 0 && summary && (
@@ -464,20 +519,23 @@ export default function Portfolio() {
           {/* Holding card carousel */}
           <div className="flex flex-col">
             {isLoading ? (
-              <Skeleton className="h-[460px] rounded-2xl" />
+              <Skeleton className="h-[480px] rounded-2xl" />
             ) : holdingsList.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center bg-white border border-border rounded-2xl p-6">
-                <TrendingUp size={32} className="text-muted-foreground mb-3" />
-                <p className="text-foreground font-bold text-sm">No holdings yet</p>
-                <p className="text-muted-foreground text-xs mt-1">Browse the market to buy your first farm shares.</p>
-                <Link href="/market/primary" className="mt-4 bg-primary text-white font-bold px-5 py-2.5 rounded-xl text-sm">
+              <div className="flex-1 flex flex-col items-center justify-center text-center bg-white border border-border rounded-2xl p-8 shadow-sm">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                  <TrendingUp size={28} className="text-primary" />
+                </div>
+                <p className="text-foreground font-bold text-base">No holdings yet</p>
+                <p className="text-muted-foreground text-sm mt-1.5 leading-relaxed max-w-[200px]">Browse the market to buy your first farm shares.</p>
+                <Link href="/market/primary"
+                  className="mt-5 bg-primary text-white font-bold px-6 py-3 rounded-xl text-sm active:scale-95 transition-transform">
                   Browse Farms
                 </Link>
               </div>
             ) : (
               <>
                 {/* Carousel nav header */}
-                <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                <div className="flex items-center justify-between mb-2.5 flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-4 bg-primary rounded-full" />
                     <h2 className="font-bold text-foreground text-sm">My Holdings</h2>
@@ -493,28 +551,26 @@ export default function Portfolio() {
                     <button
                       onClick={() => setHoldingIdx(i => Math.max(0, i - 1))}
                       disabled={holdingIdx === 0}
-                      className="w-7 h-7 rounded-full bg-white border border-border flex items-center justify-center disabled:opacity-30 active:scale-95 transition-all"
-                    >
+                      className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center disabled:opacity-30 active:scale-95 transition-all shadow-sm">
                       <ChevronLeft size={13} className="text-foreground" />
                     </button>
-                    <span className="text-muted-foreground text-[10px] font-medium min-w-[32px] text-center">
+                    <span className="text-muted-foreground text-[10px] font-medium min-w-[36px] text-center">
                       {holdingIdx + 1}/{holdingsList.length}
                     </span>
                     <button
                       onClick={() => setHoldingIdx(i => Math.min(holdingsList.length - 1, i + 1))}
                       disabled={holdingIdx === holdingsList.length - 1}
-                      className="w-7 h-7 rounded-full bg-white border border-border flex items-center justify-center disabled:opacity-30 active:scale-95 transition-all"
-                    >
+                      className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center disabled:opacity-30 active:scale-95 transition-all shadow-sm">
                       <ChevronRight size={13} className="text-foreground" />
                     </button>
                   </div>
                 </div>
 
                 {/* Dot indicators */}
-                <div className="flex items-center justify-center gap-1 mb-2 flex-shrink-0">
+                <div className="flex items-center justify-center gap-1.5 mb-3 flex-shrink-0">
                   {holdingsList.map((_, i) => (
                     <button key={i} onClick={() => setHoldingIdx(i)}
-                      style={{ width: i === holdingIdx ? 18 : 5, height: 5, borderRadius: 100, border: "none", cursor: "pointer", transition: "all 0.3s", background: i === holdingIdx ? "#16a34a" : "#d1d5db", padding: 0 }} />
+                      style={{ width: i === holdingIdx ? 20 : 5, height: 5, borderRadius: 100, border: "none", cursor: "pointer", transition: "all 0.3s", background: i === holdingIdx ? "#16a34a" : "#d1d5db", padding: 0 }} />
                   ))}
                 </div>
 
@@ -538,7 +594,7 @@ export default function Portfolio() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -40 }}
                         transition={{ type: "spring", stiffness: 340, damping: 30 }}
-                        className="bg-card rounded-2xl border border-border overflow-hidden shadow-md flex flex-col"
+                        className="bg-white rounded-2xl border border-border overflow-hidden shadow-md flex flex-col"
                         data-testid={`holding-${h.id}`}
                         onTouchStart={e => {
                           touchStartX.current = e.touches[0]?.clientX ?? null;
@@ -557,86 +613,102 @@ export default function Portfolio() {
                         }}
                       >
                         {/* Farm image */}
-                        <div className="relative flex-shrink-0" style={{ height: 160 }}>
+                        <div className="relative flex-shrink-0" style={{ height: 170 }}>
                           <img src={farmImg} alt={h.farmName} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-                          {/* status badges */}
-                          {isExited && <div className="absolute top-2.5 left-2.5 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Exit Pending</div>}
-                          {isHarvested && <div className="absolute top-2.5 left-2.5 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">🌾 Harvested</div>}
-                          {/* sparkline + change pill */}
-                          <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
-                            <div className="opacity-80">
-                              <Sparkline data={generateSparkData(h.farmId * 13, 10)} width={48} height={22} positive={isUp} />
+                          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.2) 55%, transparent 100%)" }} />
+
+                          {/* Status badge */}
+                          {isExited && (
+                            <div className="absolute top-3 left-3 bg-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                              <span>⏳</span> Exit Pending
                             </div>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isUp ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
+                          )}
+                          {isHarvested && (
+                            <div className="absolute top-3 left-3 bg-green-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+                              🌾 Harvested
+                            </div>
+                          )}
+
+                          {/* Sparkline + change pill */}
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                            <div style={{ opacity: 0.9 }}>
+                              <Sparkline data={generateSparkData(h.farmId * 13, 10)} width={50} height={24} positive={isUp} />
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full shadow ${isUp ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
                               {formatChange(h.gainLossPercent)}
                             </span>
                           </div>
-                          <div className="absolute bottom-0 left-0 right-0 p-3">
-                            <p className="text-white font-bold text-sm leading-tight">{h.farmName}</p>
-                            <p className="text-white/70 text-[10px] mt-0.5">{h.cropType} · {h.location}</p>
+
+                          <div className="absolute bottom-0 left-0 right-0 p-3.5">
+                            <p className="text-white font-bold text-base leading-tight">{h.farmName}</p>
+                            <p className="text-white/65 text-[11px] mt-0.5">{h.cropType} · 📍 {h.location}</p>
                           </div>
                         </div>
 
                         {/* Stats strip */}
-                        <div className="grid grid-cols-4 divide-x divide-border border-b border-border flex-shrink-0 bg-muted/30">
+                        <div className="grid grid-cols-4 divide-x divide-border border-b border-border flex-shrink-0"
+                          style={{ background: "linear-gradient(to bottom, #fafafa, #f5f5f5)" }}>
                           {[
-                            { label: "Shares", val: String(h.quantity), color: "text-foreground", bg: "" },
-                            { label: "Invested", val: formatAmount(invested), color: "text-foreground", bg: "" },
-                            { label: "Value", val: formatAmount(h.totalValue), color: isUp ? "text-green-600" : "text-red-500", bg: isUp ? "bg-green-50/50" : "bg-red-50/50" },
-                            { label: "P&L", val: (isUp ? "+" : "") + formatAmount(h.gainLoss), color: isUp ? "text-green-600" : "text-red-500", bg: isUp ? "bg-green-50/50" : "bg-red-50/50" },
-                          ].map(({ label, val, color, bg }) => (
-                            <div key={label} className={`py-2.5 text-center ${bg}`}>
+                            { label: "Shares", val: String(h.quantity), color: "text-foreground", highlight: false },
+                            { label: "Invested", val: formatAmount(invested), color: "text-foreground", highlight: false },
+                            { label: "Value", val: formatAmount(h.totalValue), color: isUp ? "text-green-600" : "text-red-500", highlight: true, up: isUp },
+                            { label: "P&L", val: (isUp ? "+" : "") + formatAmount(h.gainLoss), color: isUp ? "text-green-600" : "text-red-500", highlight: true, up: isUp },
+                          ].map(({ label, val, color, highlight, up }) => (
+                            <div key={label} className={`py-3 text-center ${highlight ? (up ? "bg-green-50/60" : "bg-red-50/60") : ""}`}>
                               <p className={`font-bold text-xs leading-tight ${color}`}>{val}</p>
-                              <p className="text-muted-foreground text-[9px] mt-0.5">{label}</p>
+                              <p className="text-muted-foreground text-[9px] mt-0.5 font-medium">{label}</p>
                             </div>
                           ))}
                         </div>
 
                         {/* ROI projections + actions */}
-                        <div className="p-3 space-y-3">
-                          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-2.5">
-                            <p className="text-green-700 text-[10px] font-semibold mb-1.5">
-                              {roi ? "AI ROI Projections" : "Estimated Payout on Exit"}
+                        <div className="p-3.5 space-y-3">
+                          <div className="rounded-xl p-3 relative overflow-hidden"
+                            style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", border: "1px solid #bbf7d0" }}>
+                            <p className="text-green-700 text-[10px] font-bold mb-2 uppercase tracking-wide">
+                              {roi ? "🤖 AI ROI Projections" : "📊 Estimated Payout on Exit"}
                             </p>
                             <div className="grid grid-cols-2 gap-2">
-                              <div className="bg-white/80 rounded-lg p-2">
-                                <p className="text-muted-foreground text-[9px]">⚡ Mid-Season</p>
-                                <p className="text-orange-600 font-bold text-xs">{roi ? formatAmount(roi.midSeason.saleProceeds) : formatAmount(midPayout)}</p>
+                              <div className="bg-white/80 rounded-xl p-2.5 border border-orange-100">
+                                <p className="text-muted-foreground text-[9px] font-medium mb-1">⚡ Mid-Season</p>
+                                <p className="text-orange-600 font-extrabold text-sm">{roi ? formatAmount(roi.midSeason.saleProceeds) : formatAmount(midPayout)}</p>
                                 {roi
-                                  ? <p className="text-orange-500 text-[9px] font-semibold">{roi.midSeason.roiPercent >= 0 ? "+" : ""}{roi.midSeason.roiPercent.toFixed(1)}%</p>
-                                  : <p className="text-muted-foreground text-[9px]">+10% return</p>
+                                  ? <p className="text-orange-500 text-[9px] font-bold mt-0.5">{roi.midSeason.roiPercent >= 0 ? "+" : ""}{roi.midSeason.roiPercent.toFixed(1)}% ROI</p>
+                                  : <p className="text-orange-400 text-[9px] mt-0.5">+10% return</p>
                                 }
                               </div>
-                              <div className="bg-white/80 rounded-lg p-2">
-                                <p className="text-muted-foreground text-[9px]">🌾 Full Season</p>
-                                <p className="text-green-600 font-bold text-xs">{roi ? formatAmount(roi.fullSeason.projectedPayout) : formatAmount(fullPayout)}</p>
+                              <div className="bg-white/80 rounded-xl p-2.5 border border-green-100">
+                                <p className="text-muted-foreground text-[9px] font-medium mb-1">🌾 Full Season</p>
+                                <p className="text-green-600 font-extrabold text-sm">{roi ? formatAmount(roi.fullSeason.projectedPayout) : formatAmount(fullPayout)}</p>
                                 {roi
-                                  ? <p className="text-green-600 text-[9px] font-semibold">{roi.fullSeason.roiPercent >= 0 ? "+" : ""}{roi.fullSeason.roiPercent.toFixed(1)}%</p>
-                                  : <p className="text-muted-foreground text-[9px]">+22% return</p>
+                                  ? <p className="text-green-600 text-[9px] font-bold mt-0.5">{roi.fullSeason.roiPercent >= 0 ? "+" : ""}{roi.fullSeason.roiPercent.toFixed(1)}% ROI</p>
+                                  : <p className="text-green-500 text-[9px] mt-0.5">up to +22%</p>
                                 }
                               </div>
                             </div>
                           </div>
 
                           {/* Action buttons */}
-                          <div className="flex gap-1.5">
+                          <div className="flex gap-2">
                             <Link href={`/market/exchange/${h.farmId}`}
-                              className="h-10 px-3 rounded-xl border border-border text-muted-foreground text-[10px] font-medium active:scale-95 transition-all flex items-center justify-center gap-1 flex-shrink-0">
-                              <ExternalLink size={10} /> View
+                              className="h-11 px-3 rounded-xl border border-border text-muted-foreground text-[11px] font-semibold active:scale-95 transition-all flex items-center justify-center gap-1 flex-shrink-0 bg-muted/50">
+                              <ExternalLink size={11} /> View
                             </Link>
                             {h.status === "active" && (
                               <>
                                 <button onClick={() => handleSwapClick(h)}
-                                  className="flex-1 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold active:scale-95 transition-all flex items-center justify-center gap-1">
-                                  <RefreshCw size={10} /> Swap
+                                  className="flex-1 h-11 rounded-xl text-[11px] font-bold active:scale-95 transition-all flex items-center justify-center gap-1"
+                                  style={{ background: "#eef2ff", border: "1px solid #c7d2fe", color: "#4f46e5" }}>
+                                  <RefreshCw size={11} /> Swap
                                 </button>
                                 <button onClick={() => handleSellClick(h)}
-                                  className="flex-1 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold active:scale-95 transition-all flex items-center justify-center gap-1">
-                                  <Tag size={10} /> Sell
+                                  className="flex-1 h-11 rounded-xl text-[11px] font-bold active:scale-95 transition-all flex items-center justify-center gap-1"
+                                  style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#2563eb" }}>
+                                  <Tag size={11} /> Sell
                                 </button>
                                 <button onClick={() => handleExitClick(h)}
-                                  className="flex-1 h-10 rounded-xl bg-primary text-white text-[10px] font-bold active:scale-95 transition-all">
+                                  className="flex-1 h-11 rounded-xl text-white text-[11px] font-bold active:scale-95 transition-all"
+                                  style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
                                   Exit
                                 </button>
                               </>
@@ -651,20 +723,20 @@ export default function Portfolio() {
             )}
           </div>
 
-          {/* Reinvestment + browse strip at bottom */}
+          {/* Reinvestment + browse strip */}
           {holdingsList.length > 0 && (
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex gap-2.5 flex-shrink-0">
               <button onClick={() => setReinvestOpen(true)}
-                className="flex-1 h-11 rounded-xl overflow-hidden relative active:scale-95 transition-transform">
+                className="flex-1 h-12 rounded-xl overflow-hidden relative active:scale-95 transition-transform shadow-sm">
                 <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #14532d, #16a34a)" }} />
-                <div className="relative flex items-center gap-2 px-3 h-full">
-                  <RefreshCw size={12} className="text-white flex-shrink-0" />
+                <div className="relative flex items-center gap-2 px-4 h-full">
+                  <RefreshCw size={13} className="text-white flex-shrink-0" />
                   <span className="text-white font-bold text-xs">Auto-Reinvest</span>
                 </div>
               </button>
               <Link href="/market/primary"
-                className="flex-1 h-11 rounded-xl bg-white border border-border flex items-center gap-2 px-3 active:scale-95 transition-transform">
-                <TrendingUp size={12} className="text-primary flex-shrink-0" />
+                className="flex-1 h-12 rounded-xl bg-white border border-border flex items-center gap-2 px-4 active:scale-95 transition-transform shadow-sm">
+                <TrendingUp size={13} className="text-primary flex-shrink-0" />
                 <span className="text-foreground font-bold text-xs">Browse More</span>
               </Link>
             </div>
@@ -699,8 +771,11 @@ export default function Portfolio() {
       {/* Broker unlock popup */}
       {brokerUnlockOpen && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => { setBrokerUnlockOpen(false); localStorage.setItem("investa_broker_unlocked", "true"); }} />
-          <div className="relative bg-white rounded-t-3xl w-full max-w-[430px] overflow-y-auto max-h-[90vh]">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setBrokerUnlockOpen(false); localStorage.setItem("investa_broker_unlocked", "true"); }} />
+          <motion.div
+            className="relative bg-white rounded-t-3xl w-full max-w-[430px] overflow-y-auto max-h-[90vh] shadow-2xl"
+            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 300 }}>
             <div className="flex gap-1.5 justify-center pt-5 pb-2">
               {[0, 1, 2].map(s => (
                 <div key={s} className={`h-1.5 rounded-full transition-all ${s === brokerUnlockStep ? "w-8 bg-primary" : "w-1.5 bg-gray-200"}`} />
@@ -708,15 +783,17 @@ export default function Portfolio() {
             </div>
             {brokerUnlockStep === 0 && (
               <div className="px-6 pb-8 text-center">
-                <div className="w-20 h-20 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-4 mt-2">
+                <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 mt-2"
+                  style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)" }}>
                   <span className="text-4xl">🏆</span>
                 </div>
                 <h2 className="text-foreground font-extrabold text-xl mb-2">You Qualify as a Stock Broker!</h2>
-                <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+                <p className="text-muted-foreground text-sm leading-relaxed mb-5">
                   Your investment portfolio has crossed <strong>KES 500,000</strong>. You're eligible to manage portfolios and earn broker commissions.
                 </p>
                 <button onClick={() => setBrokerUnlockStep(1)}
-                  className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform">
+                  className="w-full py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
+                  style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
                   See What You Can Do →
                 </button>
               </div>
@@ -731,24 +808,26 @@ export default function Portfolio() {
                     { icon: "🤝", title: "1% Placement Fees", desc: "Earn on every trade your followers make" },
                     { icon: "👥", title: "Build Followers", desc: "Share your broker link to grow your network" },
                   ].map(b => (
-                    <div key={b.title} className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 text-lg">{b.icon}</div>
+                    <div key={b.title} className="flex items-start gap-3 bg-muted/50 rounded-xl p-3">
+                      <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center flex-shrink-0 text-lg shadow-sm">{b.icon}</div>
                       <div>
                         <p className="text-foreground font-semibold text-sm">{b.title}</p>
-                        <p className="text-muted-foreground text-xs">{b.desc}</p>
+                        <p className="text-muted-foreground text-xs mt-0.5">{b.desc}</p>
                       </div>
                     </div>
                   ))}
                 </div>
                 <button onClick={() => setBrokerUnlockStep(2)}
-                  className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform">
+                  className="w-full py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
+                  style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
                   Activate My Profile →
                 </button>
               </div>
             )}
             {brokerUnlockStep === 2 && (
               <div className="px-6 pb-10 text-center">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center mx-auto mb-4 mt-2">
+                <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 mt-2"
+                  style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
                   <span className="text-4xl">🌱</span>
                 </div>
                 <h2 className="text-foreground font-extrabold text-xl mb-2">Activate Broker Mode</h2>
@@ -757,7 +836,8 @@ export default function Portfolio() {
                 </p>
                 <button
                   onClick={() => { setBrokerEnabled(true); localStorage.setItem("investa_broker_mode", "true"); localStorage.setItem("investa_broker_unlocked", "true"); setBrokerUnlockOpen(false); setActiveTab("holdings"); }}
-                  className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform mb-3">
+                  className="w-full py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform mb-3"
+                  style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
                   🚀 Activate Broker Profile
                 </button>
                 <button onClick={() => { setBrokerUnlockOpen(false); localStorage.setItem("investa_broker_unlocked", "true"); }}
@@ -766,7 +846,7 @@ export default function Portfolio() {
                 </button>
               </div>
             )}
-          </div>
+          </motion.div>
         </div>
       )}
 
@@ -789,29 +869,29 @@ export default function Portfolio() {
             <motion.div className="fixed inset-0 z-50 flex items-end"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setStatDetail(null)} />
-              <motion.div className="relative w-full bg-card rounded-t-3xl overflow-hidden shadow-2xl max-w-[430px] mx-auto"
+              <motion.div className="relative w-full bg-white rounded-t-3xl overflow-hidden shadow-2xl max-w-[430px] mx-auto"
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 300 }}>
                 <div className={`h-1.5 bg-gradient-to-r ${d.color}`} />
                 <div className="px-5 pt-4 pb-8">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${d.color} flex items-center justify-center shadow-sm`}>
-                        <span className="text-xl">{d.icon}</span>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${d.color} flex items-center justify-center shadow-sm`}>
+                        <span className="text-2xl">{d.icon}</span>
                       </div>
                       <div>
-                        <p className="font-bold text-foreground text-base">{d.title}</p>
+                        <p className="text-muted-foreground text-xs font-medium">{d.title}</p>
                         <p className="font-extrabold text-2xl leading-none text-foreground">{d.val}</p>
                       </div>
                     </div>
-                    <button onClick={() => setStatDetail(null)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                    <button onClick={() => setStatDetail(null)} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center active:scale-95 transition-all">
                       <X size={14} className="text-muted-foreground" />
                     </button>
                   </div>
                   <p className="text-muted-foreground text-sm leading-relaxed mb-4">{d.description}</p>
                   <div className="space-y-2">
                     {d.bullets.map((b, i) => (
-                      <div key={i} className="flex items-center gap-2.5 bg-muted/50 rounded-xl px-3 py-2.5">
+                      <div key={i} className="flex items-center gap-3 bg-muted/50 rounded-xl px-3.5 py-3">
                         <span className={`w-2 h-2 rounded-full bg-gradient-to-br ${d.color} flex-shrink-0`} />
                         <p className="text-foreground text-xs font-medium">{b}</p>
                       </div>
