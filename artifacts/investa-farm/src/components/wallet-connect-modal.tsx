@@ -19,6 +19,15 @@ interface WalletInfo {
 
 const WALLETS: WalletInfo[] = [
   {
+    id: "binance",
+    name: "Binance Web3 Wallet",
+    icon: "🟡",
+    color: "#F3BA2F",
+    deepLink: (addr: string, amt: string) =>
+      `bnc://app.binance.com/payment/pay?to=${addr}&amount=${amt}&symbol=USDC`,
+    description: "Send USDC directly from your Binance account",
+  },
+  {
     id: "metamask",
     name: "MetaMask",
     icon: "🦊",
@@ -26,38 +35,11 @@ const WALLETS: WalletInfo[] = [
     description: "Browser extension or MetaMask Mobile",
   },
   {
-    id: "trust",
-    name: "Trust Wallet",
-    icon: "🛡️",
-    color: "#3375BB",
-    deepLink: (addr: string, amt: string) =>
-      `trust://send?asset=c60_tUSDC&address=${addr}&amount=${amt}&memo=InvestaFarm`,
-    description: "Most popular mobile crypto wallet",
-  },
-  {
-    id: "coinbase",
-    name: "Coinbase Wallet",
-    icon: "🔵",
-    color: "#0052FF",
-    deepLink: (addr: string, amt: string) =>
-      `cbwallet://dapp?url=${encodeURIComponent(`https://app.investafarm.com/wallet/usdc?to=${addr}&amount=${amt}`)}`,
-    description: "By Coinbase — easy for beginners",
-  },
-  {
-    id: "walletconnect",
-    name: "WalletConnect",
+    id: "others",
+    name: "Others (Manual Send)",
     icon: "🔗",
-    color: "#3B99FC",
-    description: "Connect any compatible wallet via QR",
-  },
-  {
-    id: "imtoken",
-    name: "imToken",
-    icon: "💙",
-    color: "#1C74CC",
-    deepLink: (addr: string, amt: string) =>
-      `imtokenv2://transfer?address=${addr}&amount=${amt}&token_identifier=USDC`,
-    description: "Popular in Asia & Africa",
+    color: "#6366F1",
+    description: "Trust Wallet, Coinbase, Phantom, or any USDC wallet",
   },
 ];
 
@@ -221,8 +203,9 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
                           setSelectedWallet(wallet);
                           setStep("deeplink");
                         }
-                      } else if (wallet.id === "walletconnect") {
-                        handleWalletConnect();
+                      } else if (wallet.id === "others") {
+                        setSelectedWallet(wallet);
+                        setStep("deeplink");
                       } else {
                         handleDeepLink(wallet);
                       }

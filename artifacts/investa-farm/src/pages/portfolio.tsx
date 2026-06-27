@@ -116,6 +116,7 @@ export default function Portfolio() {
   const [brokerUnlockOpen, setBrokerUnlockOpen] = useState(false);
   const [brokerUnlockStep, setBrokerUnlockStep] = useState(0);
   const [statDetail, setStatDetail] = useState<"invested" | "pnl" | "holdings" | null>(null);
+  const [roiDetailHolding, setRoiDetailHolding] = useState<Holding | null>(null);
   const [holdingIdx, setHoldingIdx] = useState(0);
   const [, setLocation] = useLocation();
   const touchStartX = useRef<number | null>(null);
@@ -663,11 +664,16 @@ export default function Portfolio() {
 
                         {/* ROI projections + actions */}
                         <div className="p-3.5 space-y-3">
-                          <div className="rounded-xl p-3 relative overflow-hidden"
+                          <button
+                            onClick={() => setRoiDetailHolding(h)}
+                            className="w-full rounded-xl p-3 relative overflow-hidden text-left active:scale-[0.98] transition-all"
                             style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", border: "1px solid #bbf7d0" }}>
-                            <p className="text-green-700 text-[10px] font-bold mb-2 uppercase tracking-wide">
-                              {roi ? "🤖 AI ROI Projections" : "📊 Estimated Payout on Exit"}
-                            </p>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-green-700 text-[10px] font-bold uppercase tracking-wide">
+                                {roi ? "🤖 AI ROI Projections" : "📊 Estimated Payout on Exit"}
+                              </p>
+                              <span className="text-green-600 text-[9px] font-semibold flex items-center gap-0.5">Details <ChevRight size={9} /></span>
+                            </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div className="bg-white/80 rounded-xl p-2.5 border border-orange-100">
                                 <p className="text-muted-foreground text-[9px] font-medium mb-1">⚡ Mid-Season</p>
@@ -686,7 +692,7 @@ export default function Portfolio() {
                                 }
                               </div>
                             </div>
-                          </div>
+                          </button>
 
                           {/* Action buttons */}
                           <div className="flex gap-2">
@@ -849,6 +855,116 @@ export default function Portfolio() {
           </motion.div>
         </div>
       )}
+
+      {/* ROI Detail bottom sheet */}
+      <AnimatePresence>
+        {roiDetailHolding && (() => {
+          const h = roiDetailHolding;
+          const invested = h.purchasePrice * h.quantity;
+          const midPayout = invested * 1.10;
+          const fullPayout = invested * 1.22;
+          const roi = roiByInvestmentId.get(h.id);
+          const isUp = h.gainLoss >= 0;
+          return (
+            <motion.div className="fixed inset-0 z-50 flex items-end"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setRoiDetailHolding(null)} />
+              <motion.div className="relative w-full bg-white rounded-t-3xl overflow-hidden shadow-2xl max-w-[430px] mx-auto"
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}>
+                <div className="h-1.5 bg-gradient-to-r from-green-600 to-emerald-400" />
+                <div className="px-5 pt-4 pb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-600 to-emerald-400 flex items-center justify-center shadow-sm">
+                        <span className="text-2xl">📊</span>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs font-medium">ROI Breakdown</p>
+                        <p className="font-extrabold text-base leading-tight text-foreground">{h.farmName}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setRoiDetailHolding(null)} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center active:scale-95 transition-all">
+                      <X size={14} className="text-muted-foreground" />
+                    </button>
+                  </div>
+
+                  {/* Current position */}
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {[
+                      { label: "Shares", val: String(h.quantity), color: "text-foreground" },
+                      { label: "Cost Basis", val: formatAmount(invested), color: "text-foreground" },
+                      { label: "Current P&L", val: (isUp ? "+" : "") + formatAmount(h.gainLoss), color: isUp ? "text-green-600" : "text-red-500" },
+                    ].map(({ label, val, color }) => (
+                      <div key={label} className="bg-muted/50 rounded-xl p-2.5 text-center">
+                        <p className={`font-bold text-xs ${color}`}>{val}</p>
+                        <p className="text-muted-foreground text-[9px] mt-0.5 font-medium">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Exit scenarios */}
+                  <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-3">Exit Scenarios</p>
+                  <div className="space-y-3">
+                    <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, #fff7ed, #fffbeb)", border: "1px solid #fed7aa" }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">⚡</span>
+                          <div>
+                            <p className="text-orange-800 font-bold text-sm">Mid-Season Exit</p>
+                            <p className="text-orange-500 text-[10px]">30–60 days · 10% return</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-orange-600 font-extrabold text-base">{roi ? formatAmount(roi.midSeason.saleProceeds) : formatAmount(midPayout)}</p>
+                          <p className="text-orange-500 text-[10px] font-bold">{roi ? `${roi.midSeason.roiPercent >= 0 ? "+" : ""}${roi.midSeason.roiPercent.toFixed(1)}%` : "+10%"} ROI</p>
+                        </div>
+                      </div>
+                      <div className="bg-white/70 rounded-xl px-3 py-2 flex items-center justify-between">
+                        <p className="text-orange-700 text-[10px]">Profit on exit</p>
+                        <p className="text-orange-700 font-bold text-xs">{roi ? formatAmount(roi.midSeason.saleProceeds - invested) : formatAmount(midPayout - invested)}</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", border: "1px solid #bbf7d0" }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🌾</span>
+                          <div>
+                            <p className="text-green-800 font-bold text-sm">Full Season Exit</p>
+                            <p className="text-green-500 text-[10px]">~6 months · up to 22% return</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-green-600 font-extrabold text-base">{roi ? formatAmount(roi.fullSeason.projectedPayout) : formatAmount(fullPayout)}</p>
+                          <p className="text-green-500 text-[10px] font-bold">{roi ? `${roi.fullSeason.roiPercent >= 0 ? "+" : ""}${roi.fullSeason.roiPercent.toFixed(1)}%` : "+22%"} ROI</p>
+                        </div>
+                      </div>
+                      <div className="bg-white/70 rounded-xl px-3 py-2 flex items-center justify-between">
+                        <p className="text-green-700 text-[10px]">Projected profit</p>
+                        <p className="text-green-700 font-bold text-xs">{roi ? formatAmount(roi.fullSeason.projectedPayout - invested) : formatAmount(fullPayout - invested)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button onClick={() => { setRoiDetailHolding(null); setSelectedHolding(h); setSellOpen(true); }}
+                      className="py-3 rounded-2xl text-sm font-bold active:scale-95 transition-transform"
+                      style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#2563eb" }}>
+                      Sell Shares
+                    </button>
+                    <button onClick={() => { setRoiDetailHolding(null); setSelectedHolding(h); setExitOpen(true); }}
+                      className="py-3 rounded-2xl text-sm font-bold text-white active:scale-95 transition-transform"
+                      style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
+                      Request Exit
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
 
       {/* Stat detail bottom sheet */}
       <AnimatePresence>

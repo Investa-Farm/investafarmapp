@@ -344,7 +344,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode; color: string }[] = [
     { id: "mpesa", label: "M-Pesa", icon: <Smartphone size={15} />, color: "bg-green-600" },
-    { id: "card", label: "Stripe", icon: <CreditCard size={15} />, color: "bg-blue-600" },
+    { id: "card", label: "Card", icon: <CreditCard size={15} />, color: "bg-blue-600" },
     { id: "usdc", label: "USDC", icon: <Coins size={15} />, color: "bg-purple-600" },
   ];
 
@@ -643,7 +643,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                         disabled={!amount || amt < 500}
                         className="w-full border-2 border-purple-300 text-purple-700 font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40 bg-purple-50">
                         <Wallet size={18} />
-                        Connect Wallet (MetaMask / Trust / WalletConnect)
+                        Connect Wallet (Binance / MetaMask / Others)
                       </button>
                     </>
                   ) : (
