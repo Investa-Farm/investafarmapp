@@ -1771,7 +1771,7 @@ export default function AdminDashboard() {
             onClick={() => setViewingDoc(null)}
           >
             <div
-              className="relative w-full max-w-sm bg-background rounded-3xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-lg bg-background rounded-3xl overflow-hidden shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
@@ -1807,11 +1807,26 @@ export default function AdminDashboard() {
                     }}
                   />
                 ) : isPdf ? (
+                  <object
+                    data={docUrl}
+                    type="application/pdf"
+                    className="w-full"
+                    style={{ height: 420, border: "none" }}>
+                    <div className="flex flex-col items-center gap-3 p-8 text-center h-full justify-center">
+                      <FileText size={40} className="text-muted-foreground" />
+                      <p className="text-muted-foreground text-sm">PDF preview not available in this browser.</p>
+                      <a href={docUrl} target="_blank" rel="noreferrer"
+                        className="bg-primary text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5">
+                        <ExternalLink size={12} /> Open PDF
+                      </a>
+                    </div>
+                  </object>
+                ) : /\.(doc|docx|xls|xlsx|ppt|pptx)/i.test(rawUrl) ? (
                   <iframe
-                    src={docUrl}
+                    src={`https://docs.google.com/viewer?url=${encodeURIComponent(docUrl)}&embedded=true`}
                     title={viewingDoc.docType}
                     className="w-full"
-                    style={{ height: 400, border: "none" }}
+                    style={{ height: 420, border: "none" }}
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-3 p-8 text-center">

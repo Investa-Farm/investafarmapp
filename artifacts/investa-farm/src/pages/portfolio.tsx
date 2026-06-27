@@ -121,6 +121,8 @@ export default function Portfolio() {
   const [, setLocation] = useLocation();
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const [overviewSlide, setOverviewSlide] = useState(0);
+  const overviewTouchX = useRef<number | null>(null);
   const token = getToken();
   const qc = useQueryClient();
   const { formatAmount } = useCurrency();
@@ -367,10 +369,41 @@ export default function Portfolio() {
 
       {/* ══ OVERVIEW TAB ══ */}
       {activeTab === "overview" && (
-        <div className="flex-1 overflow-hidden flex flex-col gap-3 px-4 pb-2" style={{ minHeight: 0 }}>
+        <div className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: 0 }}
+          onTouchStart={e => { overviewTouchX.current = e.touches[0]?.clientX ?? null; }}
+          onTouchEnd={e => {
+            if (overviewTouchX.current === null) return;
+            const dx = (e.changedTouches[0]?.clientX ?? 0) - overviewTouchX.current;
+            if (Math.abs(dx) > 40) setOverviewSlide(s => Math.max(0, Math.min(2, s + (dx < 0 ? 1 : -1))));
+            overviewTouchX.current = null;
+          }}>
+
+          {/* Slide nav dots */}
+          <div className="flex items-center justify-between px-4 pt-1.5 pb-1 flex-shrink-0">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              {["Performance", "Risk Allocation", "vs Peers"][overviewSlide]}
+            </p>
+            <div className="flex gap-1.5 items-center">
+              {[0, 1, 2].map(i => (
+                <button key={i} onClick={() => setOverviewSlide(i)}
+                  style={{ width: i === overviewSlide ? 18 : 6, height: 6, borderRadius: 99,
+                    background: i === overviewSlide ? "#16a34a" : "#d1d5db",
+                    transition: "all 0.3s", border: "none", padding: 0, cursor: "pointer" }} />
+              ))}
+            </div>
+          </div>
+
+          {/* Slide viewport */}
+          <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
+            <AnimatePresence mode="wait">
+              {overviewSlide === 0 && (
+                <motion.div key="s0"
+                  initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0 px-4 pb-4 overflow-y-auto flex flex-col gap-3">
 
           {/* Performance Chart */}
-          <div className="bg-white border border-border rounded-2xl overflow-hidden flex flex-col flex-1 shadow-sm" style={{ minHeight: 0 }}>
+          <div className="bg-white border border-border rounded-2xl overflow-hidden flex flex-col shadow-sm" style={{ minHeight: 240 }}>
             <div className="px-4 pt-3.5 pb-2 flex items-center justify-between flex-shrink-0">
               <div>
                 <div className="flex items-center gap-2">
@@ -445,6 +478,14 @@ export default function Portfolio() {
               )}
             </div>
           </div>
+                </motion.div>
+              )}
+
+              {overviewSlide === 1 && (
+                <motion.div key="s1"
+                  initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0 px-4 pb-4 overflow-y-auto">
 
           {/* Risk Allocation */}
           {(() => {
@@ -527,6 +568,14 @@ export default function Portfolio() {
               </div>
             );
           })()}
+                </motion.div>
+              )}
+
+              {overviewSlide === 2 && (
+                <motion.div key="s2"
+                  initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0 px-4 pb-4 overflow-y-auto">
 
           {/* Peer Portfolio Comparison */}
           {(() => {
@@ -579,6 +628,10 @@ export default function Portfolio() {
               </div>
             );
           })()}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       )}
 

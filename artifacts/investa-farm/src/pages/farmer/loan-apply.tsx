@@ -1,10 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   ArrowLeft, CheckCircle2, Loader2, Clock, FileText, ChevronLeft,
   AlertCircle, BarChart3, Users, Shield, DollarSign, Zap, Sparkles,
   X, TrendingUp, Leaf, Droplets, Truck, Package, Calculator,
-  ChevronRight, ScrollText,
+  ChevronRight, ScrollText, Download, Upload,
 } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { getToken, formatKES } from "@/lib/auth";
@@ -223,6 +223,66 @@ export default function LoanApply() {
   const [contractScrolled, setContractScrolled] = useState(false);
   const contractRef = useRef<HTMLDivElement>(null);
 
+  // Template upload
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
+  // Auto-close on success (4s countdown)
+  useEffect(() => {
+    if (modalStep === 6 && submitDone) {
+      const t = setTimeout(() => { setShowModal(false); setModalStep(1); }, 4000);
+      return () => clearTimeout(t);
+    }
+  }, [modalStep, submitDone]);
+
+  const handleDownloadTemplate = () => {
+    const rows = [
+      "INVESTA FARM PROPOSAL TEMPLATE",
+      "Fill in each field and upload below or use as a reference when submitting.",
+      "",
+      "SECTION 1 - FARM DETAILS",
+      "Field,Your Answer",
+      "Crop Type,",
+      "Farm Location,",
+      "Acreage (acres),",
+      "Expected Harvest Date (YYYY-MM-DD),",
+      "Farm Description,",
+      "",
+      "SECTION 2 - COST BREAKDOWN (KES)",
+      "Cost Item,Amount (KES)",
+      "Land Preparation,",
+      "Seeds & Planting Material,",
+      "Fertilizer & Amendments,",
+      "Pesticides & Crop Protection,",
+      "Labour (full season),",
+      "Equipment & Machinery,",
+      "Irrigation & Water,",
+      "Transport & Logistics,",
+      "Post-Harvest Handling,",
+      "Crop Insurance,",
+      "",
+      "SECTION 3 - REVENUE PROJECTIONS",
+      "Field,Your Answer",
+      "Expected Yield (kg),",
+      "Market Price per kg (KES),",
+      "Preferred Repayment Period (months),",
+    ].join("\n");
+    const blob = new Blob([rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "investa-farm-proposal-template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleUploadTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadedFileName(file.name);
+  };
+
   // Derived calculations
   const subtotal = Object.values(costs).reduce((a, b) => a + b, 0);
   const contingency = Math.round(subtotal * 0.10);
@@ -369,6 +429,32 @@ export default function LoanApply() {
             className="w-full bg-white text-primary font-bold py-3.5 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2 text-sm shadow-sm">
             <Zap size={16} /> Submit Farm Proposal
           </button>
+        </div>
+
+        {/* Proposal Template Card */}
+        <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-1.5">
+            <FileText size={15} className="text-emerald-700" />
+            <p className="text-emerald-800 font-bold text-sm">Proposal Template</p>
+          </div>
+          <p className="text-emerald-700 text-xs leading-relaxed mb-3">
+            Download the cost-breakdown template, fill it in offline, and upload it here — or submit the form below directly.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={handleDownloadTemplate}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl active:scale-95 transition-all">
+              <Download size={13} /> Download Template
+            </button>
+            <label className="flex-1 flex items-center justify-center gap-1.5 bg-white border border-emerald-300 text-emerald-700 text-xs font-bold py-2.5 rounded-xl cursor-pointer active:scale-95 transition-all">
+              <Upload size={13} /> Upload Filled
+              <input type="file" accept=".csv,.xlsx,.xls,.pdf,.doc,.docx" className="hidden" onChange={handleUploadTemplate} />
+            </label>
+          </div>
+          {uploadedFileName && (
+            <p className="text-emerald-700 text-[10px] mt-2 flex items-center gap-1">
+              <CheckCircle2 size={10} /> {uploadedFileName} attached
+            </p>
+          )}
         </div>
 
         {/* How it works */}
@@ -829,12 +915,27 @@ export default function LoanApply() {
                 {modalStep === 6 && (
                   <div className="space-y-5 py-4">
                     <div className="text-center space-y-3">
-                      <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+                      <motion.div
+                        initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", damping: 14, stiffness: 200 }}
+                        className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
                         <CheckCircle2 size={40} className="text-green-600" />
-                      </div>
+                      </motion.div>
                       <div>
                         <h3 className="font-black text-foreground text-xl">Proposal Submitted!</h3>
                         <p className="text-muted-foreground text-sm mt-1">Your farm is now live on the investor marketplace</p>
+                      </div>
+                      {/* Auto-close countdown bar */}
+                      <div className="mx-auto max-w-[160px]">
+                        <motion.div className="h-0.5 bg-primary/20 rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full bg-primary rounded-full"
+                            initial={{ width: "100%" }}
+                            animate={{ width: "0%" }}
+                            transition={{ duration: 4, ease: "linear" }}
+                          />
+                        </motion.div>
+                        <p className="text-muted-foreground text-[9px] mt-1">Closing automatically…</p>
                       </div>
                     </div>
 
