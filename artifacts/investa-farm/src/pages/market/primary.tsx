@@ -5,6 +5,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
 import { ArrowLeft, TrendingUp, TrendingDown, Search, SlidersHorizontal, ChevronDown, ChevronUp, Zap, X, Users, Bell, Bookmark, BookmarkCheck } from "lucide-react";
+import { AiSectionBot } from "@/components/ai-section-bot";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
@@ -394,6 +395,12 @@ export default function PrimaryMarket() {
                         />
                       </div>
                       <div className="flex items-center gap-1">
+                        <div onClick={e => e.stopPropagation()}>
+                          <AiSectionBot
+                            context={`Farm: ${listing.farmName}. Crop: ${listing.cropType}. Price: KES ${listing.pricePerShare}/share. Change: ${listing.changePercent > 0 ? "+" : ""}${listing.changePercent.toFixed(1)}%. Target ROI: +${getTargetRoi(listing.cropType, listing.changePercent)}%. Location: ${listing.location}. AI insight: "${insight}". Should I invest?`}
+                            label="farm"
+                          />
+                        </div>
                         <button onClick={(e) => { e.stopPropagation(); setAlertListing(listing); setAlertOpen(true); }}
                           className="w-6 h-6 rounded-md flex items-center justify-center active:scale-90 transition-transform bg-muted border border-border">
                           <Bell size={9} className="text-muted-foreground" />

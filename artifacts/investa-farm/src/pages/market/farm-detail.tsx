@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useParams } from "wouter";
 import { useGetFarm, getGetFarmQueryKey, useListPrimaryMarket } from "@workspace/api-client-react";
-import { ArrowLeft, TrendingUp, TrendingDown, Users, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles, BarChart2, Navigation, CloudRain, Wind, Thermometer, Droplet, Newspaper, RefreshCw, Globe, Layers, Cpu, Scale, Share2, Star, ChevronRight } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Users, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles, BarChart2, Navigation, CloudRain, Wind, Thermometer, Droplet, Newspaper, RefreshCw, Globe, Layers, Cpu, Scale, Share2, Star, ChevronRight, ChevronUp } from "lucide-react";
 import { ShareModal } from "@/components/share-modal";
 import { AiSectionBot } from "@/components/ai-section-bot";
 import { CompareFarmsModal, type CompareListing } from "@/components/compare-farms-modal";
@@ -291,15 +291,14 @@ function WeatherNdvi({ lat, lng, cropType, stage }: { lat: number; lng: number; 
   );
 }
 
-type DetailTab = "overview" | "financials" | "growth" | "satellite" | "location" | "news";
+type DetailTab = "overview" | "financials" | "farm-health" | "location" | "news";
 
 const DETAIL_TABS: { id: DetailTab; label: string; emoji: string }[] = [
-  { id: "overview",   label: "Overview",   emoji: "🌾" },
-  { id: "financials", label: "Financials", emoji: "💰" },
-  { id: "growth",     label: "Growth",     emoji: "🌱" },
-  { id: "satellite",  label: "Satellite",  emoji: "🛰️" },
-  { id: "location",   label: "Location",   emoji: "📍" },
-  { id: "news",       label: "News",       emoji: "📰" },
+  { id: "overview",    label: "Overview",    emoji: "🌾" },
+  { id: "financials",  label: "Financials",  emoji: "💰" },
+  { id: "farm-health", label: "Farm Health", emoji: "🌿" },
+  { id: "location",    label: "Location",    emoji: "📍" },
+  { id: "news",        label: "News",        emoji: "📰" },
 ];
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
@@ -320,7 +319,29 @@ export default function FarmDetail() {
   const [shareOpen, setShareOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [compareOpen, setCompareOpen] = useState(false);
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [imgIdx, setImgIdx] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const token = getToken();
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = () => setScrollY(el.scrollTop);
+    el.addEventListener("scroll", handler, { passive: true });
+    return () => el.removeEventListener("scroll", handler);
+  }, []);
+
+  // Check watchlist status on load
+  useEffect(() => {
+    if (!token || !farmId) return;
+    fetch("/api/watchlist", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then((list: any[]) => { if (Array.isArray(list)) setInWatchlist(list.some((w: any) => w.farmId === farmId)); })
+      .catch(() => {});
+  }, [farmId, token]);
 
   const { data: farm, isLoading } = useGetFarm(farmId, {
     query: { enabled: !!farmId, queryKey: getGetFarmQueryKey(farmId), staleTime: 3 * 60 * 1000 },
@@ -332,7 +353,7 @@ export default function FarmDetail() {
 
   const { data: cropNews, isLoading: newsLoading, refetch: refetchNews } = useQuery<NewsItem[]>({
     queryKey: ["farm-crop-news", farm?.cropType],
-    enabled: !!farm?.cropType && activeTab === "news",
+    enabled: !!farm?.cropType,
     staleTime: 30 * 60 * 1000,
     queryFn: async () => {
       const r = await fetch("/api/news");
@@ -375,7 +396,7 @@ export default function FarmDetail() {
 
   const { data: rainfallData } = useQuery<any>({
     queryKey: ["farm-rainfall", farmId],
-    enabled: !!farmId && activeTab === "growth",
+    enabled: !!farmId && activeTab === "farm-health",
     staleTime: 60 * 60 * 1000,
     queryFn: async () => {
       const r = await fetch(`/api/farms/${farmId}/rainfall`);
@@ -431,27 +452,76 @@ export default function FarmDetail() {
   }
   if (aiTags.length === 0) aiTags.push({ text: "✅ Verified farm", color: "bg-[#16a34a]/10 border-[#16a34a]/20 text-[#16a34a]" });
 
-  return (
-    <div className="app-shell pb-36 page-enter" data-testid="farm-detail">
+  const galleryImages = [
+    getCropImage(farm.cropType, farm.imageUrl ?? undefined),
+    `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/14/${latLngToTile(mapLat, mapLng, 14).y}/${latLngToTile(mapLat, mapLng, 14).x}`,
+    getCropImage(farm.cropType),
+  ];
 
-      {/* ── HERO ── */}
-      <div className="relative h-72">
-        <img
-          src={getCropImage(farm.cropType, farm.imageUrl)}
-          alt={farm.name}
-          className="w-full h-full object-cover"
-          onError={e => { (e.currentTarget as HTMLImageElement).src = getCropImage(farm.cropType); }}
-        />
+  const toggleWatchlist = async () => {
+    if (!token || watchlistLoading) return;
+    setWatchlistLoading(true);
+    try {
+      if (inWatchlist) {
+        await fetch(`/api/watchlist/${farmId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+        setInWatchlist(false);
+      } else {
+        await fetch("/api/watchlist", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ farmId }) });
+        setInWatchlist(true);
+      }
+    } catch { /* ignore */ } finally {
+      setWatchlistLoading(false);
+    }
+  };
+
+  return (
+    <div ref={scrollRef} className="app-shell pb-36 page-enter overflow-y-auto h-screen" data-testid="farm-detail">
+
+      {/* ── HERO GALLERY ── */}
+      <div className="relative h-72 overflow-hidden select-none">
+        <AnimatePresence mode="wait">
+          <motion.img
+            key={imgIdx}
+            src={galleryImages[imgIdx]}
+            alt={farm.name}
+            className="w-full h-full object-cover absolute inset-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            onError={e => { (e.currentTarget as HTMLImageElement).src = getCropImage(farm.cropType); }}
+          />
+        </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black/80" />
 
         {/* Back */}
         <button
           data-testid="button-back"
           onClick={() => window.history.back()}
-          className="absolute top-11 left-4 w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-white/10 active:scale-90 transition-transform"
+          className="absolute top-11 left-4 w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-white/10 active:scale-90 transition-transform z-10"
         >
           <ArrowLeft size={18} className="text-white" />
         </button>
+
+        {/* Gallery dots */}
+        <div className="absolute top-12 right-4 flex flex-col gap-1.5 z-10">
+          {galleryImages.map((_, i) => (
+            <button key={i} onClick={() => setImgIdx(i)}
+              className={`w-1.5 rounded-full transition-all ${i === imgIdx ? "h-5 bg-white" : "h-1.5 bg-white/50"}`} />
+          ))}
+        </div>
+
+        {/* Gallery label */}
+        {imgIdx === 1 && (
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full z-10">
+            🛰️ Satellite View
+          </div>
+        )}
+        {imgIdx === 2 && (
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full z-10">
+            📸 Crop Photo
+          </div>
+        )}
 
         {/* Farm name & meta — pinned bottom of hero */}
         <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
@@ -488,22 +558,29 @@ export default function FarmDetail() {
       <div className="px-4 py-3 flex gap-2 border-b border-border bg-background">
         <button
           onClick={() => setShareOpen(true)}
-          className="flex-1 flex items-center justify-center gap-1.5 bg-muted rounded-xl py-2.5 text-xs font-semibold text-muted-foreground active:scale-95 transition-transform"
+          className="flex-1 flex items-center justify-center gap-1.5 bg-[#16a34a]/10 rounded-xl py-2.5 text-xs font-semibold text-[#16a34a] active:scale-95 transition-transform"
         >
           <Share2 size={13} /> Share
         </button>
         {compareFarm && (
           <button
             onClick={() => setCompareOpen(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-muted rounded-xl py-2.5 text-xs font-semibold text-muted-foreground active:scale-95 transition-transform"
+            className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 rounded-xl py-2.5 text-xs font-semibold text-blue-600 active:scale-95 transition-transform"
           >
             <Scale size={13} /> Compare
           </button>
         )}
         <button
-          className="flex-1 flex items-center justify-center gap-1.5 bg-muted rounded-xl py-2.5 text-xs font-semibold text-muted-foreground active:scale-95 transition-transform"
+          onClick={toggleWatchlist}
+          disabled={watchlistLoading}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold active:scale-95 transition-all ${
+            inWatchlist
+              ? "bg-amber-50 text-amber-600 border border-amber-200"
+              : "bg-muted text-muted-foreground"
+          } ${watchlistLoading ? "opacity-60" : ""}`}
         >
-          <Star size={13} /> Watchlist
+          <Star size={13} className={inWatchlist ? "fill-amber-500 text-amber-500" : ""} />
+          {inWatchlist ? "Saved" : "Watchlist"}
         </button>
       </div>
 
@@ -519,12 +596,20 @@ export default function FarmDetail() {
                 <span className="text-sm font-bold">{formatChange(farm.changePercent)} today</span>
               </div>
             </div>
-            <div className="text-right flex flex-col gap-1">
-              <div className="flex items-center gap-1 justify-end text-muted-foreground">
-                <Users size={11} />
-                <span className="text-xs font-medium">{farm.investors} investors</span>
+            <div className="text-right flex flex-col items-end gap-1.5">
+              {/* Investor avatar stack */}
+              <div className="flex items-center gap-1.5">
+                <div className="flex -space-x-2">
+                  {["#16a34a","#3b82f6","#f59e0b","#ef4444","#8b5cf6"].slice(0, Math.min(5, farm.investors ?? 3)).map((color, i) => (
+                    <div key={i} className="w-6 h-6 rounded-full border-2 border-background flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0"
+                      style={{ backgroundColor: color, zIndex: 5 - i }}>
+                      {String.fromCharCode(65 + i)}
+                    </div>
+                  ))}
+                </div>
+                <span className="text-xs font-bold text-foreground">{farm.investors}</span>
               </div>
-              <p className="text-xs text-muted-foreground">{farm.tradeCount} trades</p>
+              <p className="text-[10px] text-muted-foreground font-medium">{farm.investors} investors · {farm.tradeCount} trades</p>
             </div>
           </div>
 
@@ -738,9 +823,116 @@ export default function FarmDetail() {
             </>
           )}
 
-          {/* ── GROWTH ── */}
-          {activeTab === "growth" && (
+          {/* ── FARM HEALTH (merged Growth + Satellite) ── */}
+          {activeTab === "farm-health" && (
             <>
+              {/* Satellite tile at the top of Farm Health */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Globe size={16} className="text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Satellite + NDVI</p>
+                      <p className="text-muted-foreground text-[10px]">{mapLat.toFixed(4)}°N, {mapLng.toFixed(4)}°E · Esri World Imagery</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[10px] font-bold text-green-700">Live</span>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border overflow-hidden shadow-sm">
+                  <SatelliteTileMap lat={mapLat} lng={mapLng} farmName={farm.name} />
+                </div>
+                {/* NDVI overlay on satellite */}
+                <div className="bg-card rounded-2xl border border-border p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Layers size={14} className="text-primary" />
+                      <p className="text-sm font-bold">Vegetation Index (NDVI)</p>
+                      <AiSectionBot context={`NDVI for this ${farm.cropType} farm is ${ndviNow.toFixed(2)} (${ndviMeta.label}). What does this mean for investors?`} label="NDVI" />
+                    </div>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${ndviMeta.bg} ${ndviMeta.color}`}>{ndviMeta.label}</span>
+                  </div>
+                  <div className="mb-2">
+                    <div className="flex justify-between text-[10px] text-muted-foreground mb-2">
+                      <span>0.0 Bare soil</span>
+                      <span className={`font-bold ${ndviMeta.color}`}>NDVI {ndviNow.toFixed(2)}</span>
+                      <span>1.0 Dense</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-3.5 overflow-hidden">
+                      <motion.div className="h-3.5 rounded-full" initial={{ width: 0 }} animate={{ width: `${ndviNow * 100}%` }} transition={{ duration: 0.8, ease: "easeOut" }}
+                        style={{ background: `linear-gradient(90deg, #eab308 0%, #16a34a ${ndviNow * 100}%)` }} />
+                    </div>
+                  </div>
+                  <div className="h-36 mt-3">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={ndviSeries} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+                        <YAxis domain={[0, 1]} tick={{ fontSize: 9 }} tickCount={5} tickFormatter={(v: number) => v.toFixed(1)} />
+                        <Tooltip formatter={(v: number) => [v.toFixed(3), "NDVI"]} />
+                        <Line type="monotone" dataKey="ndvi" stroke="#16a34a" strokeWidth={2.5}
+                          dot={(props: any) => {
+                            const { cx, cy, index } = props;
+                            if (index === ndviSeries.length - 1) return <circle key="now" cx={cx} cy={cy} r={6} fill="#16a34a" stroke="white" strokeWidth={2.5} />;
+                            return <circle key={index} cx={cx} cy={cy} r={2.5} fill="#16a34a" />;
+                          }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {/* Land cover */}
+                  <div className="mt-4 space-y-2.5">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><Cpu size={10} /> Land Cover</p>
+                    {vegCover.map(item => (
+                      <div key={item.name}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.color }} />
+                            <span className="text-xs text-muted-foreground">{item.name}</span>
+                          </div>
+                          <span className="text-xs font-bold" style={{ color: item.color }}>{item.pct}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                          <motion.div className="h-1.5 rounded-full" initial={{ width: 0 }} animate={{ width: `${item.pct}%` }} transition={{ duration: 0.7, ease: "easeOut" }} style={{ backgroundColor: item.color }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Health score */}
+                <div className="bg-card border border-[#16a34a]/20 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={14} className="text-[#16a34a]" />
+                      <p className="text-sm font-bold">Composite Health Score</p>
+                    </div>
+                    <span className={`text-2xl font-black ${healthScore >= 75 ? "text-[#16a34a]" : healthScore >= 50 ? "text-amber-500" : "text-red-500"}`} style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+                      {healthScore}<span className="text-sm font-semibold text-muted-foreground">/100</span>
+                    </span>
+                  </div>
+                  <div className="w-full h-3 bg-muted rounded-full overflow-hidden mb-3">
+                    <motion.div className="h-3 rounded-full" initial={{ width: 0 }} animate={{ width: `${healthScore}%` }} transition={{ duration: 0.8, ease: "easeOut" }}
+                      style={{ background: "linear-gradient(90deg,#16a34a,#22c55e)" }} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: "Vegetation", val: `${(ndviNow * 100).toFixed(0)}%`, color: ndviMeta.color },
+                      { label: "Growth", val: growth?.stage ?? "N/A", color: "text-blue-500" },
+                      { label: "Season", val: `${growth?.percent ?? 0}%`, color: "text-amber-500" },
+                    ].map(({ label, val, color }) => (
+                      <div key={label} className="bg-muted/60 rounded-xl p-2.5 text-center">
+                        <p className={`text-xs font-bold ${color}`}>{val}</p>
+                        <p className="text-muted-foreground text-[9px] mt-0.5">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Growth section */}
               {growth ? (
                 <>
                   {/* Stage tracker */}
@@ -867,123 +1059,6 @@ export default function FarmDetail() {
                 </div>
               )}
             </>
-          )}
-
-          {/* ── SATELLITE ── */}
-          {activeTab === "satellite" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Globe size={16} className="text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">Farm Satellite View</p>
-                    <p className="text-muted-foreground text-[10px]">{mapLat.toFixed(4)}°N, {mapLng.toFixed(4)}°E</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-[10px] font-bold text-green-700">Live</span>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border overflow-hidden shadow-sm">
-                <SatelliteTileMap lat={mapLat} lng={mapLng} farmName={farm.name} />
-              </div>
-
-              <div className="bg-card rounded-2xl border border-border p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Layers size={14} className="text-primary" />
-                    <p className="text-sm font-bold">Vegetation Index (NDVI)</p>
-                    <AiSectionBot context={`NDVI for this ${farm.cropType} farm is ${ndviNow.toFixed(2)} (${ndviMeta.label}). What does this mean for investors?`} label="NDVI" />
-                  </div>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${ndviMeta.bg} ${ndviMeta.color}`}>{ndviMeta.label}</span>
-                </div>
-                <div className="h-44">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={ndviSeries} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="month" tick={{ fontSize: 9 }} />
-                      <YAxis domain={[0, 1]} tick={{ fontSize: 9 }} tickCount={5} tickFormatter={(v: number) => v.toFixed(1)} />
-                      <Tooltip formatter={(v: number) => [v.toFixed(3), "NDVI"]} />
-                      <Line type="monotone" dataKey="ndvi" stroke="#16a34a" strokeWidth={2.5}
-                        dot={(props: any) => {
-                          const { cx, cy, index } = props;
-                          if (index === ndviSeries.length - 1) return <circle key="now" cx={cx} cy={cy} r={6} fill="#16a34a" stroke="white" strokeWidth={2.5} />;
-                          return <circle key={index} cx={cx} cy={cy} r={2.5} fill="#16a34a" />;
-                        }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <p className="text-muted-foreground text-[10px] mt-2">NDVI 0.0 = bare soil · 1.0 = dense canopy · "Now" = current estimate for this {farm.cropType} farm.</p>
-              </div>
-
-              {/* Land cover */}
-              <div className="bg-card rounded-2xl border border-border p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Cpu size={14} className="text-primary" />
-                  <p className="text-sm font-bold">Land Cover Analysis</p>
-                </div>
-                <div className="space-y-3.5">
-                  {vegCover.map(item => (
-                    <div key={item.name}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: item.color }} />
-                          <span className="text-sm text-muted-foreground">{item.name}</span>
-                        </div>
-                        <span className="text-sm font-bold" style={{ color: item.color }}>{item.pct}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <motion.div
-                          className="h-2 rounded-full"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${item.pct}%` }}
-                          transition={{ duration: 0.7, ease: "easeOut" }}
-                          style={{ backgroundColor: item.color }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Health score */}
-              <div className="bg-card border border-[#16a34a]/20 rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={14} className="text-[#16a34a]" />
-                    <p className="text-sm font-bold">Composite Health Score</p>
-                  </div>
-                  <span className={`text-2xl font-black ${healthScore >= 75 ? "text-[#16a34a]" : healthScore >= 50 ? "text-amber-500" : "text-red-500"}`} style={{ fontFamily: "Space Grotesk, sans-serif" }}>
-                    {healthScore}<span className="text-sm font-semibold text-muted-foreground">/100</span>
-                  </span>
-                </div>
-                <div className="w-full h-3 bg-muted rounded-full overflow-hidden mb-4">
-                  <motion.div
-                    className="h-3 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${healthScore}%` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    style={{ background: "linear-gradient(90deg,#16a34a,#22c55e)" }}
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: "Vegetation", val: `${(ndviNow * 100).toFixed(0)}%`, color: ndviMeta.color },
-                    { label: "Growth",     val: growth?.stage ?? "N/A",            color: "text-blue-500" },
-                    { label: "Season",     val: `${growth?.percent ?? 0}%`,         color: "text-amber-500" },
-                  ].map(({ label, val, color }) => (
-                    <div key={label} className="bg-muted/60 rounded-xl p-2.5 text-center">
-                      <p className={`text-xs font-bold ${color}`}>{val}</p>
-                      <p className="text-muted-foreground text-[9px] mt-0.5">{label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           )}
 
           {/* ── LOCATION ── */}
@@ -1133,18 +1208,53 @@ export default function FarmDetail() {
         </motion.div>
       </AnimatePresence>
 
+      {/* ── SCROLL TO TOP ── */}
+      <AnimatePresence>
+        {scrollY > 200 && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+            className="fixed bottom-36 right-4 z-[55] w-10 h-10 rounded-full bg-foreground text-background flex items-center justify-center shadow-xl active:scale-90 transition-transform"
+          >
+            <ChevronUp size={18} />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* ── FLOATING CTA ── */}
       {listing && (
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 pointer-events-none">
           <div className="pointer-events-auto bg-background/95 backdrop-blur-xl border-t border-border px-4 pt-3 pb-8 shadow-2xl">
+            {/* Avatar social proof above CTA */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-1.5">
+                  {["#16a34a","#3b82f6","#f59e0b","#ef4444"].map((color, i) => (
+                    <div key={i} className="w-5 h-5 rounded-full border-2 border-background flex items-center justify-center text-white text-[7px] font-bold"
+                      style={{ backgroundColor: color }}>
+                      {String.fromCharCode(65 + i)}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground font-medium">
+                  <span className="text-foreground font-bold">{farm.investors}</span> investors backing this farm
+                </p>
+              </div>
+              <div className={`text-xs font-bold px-2 py-0.5 rounded-full ${farm.fundingPercent > 70 ? "bg-red-50 text-red-600" : "bg-[#16a34a]/10 text-[#16a34a]"}`}>
+                {farm.fundingPercent}% funded
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-2 mb-3">
               <div className="bg-muted/60 rounded-xl p-2.5 text-center">
                 <p className="text-[9px] text-muted-foreground font-semibold uppercase mb-0.5">Per Share</p>
                 <p className="text-sm font-black text-foreground" style={{ fontFamily: "Space Grotesk, sans-serif" }}>{formatKES(listing.pricePerShare)}</p>
               </div>
               <div className="bg-[#16a34a]/10 rounded-xl p-2.5 text-center">
-                <p className="text-[9px] text-[#16a34a] font-semibold uppercase mb-0.5">Funded</p>
-                <p className="text-sm font-black text-[#16a34a]">{farm.fundingPercent}%</p>
+                <p className="text-[9px] text-[#16a34a] font-semibold uppercase mb-0.5">Target ROI</p>
+                <p className="text-sm font-black text-[#16a34a]">+22%</p>
               </div>
               <div className="bg-muted/60 rounded-xl p-2.5 text-center">
                 <p className="text-[9px] text-muted-foreground font-semibold uppercase mb-0.5">Available</p>
@@ -1155,9 +1265,10 @@ export default function FarmDetail() {
               data-testid="button-buy-confirm"
               onClick={() => setInvestOpen(true)}
               className="w-full bg-gradient-to-r from-[#16a34a] to-emerald-500 text-white font-black py-4 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2.5 shadow-xl shadow-[#16a34a]/30 text-base"
+              style={{ boxShadow: "0 8px 32px 0 rgba(22,163,74,0.35)" }}
             >
               <ShoppingCart size={18} />
-              Invest in {farm.cropType} Now
+              Add Funds — Invest in {farm.cropType}
             </button>
           </div>
         </div>
