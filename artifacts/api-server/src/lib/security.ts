@@ -565,3 +565,98 @@ export function payloadSizeGuard(req: Request, res: Response, next: NextFunction
   }
   next();
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. NONCE / REPLAY ATTACK PREVENTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+const NONCE_TTL_MS = 5 * 60 * 1000; // 5-minute window
+const usedNonces = new Map<string, number>(); // nonce → first-seen timestamp
+
+setInterval(() => {
+  const cutoff = Date.now() - NONCE_TTL_MS;
+  for (const [n, ts] of usedNonces) {
+    if (ts < cutoff) usedNonces.delete(n);
+  }
+}, NONCE_TTL_MS);
+
+/**
+ * Middleware that enforces a one-time-use nonce on financial mutation endpoints.
+ * Clients must send a unique UUIDv4 with each request:
+ *   X-Request-Nonce: <uuid>
+ *   X-Request-Timestamp: <unix-ms>   (optional — checked if present)
+ *
+ * Blocks replay attacks where an intercepted request is re-submitted.
+ */
+export function requireNonce(req: Request, res: Response, next: NextFunction): void {
+  const nonce = req.headers["x-request-nonce"] as string | undefined;
+  const tsHeader = req.headers["x-request-timestamp"] as string | undefined;
+
+  if (!nonce || nonce.length < 16) {
+    res.status(400).json({ error: "Missing or invalid request nonce (X-Request-Nonce header required)." });
+    return;
+  }
+
+  if (tsHeader) {
+    const ts = parseInt(tsHeader, 10);
+    if (!Number.isNaN(ts) && Math.abs(Date.now() - ts) > NONCE_TTL_MS) {
+      res.status(400).json({ error: "Request timestamp is outside the acceptable 5-minute window." });
+      return;
+    }
+  }
+
+  if (usedNonces.has(nonce)) {
+    logger.warn({ nonce, ip: getClientIp(req), url: req.url }, "[security] Replay attack blocked — duplicate nonce");
+    res.status(409).json({ error: "Duplicate request detected. This transaction has already been processed." });
+    return;
+  }
+
+  usedNonces.set(nonce, Date.now());
+  next();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. SUSPICIOUS AUTH ACTIVITY TRACKER
+// ─────────────────────────────────────────────────────────────────────────────
+
+const suspiciousIps = new Map<string, { count401: number; firstSeen: number }>();
+
+setInterval(() => {
+  const cutoff = Date.now() - 30 * 60 * 1000;
+  for (const [ip, v] of suspiciousIps) {
+    if (v.firstSeen < cutoff) suspiciousIps.delete(ip);
+  }
+}, 10 * 60 * 1000);
+
+/**
+ * Track 401 responses for IP-level credential stuffing detection.
+ * Call this after any auth failure (401) in route handlers.
+ */
+export function trackUnauthorized(ip: string, url: string): void {
+  const now = Date.now();
+  let entry = suspiciousIps.get(ip);
+  if (!entry || now - entry.firstSeen > 30 * 60 * 1000) {
+    entry = { count401: 1, firstSeen: now };
+  } else {
+    entry.count401++;
+  }
+  suspiciousIps.set(ip, entry);
+  if (entry.count401 >= 20) {
+    logger.warn({ ip, count: entry.count401, url }, "[security] Possible credential-stuffing — high 401 rate from IP");
+  }
+}
+
+/**
+ * Middleware that auto-tracks 401 responses for credential-stuffing detection.
+ * Apply globally after route registration.
+ */
+export function unauthorizedTracker(req: Request, res: Response, next: NextFunction): void {
+  const originalJson = res.json.bind(res);
+  res.json = (body: unknown) => {
+    if (res.statusCode === 401) {
+      trackUnauthorized(getClientIp(req), req.url);
+    }
+    return originalJson(body);
+  };
+  next();
+}

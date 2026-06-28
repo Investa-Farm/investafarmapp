@@ -10,6 +10,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { getToken, getStoredUser } from "@/lib/auth";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { CurrencyProvider } from "@/lib/currency";
+import { SecurityGuard } from "@/components/security-guard";
+import { ErrorBoundary } from "@/components/error-boundary";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
 import Landing from "@/pages/landing";
@@ -626,22 +628,25 @@ function App() {
   const handleSplashDone = useCallback(() => setSplashDone(true), []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <CurrencyProvider>
-        <TooltipProvider>
-          {!splashDone && <SplashScreen onDone={handleSplashDone} />}
-          <WouterRouter base={BASE}>
-            <Router />
-            <RateAppWatcher />
-          </WouterRouter>
-          <Toaster />
-          <SonnerToaster position="top-center" richColors={false} />
-          <PriceAlertWatcher />
-          <PushScheduler />
-          <PwaInstallBanner />
-        </TooltipProvider>
-      </CurrencyProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <CurrencyProvider>
+          <TooltipProvider>
+            <SecurityGuard />
+            {!splashDone && <SplashScreen onDone={handleSplashDone} />}
+            <WouterRouter base={BASE}>
+              <Router />
+              <RateAppWatcher />
+            </WouterRouter>
+            <Toaster />
+            <SonnerToaster position="top-center" richColors={false} />
+            <PriceAlertWatcher />
+            <PushScheduler />
+            <PwaInstallBanner />
+          </TooltipProvider>
+        </CurrencyProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

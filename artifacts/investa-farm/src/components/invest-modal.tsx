@@ -7,6 +7,7 @@ import { getCropImage } from "@/lib/crops";
 import { useBuyShares, getListPrimaryMarketQueryKey, getGetFarmQueryKey } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { InvestorKycModal } from "./investor-kyc-modal";
+import { haptic } from "@/lib/haptic";
 
 interface InvestModalProps {
   open: boolean;
@@ -100,8 +101,10 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const hasEnoughBalance = walletBalance >= total;
 
   const handlePayFromWallet = () => {
+    haptic("medium");
     buyShares.mutate({ data: { listingId: listing.id, quantity, exitType } }, {
       onSuccess: () => {
+        haptic("success");
         qc.invalidateQueries({ queryKey: getListPrimaryMarketQueryKey() });
         qc.invalidateQueries({ queryKey: getGetFarmQueryKey(listing.farmId) });
         qc.invalidateQueries({ queryKey: ["wallet-balance"] });
@@ -112,10 +115,12 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
         });
         setStep("done");
       },
+      onError: () => { haptic("error"); },
     });
   };
 
   const handleProceedToReview = () => {
+    haptic("light");
     if (!isKycVerified) { setKycOpen(true); return; }
     setStep("review");
   };

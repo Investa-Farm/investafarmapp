@@ -88,62 +88,59 @@
   body { @apply font-sans antialiased bg-background text-foreground; }
 }
 
-.app-shell {
-  max-width: 430px;
-  margin: 0 auto;
-  min-height: 100dvh;
-  position: relative;
-  background: hsl(var(--background));
-  overflow: hidden;
+@layer components {
+  .app-shell {
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    position: relative;
+    background: hsl(var(--background));
+    overflow: hidden;
+  }
+
+  .hero-header {
+    background: linear-gradient(160deg, #052e16 0%, #14532d 45%, #16a34a 100%);
+  }
+
+  .green-card {
+    background: hsl(var(--muted));
+    border: 1px solid hsl(var(--border));
+  }
+
+  .price-up { color: #16a34a; }
+  .price-down { color: #dc2626; }
+
+  .ticker-track { animation: ticker 25s linear infinite; }
+  .ticker-track:hover { animation-play-state: paused; }
+
+  .page-enter {
+    animation: pageEnter 0.22s ease-out;
+  }
+
+  .card-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .card-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.09); }
+
+  .badge-pending   { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+  .badge-approved  { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+  .badge-rejected  { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+  .badge-submitted { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
 }
 
-/* Hero header — grass green brand gradient */
-.hero-header {
-  background: linear-gradient(160deg, #052e16 0%, #14532d 45%, #16a34a 100%);
-}
-
-/* Info card — neutral */
-.green-card {
-  background: hsl(var(--muted));
-  border: 1px solid hsl(var(--border));
-}
-
-/* Price up/down */
-.price-up { color: #16a34a; }
-.price-down { color: #dc2626; }
-
-/* Scrolling ticker */
+/* Keyframes must live outside @layer */
 @keyframes ticker {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
-.ticker-track { animation: ticker 25s linear infinite; }
-.ticker-track:hover { animation-play-state: paused; }
 
-/* Tour spotlight pulse — soft glow ring */
 @keyframes tourPulse {
   0%, 100% { box-shadow: 0 0 0 2px rgba(22,163,74,0.5), 0 0 10px rgba(22,163,74,0.15); }
   50% { box-shadow: 0 0 0 3px rgba(22,163,74,0.7), 0 0 18px rgba(22,163,74,0.25); }
 }
 
-/* Page transition */
-.page-enter {
-  animation: pageEnter 0.22s ease-out;
-}
 @keyframes pageEnter {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-/* Card lift */
-.card-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.card-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.09); }
-
-/* Status badge */
-.badge-pending   { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
-.badge-approved  { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-.badge-rejected  { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-.badge-submitted { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
 
 /* ── Dark mode ─────────────────────────────────────────────────────────── */
 .dark {

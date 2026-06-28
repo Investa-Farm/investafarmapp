@@ -15,6 +15,8 @@ import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { InvestmentCalculator } from "@/components/investment-calculator";
 import { useWatchlist } from "@/lib/watchlist";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { PullToRefreshIndicator } from "@/components/pull-to-refresh-indicator";
 
 const AI_INSIGHTS: Record<string, string[]> = {
   maize:       ["Strong demand from millers", "Favourable rainfall outlook"],
@@ -159,7 +161,10 @@ function TickerTape({ listings }: { listings: Listing[] }) {
 export default function PrimaryMarket() {
   const [, setLocation] = useLocation();
   const { formatAmount } = useCurrency();
-  const { data: listings, isLoading } = useListPrimaryMarket();
+  const { data: listings, isLoading, refetch } = useListPrimaryMarket();
+
+  const { containerRef, onTouchStart, onTouchMove, onTouchEnd, isPulling, isRefreshing, pullProgress } =
+    usePullToRefresh({ onRefresh: async () => { await refetch(); } });
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [investOpen, setInvestOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -200,7 +205,14 @@ export default function PrimaryMarket() {
   const avgRoi  = allListings.length ? (allListings.reduce((s, l) => s + getTargetRoi(l.cropType, l.changePercent), 0) / allListings.length).toFixed(1) : "—";
 
   return (
-    <div className="min-h-dvh w-full max-w-[430px] mx-auto flex flex-col pb-20 bg-background">
+    <div
+      ref={containerRef}
+      className="min-h-dvh w-full max-w-[430px] mx-auto flex flex-col pb-20 bg-background"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      <PullToRefreshIndicator isPulling={isPulling} isRefreshing={isRefreshing} pullProgress={pullProgress} />
 
       {/* Header */}
       <div className="bg-background border-b border-border">

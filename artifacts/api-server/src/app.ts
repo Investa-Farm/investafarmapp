@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 import router from "./routes";
 import { logger } from "./lib/logger";
-import { securityHeaders, frontendSecurityHeaders, globalRateLimit, sanitizeInput, botDetection, payloadSizeGuard } from "./lib/security";
+import { securityHeaders, frontendSecurityHeaders, globalRateLimit, sanitizeInput, botDetection, payloadSizeGuard, unauthorizedTracker } from "./lib/security";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -92,7 +92,7 @@ app.use(botDetection);
 app.use(sanitizeInput);
 
 // Tight API CSP (default-src 'none') — correct for JSON-only routes
-app.use("/api", corsMiddleware, globalRateLimit, securityHeaders, router);
+app.use("/api", corsMiddleware, globalRateLimit, securityHeaders, unauthorizedTracker, router);
 
 // Serve uploaded files (KYC docs, farm photos) from the uploads directory
 const uploadsDir = path.resolve(process.cwd(), "uploads");

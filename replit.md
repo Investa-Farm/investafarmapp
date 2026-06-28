@@ -192,6 +192,51 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 - Admin email / SMTP user / notification recipient: `mosesochiengopiyo@gmail.com`
 
+## Security Architecture
+
+The platform has a multi-layer security posture:
+
+### API Server (`artifacts/api-server/src/lib/security.ts`)
+| Layer | What it does |
+|---|---|
+| **Security headers** | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, HSTS (production), `Permissions-Policy` |
+| **CSP** | `/api/*` → `default-src 'none'`; Frontend HTML → permissive self+Google Fonts |
+| **Global rate limit** | 200 req/min per IP on all `/api/*` routes |
+| **Auth rate limit** | 10 attempts / 15 min per IP on login/register/OTP endpoints |
+| **Financial rate limit** | 20 req/min per user on buy/sell/deposit/withdraw |
+| **AI rate limit** | 15 req/min per user on AI chat/explain endpoints |
+| **Account lockout** | Progressive back-off: 3 failures → 5 min, 6 → 1 hr, 10 → 24 hr |
+| **Transaction velocity** | Daily/hourly caps on investments, deposits, withdrawals (see `LIMITS`) |
+| **Input sanitization** | HTML tags, null bytes, JS proto, dangerous attrs stripped from all req.body/query |
+| **Bot detection** | Known bot UAs blocked on mutations; headless browser signals blocked; burst > 60 req/10s blocked |
+| **Payload guard** | 512 KB max on all requests |
+| **Nonce replay prevention** | `requireNonce` middleware blocks duplicate `X-Request-Nonce` headers within 5-min window |
+| **Unauthorized tracker** | Monitors 401 rate per IP; logs credential-stuffing warnings at ≥ 20 hits |
+| **Clone/bot detection** | Logs & blocks scrapers, zgrab, masscan, sqlmap, etc. |
+
+### Frontend (`artifacts/investa-farm/src/`)
+| Feature | Location |
+|---|---|
+| **Domain/clone guard** | `src/components/security-guard.tsx` — banner + console warning if hostname ≠ allowed list |
+| **Console self-XSS warning** | Shown to every user at startup via `SecurityGuard` |
+| **Error boundary** | `src/components/error-boundary.tsx` — catches React render errors, shows friendly recovery screen |
+| **Token-based auth** | No cookies — JWT in localStorage, passed as `Authorization: Bearer` |
+
+### Allowed origins for SecurityGuard
+```
+localhost, 127.0.0.1, app.investafarm.com, investa-farm.onrender.com
+*.replit.dev, *.replit.app, *.repl.co, *.repl.run
+```
+
+## UX Features
+
+| Feature | Details |
+|---|---|
+| **Pull-to-refresh** | Primary Market page — pull down from top to refresh listings |
+| **Haptic feedback** | `src/lib/haptic.ts` — `haptic("light"|"medium"|"heavy"|"success"|"error")` wraps `navigator.vibrate()`; used in InvestModal confirm + error |
+| **Pull-to-refresh indicator** | `src/components/pull-to-refresh-indicator.tsx` — animated arrow + status text |
+| **Error boundary** | Catches and recovers from React render crashes without full page reload |
+
 ## Gotchas
 
 - Do NOT re-run `pnpm --filter @workspace/api-spec run codegen` without verifying the orval zod config stays as `mode: "single"` targeting `generated/api.ts`
@@ -199,6 +244,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 - bcrypt is in `onlyBuiltDependencies` in pnpm-workspace.yaml
 - API route for top movers is `/api/market/movers` (not `/top-movers`)
 - All API routes must handle the full base path — the proxy doesn't rewrite paths
+- **CSS layer order**: `.app-shell` and all custom classes in `index.css` are wrapped in `@layer components` so Tailwind utility classes (e.g. `overflow-y-auto`) correctly override them. Do NOT move them outside `@layer components` or scroll will break on farm-detail.
+- **Farm-detail scroll**: The outer div uses `overflow-y-auto h-screen` which only works because `.app-shell`'s `overflow: hidden` is now in `@layer components` (utilities override components in Tailwind v4).
 
 ## Pointers
 
