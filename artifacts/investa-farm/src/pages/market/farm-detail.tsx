@@ -481,7 +481,7 @@ export default function FarmDetail() {
   return (
     <div className="app-shell pb-28 page-enter" data-testid="farm-detail">
       {/* Hero image */}
-      <div className="relative h-52">
+      <div className="relative h-40">
         <img
           src={getCropImage(farm.cropType, farm.imageUrl)}
           alt={farm.name}
@@ -647,15 +647,17 @@ export default function FarmDetail() {
         );
       })()}
 
-      {/* Sub-tabs */}
+      {/* Sub-tabs — scrollable chip row */}
       <div className="px-4 pt-3 pb-1 sticky top-0 bg-background z-20 border-b border-border">
-        <div className="flex bg-muted rounded-2xl p-1 gap-1">
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
           {DETAIL_TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-1.5 rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1 ${
-                activeTab === tab.id ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1 whitespace-nowrap ${
+                activeTab === tab.id
+                  ? "bg-primary text-white shadow-sm shadow-primary/30"
+                  : "bg-muted text-muted-foreground"
               }`}
             >
               <span>{tab.icon}</span>

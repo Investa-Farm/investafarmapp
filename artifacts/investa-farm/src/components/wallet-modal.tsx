@@ -209,16 +209,16 @@ export function WalletModal({ open, onClose }: Props) {
               {(() => {
                 const isFarmer = (user as { role?: string } | null)?.role === "farmer";
                 return (
-                  <div className={`grid ${isFarmer ? "grid-cols-1" : "grid-cols-2"} gap-3`}>
+                  <div className="space-y-2">
                     {!isFarmer && (
                       <button onClick={() => { setModal("deposit"); setAmount(""); }}
-                        className="bg-primary text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md shadow-primary/20">
-                        <Plus size={16} /> Add Funds
+                        className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md shadow-primary/20 text-base">
+                        <Plus size={18} /> Add Funds
                       </button>
                     )}
                     <button onClick={() => { setModal("withdraw"); setAmount(""); }}
-                      className="bg-muted border border-border text-foreground font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                      <ArrowUpRight size={16} /> Withdraw
+                      className="w-full bg-muted border border-border text-muted-foreground font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform text-sm">
+                      <ArrowUpRight size={14} /> Withdraw to M-Pesa
                     </button>
                   </div>
                 );

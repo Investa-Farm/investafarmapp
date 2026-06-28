@@ -1061,7 +1061,7 @@ export default function MarketHome() {
                                       )}
                                       <div className={`flex items-center gap-3 p-3 ${isFeatured ? "bg-primary/5" : "bg-card"}`}>
                                         <div className="relative flex-shrink-0">
-                                          <img src={imgSrc} alt={listing.farmName} className="w-14 h-14 rounded-xl object-cover" />
+                                          <img src={imgSrc} alt={listing.farmName} className="w-16 h-16 rounded-xl object-cover" />
                                           <span className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${isUp ? "bg-green-500" : "bg-red-500"}`}>
                                             {isUp ? <TrendingUp size={9} className="text-white" /> : <TrendingDown size={9} className="text-white" />}
                                           </span>

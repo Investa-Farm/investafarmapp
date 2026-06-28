@@ -121,7 +121,7 @@ function LiveCounter({ listingId, pricePerShare, changePercent }: { listingId: n
     >
       <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
       <span className="text-[9px] font-black tabular-nums">{count}</span>
-      <span className="text-[8px] font-semibold text-green-500">sold/hr</span>
+      <span className="text-[8px] font-semibold text-green-500">/hr</span>
     </motion.span>
   );
 }
@@ -528,10 +528,10 @@ export default function PrimaryMarket() {
                                 <p className="text-orange-600 font-extrabold text-sm">+10%</p>
                                 <p className="text-[9px] text-orange-400 font-medium">30–60 days</p>
                               </div>
-                              <div className="rounded-lg p-2.5 text-center" style={{ background: "linear-gradient(135deg,#f0fdf4,#ecfdf5)", border: "1px solid #bbf7d0" }}>
-                                <p className="text-[9px] font-bold text-green-700 mb-0.5">🌾 Full Season</p>
-                                <p className="text-green-600 font-extrabold text-sm">+{getTargetRoi(listing.cropType, listing.changePercent)}%</p>
-                                <p className="text-[9px] text-green-400 font-medium">~6 months</p>
+                              <div className="rounded-lg p-2.5 text-center bg-primary/5 border border-primary/20">
+                                <p className="text-[9px] font-bold text-primary mb-0.5">🌾 Full Season</p>
+                                <p className="text-primary font-extrabold text-sm">+{getTargetRoi(listing.cropType, listing.changePercent)}%</p>
+                                <p className="text-[9px] text-primary/60 font-medium">~6 months</p>
                               </div>
                             </div>
 

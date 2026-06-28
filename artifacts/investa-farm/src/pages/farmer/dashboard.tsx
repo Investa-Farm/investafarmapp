@@ -235,18 +235,28 @@ export default function FarmerDashboard() {
           </div>
         </div>
 
-        {/* Apply for Funding CTA */}
+        {/* Apply for Funding / View My Listing CTA */}
         <button
-          onClick={() => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); }}
+          onClick={() => {
+            if (currentFarm) { setLocation("/farmer/operations"); }
+            else if (kycApproved >= 1) { setLoanOpen(true); }
+            else { setKycOpen(true); }
+          }}
           className="w-full bg-gradient-to-r from-primary to-green-500 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-md shadow-primary/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                <DollarSign size={22} className="text-white" />
+                {currentFarm ? <TrendingUp size={22} className="text-white" /> : <DollarSign size={22} className="text-white" />}
               </div>
               <div>
-                <p className="text-white font-bold text-base">Apply for Funding</p>
-                <p className="text-white/75 text-xs mt-0.5">List your farm shares on the investor market</p>
+                <p className="text-white font-bold text-base">
+                  {currentFarm ? "View My Listing" : "Apply for Funding"}
+                </p>
+                <p className="text-white/75 text-xs mt-0.5">
+                  {currentFarm
+                    ? `${currentFarm.cropType} · ${currentFarm.fundingPercent ?? 0}% funded`
+                    : "List your farm shares on the investor market"}
+                </p>
               </div>
             </div>
             <ChevronRight size={18} className="text-white/70" />

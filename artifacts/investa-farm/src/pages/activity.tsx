@@ -356,7 +356,7 @@ export default function Activity() {
               {soldPlacements.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> Completed / Cancelled ({soldPlacements.length})
+                    <span className="w-2 h-2 rounded-full bg-muted-foreground/50 inline-block" /> Completed / Cancelled ({soldPlacements.length})
                   </p>
                   {soldPlacements.map(p => (
                     <div key={p.id} className="bg-card rounded-2xl border border-border p-3 flex items-center gap-3 opacity-60">
@@ -367,7 +367,7 @@ export default function Activity() {
                         <p className="text-foreground text-sm font-medium truncate">{p.farmName}</p>
                         <p className="text-muted-foreground text-[10px]">{p.cropType} · {p.sharesAvailable} shares</p>
                       </div>
-                      <span className="text-[9px] bg-gray-100 text-gray-500 font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0">Done</span>
+                      <span className="text-[9px] bg-muted text-muted-foreground font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0">Done</span>
                     </div>
                   ))}
                 </div>

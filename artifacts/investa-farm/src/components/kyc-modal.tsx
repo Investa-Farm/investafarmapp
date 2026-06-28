@@ -299,6 +299,7 @@ export function KycModal({ open, onClose }: KycModalProps) {
   const [gpsManualLng, setGpsManualLng] = useState("");
   const [locationSaved, setLocationSaved] = useState(false);
   const [locationSaving, setLocationSaving] = useState(false);
+  const [locationDone, setLocationDone] = useState(false);
   const [locationStep, setLocationStep] = useState<1 | 2>(1);
 
   const { data: docs = [], isLoading } = useQuery<KycDoc[]>({
@@ -382,6 +383,7 @@ export function KycModal({ open, onClose }: KycModalProps) {
         }),
       });
       setLocationSaved(true);
+      setLocationDone(true);
       setTimeout(() => setLocationSaved(false), 3000);
     } catch { /* silent */ } finally {
       setLocationSaving(false);
@@ -643,6 +645,17 @@ export function KycModal({ open, onClose }: KycModalProps) {
                               {locationSaving ? <Loader2 size={12} className="animate-spin" /> : locationSaved ? <CheckCircle2 size={12} /> : <MapPin size={12} />}
                               {locationSaved ? "Saved!" : locationSaving ? "Saving…" : "Save Location"}
                             </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Location done confirmation banner */}
+                      {locationDone && (
+                        <div className="flex items-center gap-2.5 bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+                          <CheckCircle2 size={15} className="text-green-600 flex-shrink-0" />
+                          <div>
+                            <p className="text-green-700 text-xs font-bold">Location saved ✓</p>
+                            <p className="text-green-600 text-[10px]">Farm location captured — now upload your documents below</p>
                           </div>
                         </div>
                       )}
