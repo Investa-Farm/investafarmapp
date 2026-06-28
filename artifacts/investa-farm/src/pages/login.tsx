@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, Link, useSearch } from "wouter";
 import { setToken, storeUser } from "@/lib/auth";
-import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck, Smartphone, ArrowLeft, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck, Smartphone, ArrowLeft, RefreshCw, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Login() {
@@ -17,6 +17,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [needsVerify, setNeedsVerify] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [fieldTouched, setFieldTouched] = useState({ email: false, password: false });
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
 
@@ -29,6 +32,28 @@ export default function Login() {
     if (!password) errs.password = "Password is required";
     setFieldErrors(errs);
     return !errs.email && !errs.password;
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || resendLoading) return;
+    setResendLoading(true);
+    setResendDone(false);
+    try {
+      await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verifyEmail }),
+      });
+      setResendDone(true);
+      setResendCooldown(60);
+      const iv = setInterval(() => {
+        setResendCooldown(c => { if (c <= 1) { clearInterval(iv); return 0; } return c - 1; });
+      }, 1000);
+    } catch {
+      // silent — UI stays ready for retry
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   // TOTP 2FA state
@@ -186,10 +211,26 @@ export default function Login() {
           </div>
           <button
             onClick={() => setLocation(`/verify-otp?email=${encodeURIComponent(verifyEmail)}`)}
-            className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3.5 rounded-xl transition-all"
+            className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2"
           >
-            Enter Verification Code
+            <Mail size={16} /> Enter Verification Code
           </button>
+          <div className="flex items-center justify-center gap-1.5">
+            {resendDone ? (
+              <p className="text-green-600 text-sm font-medium flex items-center gap-1.5">
+                <CheckCircle2 size={14} /> Code resent — check your inbox
+              </p>
+            ) : (
+              <button
+                onClick={handleResendOtp}
+                disabled={resendLoading || resendCooldown > 0}
+                className="flex items-center gap-1.5 text-sm text-primary font-semibold hover:text-primary/80 transition-colors disabled:text-muted-foreground disabled:cursor-not-allowed"
+              >
+                {resendLoading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+              </button>
+            )}
+          </div>
           <button onClick={() => setNeedsVerify(false)} className="text-muted-foreground text-sm hover:text-foreground transition-colors">
             ← Back to sign in
           </button>

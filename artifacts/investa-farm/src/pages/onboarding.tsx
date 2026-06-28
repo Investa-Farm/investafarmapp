@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, TrendingUp, Users, Shield, Leaf } from "lucide-react";
+import { ChevronRight, ChevronLeft, TrendingUp, Users, Shield, Leaf, Sprout } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import farmerImg from "@assets/onboard-farmer_1778315943101.png";
 import financeImg from "@assets/onboard-finance_1778315943102.png";
@@ -96,8 +96,13 @@ export default function Onboarding() {
 
   const next = () => {
     if (current < slides.length - 1) setCurrent(c => c + 1);
-    else { localStorage.setItem("investa_seen_onboarding", "1"); setLocation("/"); }
+    else { localStorage.setItem("investa_seen_onboarding", "1"); setLocation("/market"); }
   };
+
+  const back = () => { if (current > 0) setCurrent(c => c - 1); };
+
+  const goAsInvestor = () => { localStorage.setItem("investa_seen_onboarding", "1"); setLocation("/login"); };
+  const goAsFarmer  = () => { localStorage.setItem("investa_seen_onboarding", "1"); setLocation("/login"); };
 
   const skip = () => { localStorage.setItem("investa_seen_onboarding", "1"); setLocation("/"); };
 
