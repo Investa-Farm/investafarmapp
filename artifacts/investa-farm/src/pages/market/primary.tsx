@@ -128,6 +128,7 @@ function LiveCounter({ listingId, pricePerShare, changePercent }: { listingId: n
 }
 
 function TickerTape({ listings }: { listings: Listing[] }) {
+  const { formatAmount } = useCurrency();
   const items = listings.slice(0, 8);
   if (!items.length) return null;
   return (
