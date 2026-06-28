@@ -4,7 +4,7 @@ import { useListPrimaryMarket } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
-import { ArrowLeft, TrendingUp, TrendingDown, Search, SlidersHorizontal, ChevronDown, ChevronUp, Zap, X, Users, Bell } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Search, SlidersHorizontal, ChevronDown, ChevronUp, Zap, X, Users, Bell, Bookmark, BookmarkCheck } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
@@ -13,6 +13,7 @@ import { getCropImage } from "@/lib/crops";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { InvestmentCalculator } from "@/components/investment-calculator";
+import { useWatchlist } from "@/lib/watchlist";
 
 const AI_INSIGHTS: Record<string, string[]> = {
   maize:       ["Strong demand from millers", "Favourable rainfall outlook"],
@@ -167,6 +168,15 @@ export default function PrimaryMarket() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"roi" | "price" | "change">("roi");
+  const { toggle: toggleWatch, isWatched } = useWatchlist();
+  const [watchToast, setWatchToast] = useState<{ farmName: string; added: boolean } | null>(null);
+
+  // Auto-clear watch toast after 2 s
+  useEffect(() => {
+    if (!watchToast) return;
+    const t = setTimeout(() => setWatchToast(null), 2000);
+    return () => clearTimeout(t);
+  }, [watchToast]);
 
   const filteredListings = useMemo(() => {
     if (!listings) return [];
@@ -388,6 +398,24 @@ export default function PrimaryMarket() {
                           className="w-6 h-6 rounded-md flex items-center justify-center active:scale-90 transition-transform bg-muted border border-border">
                           <Bell size={9} className="text-muted-foreground" />
                         </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const added = !isWatched(listing.farmId);
+                            toggleWatch(listing.farmId);
+                            setWatchToast({ farmName: listing.farmName, added });
+                          }}
+                          className={`w-6 h-6 rounded-md flex items-center justify-center active:scale-90 transition-all border ${
+                            isWatched(listing.farmId)
+                              ? "bg-amber-50 border-amber-200"
+                              : "bg-muted border-border"
+                          }`}
+                          aria-label={isWatched(listing.farmId) ? "Remove from watchlist" : "Add to watchlist"}
+                        >
+                          {isWatched(listing.farmId)
+                            ? <BookmarkCheck size={9} className="text-amber-500" />
+                            : <Bookmark size={9} className="text-muted-foreground" />}
+                        </button>
                         <div className="flex items-center gap-0.5 text-muted-foreground text-[9px] font-semibold ml-1">
                           {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                         </div>
@@ -571,6 +599,34 @@ export default function PrimaryMarket() {
       {calcListing && calcOpen && (
         <InvestmentCalculator open={calcOpen} onClose={() => setCalcOpen(false)} listing={calcListing as any} />
       )}
+
+      {/* Watchlist toast */}
+      <AnimatePresence>
+        {watchToast && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] pointer-events-none"
+          >
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl shadow-xl border"
+              style={{
+                background: watchToast.added ? "#fefce8" : "#f9fafb",
+                borderColor: watchToast.added ? "#fcd34d" : "#e5e7eb",
+              }}>
+              {watchToast.added
+                ? <BookmarkCheck size={14} className="text-amber-500 flex-shrink-0" />
+                : <Bookmark size={14} className="text-muted-foreground flex-shrink-0" />}
+              <p className="text-[12px] font-bold text-foreground whitespace-nowrap">
+                {watchToast.added
+                  ? `${watchToast.farmName} added to Watchlist`
+                  : `${watchToast.farmName} removed from Watchlist`}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
