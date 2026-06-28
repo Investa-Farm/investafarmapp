@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useParams } from "wouter";
 import { useGetFarm, getGetFarmQueryKey, useListPrimaryMarket } from "@workspace/api-client-react";
 import { ArrowLeft, TrendingUp, TrendingDown, Users, ShoppingCart, Leaf, Droplets, Sun, MapPin, ShieldCheck, User, Sparkles, BarChart2, Navigation, CloudRain, Wind, Thermometer, Droplet, Newspaper, RefreshCw, Globe, Layers, Cpu, Scale } from "lucide-react";
@@ -391,7 +392,7 @@ export default function FarmDetail() {
   useEffect(() => {
     const timer = setInterval(() => {
       setSlideIndex(i => (i + 1) % 4);
-    }, 4500);
+    }, 30_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -606,23 +607,48 @@ export default function FarmDetail() {
           </div>,
         ];
 
+        const SLIDE_LABELS = ["Price", "AI Insights", "Map", "Compare"];
+
         return (
           <div className="relative overflow-hidden">
-            <motion.div
-              key={slideIndex}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.35 }}
-            >
-              {slides[slideIndex]}
-            </motion.div>
-            {/* Slide dots */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={slideIndex}
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+              >
+                {slides[slideIndex]}
+              </motion.div>
+            </AnimatePresence>
+            {/* Slide controls */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
+              {/* Prev */}
+              <button
+                onClick={() => setSlideIndex(i => (i - 1 + 4) % 4)}
+                className="w-5 h-5 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center"
+              >
+                <svg width="7" height="7" viewBox="0 0 7 7" fill="none"><path d="M4.5 1L2 3.5L4.5 6" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              {/* Dots */}
               {slides.map((_, i) => (
                 <button key={i} onClick={() => setSlideIndex(i)}
-                  className={`rounded-full transition-all ${i === slideIndex ? "w-4 h-1.5 bg-[#16a34a]" : "w-1.5 h-1.5 bg-muted-foreground/30"}`} />
+                  className={`rounded-full transition-all duration-300 ${i === slideIndex ? "w-10 h-1.5 bg-[#16a34a]" : "w-1.5 h-1.5 bg-black/25 backdrop-blur-sm"}`}
+                  title={SLIDE_LABELS[i]}
+                />
               ))}
+              {/* Next */}
+              <button
+                onClick={() => setSlideIndex(i => (i + 1) % 4)}
+                className="w-5 h-5 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center"
+              >
+                <svg width="7" height="7" viewBox="0 0 7 7" fill="none"><path d="M2.5 1L5 3.5L2.5 6" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+            </div>
+            {/* Slide label */}
+            <div className="absolute top-2 right-3 bg-black/20 backdrop-blur-sm rounded-full px-2 py-0.5">
+              <span className="text-[9px] font-bold text-white/90">{SLIDE_LABELS[slideIndex]}</span>
             </div>
           </div>
         );

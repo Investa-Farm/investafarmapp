@@ -467,6 +467,29 @@ export default function PrimaryMarket() {
                               </div>
                             </div>
 
+                            {/* AI Insight block */}
+                            <div className="rounded-xl border border-violet-100 bg-gradient-to-br from-violet-50 to-white p-3">
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <span className="text-[8px] font-black bg-violet-600 text-white px-1.5 py-0.5 rounded tracking-wider">AI</span>
+                                <p className="text-[10px] font-bold text-violet-800">Market Intelligence</p>
+                              </div>
+                              <p className="text-[11px] text-violet-700 leading-relaxed">{insight}</p>
+                              {(() => {
+                                const extraTags: { text: string; color: string }[] = [];
+                                if (listing.changePercent > 3) extraTags.push({ text: "📈 Strong upward momentum", color: "bg-green-50 text-green-700 border-green-200" });
+                                if (listing.changePercent < -2) extraTags.push({ text: "📉 Dip — buying opportunity", color: "bg-amber-50 text-amber-700 border-amber-200" });
+                                if (risk === "Low") extraTags.push({ text: "🛡️ Low risk crop", color: "bg-blue-50 text-blue-700 border-blue-200" });
+                                if (risk === "High") extraTags.push({ text: "⚡ Higher-yield / higher-risk", color: "bg-red-50 text-red-700 border-red-200" });
+                                return extraTags.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {extraTags.map((t, i) => (
+                                      <span key={i} className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${t.color}`}>{t.text}</span>
+                                    ))}
+                                  </div>
+                                ) : null;
+                              })()}
+                            </div>
+
                             {/* Action buttons */}
                             <div className="grid grid-cols-2 gap-2">
                               <button
@@ -480,6 +503,13 @@ export default function PrimaryMarket() {
                                 📊 Calculate
                               </button>
                             </div>
+
+                            {/* View Full Details link */}
+                            <button
+                              onClick={() => setLocation(`/market/farm/${listing.farmId}`)}
+                              className="w-full py-2 rounded-lg text-[10px] font-bold text-primary bg-primary/5 border border-primary/15 active:scale-95 transition-transform flex items-center justify-center gap-1">
+                              View Full Farm Details →
+                            </button>
                           </div>
                         </motion.div>
                       )}

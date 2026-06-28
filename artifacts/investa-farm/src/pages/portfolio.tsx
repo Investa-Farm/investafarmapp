@@ -210,6 +210,13 @@ export default function Portfolio() {
     }
   }, [qualification?.qualified]);
 
+  // Auto-advance overview slides every 30 s, looping continuously
+  useEffect(() => {
+    if (activeTab !== "overview") return;
+    const t = setInterval(() => setOverviewSlide(s => (s + 1) % 3), 30_000);
+    return () => clearInterval(t);
+  }, [activeTab]);
+
   const chartData = useMemo(() => {
     if (!summary) return [];
     return buildChartData(summary.totalInvested, summary.totalValue, period);
@@ -601,25 +608,28 @@ export default function Portfolio() {
                   </div>
                   <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${rankColor}`}>{youRank}</span>
                 </div>
-                <div className="space-y-2.5">
+                <div className="grid grid-cols-2 gap-2">
                   {peers.map(({ label, pct, color }) => {
                     const isYou = label === "You";
                     const barW = Math.max(4, (Math.abs(pct) / maxPct) * 100);
                     return (
-                      <div key={label} className={`flex items-center gap-2.5 ${isYou ? "bg-muted/40 rounded-xl p-2 -mx-2" : ""}`}>
-                        <span className={`text-[10px] w-[64px] flex-shrink-0 ${isYou ? "text-foreground font-black" : "text-muted-foreground font-medium"}`}>{label}</span>
-                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div key={label}
+                        className={`rounded-xl p-3 ${isYou ? "border-2" : "border border-border bg-muted/20"}`}
+                        style={isYou ? { borderColor: color, background: `${color}12` } : {}}>
+                        <p className={`text-[10px] font-semibold mb-0.5 ${isYou ? "text-foreground" : "text-muted-foreground"}`}>{label}</p>
+                        <p className="text-xl font-black leading-none" style={{ color }}>
+                          {pct >= 0 ? "+" : ""}{pct.toFixed(1)}%
+                        </p>
+                        <div className="h-1 bg-muted rounded-full overflow-hidden mt-2">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${barW}%` }}
                             transition={{ duration: 0.6, delay: 0.2 }}
                             className="h-full rounded-full"
-                            style={{ background: color, opacity: isYou ? 1 : 0.55 }}
+                            style={{ background: color, opacity: isYou ? 1 : 0.65 }}
                           />
                         </div>
-                        <span className={`text-[10px] font-bold w-9 text-right flex-shrink-0 ${isYou ? "text-foreground" : "text-muted-foreground"}`}>
-                          {pct >= 0 ? "+" : ""}{pct.toFixed(1)}%
-                        </span>
+                        {isYou && <p className="text-[8px] font-bold mt-1.5" style={{ color }}>← Your portfolio</p>}
                       </div>
                     );
                   })}

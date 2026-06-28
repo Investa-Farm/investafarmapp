@@ -61,11 +61,23 @@ function RichNotifCard({ type, title, body, amount, url, durationMs = 7000, onDi
       animate={{ y: 0, opacity: 1, scale: 1 }}
       exit={{ y: -80, opacity: 0, scale: 0.95 }}
       transition={{ type: "spring", damping: 22, stiffness: 320 }}
-      onClick={() => { if (url) window.location.href = url; onDismiss(); }}
-      className="w-full cursor-pointer"
+      className="w-full relative"
     >
+      {/* Dismiss — floats outside the card so tapping it never navigates */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+        className="absolute -top-2.5 -right-2.5 z-10 w-8 h-8 rounded-full bg-gray-800/85 backdrop-blur-sm flex items-center justify-center shadow-lg border border-white/20"
+        aria-label="Dismiss"
+      >
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+          <path d="M1.5 1.5L7.5 7.5M7.5 1.5L1.5 7.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      </button>
+
+      {/* Clickable card */}
       <div
-        className="bg-white/95 backdrop-blur-md rounded-2xl overflow-hidden"
+        onClick={() => { if (url) window.location.href = url; onDismiss(); }}
+        className="cursor-pointer bg-white/95 backdrop-blur-md rounded-2xl overflow-hidden"
         style={{
           border: "1px solid rgba(0,0,0,0.08)",
           boxShadow: "0 4px 24px rgba(0,0,0,0.14)",
@@ -97,15 +109,12 @@ function RichNotifCard({ type, title, body, amount, url, durationMs = 7000, onDi
             )}
           </div>
 
-          {/* Dismiss */}
-          <button
-            onClick={(e) => { e.stopPropagation(); onDismiss(); }}
-            className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5"
-          >
-            <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
-              <path d="M1 1L5 5M5 1L1 5" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/>
+          {/* Tap-to-open cue */}
+          <div className="flex-shrink-0 mt-1.5">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M4 2L8 6L4 10" stroke="#d1d5db" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          </button>
+          </div>
         </div>
 
         {/* Progress bar */}
