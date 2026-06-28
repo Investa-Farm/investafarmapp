@@ -1051,7 +1051,7 @@ export default function MarketHome() {
                                   exit={{ opacity: 0, y: -48, scale: 0.97 }}
                                   transition={{ duration: 0.42, ease: "easeInOut", layout: { duration: 0.4, ease: "easeInOut" } }}
                                 >
-                                  <Link href={`/market/exchange/${listing.farmId}`}>
+                                  <Link href={listing.farmId ? `/market/${listing.farmId}` : "/market/primary"}>
                                     <div className={`rounded-2xl border overflow-hidden cursor-pointer active:scale-[0.98] transition-all ${isFeatured ? "border-primary/30 shadow-lg shadow-green-600/15" : "border-border bg-card shadow-sm shadow-green-500/10"}`}>
                                       {isFeatured && (
                                         <div className="bg-gradient-to-r from-primary/90 to-green-600 px-4 py-1.5 flex items-center gap-1.5">
@@ -1723,7 +1723,7 @@ export default function MarketHome() {
 
                   {/* CTA */}
                   <button
-                    onClick={() => { setMoverDetailOpen(false); setLocation(`/market/exchange/${selectedMover.farmId}`); }}
+                    onClick={() => { setMoverDetailOpen(false); setLocation(selectedMover?.farmId ? `/market/${selectedMover.farmId}` : "/market/primary"); }}
                     className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
                     View Full Farm Details →

@@ -276,7 +276,7 @@ export function AiMatchmaker({ open, onClose }: Props) {
                                   </p>
                                 </div>
                                 <button
-                                  onClick={() => { setLocation(`/market/exchange/${m.farmId}`); onClose(); }}
+                                  onClick={() => { setLocation(m.farmId ? `/market/${m.farmId}` : "/market/primary"); onClose(); }}
                                   className="bg-primary text-white text-[10px] font-bold px-4 py-2 rounded-xl active:scale-95 transition-transform shadow-sm">
                                   View Farm →
                                 </button>

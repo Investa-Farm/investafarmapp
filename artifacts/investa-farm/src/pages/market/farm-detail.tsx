@@ -389,13 +389,6 @@ export default function FarmDetail() {
   const [compareOpen, setCompareOpen] = useState(false);
   const token = getToken();
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSlideIndex(i => (i + 1) % 4);
-    }, 4_000);
-    return () => clearInterval(timer);
-  }, []);
-
   const { data: farm, isLoading } = useGetFarm(farmId, {
     query: { enabled: !!farmId, queryKey: getGetFarmQueryKey(farmId), staleTime: 3 * 60 * 1000 },
   });
@@ -569,13 +562,13 @@ export default function FarmDetail() {
             </div>
           </div>,
 
-          /* 2 — Farm boundary map */
+          /* 2 — Satellite map (lightweight image tiles, no Leaflet) */
           <div key="map" className="border-b border-border overflow-hidden" style={{ height: 220 }}>
             <div className="relative h-full">
-              <FarmLeafletMap lat={mapLat} lng={mapLng} label={farm.name} />
+              <SatelliteTileMap lat={mapLat} lng={mapLng} farmName={farm.name} />
               <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center gap-1 shadow-sm border border-border">
                 <MapPin size={10} className="text-[#16a34a]" />
-                <span className="text-[10px] font-bold text-foreground">Farm Boundary</span>
+                <span className="text-[10px] font-bold text-foreground">Satellite View</span>
               </div>
             </div>
           </div>,

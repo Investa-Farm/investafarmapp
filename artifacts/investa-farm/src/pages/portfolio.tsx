@@ -841,7 +841,7 @@ export default function Portfolio() {
 
                           {/* Action buttons */}
                           <div className="flex gap-2">
-                            <Link href={`/market/exchange/${h.farmId}`}
+                            <Link href={h.farmId ? `/market/${h.farmId}` : "/market/primary"}
                               className="h-11 px-3 rounded-xl border border-border text-muted-foreground text-[11px] font-semibold active:scale-95 transition-all flex items-center justify-center gap-1 flex-shrink-0 bg-muted/50">
                               <ExternalLink size={11} /> View
                             </Link>
