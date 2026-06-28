@@ -199,7 +199,7 @@ export default function InvestorWallet() {
 
         {/* Portfolio stats strip */}
         {summary && (
-          <div className="bg-white border border-border rounded-2xl mt-3 p-3">
+          <div className="bg-card border border-border rounded-2xl mt-3 p-3">
             <div className="grid grid-cols-4 gap-1.5">
               {[
                 { label: "Portfolio", val: formatAmount(summary.totalValue), up: true },
@@ -417,26 +417,26 @@ export default function InvestorWallet() {
               </div>
 
               <div className="space-y-3">
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+                <div className="bg-card border border-[#16a34a]/30 rounded-2xl p-4">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center text-white text-lg">🌱</div>
                     <div>
-                      <p className="font-semibold text-green-900 text-sm">Farm Share Investing</p>
-                      <p className="text-green-600 text-xs">Buy shares in verified Kenyan farms</p>
+                      <p className="font-semibold text-foreground text-sm">Farm Share Investing</p>
+                      <p className="text-muted-foreground text-xs">Buy shares in verified Kenyan farms</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center mb-3">
-                    <div className="bg-white rounded-xl p-2">
-                      <p className="text-green-700 font-bold text-sm">18–32%</p>
-                      <p className="text-green-600 text-[10px]">Annual ROI</p>
+                    <div className="bg-muted/60 rounded-xl p-2">
+                      <p className="text-[#16a34a] font-bold text-sm">18–32%</p>
+                      <p className="text-muted-foreground text-[10px]">Annual ROI</p>
                     </div>
-                    <div className="bg-white rounded-xl p-2">
-                      <p className="text-green-700 font-bold text-sm">6–12mo</p>
-                      <p className="text-green-600 text-[10px]">Term</p>
+                    <div className="bg-muted/60 rounded-xl p-2">
+                      <p className="text-[#16a34a] font-bold text-sm">6–12mo</p>
+                      <p className="text-muted-foreground text-[10px]">Term</p>
                     </div>
-                    <div className="bg-white rounded-xl p-2">
-                      <p className="text-green-700 font-bold text-sm">KES 5K</p>
-                      <p className="text-green-600 text-[10px]">Min. invest</p>
+                    <div className="bg-muted/60 rounded-xl p-2">
+                      <p className="text-[#16a34a] font-bold text-sm">KES 5K</p>
+                      <p className="text-muted-foreground text-[10px]">Min. invest</p>
                     </div>
                   </div>
                   <button onClick={() => { setModal(null); setLocation("/market/primary"); }}

@@ -481,13 +481,13 @@ export default function Profile() {
       </div>
 
       {/* Account security tips */}
-      <div className="mx-4 mb-4 bg-slate-50 border border-slate-200 rounded-2xl p-4">
-        <p className="text-slate-700 text-xs font-bold mb-2 flex items-center gap-1.5">🔒 Account Security</p>
+      <div className="mx-4 mb-4 bg-card border border-border rounded-2xl p-4">
+        <p className="text-foreground text-xs font-bold mb-2 flex items-center gap-1.5">🔒 Account Security</p>
         <ul className="space-y-1.5">
-          <li className="text-slate-600 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Use a strong, unique password — at least 8 characters with numbers and symbols.</li>
-          <li className="text-slate-600 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Keep your email verified — it's how we send dividend notices and security alerts.</li>
-          <li className="text-slate-600 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Complete KYC to unlock full withdrawal and trading limits.</li>
-          <li className="text-slate-600 text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Never share your password or OTP codes with anyone, including support staff.</li>
+          <li className="text-muted-foreground text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Use a strong, unique password — at least 8 characters with numbers and symbols.</li>
+          <li className="text-muted-foreground text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Keep your email verified — it's how we send dividend notices and security alerts.</li>
+          <li className="text-muted-foreground text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Complete KYC to unlock full withdrawal and trading limits.</li>
+          <li className="text-muted-foreground text-xs flex items-start gap-1.5"><span className="mt-0.5 flex-shrink-0">•</span>Never share your password or OTP codes with anyone, including support staff.</li>
         </ul>
       </div>
 
@@ -500,11 +500,11 @@ export default function Profile() {
           <motion.div className="fixed inset-0 z-50 flex items-end justify-center"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="absolute inset-0 bg-black/50" onClick={() => setSettingsOpen(false)} />
-            <motion.div className="relative w-full max-w-[430px] bg-white rounded-t-3xl pb-10"
+            <motion.div className="relative w-full max-w-[430px] bg-background rounded-t-3xl pb-10"
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}>
               <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                <p className="font-bold text-base">Account Settings</p>
+                <p className="font-bold text-base text-foreground">Account Settings</p>
                 <button onClick={() => setSettingsOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                   <X size={16} className="text-muted-foreground" />
                 </button>

@@ -119,10 +119,11 @@ function FarmLeafletMap({ lat, lng, label }: { lat: number; lng: number; label: 
   }, [lat, lng, label]);
 
   return (
-    <div ref={mapRef} style={{ height: 260, width: "100%", background: "#e8f4e8" }}>
+    <div ref={mapRef} style={{ height: 260, width: "100%", background: "#e8f4e8", position: "relative" }}>
       <div style={{
         position: "absolute", inset: 0, display: "flex", alignItems: "center",
         justifyContent: "center", color: "#6b7280", fontSize: 12, pointerEvents: "none",
+        zIndex: 1,
       }}>
         Loading map…
       </div>
@@ -318,10 +319,10 @@ function WeatherNdvi({ lat, lng, cropType, stage }: { lat: number; lng: number; 
       </div>
 
       {/* Weather Card */}
-      <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-blue-200 rounded-2xl p-4">
+      <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center gap-1.5 mb-3">
-          <CloudRain size={14} className="text-blue-600" />
-          <p className="text-sm font-semibold text-blue-800">Live Weather &amp; Forecast</p>
+          <CloudRain size={14} className="text-blue-500" />
+          <p className="text-sm font-semibold text-foreground">Live Weather &amp; Forecast</p>
           <AiSectionBot
             context={wx ? `Current weather near this farm: temperature ${wx.current.temperature_2m}°C, humidity ${wx.current.relative_humidity_2m}%, wind ${wx.current.windspeed_10m} km/h, precipitation ${wx.current.precipitation}mm. Crop: ${cropType} in ${stage} stage. What weather risks or opportunities should the investor know about?` : `Weather for a ${cropType} farm in ${stage} stage in Kenya`}
             label="weather"
@@ -337,24 +338,24 @@ function WeatherNdvi({ lat, lng, cropType, stage }: { lat: number; lng: number; 
               {[
                 { icon: Thermometer, label: "Temp", val: `${wx.current.temperature_2m}°C`, color: "text-orange-500" },
                 { icon: Droplet, label: "Humidity", val: `${wx.current.relative_humidity_2m}%`, color: "text-blue-500" },
-                { icon: Wind, label: "Wind", val: `${wx.current.windspeed_10m}km/h`, color: "text-slate-500" },
-                { icon: CloudRain, label: "Rain", val: `${wx.current.precipitation}mm`, color: "text-blue-600" },
+                { icon: Wind, label: "Wind", val: `${wx.current.windspeed_10m}km/h`, color: "text-muted-foreground" },
+                { icon: CloudRain, label: "Rain", val: `${wx.current.precipitation}mm`, color: "text-blue-500" },
               ].map(({ icon: Icon, label, val, color }) => (
-                <div key={label} className="bg-white/80 rounded-xl p-2 text-center">
+                <div key={label} className="bg-muted/60 rounded-xl p-2 text-center">
                   <Icon size={14} className={`${color} mx-auto mb-1`} />
                   <p className="text-foreground font-bold text-xs">{val}</p>
                   <p className="text-muted-foreground text-[9px]">{label}</p>
                 </div>
               ))}
             </div>
-            <p className="text-blue-700 text-[10px] font-semibold mb-2 uppercase tracking-wide">5-Day Forecast</p>
+            <p className="text-muted-foreground text-[10px] font-semibold mb-2 uppercase tracking-wide">5-Day Forecast</p>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {(wx.daily.time ?? []).slice(0, 5).map((t, i) => (
-                <div key={t} className="flex-shrink-0 bg-white/70 rounded-xl p-2 text-center min-w-[52px]">
-                  <p className="text-blue-600 text-[9px] font-semibold">{new Date(t).toLocaleDateString("en-KE", { weekday: "short" })}</p>
+                <div key={t} className="flex-shrink-0 bg-muted/50 rounded-xl p-2 text-center min-w-[52px]">
+                  <p className="text-primary text-[9px] font-semibold">{new Date(t).toLocaleDateString("en-KE", { weekday: "short" })}</p>
                   <p className="text-foreground font-bold text-[11px] mt-0.5">{Math.round(wx.daily.temperature_2m_max[i] ?? 0)}°</p>
-                  <p className="text-blue-500 text-[9px]">{Math.round(wx.daily.temperature_2m_min[i] ?? 0)}°</p>
-                  <p className="text-blue-400 text-[9px]">{(wx.daily.precipitation_sum[i] ?? 0).toFixed(1)}mm</p>
+                  <p className="text-muted-foreground text-[9px]">{Math.round(wx.daily.temperature_2m_min[i] ?? 0)}°</p>
+                  <p className="text-blue-500 text-[9px]">{(wx.daily.precipitation_sum[i] ?? 0).toFixed(1)}mm</p>
                 </div>
               ))}
             </div>
@@ -481,23 +482,23 @@ export default function FarmDetail() {
   return (
     <div className="app-shell pb-28 page-enter" data-testid="farm-detail">
       {/* Hero image */}
-      <div className="relative h-40">
+      <div className="relative h-52">
         <img
           src={getCropImage(farm.cropType, farm.imageUrl)}
           alt={farm.name}
           className="w-full h-full object-cover"
           onError={e => { (e.currentTarget as HTMLImageElement).src = getCropImage(farm.cropType); }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
-        <div className="absolute top-12 left-4 right-4 flex items-center justify-between">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/70" />
+        <div className="absolute top-11 left-4 right-4 flex items-center justify-between">
           <button data-testid="button-back" onClick={() => window.history.back()}
-            className="w-9 h-9 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
+            className="w-9 h-9 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg">
             <ArrowLeft size={18} className="text-white" />
           </button>
           <div className="w-9 h-9" />
         </div>
-        <div className="absolute bottom-3 left-4 right-4">
-          <h1 className="text-white text-xl font-bold" style={{ fontFamily: "Space Grotesk, sans-serif" }}>{farm.name}</h1>
+        <div className="absolute bottom-4 left-4 right-4">
+          <h1 className="text-white text-xl font-bold drop-shadow-lg" style={{ fontFamily: "Space Grotesk, sans-serif" }}>{farm.name}</h1>
           <p className="text-white/80 text-sm">{farm.cropType} · {farm.location}</p>
         </div>
       </div>
@@ -752,20 +753,20 @@ export default function FarmDetail() {
             </div>
 
             {/* Returns preview */}
-            <div className="bg-gradient-to-r from-[#16a34a]/5 to-emerald-50 border border-[#16a34a]/20 rounded-2xl p-4">
+            <div className="bg-card border border-[#16a34a]/20 rounded-2xl p-4">
               <p className="text-sm font-semibold text-foreground mb-2.5 flex items-center gap-1.5">
                 <span>💰</span> Projected Returns
               </p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white/90 rounded-xl p-3 border border-orange-100">
+                <div className="bg-muted/60 rounded-xl p-3 border border-orange-200/50">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-lg">⚡</span>
-                    <p className="text-xs font-semibold text-orange-700">Mid-Season Exit</p>
+                    <p className="text-xs font-semibold text-orange-500">Mid-Season Exit</p>
                   </div>
-                  <p className="text-orange-600 font-bold text-lg">+10%</p>
+                  <p className="text-orange-500 font-bold text-lg">+10%</p>
                   <p className="text-muted-foreground text-[10px]">30–60 days</p>
                 </div>
-                <div className="bg-white/90 rounded-xl p-3 border border-[#16a34a]/20">
+                <div className="bg-muted/60 rounded-xl p-3 border border-[#16a34a]/20">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-lg">🌾</span>
                     <p className="text-xs font-semibold text-[#16a34a]">Full Season Exit</p>
@@ -795,7 +796,7 @@ export default function FarmDetail() {
                     </defs>
                     <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                     <Tooltip
-                      contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "11px" }}
+                      contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "11px", color: "var(--foreground)" }}
                       formatter={(v: number) => [formatKES(v), "Price"]}
                     />
                     <Area type="monotone" dataKey="price" stroke="#16a34a" strokeWidth={2} fill="url(#priceGrad)" dot={false} />
@@ -876,15 +877,15 @@ export default function FarmDetail() {
                   <p className="text-muted-foreground text-xs">{growth.daysElapsed} of {growth.daysTotal} days · <span className="text-[#16a34a] font-semibold">{growth.daysTotal - growth.daysElapsed} days to harvest</span></p>
                 </div>
 
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4">
+                <div className="bg-card border border-border rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-xs font-semibold text-blue-700">Live Commodity Price — {farm.cropType}</p>
+                    <p className="text-xs font-semibold text-muted-foreground">Live Commodity Price — {farm.cropType}</p>
                     <span className={`text-xs font-bold ${growth.marketChangePercent >= 0 ? "text-[#16a34a]" : "text-red-500"}`}>
                       {growth.marketChangePercent >= 0 ? "+" : ""}{growth.marketChangePercent.toFixed(2)}%
                     </span>
                   </div>
-                  <p className="text-blue-800 font-bold text-xl">{formatKES(growth.marketPriceKes)} <span className="text-[10px] font-normal text-blue-600">/ 90kg bag</span></p>
-                  <p className="text-blue-600 text-xs mt-1.5 italic">{growth.marketInsight}</p>
+                  <p className="text-foreground font-bold text-xl">{formatKES(growth.marketPriceKes)} <span className="text-[10px] font-normal text-muted-foreground">/ 90kg bag</span></p>
+                  <p className="text-muted-foreground text-xs mt-1.5 italic">{growth.marketInsight}</p>
                 </div>
 
                 <WeatherNdvi lat={mapLat} lng={mapLng} cropType={farm.cropType} stage={growth.stage} />
@@ -892,15 +893,15 @@ export default function FarmDetail() {
                 {/* ── Rainfall Impact Card ── */}
                 {rainfallData && (() => {
                   const riskColors: Record<string, { bg: string; border: string; text: string; badge: string }> = {
-                    green:  { bg: "from-green-50 to-emerald-50",  border: "border-green-200",  text: "text-green-800",  badge: "bg-green-100 text-green-700"  },
-                    yellow: { bg: "from-amber-50 to-yellow-50",   border: "border-amber-200",  text: "text-amber-800",  badge: "bg-amber-100 text-amber-700"  },
-                    red:    { bg: "from-red-50 to-rose-50",       border: "border-red-200",    text: "text-red-800",    badge: "bg-red-100 text-red-700"      },
+                    green:  { bg: "",  border: "border-[#16a34a]/30",  text: "text-[#16a34a]",  badge: "bg-[#16a34a]/10 text-[#16a34a]"  },
+                    yellow: { bg: "",  border: "border-amber-400/40",  text: "text-amber-500",  badge: "bg-amber-500/10 text-amber-500"   },
+                    red:    { bg: "",  border: "border-red-400/40",    text: "text-red-500",    badge: "bg-red-500/10 text-red-500"       },
                   };
                   const c = riskColors[rainfallData.riskColor] ?? riskColors["green"]!;
                   const statusEmoji = rainfallData.riskColor === "green" ? "🌧️" : rainfallData.riskColor === "yellow" ? "⚠️" : "🚨";
                   const yieldAdj = rainfallData.yieldAdjustmentPercent ?? 0;
                   return (
-                    <div className={`bg-gradient-to-r ${c.bg} border ${c.border} rounded-2xl p-4`}>
+                    <div className={`bg-card border ${c.border} rounded-2xl p-4`}>
                       <div className="flex items-center justify-between mb-3">
                         <p className={`text-sm font-bold ${c.text} flex items-center gap-2`}>
                           <CloudRain size={15} /> Rainfall Impact
@@ -910,17 +911,17 @@ export default function FarmDetail() {
                         </span>
                       </div>
                       <div className="grid grid-cols-3 gap-2 mb-3">
-                        <div className="bg-white/70 rounded-xl p-2 text-center">
+                        <div className="bg-muted/60 rounded-xl p-2 text-center">
                           <p className="text-muted-foreground text-[9px]">Season Total</p>
                           <p className="text-foreground font-bold text-xs">{rainfallData.seasonalTotalMm}mm</p>
                         </div>
-                        <div className="bg-white/70 rounded-xl p-2 text-center">
+                        <div className="bg-muted/60 rounded-xl p-2 text-center">
                           <p className="text-muted-foreground text-[9px]">Optimal Range</p>
                           <p className="text-foreground font-bold text-xs">{rainfallData.optimalRangeMin}–{rainfallData.optimalRangeMax}mm</p>
                         </div>
-                        <div className="bg-white/70 rounded-xl p-2 text-center">
+                        <div className="bg-muted/60 rounded-xl p-2 text-center">
                           <p className="text-muted-foreground text-[9px]">Yield Adj.</p>
-                          <p className={`font-bold text-xs ${yieldAdj >= 0 ? "text-green-600" : "text-red-500"}`}>{yieldAdj >= 0 ? "+" : ""}{yieldAdj}%</p>
+                          <p className={`font-bold text-xs ${yieldAdj >= 0 ? "text-[#16a34a]" : "text-red-500"}`}>{yieldAdj >= 0 ? "+" : ""}{yieldAdj}%</p>
                         </div>
                       </div>
                       <p className={`text-[10px] ${c.text} mb-2 leading-relaxed`}>{rainfallData.riskLabel}</p>
@@ -1038,27 +1039,27 @@ export default function FarmDetail() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4">
+            <div className="bg-card border border-[#16a34a]/20 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={13} className="text-green-600" />
-                  <p className="text-sm font-semibold text-green-800">Composite Health Score</p>
+                  <Sparkles size={13} className="text-[#16a34a]" />
+                  <p className="text-sm font-semibold text-foreground">Composite Health Score</p>
                 </div>
-                <span className={`text-base font-black ${healthScore >= 75 ? "text-green-700" : healthScore >= 50 ? "text-amber-700" : "text-red-600"}`}>
+                <span className={`text-base font-black ${healthScore >= 75 ? "text-[#16a34a]" : healthScore >= 50 ? "text-amber-500" : "text-red-500"}`}>
                   {healthScore}<span className="text-xs font-semibold text-muted-foreground">/100</span>
                 </span>
               </div>
-              <div className="w-full h-3 bg-white/60 rounded-full overflow-hidden mb-3">
+              <div className="w-full h-3 bg-muted rounded-full overflow-hidden mb-3">
                 <div className="h-3 rounded-full transition-all duration-700"
                   style={{ width: `${healthScore}%`, background: "linear-gradient(90deg,#16a34a,#22c55e)" }} />
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { label: "Vegetation", val: `${(ndviNow * 100).toFixed(0)}%`, color: ndviMeta.color },
-                  { label: "Growth",     val: growth?.stage ?? "N/A",            color: "text-blue-600"  },
-                  { label: "Season",     val: `${growth?.percent ?? 0}%`,         color: "text-amber-600" },
+                  { label: "Growth",     val: growth?.stage ?? "N/A",            color: "text-blue-500"  },
+                  { label: "Season",     val: `${growth?.percent ?? 0}%`,         color: "text-amber-500" },
                 ].map(({ label, val, color }) => (
-                  <div key={label} className="bg-white/70 rounded-xl p-2 text-center">
+                  <div key={label} className="bg-muted/60 rounded-xl p-2 text-center">
                     <p className={`text-xs font-bold ${color}`}>{val}</p>
                     <p className="text-muted-foreground text-[9px] mt-0.5">{label}</p>
                   </div>
@@ -1066,15 +1067,15 @@ export default function FarmDetail() {
               </div>
             </div>
 
-            <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-sky-100 flex items-center justify-center flex-shrink-0">
-                  <Globe size={16} className="text-sky-600" />
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Globe size={16} className="text-primary" />
                 </div>
                 <div>
-                  <p className="text-sky-800 text-xs font-bold mb-1">Enhanced Imagery Available</p>
-                  <p className="text-sky-600 text-[10px] leading-relaxed">
-                    Real-time Sentinel-2 imagery (updated every 5 days) with <code className="bg-sky-100 px-1 rounded font-mono">SENTINEL_HUB_CLIENT_ID</code> + <code className="bg-sky-100 px-1 rounded font-mono">SENTINEL_HUB_CLIENT_SECRET</code> env vars — enables centimetre-precision NDVI maps and multi-spectral crop health analysis.
+                  <p className="text-foreground text-xs font-bold mb-1">Enhanced Satellite Imagery</p>
+                  <p className="text-muted-foreground text-[10px] leading-relaxed">
+                    Real-time Sentinel-2 imagery updated every 5 days enables centimetre-precision NDVI maps and multi-spectral crop health analysis. Contact support to enable for your farm.
                   </p>
                 </div>
               </div>

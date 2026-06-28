@@ -228,11 +228,11 @@ export default function FarmerProfile() {
           <motion.div className="fixed inset-0 z-50 flex items-end justify-center"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="absolute inset-0 bg-black/50" onClick={() => setSettingsOpen(false)} />
-            <motion.div className="relative w-full max-w-[430px] bg-white rounded-t-3xl pb-10"
+            <motion.div className="relative w-full max-w-[430px] bg-background rounded-t-3xl pb-10"
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}>
               <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                <p className="font-bold text-base">Account Settings</p>
+                <p className="font-bold text-base text-foreground">Account Settings</p>
                 <button onClick={() => setSettingsOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                   <X size={16} className="text-muted-foreground" />
                 </button>
