@@ -275,9 +275,9 @@ export default function Portfolio() {
         <div style={{ position: "absolute", bottom: -40, left: -20, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", top: 28, left: "40%", width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
 
-        <div className="px-5 pt-4 pb-5 relative">
+        <div className="px-5 pt-3 pb-3 relative">
           {/* Top row */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-white/60 text-[11px] font-semibold uppercase tracking-widest">My Portfolio</p>
             </div>
@@ -301,7 +301,7 @@ export default function Portfolio() {
             <>
               <motion.div key={summary.totalValue} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
                 <p className="text-white/70 text-xs mb-0.5">Total Portfolio Value</p>
-                <p className="text-white font-extrabold" style={{ fontSize: 34, letterSpacing: -1, lineHeight: 1.1 }}>
+                <p className="text-white font-extrabold" style={{ fontSize: 30, letterSpacing: -1, lineHeight: 1.1 }}>
                   <AnimatedKES value={summary.totalValue} />
                 </p>
                 {/* Return badge */}
@@ -323,14 +323,14 @@ export default function Portfolio() {
               </motion.div>
 
               {/* 3-stat glassmorphism row */}
-              <div className="grid grid-cols-3 gap-2 mt-4">
+              <div className="grid grid-cols-3 gap-1.5 mt-3">
                 {([
                   { key: "invested" as const, label: "Invested", value: formatKES(summary.totalInvested), icon: "💰" },
                   { key: "pnl" as const, label: "P&L", value: (summary.todayReturn >= 0 ? "+" : "") + formatKES(summary.todayReturn), icon: summary.todayReturn >= 0 ? "📈" : "📉", highlight: true, up: summary.todayReturn >= 0 },
                   { key: "holdings" as const, label: "Holdings", value: String(summary.holdings), icon: "🌾" },
                 ]).map(({ key, label, value, icon, highlight, up }) => (
                   <button key={key} onClick={() => setStatDetail(key)}
-                    className="relative rounded-2xl p-3 text-left active:scale-95 transition-all overflow-hidden"
+                    className="relative rounded-2xl p-2.5 text-left active:scale-95 transition-all overflow-hidden"
                     style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.18)" }}>
                     <span className="text-base leading-none block mb-1">{icon}</span>
                     <p className={`font-bold text-xs leading-tight truncate ${highlight ? (up ? "text-green-200" : "text-red-300") : "text-white"}`}>{value}</p>

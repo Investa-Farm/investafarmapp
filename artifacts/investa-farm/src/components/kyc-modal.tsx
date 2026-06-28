@@ -299,6 +299,7 @@ export function KycModal({ open, onClose }: KycModalProps) {
   const [gpsManualLng, setGpsManualLng] = useState("");
   const [locationSaved, setLocationSaved] = useState(false);
   const [locationSaving, setLocationSaving] = useState(false);
+  const [locationStep, setLocationStep] = useState<1 | 2>(1);
 
   const { data: docs = [], isLoading } = useQuery<KycDoc[]>({
     queryKey: ["kyc-docs"],
@@ -466,151 +467,185 @@ export function KycModal({ open, onClose }: KycModalProps) {
 
                     {/* ── SECTION 1: Farm Location ── */}
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <MapPin size={13} className="text-primary" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <MapPin size={13} className="text-primary" />
+                          </div>
+                          <p className="text-sm font-bold text-foreground">Farm Location</p>
                         </div>
-                        <p className="text-sm font-bold text-foreground">Farm Location Details</p>
+                        {/* Step indicator */}
+                        <div className="flex items-center gap-1">
+                          <div className={`w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center ${locationStep === 1 ? "bg-primary text-white" : "bg-green-100 text-green-700"}`}>
+                            {locationStep > 1 ? <CheckCircle2 size={11} /> : "1"}
+                          </div>
+                          <div className="w-4 h-0.5 bg-border" />
+                          <div className={`w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center ${locationStep === 2 ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>2</div>
+                        </div>
                       </div>
 
-                      <div className="bg-muted/30 border border-border rounded-2xl p-4 space-y-3">
-                        {/* County */}
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">County *</label>
-                          <div className="relative">
-                            <select value={county} onChange={e => setCounty(e.target.value)}
-                              className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-primary appearance-none pr-8">
-                              <option value="">Select county…</option>
-                              {KENYA_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                          </div>
-                        </div>
-
-                        {/* Sub-county & Ward */}
-                        <div className="grid grid-cols-2 gap-2">
+                      {locationStep === 1 && (
+                        <div className="bg-muted/30 border border-border rounded-2xl p-4 space-y-3">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Step 1 — Location Details</p>
+                          {/* County */}
                           <div className="space-y-1">
-                            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sub-County / Town</label>
-                            <input value={subCounty} onChange={e => setSubCounty(e.target.value)}
-                              placeholder="e.g. Githunguri"
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">County *</label>
+                            <div className="relative">
+                              <select value={county} onChange={e => setCounty(e.target.value)}
+                                className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-primary appearance-none pr-8">
+                                <option value="">Select county…</option>
+                                {KENYA_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            </div>
+                          </div>
+
+                          {/* Sub-county & Ward */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sub-County</label>
+                              <input value={subCounty} onChange={e => setSubCounty(e.target.value)}
+                                placeholder="e.g. Githunguri"
+                                className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-primary" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Ward / Village</label>
+                              <input value={ward} onChange={e => setWard(e.target.value)}
+                                placeholder="e.g. Kambaa"
+                                className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-primary" />
+                            </div>
+                          </div>
+
+                          {/* Physical address */}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                              <Home size={10} /> Physical Address
+                            </label>
+                            <input value={physicalAddress} onChange={e => setPhysicalAddress(e.target.value)}
+                              placeholder="Plot no. / road / estate…"
                               className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-primary" />
                           </div>
+
+                          {/* Nearest landmark */}
                           <div className="space-y-1">
-                            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Ward / Village</label>
-                            <input value={ward} onChange={e => setWard(e.target.value)}
-                              placeholder="e.g. Kambaa"
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Nearest Landmark *</label>
+                            <input value={landmark} onChange={e => setLandmark(e.target.value)}
+                              placeholder="e.g. 500m from Safaricom tower, next to school"
                               className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-primary" />
+                            <p className="text-[10px] text-muted-foreground">Help our agents find your farm — be as specific as possible.</p>
                           </div>
-                        </div>
 
-                        {/* Physical address */}
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                            <Home size={10} /> Physical Address
-                          </label>
-                          <input value={physicalAddress} onChange={e => setPhysicalAddress(e.target.value)}
-                            placeholder="Plot no. / road / estate…"
-                            className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-primary" />
+                          <button
+                            onClick={() => setLocationStep(2)}
+                            disabled={!county || !landmark}
+                            className="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all active:scale-95"
+                          >
+                            Next: Capture GPS → <Navigation size={12} />
+                          </button>
                         </div>
+                      )}
 
-                        {/* Nearest landmark */}
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Nearest Landmark *</label>
-                          <input value={landmark} onChange={e => setLandmark(e.target.value)}
-                            placeholder="e.g. Next to Githunguri High School, 500m from Safaricom tower"
-                            className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-primary" />
-                          <p className="text-[10px] text-muted-foreground">Help our agents find your farm — be as specific as possible.</p>
-                        </div>
+                      {locationStep === 2 && (
+                        <div className="bg-muted/30 border border-border rounded-2xl p-4 space-y-3">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Step 2 — GPS Location</p>
 
-                        {/* GPS capture */}
-                        <div className="bg-white border border-border rounded-xl p-3 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Navigation size={14} className="text-primary" />
-                              <span className="text-xs font-semibold">GPS Coordinates</span>
-                            </div>
-                            <button
-                              onClick={captureGPS}
-                              disabled={gpsStatus === "loading"}
-                              className={`text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${
-                                gpsStatus === "done"
-                                  ? "bg-green-100 text-green-700"
-                                  : gpsStatus === "error"
-                                  ? "bg-red-100 text-red-600"
-                                  : "bg-primary text-white"
-                              } disabled:opacity-50`}
-                            >
-                              {gpsStatus === "loading" && <Loader2 size={10} className="animate-spin" />}
-                              {gpsStatus === "done" && <CheckCircle2 size={10} />}
-                              {gpsStatus === "error" && <AlertCircle size={10} />}
-                              {gpsStatus === "idle" && <Navigation size={10} />}
-                              {gpsStatus === "loading" ? "Locating…" : gpsStatus === "done" ? "Captured ✓" : gpsStatus === "error" ? "Retry" : "Capture Location"}
-                            </button>
-                          </div>
-                          {gpsStatus === "done" && gpsCoords && (
-                            <div className="bg-green-50 rounded-lg px-3 py-2 text-[11px] text-green-700 font-mono">
-                              {gpsCoords.lat.toFixed(6)}, {gpsCoords.lng.toFixed(6)}
-                              {gpsCoords.accuracy && <span className="text-green-500 font-sans ml-2">±{gpsCoords.accuracy}m</span>}
-                            </div>
-                          )}
-                          {(gpsTimedOut || gpsStatus === "error") && (
-                            <div className="space-y-2 pt-1">
-                              <p className="text-[10px] text-amber-600 font-medium">
-                                {gpsStatus === "error"
-                                  ? "Could not access your location. Enter coordinates manually or try again."
-                                  : "GPS is taking too long. Enter coordinates manually or wait for auto-capture."}
-                              </p>
-                              <div className="flex gap-2">
-                                <div className="flex-1 space-y-1">
-                                  <label className="text-[9px] font-semibold text-muted-foreground uppercase">Latitude</label>
-                                  <input
-                                    type="number" step="any" value={gpsManualLat}
-                                    onChange={e => setGpsManualLat(e.target.value)}
-                                    placeholder="-1.2921"
-                                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-primary font-mono"
-                                  />
-                                </div>
-                                <div className="flex-1 space-y-1">
-                                  <label className="text-[9px] font-semibold text-muted-foreground uppercase">Longitude</label>
-                                  <input
-                                    type="number" step="any" value={gpsManualLng}
-                                    onChange={e => setGpsManualLng(e.target.value)}
-                                    placeholder="36.8219"
-                                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-primary font-mono"
-                                  />
-                                </div>
+                          {/* GPS capture */}
+                          <div className="bg-white border border-border rounded-xl p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Navigation size={14} className="text-primary" />
+                                <span className="text-xs font-semibold">GPS Coordinates</span>
                               </div>
                               <button
-                                onClick={applyManualGps}
-                                disabled={!gpsManualLat || !gpsManualLng}
-                                className="w-full text-[10px] font-semibold text-primary border border-primary/30 rounded-lg px-3 py-1.5 disabled:opacity-40 active:scale-95 transition-all"
+                                onClick={captureGPS}
+                                disabled={gpsStatus === "loading"}
+                                className={`text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${
+                                  gpsStatus === "done"
+                                    ? "bg-green-100 text-green-700"
+                                    : gpsStatus === "error"
+                                    ? "bg-red-100 text-red-600"
+                                    : "bg-primary text-white"
+                                } disabled:opacity-50`}
                               >
-                                Use these coordinates
+                                {gpsStatus === "loading" && <Loader2 size={10} className="animate-spin" />}
+                                {gpsStatus === "done" && <CheckCircle2 size={10} />}
+                                {gpsStatus === "error" && <AlertCircle size={10} />}
+                                {gpsStatus === "idle" && <Navigation size={10} />}
+                                {gpsStatus === "loading" ? "Locating…" : gpsStatus === "done" ? "Captured ✓" : gpsStatus === "error" ? "Retry" : "Capture Location"}
                               </button>
                             </div>
-                          )}
-                          {gpsStatus === "loading" && !gpsTimedOut && (
-                            <p className="text-[10px] text-muted-foreground">
-                              Locating your position… this may take a few seconds.
-                            </p>
-                          )}
-                          {gpsStatus === "idle" && !gpsTimedOut && (
-                            <p className="text-[10px] text-muted-foreground">
-                              Tap to capture your phone's GPS position. This helps our field agents verify your farm location.
-                            </p>
-                          )}
-                        </div>
+                            {gpsStatus === "done" && gpsCoords && (
+                              <div className="bg-green-50 rounded-lg px-3 py-2 text-[11px] text-green-700 font-mono">
+                                {gpsCoords.lat.toFixed(6)}, {gpsCoords.lng.toFixed(6)}
+                                {gpsCoords.accuracy && <span className="text-green-500 font-sans ml-2">±{gpsCoords.accuracy}m</span>}
+                              </div>
+                            )}
+                            {(gpsTimedOut || gpsStatus === "error") && (
+                              <div className="space-y-2 pt-1">
+                                <p className="text-[10px] text-amber-600 font-medium">
+                                  {gpsStatus === "error"
+                                    ? "Could not access your location. Enter coordinates manually or try again."
+                                    : "GPS is taking too long. Enter coordinates manually or wait for auto-capture."}
+                                </p>
+                                <div className="flex gap-2">
+                                  <div className="flex-1 space-y-1">
+                                    <label className="text-[9px] font-semibold text-muted-foreground uppercase">Latitude</label>
+                                    <input
+                                      type="number" step="any" value={gpsManualLat}
+                                      onChange={e => setGpsManualLat(e.target.value)}
+                                      placeholder="-1.2921"
+                                      className="w-full border border-border rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-primary font-mono"
+                                    />
+                                  </div>
+                                  <div className="flex-1 space-y-1">
+                                    <label className="text-[9px] font-semibold text-muted-foreground uppercase">Longitude</label>
+                                    <input
+                                      type="number" step="any" value={gpsManualLng}
+                                      onChange={e => setGpsManualLng(e.target.value)}
+                                      placeholder="36.8219"
+                                      className="w-full border border-border rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-primary font-mono"
+                                    />
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={applyManualGps}
+                                  disabled={!gpsManualLat || !gpsManualLng}
+                                  className="w-full text-[10px] font-semibold text-primary border border-primary/30 rounded-lg px-3 py-1.5 disabled:opacity-40 active:scale-95 transition-all"
+                                >
+                                  Use these coordinates
+                                </button>
+                              </div>
+                            )}
+                            {gpsStatus === "loading" && !gpsTimedOut && (
+                              <p className="text-[10px] text-muted-foreground">
+                                Locating your position… this may take a few seconds.
+                              </p>
+                            )}
+                            {gpsStatus === "idle" && !gpsTimedOut && (
+                              <p className="text-[10px] text-muted-foreground">
+                                Tap "Capture Location" to pin your farm's GPS position. GPS is optional but helps agents verify faster.
+                              </p>
+                            )}
+                          </div>
 
-                        {/* Save location button */}
-                        <button
-                          onClick={saveLocation}
-                          disabled={!county || locationSaving}
-                          className="w-full py-2.5 rounded-xl bg-primary/10 border border-primary/30 text-primary text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all active:scale-95"
-                        >
-                          {locationSaving ? <Loader2 size={12} className="animate-spin" /> : locationSaved ? <CheckCircle2 size={12} /> : <MapPin size={12} />}
-                          {locationSaved ? "Location Saved!" : locationSaving ? "Saving…" : "Save Farm Location"}
-                        </button>
-                      </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setLocationStep(1)}
+                              className="flex-1 py-2.5 rounded-xl border border-border text-muted-foreground text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                            >
+                              ← Back
+                            </button>
+                            <button
+                              onClick={saveLocation}
+                              disabled={locationSaving}
+                              className="flex-1 py-2.5 rounded-xl bg-primary/10 border border-primary/30 text-primary text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all active:scale-95"
+                            >
+                              {locationSaving ? <Loader2 size={12} className="animate-spin" /> : locationSaved ? <CheckCircle2 size={12} /> : <MapPin size={12} />}
+                              {locationSaved ? "Saved!" : locationSaving ? "Saving…" : "Save Location"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* ── SECTION 2: Documents ── */}

@@ -278,8 +278,8 @@ function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
               className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center" title="Minimize">
               <Minus size={8} className="text-white" />
             </button>
-            <button onClick={() => { setDismissed(true); localStorage.setItem("investa_checklist_dismissed", "1"); }}
-              className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center" title="Dismiss">
+            <button onClick={() => { setMinimized(true); localStorage.setItem("investa_checklist_minimized", "1"); }}
+              className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center" title="Hide — tap the bar to restore">
               <X size={8} className="text-white" />
             </button>
           </div>

@@ -248,38 +248,41 @@ export default function SecondaryMarket() {
 
         {/* Tabs */}
         <div className="flex px-4 pb-0 pt-1 gap-1">
-          {[
-            { id: "market", label: "Market", icon: null, accent: false },
-            { id: "orders", label: "Order Book", icon: <BookOpen size={10} />, accent: true },
-            { id: "mine",   label: "My Listings", badge: activeMyListings.length, accent: false },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id as any)}
-              className={`flex-1 py-2.5 text-[10px] font-black tracking-wide transition-all flex items-center justify-center gap-1 relative ${
-                tab === t.id
-                  ? t.accent ? "text-blue-600" : "text-primary"
-                  : "text-muted-foreground"
-              }`}>
-              {t.id === "orders" ? (
-                <span className={`flex items-center gap-1 ${tab === t.id ? "text-blue-600" : "text-muted-foreground"}`}>
-                  <BookOpen size={10} />
-                </span>
-              ) : null}
-              {t.label}
-              {(t as any).badge !== undefined && (t as any).badge >= 0 && (
-                <span className={`text-[8px] font-black px-1 rounded-full ml-0.5 ${
-                  tab === t.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                } ${(t as any).badge === 0 ? "opacity-50" : ""}`}>
-                  {(t as any).badge}
-                </span>
-              )}
-              {tab === t.id && (
-                <motion.div
-                  layoutId="tab-underline"
-                  className={`absolute bottom-0 left-2 right-2 h-[2px] rounded-full ${t.accent ? "bg-blue-500" : "bg-primary"}`}
-                />
-              )}
-            </button>
-          ))}
+          {/* Market tab */}
+          <button onClick={() => setTab("market")}
+            className={`flex-1 py-2.5 text-[10px] font-black tracking-wide transition-all flex items-center justify-center gap-1 relative ${tab === "market" ? "text-primary" : "text-muted-foreground"}`}>
+            Market
+            {tab === "market" && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-primary" />}
+          </button>
+
+          {/* Order Book tab — distinct blue "pro" chip */}
+          <button onClick={() => setTab("orders")}
+            className={`flex-1 py-2 text-[10px] font-black tracking-wide transition-all flex items-center justify-center gap-1 relative ${tab === "orders" ? "text-blue-600" : "text-muted-foreground"}`}>
+            {tab === "orders" ? (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 border border-blue-200 text-blue-700">
+                <BookOpen size={9} /> Order Book
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground">
+                <BookOpen size={9} /> Order Book
+              </span>
+            )}
+            {tab === "orders" && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-blue-500" />}
+          </button>
+
+          {/* My Listings tab — count badge always visible */}
+          <button onClick={() => setTab("mine")}
+            className={`flex-1 py-2.5 text-[10px] font-black tracking-wide transition-all flex items-center justify-center gap-1.5 relative ${tab === "mine" ? "text-primary" : "text-muted-foreground"}`}>
+            Mine
+            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center transition-all ${
+              tab === "mine"
+                ? "bg-primary text-white"
+                : activeMyListings.length > 0 ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground/60"
+            }`}>
+              {activeMyListings.length}
+            </span>
+            {tab === "mine" && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-primary" />}
+          </button>
         </div>
       </div>
 
