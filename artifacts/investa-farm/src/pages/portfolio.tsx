@@ -7,7 +7,7 @@ import {
   TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck,
   Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen,
   Star, Plus, RefreshCw, Bell, CreditCard, X, Info, ChevronLeft, ChevronRight,
-  Wallet, BarChart3, ArrowUpRight, ArrowDownRight,
+  Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Briefcase,
 } from "lucide-react";
 import { PortfolioWizard } from "@/components/portfolio-wizard";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
@@ -894,6 +894,15 @@ export default function Portfolio() {
           )}
         </div>
       )}
+
+      {/* Persistent Portfolio Setup button */}
+      <button
+        onClick={() => setWizardOpen(true)}
+        className="fixed right-4 bottom-24 z-40 bg-primary text-white shadow-xl shadow-primary/30 rounded-2xl px-4 py-2.5 flex items-center gap-2 text-xs font-bold active:scale-95 transition-all border border-primary/30"
+        title="Open Portfolio Setup"
+      >
+        <Briefcase size={14} /> Setup Guide
+      </button>
 
       <BottomNav role="investor" />
 

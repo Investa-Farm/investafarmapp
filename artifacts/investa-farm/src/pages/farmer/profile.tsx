@@ -3,7 +3,7 @@ import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, getStoredUser, storeUser, getToken, formatKES } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck } from "lucide-react";
+import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { WalletModal } from "@/components/wallet-modal";
@@ -18,6 +18,13 @@ export default function FarmerProfile() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("investa_theme", next ? "dark" : "light");
+  };
 
   const [settingsName, setSettingsName] = useState("");
   const [currentPw, setCurrentPw] = useState("");
@@ -96,6 +103,7 @@ export default function FarmerProfile() {
         { icon: Bell, label: "Notifications", sublabel: "Loan updates, market alerts", action: () => setNotifOpen(true) },
         { icon: ShieldCheck, label: "Security & 2FA", sublabel: "Two-factor authentication (TOTP)", action: () => setLocation("/farmer/totp") },
         { icon: Settings, label: "Account Settings", sublabel: "Name, password", action: openSettings },
+        { icon: isDark ? Sun : Moon, label: isDark ? "Switch to Light Mode" : "Switch to Dark Mode", sublabel: "Toggle app appearance", action: toggleDark },
       ]
     },
     {

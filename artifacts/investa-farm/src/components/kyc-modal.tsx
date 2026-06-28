@@ -46,6 +46,7 @@ function UploadPopup({
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [cameraMode, setCameraMode] = useState(docType.isSelfie);
+  const [cameraBlocked, setCameraBlocked] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedSelfie, setCapturedSelfie] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -58,7 +59,10 @@ function UploadPopup({
         video: { facingMode: docType.isSelfie ? "user" : "environment" }, audio: false,
       });
       setStream(s);
-    } catch {
+    } catch (err: any) {
+      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
+        setCameraBlocked(true);
+      }
       setCameraMode(false);
     }
   }, [docType.isSelfie]);
@@ -191,7 +195,17 @@ function UploadPopup({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <button onClick={() => setCameraMode(true)}
+                  {cameraBlocked && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-1">
+                      <p className="text-red-700 text-xs font-semibold mb-0.5 flex items-center gap-1.5">
+                        <AlertCircle size={12} /> Camera Access Blocked
+                      </p>
+                      <p className="text-red-600 text-[11px] leading-relaxed">
+                        To take a selfie, allow camera access: open your browser <strong>Settings → Site Settings → Camera</strong> and set this site to <strong>Allow</strong>, then reload this page.
+                      </p>
+                    </div>
+                  )}
+                  <button onClick={() => { setCameraBlocked(false); setCameraMode(true); }}
                     className="w-full border-2 border-dashed border-primary/40 rounded-2xl p-6 flex flex-col items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
                       <Video size={22} className="text-primary" />
@@ -280,6 +294,9 @@ export function KycModal({ open, onClose }: KycModalProps) {
   const [physicalAddress, setPhysicalAddress] = useState("");
   const [gpsStatus, setGpsStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [gpsTimedOut, setGpsTimedOut] = useState(false);
+  const [gpsManualLat, setGpsManualLat] = useState("");
+  const [gpsManualLng, setGpsManualLng] = useState("");
   const [locationSaved, setLocationSaved] = useState(false);
   const [locationSaving, setLocationSaving] = useState(false);
 
@@ -314,25 +331,41 @@ export function KycModal({ open, onClose }: KycModalProps) {
   const captureGPS = () => {
     setGpsStatus("loading");
     setGpsCoords(null);
+    setGpsTimedOut(false);
     if (!("geolocation" in navigator)) {
       setGpsStatus("error");
       return;
     }
+    const timeoutHandle = setTimeout(() => {
+      setGpsTimedOut(true);
+    }, 10000);
     navigator.geolocation.getCurrentPosition(
       pos => {
+        clearTimeout(timeoutHandle);
         setGpsCoords({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           accuracy: Math.round(pos.coords.accuracy),
         });
         setGpsStatus("done");
+        setGpsTimedOut(false);
       },
       (err) => {
+        clearTimeout(timeoutHandle);
         console.warn("GPS error:", err.code, err.message);
         setGpsStatus("error");
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
+  };
+
+  const applyManualGps = () => {
+    const lat = parseFloat(gpsManualLat);
+    const lng = parseFloat(gpsManualLng);
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+    setGpsCoords({ lat, lng });
+    setGpsStatus("done");
+    setGpsTimedOut(false);
   };
 
   const saveLocation = async () => {
@@ -520,12 +553,48 @@ export function KycModal({ open, onClose }: KycModalProps) {
                               {gpsCoords.accuracy && <span className="text-green-500 font-sans ml-2">±{gpsCoords.accuracy}m</span>}
                             </div>
                           )}
-                          {gpsStatus === "error" && (
-                            <p className="text-[10px] text-red-500">
-                              Could not access your location. Please allow location access in your browser settings and try again, or fill in the landmark field above.
+                          {(gpsTimedOut || gpsStatus === "error") && (
+                            <div className="space-y-2 pt-1">
+                              <p className="text-[10px] text-amber-600 font-medium">
+                                {gpsStatus === "error"
+                                  ? "Could not access your location. Enter coordinates manually or try again."
+                                  : "GPS is taking too long. Enter coordinates manually or wait for auto-capture."}
+                              </p>
+                              <div className="flex gap-2">
+                                <div className="flex-1 space-y-1">
+                                  <label className="text-[9px] font-semibold text-muted-foreground uppercase">Latitude</label>
+                                  <input
+                                    type="number" step="any" value={gpsManualLat}
+                                    onChange={e => setGpsManualLat(e.target.value)}
+                                    placeholder="-1.2921"
+                                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-primary font-mono"
+                                  />
+                                </div>
+                                <div className="flex-1 space-y-1">
+                                  <label className="text-[9px] font-semibold text-muted-foreground uppercase">Longitude</label>
+                                  <input
+                                    type="number" step="any" value={gpsManualLng}
+                                    onChange={e => setGpsManualLng(e.target.value)}
+                                    placeholder="36.8219"
+                                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-primary font-mono"
+                                  />
+                                </div>
+                              </div>
+                              <button
+                                onClick={applyManualGps}
+                                disabled={!gpsManualLat || !gpsManualLng}
+                                className="w-full text-[10px] font-semibold text-primary border border-primary/30 rounded-lg px-3 py-1.5 disabled:opacity-40 active:scale-95 transition-all"
+                              >
+                                Use these coordinates
+                              </button>
+                            </div>
+                          )}
+                          {gpsStatus === "loading" && !gpsTimedOut && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Locating your position… this may take a few seconds.
                             </p>
                           )}
-                          {gpsStatus === "idle" && (
+                          {gpsStatus === "idle" && !gpsTimedOut && (
                             <p className="text-[10px] text-muted-foreground">
                               Tap to capture your phone's GPS position. This helps our field agents verify your farm location.
                             </p>

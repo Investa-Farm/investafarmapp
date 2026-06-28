@@ -308,7 +308,22 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                             </p>
                           </div>
                           <button
-                            onClick={() => { resetAndClose(); setLocation("/wallet"); }}
+                            onClick={() => {
+                              if (listing) {
+                                try {
+                                  sessionStorage.setItem("investa_pending_invest", JSON.stringify({
+                                    listingId: listing.id,
+                                    farmName: listing.farmName,
+                                    cropType: listing.cropType,
+                                    quantity,
+                                    exitType: selectedExit?.type ?? "wide_season",
+                                    ts: Date.now(),
+                                  }));
+                                } catch { /* ignore */ }
+                              }
+                              resetAndClose();
+                              setLocation("/wallet");
+                            }}
                             className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2">
                             <Wallet size={15} /> Go to Wallet & Top Up →
                           </button>

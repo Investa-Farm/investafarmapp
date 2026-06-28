@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useListTransactions } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken } from "@/lib/auth";
@@ -135,6 +136,7 @@ type Placement = {
 };
 
 export default function Activity() {
+  const [, setLocation] = useLocation();
   const { data: transactions, isLoading } = useListTransactions();
   const [selectedTx, setSelectedTx] = useState<TxItem | null>(null);
   const [tab, setTab] = useState<"transactions" | "placements" | "feed">("transactions");
@@ -388,10 +390,16 @@ export default function Activity() {
               <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center mx-auto mb-3">
                 <Newspaper size={28} className="text-primary/40" />
               </div>
-              <p className="text-foreground font-semibold text-sm">No updates yet</p>
-              <p className="text-muted-foreground text-xs mt-1 max-w-[220px] mx-auto leading-relaxed">
-                Farm updates from your invested farms will appear here once posted by farmers.
+              <p className="text-foreground font-semibold text-sm">No farm updates yet</p>
+              <p className="text-muted-foreground text-xs mt-1 max-w-[240px] mx-auto leading-relaxed">
+                Invest in a farm first to see live updates here — harvest progress, field reports, and more.
               </p>
+              <button
+                onClick={() => setLocation("/market")}
+                className="mt-4 px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl active:scale-95 transition-all"
+              >
+                Browse Farms →
+              </button>
             </div>
           ) : feedItems.map((item: any) => {
             const img = getCropImage(item.cropType, item.updateImageUrl ?? item.imageUrl);

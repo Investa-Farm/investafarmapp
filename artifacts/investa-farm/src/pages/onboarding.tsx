@@ -101,8 +101,8 @@ export default function Onboarding() {
 
   const back = () => { if (current > 0) setCurrent(c => c - 1); };
 
-  const goAsInvestor = () => { localStorage.setItem("investa_seen_onboarding", "1"); setLocation("/login"); };
-  const goAsFarmer  = () => { localStorage.setItem("investa_seen_onboarding", "1"); setLocation("/login"); };
+  const goAsInvestor = () => { localStorage.setItem("investa_seen_onboarding", "1"); setLocation("/register?role=investor"); };
+  const goAsFarmer  = () => { localStorage.setItem("investa_seen_onboarding", "1"); setLocation("/register?role=farmer"); };
 
   const skip = () => { localStorage.setItem("investa_seen_onboarding", "1"); setLocation("/"); };
 
@@ -250,8 +250,18 @@ export default function Onboarding() {
 
               {/* Nav row: dots + CTA */}
               <div className="flex items-center justify-between">
-                {/* Dots */}
+                {/* Back button + Dots */}
                 <div className="flex gap-2 items-center">
+                  {current > 0 && (
+                    <button
+                      onClick={back}
+                      aria-label="Go back"
+                      className="flex items-center gap-1 text-white/70 text-xs font-semibold mr-1 active:opacity-60 transition-opacity"
+                    >
+                      <ChevronLeft size={16} strokeWidth={2.5} />
+                      <span>Back</span>
+                    </button>
+                  )}
                   {slides.map((_, i) => (
                     <button key={i} onClick={() => setCurrent(i)} data-testid={`dot-${i}`}>
                       <motion.div
@@ -268,23 +278,53 @@ export default function Onboarding() {
                 </div>
 
                 {/* CTA button */}
-                <motion.button
-                  key={`cta-${current}`}
-                  initial={{ opacity: 0, x: 12, scale: 0.92 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  transition={{ delay: 0.4, duration: 0.4, ease: "easeOut" }}
-                  onClick={next}
-                  data-testid="button-next"
-                  className="flex items-center gap-2 pl-6 pr-5 py-3.5 rounded-2xl font-black text-sm active:scale-95 transition-transform"
-                  style={{
-                    background: `linear-gradient(135deg, ${slide.accent}, ${slide.accentDark})`,
-                    color: "#0a0a0a",
-                    boxShadow: `0 8px 32px ${slide.accent}50`,
-                  }}
-                >
-                  {current === slides.length - 1 ? "Get Started" : "Continue"}
-                  <ChevronRight size={17} strokeWidth={3} />
-                </motion.button>
+                {current === slides.length - 1 ? (
+                  <motion.div
+                    key="cta-role-split"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4, duration: 0.4, ease: "easeOut" }}
+                    className="flex gap-2"
+                  >
+                    <button
+                      data-testid="button-investor"
+                      onClick={() => setLocation("/register?role=investor")}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-2xl font-black text-sm active:scale-95 transition-transform"
+                      style={{
+                        background: `linear-gradient(135deg, ${slide.accent}, ${slide.accentDark})`,
+                        color: "#0a0a0a",
+                        boxShadow: `0 8px 32px ${slide.accent}50`,
+                      }}
+                    >
+                      💼 I'm an Investor
+                    </button>
+                    <button
+                      data-testid="button-farmer"
+                      onClick={() => setLocation("/register?role=farmer")}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-2xl font-black text-sm active:scale-95 transition-transform bg-white/15 border border-white/30 text-white"
+                    >
+                      🌱 I'm a Farmer
+                    </button>
+                  </motion.div>
+                ) : (
+                  <motion.button
+                    key={`cta-${current}`}
+                    initial={{ opacity: 0, x: 12, scale: 0.92 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    transition={{ delay: 0.4, duration: 0.4, ease: "easeOut" }}
+                    onClick={next}
+                    data-testid="button-next"
+                    className="flex items-center gap-2 pl-6 pr-5 py-3.5 rounded-2xl font-black text-sm active:scale-95 transition-transform"
+                    style={{
+                      background: `linear-gradient(135deg, ${slide.accent}, ${slide.accentDark})`,
+                      color: "#0a0a0a",
+                      boxShadow: `0 8px 32px ${slide.accent}50`,
+                    }}
+                  >
+                    Continue
+                    <ChevronRight size={17} strokeWidth={3} />
+                  </motion.button>
+                )}
               </div>
             </div>
           </div>

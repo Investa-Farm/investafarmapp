@@ -70,7 +70,7 @@ export default function FarmerDashboard() {
     },
   });
 
-  const { data: notifications = [] } = useQuery<any[]>({
+  const { data: notifications = [], isError: notifError } = useQuery<any[]>({
     queryKey: ["notifications"],
     queryFn: async () => {
       const r = await fetch("/api/notifications", { headers: { Authorization: `Bearer ${token}` } });
@@ -128,11 +128,9 @@ export default function FarmerDashboard() {
                     {Math.min(unreadCount, 9)}
                   </span>
                 )}
-              </button>
-              <button onClick={toggleDark}
-                className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center"
-                title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
-                {isDark ? <Sun size={16} className="text-white" /> : <Moon size={16} className="text-white" />}
+                {unreadCount === 0 && notifError && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white/60 rounded-full border border-white/30" />
+                )}
               </button>
               <div className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
                 <span className="text-white text-sm font-bold">{user?.name?.charAt(0) ?? "F"}</span>
@@ -190,6 +188,21 @@ export default function FarmerDashboard() {
       </div>
 
       <div className="px-5 pt-4 space-y-4">
+        {/* Apply for Funding — hero CTA when farmer has no active farm yet */}
+        {!currentFarm && (
+          <button
+            onClick={() => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); }}
+            className="w-full bg-gradient-to-r from-primary to-green-500 rounded-2xl p-5 text-left active:scale-[0.98] transition-transform shadow-lg shadow-primary/30">
+            <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mb-1">Get Started</p>
+            <p className="text-white font-black text-xl leading-tight mb-1">Apply for Farm Funding</p>
+            <p className="text-white/75 text-xs mb-4">List your farm on the investor market and raise capital today</p>
+            <div className="flex items-center gap-2 bg-white/20 border border-white/30 rounded-xl px-4 py-2.5 w-fit">
+              <DollarSign size={15} className="text-white" />
+              <span className="text-white font-bold text-sm">Start Application →</span>
+            </div>
+          </button>
+        )}
+
         {/* Wallet balance card */}
         <div className="bg-gradient-to-br from-[#052e16] to-[#166534] rounded-2xl p-4 text-white shadow-lg">
           <div className="flex items-center justify-between mb-3">

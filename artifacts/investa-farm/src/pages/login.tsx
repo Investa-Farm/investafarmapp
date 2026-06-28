@@ -4,6 +4,18 @@ import { setToken, storeUser } from "@/lib/auth";
 import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck, Smartphone, ArrowLeft, RefreshCw, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+const PENDING_OTP_KEY = "investa_pending_otp";
+
+function getPendingOtp(): { email: string; ts: number } | null {
+  try {
+    const raw = localStorage.getItem(PENDING_OTP_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.ts > 60 * 60 * 1000) { localStorage.removeItem(PENDING_OTP_KEY); return null; }
+    return parsed;
+  } catch { return null; }
+}
+
 export default function Login() {
   const [, setLocation] = useLocation();
   const search = useSearch();
@@ -22,6 +34,9 @@ export default function Login() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [fieldTouched, setFieldTouched] = useState({ email: false, password: false });
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
+  const [pendingOtp, setPendingOtp] = useState<{ email: string; ts: number } | null>(() => getPendingOtp());
+  const [quickResendLoading, setQuickResendLoading] = useState(false);
+  const [quickResendDone, setQuickResendDone] = useState(false);
 
   const isEmailValid = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -56,6 +71,22 @@ export default function Login() {
     }
   };
 
+  const handleQuickResendOtp = async (pendingEmail: string) => {
+    if (quickResendLoading || quickResendDone) return;
+    setQuickResendLoading(true);
+    try {
+      await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: pendingEmail }),
+      });
+      setQuickResendDone(true);
+      setTimeout(() => setQuickResendDone(false), 8000);
+    } catch { /* silent */ } finally {
+      setQuickResendLoading(false);
+    }
+  };
+
   // TOTP 2FA state
   const [totpStep, setTotpStep] = useState(false);
   const [totpCode, setTotpCode] = useState(["", "", "", "", "", ""]);
@@ -87,8 +118,11 @@ export default function Login() {
       if (r.status === 403 && d.requiresOtp) {
         setToken(d.token);
         storeUser(d.user);
-        setVerifyEmail(d.email ?? email);
+        const oEmail = d.email ?? email;
+        setVerifyEmail(oEmail);
         setNeedsVerify(true);
+        localStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ email: oEmail, ts: Date.now() }));
+        setPendingOtp({ email: oEmail, ts: Date.now() });
         return;
       }
       if (d.totpRequired) {
@@ -231,7 +265,7 @@ export default function Login() {
               </button>
             )}
           </div>
-          <button onClick={() => setNeedsVerify(false)} className="text-muted-foreground text-sm hover:text-foreground transition-colors">
+          <button onClick={() => { setNeedsVerify(false); localStorage.removeItem(PENDING_OTP_KEY); setPendingOtp(null); }} className="text-muted-foreground text-sm hover:text-foreground transition-colors">
             ← Back to sign in
           </button>
         </motion.div>
@@ -447,6 +481,49 @@ export default function Login() {
             </p>
           </div>
         </div>
+
+        {/* Pending OTP banner — shown when user closed verify screen mid-flow */}
+        {pendingOtp && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-3 bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3"
+          >
+            <p className="text-amber-800 text-xs font-semibold mb-1 flex items-center gap-1.5">
+              <ShieldCheck size={13} /> Verification code pending for
+            </p>
+            <p className="text-amber-700 text-xs font-medium truncate mb-2">{pendingOtp.email}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setLocation(`/verify-otp?email=${encodeURIComponent(pendingOtp.email)}`)}
+                className="flex-1 py-2 bg-amber-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Mail size={12} /> Enter Code
+              </button>
+              {quickResendDone ? (
+                <span className="flex-1 py-2 text-green-700 bg-green-50 border border-green-200 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5">
+                  <CheckCircle2 size={12} /> Sent!
+                </span>
+              ) : (
+                <button
+                  onClick={() => handleQuickResendOtp(pendingOtp.email)}
+                  disabled={quickResendLoading}
+                  className="flex-1 py-2 border border-amber-300 text-amber-700 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all disabled:opacity-60"
+                >
+                  {quickResendLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                  Resend
+                </button>
+              )}
+              <button
+                onClick={() => { localStorage.removeItem(PENDING_OTP_KEY); setPendingOtp(null); }}
+                className="w-8 h-8 flex-shrink-0 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 hover:bg-amber-200 transition-colors"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         <div className="mt-4 bg-primary/5 border border-primary/20 rounded-xl p-4">
           <p className="text-muted-foreground text-xs text-center leading-relaxed">
