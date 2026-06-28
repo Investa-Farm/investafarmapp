@@ -326,10 +326,10 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const amt = parseFloat(amount) || 0;
   const usdcEstimate = circleInfo ? (amt / circleInfo.kesRate).toFixed(2) : "0.00";
 
-  const TABS: { id: Tab; label: string; icon: React.ReactNode; activeClass: string }[] = [
-    { id: "mpesa", label: "M-Pesa", icon: <Smartphone size={14} />, activeClass: "bg-green-600 text-white shadow-green-600/30" },
-    { id: "card", label: "Card", icon: <CreditCard size={14} />, activeClass: "bg-blue-600 text-white shadow-blue-600/30" },
-    { id: "usdc", label: "USDC", icon: <Coins size={14} />, activeClass: "bg-purple-600 text-white shadow-purple-600/30" },
+  const TABS: { id: Tab; label: string; icon: React.ReactNode; activeClass: string; gradient: string }[] = [
+    { id: "mpesa", label: "M-Pesa", icon: <Smartphone size={14} />, activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#15803d,#16a34a)" },
+    { id: "card",  label: "Card",   icon: <CreditCard size={14} />, activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#1d4ed8,#3b82f6)" },
+    { id: "usdc",  label: "USDC",   icon: <Coins size={14} />,      activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#7c3aed,#a855f7)" },
   ];
 
   return (
@@ -381,13 +381,15 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
             </AnimatePresence>
 
             <div className="overflow-y-auto px-5 pb-8 space-y-4 pt-4">
-              {/* Tab selector */}
-              <div className="flex gap-1.5 p-1 bg-muted rounded-2xl">
+              {/* Tab selector — premium pill tabs */}
+              <div className="flex gap-1.5 p-1.5 bg-muted/80 rounded-2xl border border-border/60">
                 {TABS.map(t => (
                   <button key={t.id} onClick={() => { setTab(t.id); setCardError(null); setMpesaError(null); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                      tab === t.id ? `${t.activeClass} shadow-md` : "text-muted-foreground hover:text-foreground"
-                    }`}>
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                      tab === t.id ? `${t.activeClass}` : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    style={tab === t.id ? { background: t.gradient, boxShadow: "0 4px 14px rgba(0,0,0,0.25)" } : {}}
+                  >
                     {t.icon} {t.label}
                   </button>
                 ))}
@@ -433,17 +435,33 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                 <div className="space-y-4">
                   {mpesaStep === "idle" && (
                     <>
-                      {/* Daraja branding banner */}
-                      <div className="relative overflow-hidden bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-4">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-6 translate-x-6" />
-                        <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-4 -translate-x-4" />
-                        <div className="relative flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                            <span className="text-xl">📱</span>
+                      {/* M-Pesa premium banner */}
+                      <div className="relative overflow-hidden rounded-2xl" style={{ background: "linear-gradient(135deg,#052e16 0%,#166534 55%,#15803d 100%)", boxShadow: "0 8px 32px rgba(21,128,61,0.45)" }}>
+                        {/* Decorative circles */}
+                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-white/5" />
+                        <div className="absolute top-4 right-8 w-14 h-14 rounded-full bg-white/5" />
+                        <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/5" />
+                        <div className="relative p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                              <span className="text-2xl">📱</span>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <p className="text-white font-black text-sm tracking-tight">M-Pesa</p>
+                                <span className="bg-white/20 text-white/90 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white/20">SAFARICOM</span>
+                              </div>
+                              <p className="text-green-200/80 text-[11px] leading-relaxed">STK push sent to your phone · Enter PIN to confirm instantly</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-white font-bold text-sm">Pay with M-Pesa</p>
-                            <p className="text-green-100 text-xs mt-0.5 leading-relaxed">Powered by Safaricom Daraja · You'll receive an STK push on your phone — enter your M-Pesa PIN to confirm.</p>
+                          {/* Stats row */}
+                          <div className="flex gap-3 mt-3 pt-3 border-t border-white/10">
+                            {[{ label: "Instant", icon: "⚡" }, { label: "Secure", icon: "🔒" }, { label: "No fees", icon: "✅" }].map(s => (
+                              <div key={s.label} className="flex items-center gap-1">
+                                <span className="text-xs">{s.icon}</span>
+                                <span className="text-white/70 text-[10px] font-semibold">{s.label}</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
@@ -573,33 +591,47 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
               {/* ─── CARD TAB (Stripe) ─────────────────────────────────────── */}
               {tab === "card" && (
                 <div className="space-y-4">
-                  {/* Card preview visual */}
-                  <div className="relative overflow-hidden rounded-2xl h-36 bg-gradient-to-br from-slate-800 via-blue-900 to-blue-800 p-5 shadow-xl shadow-blue-900/30">
-                    {/* Decorative circles */}
-                    <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-blue-400/20 -translate-y-8 translate-x-8" />
-                    <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-blue-600/20 translate-y-8 -translate-x-6" />
-                    {/* Card chip */}
-                    <div className="relative flex flex-col h-full justify-between">
-                      <div className="flex items-center justify-between">
-                        <div className="w-8 h-6 rounded-sm bg-gradient-to-br from-yellow-300 to-yellow-500 opacity-90" />
+                  {/* Premium credit card visual */}
+                  <div className="relative overflow-hidden rounded-2xl h-44"
+                    style={{ background: "linear-gradient(135deg,#0f172a 0%,#1e3a8a 50%,#1d4ed8 100%)", boxShadow: "0 12px 40px rgba(29,78,216,0.5)" }}>
+                    {/* Holographic shimmer */}
+                    <div className="absolute inset-0 opacity-20" style={{ background: "radial-gradient(ellipse at 70% 30%, rgba(147,197,253,0.6) 0%, transparent 60%)" }} />
+                    <div className="absolute top-0 right-0 w-40 h-40 rounded-full -translate-y-12 translate-x-12" style={{ background: "rgba(96,165,250,0.15)" }} />
+                    <div className="absolute bottom-0 left-0 w-28 h-28 rounded-full translate-y-8 -translate-x-6" style={{ background: "rgba(37,99,235,0.25)" }} />
+                    {/* Diagonal stripe pattern */}
+                    <div className="absolute inset-0 opacity-5"
+                      style={{ backgroundImage: "repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 12px)" }} />
+                    <div className="relative flex flex-col h-full justify-between p-5">
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col gap-0.5">
+                          {/* EMV chip */}
+                          <div className="w-10 h-7 rounded-md" style={{ background: "linear-gradient(135deg,#ca8a04,#fbbf24,#d97706)", boxShadow: "inset 0 1px 2px rgba(255,255,255,0.4)" }}>
+                            <div className="w-full h-full rounded-md opacity-60"
+                              style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.15) 2px,rgba(0,0,0,0.15) 3px)" }} />
+                          </div>
+                        </div>
                         <div className="flex items-center gap-1.5">
-                          {["VISA", "MC", "Amex"].map(b => (
-                            <span key={b} className="text-[9px] font-black text-white/60 bg-white/10 px-1.5 py-0.5 rounded">{b}</span>
+                          {["VISA", "MC", "AMEX"].map(b => (
+                            <span key={b} className="text-[8px] font-black text-white/50 bg-white/10 px-1.5 py-0.5 rounded border border-white/10">{b}</span>
                           ))}
                         </div>
                       </div>
                       <div>
-                        <p className="text-white/40 text-[9px] font-semibold uppercase tracking-widest mb-0.5">Secure card payment</p>
-                        <p className="text-white font-bold text-lg tracking-widest">
-                          {amt > 0 ? formatKES(amt) : "KES ––––"}
+                        <p className="text-white/30 text-[8px] font-semibold uppercase tracking-[0.2em] mb-1">Charge amount</p>
+                        <p className="text-white font-black text-2xl tracking-tight" style={{ fontFamily: "Space Grotesk, monospace" }}>
+                          {amt > 0 ? formatKES(amt) : "KES ––.––"}
                         </p>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <Lock size={9} className="text-blue-300/60" />
+                          <span className="text-blue-200/50 text-[9px] font-semibold uppercase tracking-widest">PCI-DSS Level 1 · Stripe Secure</span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
+                  <div className="flex items-center gap-2 rounded-xl p-3" style={{ background: "linear-gradient(135deg,#eff6ff,#dbeafe)", border: "1px solid #bfdbfe" }}>
                     <Shield size={13} className="text-blue-600 flex-shrink-0" />
-                    <p className="text-blue-700 text-xs">Encrypted & powered by Stripe · PCI-DSS Level 1</p>
+                    <p className="text-blue-700 text-xs font-medium">3D Secure · Encrypted end-to-end · Powered by Stripe</p>
                     <Lock size={11} className="text-blue-400 ml-auto flex-shrink-0" />
                   </div>
 
@@ -680,14 +712,35 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                 <div className="space-y-4">
                   {!circleIntentId ? (
                     <>
-                      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3 flex items-start gap-2.5">
-                        <span className="text-xl">🪙</span>
-                        <div>
-                          <p className="text-purple-800 font-semibold text-xs">Pay with USDC (via Circle)</p>
-                          <p className="text-purple-600 text-xs mt-0.5">
-                            Send USDC on Polygon (MATIC) to a deposit address. Ideal for diaspora investors.
-                            {circleInfo && ` Rate: KES ${circleInfo.kesRate.toFixed(0)} / USDC`}
-                          </p>
+                      {/* USDC premium crypto card */}
+                      <div className="relative overflow-hidden rounded-2xl p-4"
+                        style={{ background: "linear-gradient(135deg,#1e0b3a 0%,#3b0764 50%,#6d28d9 100%)", boxShadow: "0 10px 36px rgba(109,40,217,0.45)" }}>
+                        <div className="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-purple-400/10" />
+                        <div className="absolute bottom-0 left-8 w-16 h-16 rounded-full bg-purple-600/10" />
+                        <div className="relative flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                            <span className="text-2xl">🪙</span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className="text-white font-black text-sm">USDC</p>
+                              <span className="bg-white/15 text-purple-200 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white/15">CIRCLE</span>
+                            </div>
+                            <p className="text-purple-200/80 text-[11px] leading-relaxed">
+                              {circleInfo
+                                ? `Rate: KES ${circleInfo.kesRate.toFixed(0)} / USDC · ${circleInfo.chain} network`
+                                : "Polygon (MATIC) · Ideal for diaspora investors"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 mt-3 pt-3 border-t border-white/10">
+                          {[{ label: "Stablecoin", icon: "💎" }, { label: "On-chain", icon: "⛓️" }, { label: "Global", icon: "🌍" }].map(s => (
+                            <div key={s.label} className="flex items-center gap-1">
+                              <span className="text-xs">{s.icon}</span>
+                              <span className="text-white/60 text-[10px] font-semibold">{s.label}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 

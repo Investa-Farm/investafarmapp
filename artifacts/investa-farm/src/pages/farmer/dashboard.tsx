@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
-import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Moon, Wallet, ArrowUpRight, FileText, BarChart2 } from "lucide-react";
+import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Moon, Wallet, ArrowUpRight, FileText, BarChart2, Globe2 } from "lucide-react";
+import { useCurrency, CURRENCIES, type CurrencyCode } from "@/lib/currency";
 import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
 import { useLocation, Link } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
@@ -88,6 +89,9 @@ export default function FarmerDashboard() {
     },
     staleTime: 60_000,
   });
+
+  const { formatAmount, currency, setCurrency } = useCurrency();
+  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
@@ -210,16 +214,50 @@ export default function FarmerDashboard() {
               <Wallet size={15} className="text-green-300" />
               <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">My Wallet</p>
             </div>
-            <Link href="/wallet">
-              <button className="text-green-300 text-[10px] font-bold flex items-center gap-0.5">
-                Manage <ArrowUpRight size={11} />
-              </button>
-            </Link>
+            <div className="flex items-center gap-2">
+              {/* Currency picker */}
+              <div className="relative">
+                <button
+                  onClick={() => setCurrencyPickerOpen(o => !o)}
+                  className="flex items-center gap-1 text-green-300 text-[10px] font-bold bg-white/10 px-2 py-1 rounded-lg active:bg-white/20 transition-colors"
+                >
+                  <Globe2 size={9} />
+                  {currency.flag} {currency.code}
+                </button>
+                {currencyPickerOpen && (
+                  <div className="absolute right-0 top-7 z-20 bg-[#052e16] border border-white/20 rounded-xl shadow-2xl overflow-hidden w-44">
+                    {CURRENCIES.map(c => (
+                      <button
+                        key={c.code}
+                        onClick={() => { setCurrency(c.code as CurrencyCode); setCurrencyPickerOpen(false); }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
+                          c.code === currency.code ? "bg-white/20 text-white font-bold" : "text-white/70 hover:bg-white/10"
+                        }`}
+                      >
+                        <span>{c.flag}</span>
+                        <span className="font-semibold">{c.code}</span>
+                        <span className="text-white/50 text-[10px] ml-auto">{c.symbol}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Link href="/wallet">
+                <button className="text-green-300 text-[10px] font-bold flex items-center gap-0.5">
+                  Manage <ArrowUpRight size={11} />
+                </button>
+              </Link>
+            </div>
           </div>
-          <p className="text-white font-bold text-2xl">
-            KES {walletBalance.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-          <p className="text-white/50 text-[10px] mt-0.5">Available balance</p>
+          <p className="text-white font-bold text-2xl">{formatAmount(walletBalance)}</p>
+          {currency.code !== "KES" && (
+            <p className="text-white/40 text-[10px] mt-0.5">
+              ≈ {formatKES(walletBalance)} · Available balance
+            </p>
+          )}
+          {currency.code === "KES" && (
+            <p className="text-white/50 text-[10px] mt-0.5">Available balance</p>
+          )}
           <div className="grid grid-cols-3 gap-2 mt-3">
             {[
               { icon: DollarSign, label: "Apply Loan", action: () => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); } },

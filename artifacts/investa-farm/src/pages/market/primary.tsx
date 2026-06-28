@@ -143,7 +143,7 @@ function TickerTape({ listings }: { listings: Listing[] }) {
           return (
             <span key={i} className="text-[10px] font-bold tracking-wide inline-flex items-center gap-1.5">
               <span className="text-muted-foreground">{ticker}</span>
-              <span className="text-foreground font-mono">{formatKES(l.pricePerShare)}</span>
+              <span className="text-foreground font-mono">{formatAmount(l.pricePerShare)}</span>
               <span className={up ? "text-green-600" : "text-red-500"}>
                 {up ? "▲" : "▼"}{Math.abs(l.changePercent).toFixed(1)}%
               </span>

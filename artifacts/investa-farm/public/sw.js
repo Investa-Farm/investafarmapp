@@ -1,4 +1,4 @@
-const CACHE_NAME = 'investa-farm-v4';
+const CACHE_NAME = 'investa-farm-v5';
 const STATIC_ASSETS = ['/logo.png', '/favicon.png'];
 
 self.addEventListener('install', e => {
@@ -31,7 +31,7 @@ const TYPE_CONFIG = {
   harvest_payout:      { emoji: '🌾', color: '#f59e0b', label: 'Harvest Payout', requireInteract: true  },
   harvest:             { emoji: '🌾', color: '#f59e0b', label: 'Harvest Payout', requireInteract: true  },
   new_listing:         { emoji: '🌱', color: '#16a34a', label: 'New Listing',     requireInteract: false },
-  order_filled:        { emoji: '✅', color: '#16a34a', label: 'Order Filled',   requireInteract: false },
+  order_filled:        { emoji: '✅', color: '#16a34a', label: 'Order Filled',   requireInteract: true  },
   exit_processed:      { emoji: '↩️', color: '#6b7280', label: 'Exit Processed', requireInteract: false },
 };
 
@@ -49,27 +49,32 @@ self.addEventListener('push', event => {
 
   const cfg = TYPE_CONFIG[type] ?? { emoji: '🔔', color: '#16a34a', label: 'Notification', requireInteract: false };
   const displayTitle = `${cfg.emoji} ${title}`;
-  const displayBody = amount ? `${body}` : body;
 
-  // Use a unique tag per notification so every push fires its own alert on Android/iOS.
-  // Static tags collapse new notifications into the existing one and suppress vibration.
-  const uniqueTag = `investa-${type}-${Date.now()}`;
+  // Unique tag per notification so every push fires its own alert on Android and iOS.
+  // renotify:true is required on mobile to trigger sound/vibration even with a unique tag.
+  const uniqueTag = `investa-${type}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+
+  const notifOptions = {
+    body,
+    icon: '/logo.png',
+    badge: '/favicon.png',
+    tag: uniqueTag,
+    // renotify:true ensures Android/iOS plays sound + vibrates for every notification,
+    // even when the tag is unique (some mobile browsers still suppress without this).
+    renotify: true,
+    timestamp: Date.now(),
+    data: { url, type, amount },
+    actions: cfg.requireInteract
+      ? [{ action: 'open', title: '👁 View' }, { action: 'dismiss', title: 'Dismiss' }]
+      : [{ action: 'open', title: 'Open App' }],
+    requireInteraction: cfg.requireInteract,
+    // vibrate is ignored by iOS but respected by Android Chrome PWA
+    vibrate: cfg.requireInteract ? [200, 100, 200, 100, 400] : [150, 50, 150],
+    silent: false,
+  };
 
   event.waitUntil(
-    self.registration.showNotification(displayTitle, {
-      body: displayBody,
-      icon: '/logo.png',
-      badge: '/favicon.png',
-      tag: uniqueTag,
-      renotify: false,
-      data: { url, type, amount },
-      actions: cfg.requireInteract
-        ? [{ action: 'open', title: '👁 View' }, { action: 'dismiss', title: 'Dismiss' }]
-        : [{ action: 'open', title: 'Open App' }],
-      requireInteraction: cfg.requireInteract,
-      vibrate: cfg.requireInteract ? [200, 100, 200, 100, 400] : [150, 50, 150],
-      silent: false,
-    })
+    self.registration.showNotification(displayTitle, notifOptions)
   );
 });
 
@@ -96,4 +101,16 @@ self.addEventListener('sync', event => {
   if (event.tag === 'sync-notifications') {
     event.waitUntil(Promise.resolve());
   }
+});
+
+// iOS Safari: handle push subscription change
+self.addEventListener('pushsubscriptionchange', event => {
+  event.waitUntil(
+    self.registration.pushManager.subscribe({ userVisibleOnly: true })
+      .then(sub => fetch('/api/notifications/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sub),
+      })).catch(() => {})
+  );
 });
