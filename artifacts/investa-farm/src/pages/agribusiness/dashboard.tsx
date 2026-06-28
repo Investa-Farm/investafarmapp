@@ -181,13 +181,13 @@ export default function AgribusinessDashboard() {
           <>
             {/* KYC Status */}
             {kycApproved < 2 && (
-              <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <ShieldCheck size={20} className="text-amber-600" />
+              <div className="bg-amber-500/10 border-2 border-amber-400/40 rounded-2xl p-4 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                  <ShieldCheck size={20} className="text-amber-500" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-amber-800 font-bold text-sm">Complete Business KYC</p>
-                  <p className="text-amber-700 text-xs mt-0.5 leading-relaxed">
+                  <p className="text-foreground font-bold text-sm">Complete Business KYC</p>
+                  <p className="text-muted-foreground text-xs mt-0.5 leading-relaxed">
                     {kycPending > 0 ? "Your documents are under review. Our team will notify you within 24–48 hours." : "Upload your business documents to get verified and start operating on the platform."}
                   </p>
                   {kycPending === 0 && (
@@ -205,32 +205,32 @@ export default function AgribusinessDashboard() {
             <div className="grid grid-cols-2 gap-3">
               {isInputSupplier ? (
                 <>
-                  <div className="rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 p-3.5 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-14 h-14 bg-orange-200 rounded-full -mr-4 -mt-4 opacity-40" />
-                    <p className="text-orange-700 text-[10px] font-semibold uppercase tracking-wider">Pending Orders</p>
-                    <p className="text-orange-900 font-extrabold text-3xl mt-1 leading-none">{agribizStats ? String(agribizStats.pendingOrders) : "—"}</p>
+                  <div className="rounded-2xl bg-orange-500/10 border border-orange-400/20 p-3.5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-14 h-14 bg-orange-400/20 rounded-full -mr-4 -mt-4" />
+                    <p className="text-orange-500 text-[10px] font-semibold uppercase tracking-wider">Pending Orders</p>
+                    <p className="text-foreground font-extrabold text-3xl mt-1 leading-none">{agribizStats ? String(agribizStats.pendingOrders) : "—"}</p>
                     <p className="text-orange-500 text-[10px] font-medium mt-1">{agribizStats?.pendingOrders === 0 ? "✓ All up to date" : "Awaiting fulfilment"}</p>
                   </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 p-3.5 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-14 h-14 bg-green-200 rounded-full -mr-4 -mt-4 opacity-40" />
-                    <p className="text-green-700 text-[10px] font-semibold uppercase tracking-wider">Total Redeemed</p>
-                    <p className="text-green-900 font-extrabold text-xl mt-1 leading-none">{agribizStats ? formatKES(agribizStats.totalRedeemedKes) : "—"}</p>
-                    <p className="text-green-600 text-[10px] font-medium mt-1">This season</p>
+                  <div className="rounded-2xl bg-[#16a34a]/10 border border-[#16a34a]/20 p-3.5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-14 h-14 bg-[#16a34a]/20 rounded-full -mr-4 -mt-4" />
+                    <p className="text-[#16a34a] text-[10px] font-semibold uppercase tracking-wider">Total Redeemed</p>
+                    <p className="text-foreground font-extrabold text-xl mt-1 leading-none">{agribizStats ? formatKES(agribizStats.totalRedeemedKes) : "—"}</p>
+                    <p className="text-[#16a34a] text-[10px] font-medium mt-1">This season</p>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 p-3.5 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-14 h-14 bg-emerald-200 rounded-full -mr-4 -mt-4 opacity-40" />
-                    <p className="text-emerald-700 text-[10px] font-semibold uppercase tracking-wider">Farmers Connected</p>
-                    <p className="text-emerald-900 font-extrabold text-3xl mt-1 leading-none">{agribizStats ? String(agribizStats.farmersConnected) : "—"}</p>
-                    <p className="text-emerald-600 text-[10px] font-medium mt-1">Unique farmers</p>
+                  <div className="rounded-2xl bg-[#16a34a]/10 border border-[#16a34a]/20 p-3.5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-14 h-14 bg-[#16a34a]/20 rounded-full -mr-4 -mt-4" />
+                    <p className="text-[#16a34a] text-[10px] font-semibold uppercase tracking-wider">Farmers Connected</p>
+                    <p className="text-foreground font-extrabold text-3xl mt-1 leading-none">{agribizStats ? String(agribizStats.farmersConnected) : "—"}</p>
+                    <p className="text-[#16a34a] text-[10px] font-medium mt-1">Unique farmers</p>
                   </div>
-                  <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 p-3.5 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-14 h-14 bg-amber-200 rounded-full -mr-4 -mt-4 opacity-40" />
-                    <p className="text-amber-700 text-[10px] font-semibold uppercase tracking-wider">Commission Earned</p>
-                    <p className="text-amber-900 font-extrabold text-xl mt-1 leading-none">{agribizStats ? formatKES(agribizStats.commissionEarned) : "—"}</p>
-                    <p className="text-amber-600 text-[10px] font-medium mt-1">This season</p>
+                  <div className="rounded-2xl bg-amber-500/10 border border-amber-400/20 p-3.5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-14 h-14 bg-amber-400/20 rounded-full -mr-4 -mt-4" />
+                    <p className="text-amber-500 text-[10px] font-semibold uppercase tracking-wider">Commission Earned</p>
+                    <p className="text-foreground font-extrabold text-xl mt-1 leading-none">{agribizStats ? formatKES(agribizStats.commissionEarned) : "—"}</p>
+                    <p className="text-amber-500 text-[10px] font-medium mt-1">This season</p>
                   </div>
                 </>
               )}
@@ -264,88 +264,88 @@ export default function AgribusinessDashboard() {
               {isInputSupplier ? (
                 <>
                   <Link href="/agribusiness/orders">
-                    <div className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-sm">
-                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center flex-shrink-0 shadow-sm shadow-orange-200">
+                    <div className="flex items-center gap-3 bg-orange-500/10 border border-orange-400/20 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-sm">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center flex-shrink-0">
                         <Package size={20} className="text-white" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-bold text-sm text-orange-900">Voucher Orders</p>
-                        <p className="text-orange-600 text-xs">View and fulfil incoming farmer orders</p>
+                        <p className="font-bold text-sm text-foreground">Voucher Orders</p>
+                        <p className="text-muted-foreground text-xs">View and fulfil incoming farmer orders</p>
                       </div>
                       {agribizStats?.pendingOrders ? (
                         <span className="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full">{agribizStats.pendingOrders}</span>
-                      ) : <ChevronRight size={16} className="text-orange-400" />}
+                      ) : <ChevronRight size={16} className="text-muted-foreground" />}
                     </div>
                   </Link>
                   <button onClick={() => setActiveSection("catalogue")}
-                    className="w-full flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform text-left shadow-sm">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-200">
+                    className="w-full flex items-center gap-3 bg-blue-500/10 border border-blue-400/20 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform text-left shadow-sm">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0">
                       <TrendingUp size={20} className="text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-sm text-blue-900">Catalogue & Pricing</p>
-                      <p className="text-blue-600 text-xs">{products.length} product{products.length !== 1 ? "s" : ""} listed · tap to manage</p>
+                      <p className="font-bold text-sm text-foreground">Catalogue & Pricing</p>
+                      <p className="text-muted-foreground text-xs">{products.length} product{products.length !== 1 ? "s" : ""} listed · tap to manage</p>
                     </div>
-                    <ChevronRight size={16} className="text-blue-400" />
+                    <ChevronRight size={16} className="text-muted-foreground" />
                   </button>
-                  <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 shadow-sm">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-green-200">
+                  <div className="flex items-center gap-3 bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-2xl p-4 shadow-sm">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
                       <MapPin size={20} className="text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-sm text-green-900">My Business Location</p>
-                      <p className="text-green-600 text-xs">{(user as any)?.county ?? "County not set"} · Kenya</p>
+                      <p className="font-bold text-sm text-foreground">My Business Location</p>
+                      <p className="text-muted-foreground text-xs">{(user as any)?.county ?? "County not set"} · Kenya</p>
                     </div>
-                    <ChevronRight size={16} className="text-green-400" />
+                    <ChevronRight size={16} className="text-muted-foreground" />
                   </div>
                 </>
               ) : (
                 <>
                   <button onClick={() => setActiveSection("referral")}
-                    className="w-full flex items-center gap-3 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform text-left shadow-sm">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-emerald-200">
+                    className="w-full flex items-center gap-3 bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform text-left shadow-sm">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center flex-shrink-0">
                       <Handshake size={20} className="text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-sm text-emerald-900">Refer a Farmer</p>
-                      <p className="text-emerald-600 text-xs">Generate & share your referral link</p>
+                      <p className="font-bold text-sm text-foreground">Refer a Farmer</p>
+                      <p className="text-muted-foreground text-xs">Generate & share your referral link</p>
                     </div>
-                    <ChevronRight size={16} className="text-emerald-400" />
+                    <ChevronRight size={16} className="text-muted-foreground" />
                   </button>
                   <Link href="/agribusiness/network">
-                    <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-sm">
-                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-200">
+                    <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-400/20 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-sm">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
                         <Users size={20} className="text-white" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-bold text-sm text-blue-900">My Farmer Network</p>
-                        <p className="text-blue-600 text-xs">{myNetwork.length} farmer{myNetwork.length !== 1 ? "s" : ""} onboarded</p>
+                        <p className="font-bold text-sm text-foreground">My Farmer Network</p>
+                        <p className="text-muted-foreground text-xs">{myNetwork.length} farmer{myNetwork.length !== 1 ? "s" : ""} onboarded</p>
                       </div>
-                      <ChevronRight size={16} className="text-blue-400" />
+                      <ChevronRight size={16} className="text-muted-foreground" />
                     </div>
                   </Link>
                   <button onClick={() => setActiveSection("commissions")}
-                    className="w-full flex items-center gap-3 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform text-left shadow-sm">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-sm shadow-amber-200">
+                    className="w-full flex items-center gap-3 bg-amber-500/10 border border-amber-400/20 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform text-left shadow-sm">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0">
                       <Star size={20} className="text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-sm text-amber-900">Commission History</p>
-                      <p className="text-amber-600 text-xs">{commissions.length} record{commissions.length !== 1 ? "s" : ""} · total {formatKES(agribizStats?.commissionEarned ?? 0)}</p>
+                      <p className="font-bold text-sm text-foreground">Commission History</p>
+                      <p className="text-muted-foreground text-xs">{commissions.length} record{commissions.length !== 1 ? "s" : ""} · total {formatKES(agribizStats?.commissionEarned ?? 0)}</p>
                     </div>
-                    <ChevronRight size={16} className="text-amber-400" />
+                    <ChevronRight size={16} className="text-muted-foreground" />
                   </button>
                 </>
               )}
             </div>
 
             {/* How it works */}
-            <div className={`rounded-2xl p-4 border ${isInputSupplier ? "bg-orange-50 border-orange-200" : "bg-emerald-50 border-emerald-200"}`}>
-              <p className={`font-semibold text-sm mb-2 ${isInputSupplier ? "text-orange-800" : "text-emerald-800"}`}>
+            <div className={`rounded-2xl p-4 border ${isInputSupplier ? "bg-orange-500/10 border-orange-400/20" : "bg-[#16a34a]/10 border-[#16a34a]/20"}`}>
+              <p className="font-semibold text-sm mb-2 text-foreground">
                 {isInputSupplier ? "📦 How Input Vouchers Work" : "🤝 How Farmer Connecting Works"}
               </p>
               {isInputSupplier ? (
-                <ul className="text-xs text-orange-700 space-y-1">
+                <ul className="text-xs text-muted-foreground space-y-1">
                   <li>1. Farmer receives funding and a voucher code is generated</li>
                   <li>2. You're assigned as their nearest verified input supplier</li>
                   <li>3. Farmer presents their voucher code at your business</li>
@@ -353,7 +353,7 @@ export default function AgribusinessDashboard() {
                   <li>5. Payment is processed directly to your account</li>
                 </ul>
               ) : (
-                <ul className="text-xs text-emerald-700 space-y-1">
+                <ul className="text-xs text-muted-foreground space-y-1">
                   <li>1. Refer farmers in your area to the Investa Farm platform</li>
                   <li>2. Support them through KYC and funding application</li>
                   <li>3. Earn a commission when their farm gets funded by investors</li>
@@ -378,7 +378,7 @@ export default function AgribusinessDashboard() {
             <AnimatePresence>
               {addingProduct && (
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                  className="bg-white border border-border rounded-2xl p-4 space-y-3">
+                  className="bg-card border border-border rounded-2xl p-4 space-y-3">
                   <p className="text-sm font-semibold">New Product</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
@@ -389,14 +389,14 @@ export default function AgribusinessDashboard() {
                     <div>
                       <label className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block mb-1">Category</label>
                       <select value={newProduct.category} onChange={e => setNewProduct(p => ({ ...p, category: e.target.value }))}
-                        className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary bg-white">
+                        className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary bg-background">
                         {["Seeds", "Fertilizer", "Pesticides", "Tools", "Equipment", "Other"].map(c => <option key={c}>{c}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block mb-1">Unit</label>
                       <select value={newProduct.unit} onChange={e => setNewProduct(p => ({ ...p, unit: e.target.value }))}
-                        className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary bg-white">
+                        className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary bg-background">
                         {["kg", "bag (50kg)", "litre", "piece", "box", "set"].map(u => <option key={u}>{u}</option>)}
                       </select>
                     </div>
@@ -419,7 +419,7 @@ export default function AgribusinessDashboard() {
             </AnimatePresence>
 
             {products.length === 0 ? (
-              <div className="bg-white border border-border rounded-2xl p-8 text-center">
+              <div className="bg-card border border-border rounded-2xl p-8 text-center">
                 <Package size={32} className="text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-semibold text-sm">No Products Listed</p>
                 <p className="text-muted-foreground text-xs mt-1">Add your first product to start receiving orders from Investa-funded farmers.</p>
@@ -427,8 +427,8 @@ export default function AgribusinessDashboard() {
             ) : (
               <div className="space-y-2">
                 {products.map(p => (
-                  <div key={p.id} className="bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0 text-lg">
+                  <div key={p.id} className="bg-card border border-border rounded-2xl p-3.5 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0 text-lg">
                       {p.category === "Seeds" ? "🌱" : p.category === "Fertilizer" ? "💧" : p.category === "Pesticides" ? "🧪" : p.category === "Tools" ? "🔧" : "📦"}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -436,7 +436,7 @@ export default function AgribusinessDashboard() {
                       <p className="text-muted-foreground text-xs">{p.category} · per {p.unit}</p>
                     </div>
                     <p className="text-foreground font-bold text-sm flex-shrink-0">{formatKES(p.price)}</p>
-                    <button onClick={() => removeProduct(p.id)} className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <button onClick={() => removeProduct(p.id)} className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
                       <Trash2 size={13} className="text-red-500" />
                     </button>
                   </div>
@@ -444,7 +444,7 @@ export default function AgribusinessDashboard() {
               </div>
             )}
 
-            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-xs text-orange-700">
+            <div className="bg-orange-500/10 border border-orange-400/20 rounded-2xl p-4 text-xs text-orange-500">
               <p className="font-semibold mb-1">💡 Pricing tips</p>
               <p>Competitive pricing helps farmers choose you. Farmers search by county so ensure your location is set correctly. Voucher payments are guaranteed — no bad debt.</p>
             </div>
@@ -459,9 +459,9 @@ export default function AgribusinessDashboard() {
               <p className="text-white/70 text-xs">Earn a commission every time a farmer you refer gets funded on Investa Farm.</p>
             </div>
 
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <p className="text-sm font-semibold mb-3">Your Unique Referral Link</p>
-              <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-3 border border-border mb-3">
+              <div className="flex items-center gap-2 bg-muted/50 rounded-xl p-3 border border-border mb-3">
                 <ExternalLink size={12} className="text-muted-foreground flex-shrink-0" />
                 <p className="text-muted-foreground text-[10px] font-mono flex-1 truncate">{refLink}</p>
               </div>
@@ -472,7 +472,7 @@ export default function AgribusinessDashboard() {
               </button>
             </div>
 
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <p className="text-sm font-semibold mb-3">How Referral Commissions Work</p>
               <div className="space-y-3">
                 {[
@@ -493,13 +493,13 @@ export default function AgribusinessDashboard() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-center">
-                <p className="text-emerald-700 font-bold text-xl">{myNetwork.length}</p>
-                <p className="text-emerald-600 text-xs mt-0.5">Farmers Referred</p>
+              <div className="bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-2xl p-3.5 text-center">
+                <p className="text-foreground font-bold text-xl">{myNetwork.length}</p>
+                <p className="text-[#16a34a] text-xs mt-0.5">Farmers Referred</p>
               </div>
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-center">
-                <p className="text-emerald-700 font-bold text-base">{formatKES(agribizStats?.commissionEarned ?? 0)}</p>
-                <p className="text-emerald-600 text-xs mt-0.5">Total Earned</p>
+              <div className="bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-2xl p-3.5 text-center">
+                <p className="text-foreground font-bold text-base">{formatKES(agribizStats?.commissionEarned ?? 0)}</p>
+                <p className="text-[#16a34a] text-xs mt-0.5">Total Earned</p>
               </div>
             </div>
           </>
@@ -513,7 +513,7 @@ export default function AgribusinessDashboard() {
               <span className="text-xs text-muted-foreground">{myNetwork.length} farmers</span>
             </div>
             {myNetwork.length === 0 ? (
-              <div className="bg-white border border-border rounded-2xl p-8 text-center">
+              <div className="bg-card border border-border rounded-2xl p-8 text-center">
                 <Users size={32} className="text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-semibold text-sm">No Farmers Yet</p>
                 <p className="text-muted-foreground text-xs mt-1 mb-4">Share your referral link to start building your farmer network.</p>
@@ -525,15 +525,15 @@ export default function AgribusinessDashboard() {
             ) : (
               <div className="space-y-2">
                 {myNetwork.map((farmer: any) => (
-                  <div key={farmer.id} className="bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-emerald-700 font-bold text-sm">{farmer.name?.charAt(0) ?? "F"}</span>
+                  <div key={farmer.id} className="bg-card border border-border rounded-2xl p-3.5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#16a34a]/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#16a34a] font-bold text-sm">{farmer.name?.charAt(0) ?? "F"}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-foreground font-semibold text-sm truncate">{farmer.name}</p>
                       <p className="text-muted-foreground text-xs">{farmer.county ?? "Kenya"} · {farmer.status ?? "Active"}</p>
                     </div>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${farmer.funded ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${farmer.funded ? "bg-[#16a34a]/10 text-[#16a34a]" : "bg-amber-500/10 text-amber-500"}`}>
                       {farmer.funded ? "Funded" : "Pending"}
                     </span>
                   </div>
@@ -557,7 +557,7 @@ export default function AgribusinessDashboard() {
               </div>
             </div>
 
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <p className="text-sm font-semibold mb-3">Commission History</p>
               {commissions.length === 0 ? (
                 <div className="text-center py-8">
@@ -570,7 +570,7 @@ export default function AgribusinessDashboard() {
               ) : (
                 <div className="space-y-2">
                   {commissions.map((c: any) => (
-                    <div key={c.id} className="flex items-center gap-3 bg-amber-50 rounded-xl p-3">
+                    <div key={c.id} className="flex items-center gap-3 bg-amber-500/10 rounded-xl p-3">
                       <span className="text-lg flex-shrink-0">💰</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-foreground text-xs font-semibold truncate">{c.description ?? "Commission earned"}</p>

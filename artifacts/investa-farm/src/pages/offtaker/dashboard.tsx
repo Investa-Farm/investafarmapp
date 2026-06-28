@@ -38,11 +38,11 @@ interface Stats {
 interface Price { crop: string; pricePerKg: number; unit: string; trend: string; exchange: string; }
 
 const STATUS_COLOR: Record<string, string> = {
-  pending: "text-amber-600 bg-amber-50 border-amber-200",
-  confirmed: "text-blue-600 bg-blue-50 border-blue-200",
-  in_transit: "text-indigo-600 bg-indigo-50 border-indigo-200",
-  fulfilled: "text-green-600 bg-green-50 border-green-200",
-  cancelled: "text-red-500 bg-red-50 border-red-100",
+  pending:    "text-amber-500 bg-amber-500/10 border-amber-400/30",
+  confirmed:  "text-blue-500 bg-blue-500/10 border-blue-400/30",
+  in_transit: "text-indigo-500 bg-indigo-500/10 border-indigo-400/30",
+  fulfilled:  "text-[#16a34a] bg-[#16a34a]/10 border-[#16a34a]/20",
+  cancelled:  "text-red-500 bg-red-500/10 border-red-400/30",
 };
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pending", confirmed: "Confirmed", in_transit: "In Transit",
@@ -152,7 +152,7 @@ export default function OfftakerDashboard() {
   const totalKes = contracts.filter(c => c.status === "fulfilled").reduce((s, c) => s + c.totalKes, 0);
 
   return (
-    <div className="app-shell" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", background: "#f8f9fb" }}>
+    <div className="app-shell bg-background" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }}>
 
       {/* ── HEADER ── */}
       <header className="flex-shrink-0 px-4 pt-safe-top"
@@ -205,10 +205,10 @@ export default function OfftakerDashboard() {
                   <p className="text-foreground font-bold text-sm mb-2">Quick Actions</p>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { label: "Browse Farms", icon: Leaf, color: "bg-green-50 border-green-200 text-green-700", action: () => setTab("farms") },
+                      { label: "Browse Farms", icon: Leaf, color: "bg-[#16a34a]/10 border-[#16a34a]/20 text-[#16a34a]", action: () => setTab("farms") },
                       { label: "My Contracts", icon: FileText, color: "bg-primary/5 border-primary/20 text-primary", action: () => setTab("contracts") },
-                      { label: "Market Prices", icon: BarChart2, color: "bg-blue-50 border-blue-200 text-blue-700", action: () => setTab("prices") },
-                      { label: "My Profile", icon: User, color: "bg-amber-50 border-amber-200 text-amber-700", action: () => setTab("profile") },
+                      { label: "Market Prices", icon: BarChart2, color: "bg-blue-500/10 border-blue-400/20 text-blue-500", action: () => setTab("prices") },
+                      { label: "My Profile", icon: User, color: "bg-amber-500/10 border-amber-400/20 text-amber-500", action: () => setTab("profile") },
                     ].map(a => (
                       <button key={a.label} onClick={a.action}
                         className={`p-3.5 rounded-2xl border flex flex-col items-start gap-2 active:scale-95 transition-all ${a.color}`}>
@@ -226,7 +226,7 @@ export default function OfftakerDashboard() {
                     <button onClick={() => setTab("contracts")} className="text-primary text-xs font-semibold">View all</button>
                   </div>
                   {contracts.length === 0 ? (
-                    <div className="bg-white border border-border rounded-2xl p-6 text-center">
+                    <div className="bg-card border border-border rounded-2xl p-6 text-center">
                       <ShoppingCart size={28} className="text-muted-foreground mx-auto mb-2 opacity-40" />
                       <p className="text-muted-foreground text-sm">No contracts yet</p>
                       <button onClick={() => setTab("farms")}
@@ -235,7 +235,7 @@ export default function OfftakerDashboard() {
                   ) : (
                     <div className="space-y-2">
                       {contracts.slice(0, 3).map(c => (
-                        <div key={c.id} className="bg-white border border-border rounded-2xl p-3 flex items-center gap-3">
+                        <div key={c.id} className="bg-card border border-border rounded-2xl p-3 flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg flex-shrink-0">
                             {cropEmoji(c.cropType)}
                           </div>
@@ -263,15 +263,15 @@ export default function OfftakerDashboard() {
                   </div>
                   <div className="space-y-2">
                     {farms.slice(0, 3).map(f => (
-                      <div key={f.id} className="bg-white border border-border rounded-2xl p-3 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center text-xl flex-shrink-0">
+                      <div key={f.id} className="bg-card border border-border rounded-2xl p-3 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-xl flex-shrink-0">
                           {cropEmoji(f.cropType)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-foreground font-semibold text-xs truncate">{f.name}</p>
                           <p className="text-muted-foreground text-[10px]">{f.cropType} · {f.location}</p>
-                          <div className="w-full h-1 bg-gray-100 rounded-full mt-1">
-                            <div className="h-full bg-green-500 rounded-full" style={{ width: `${f.fundedPercent}%` }} />
+                          <div className="w-full h-1 bg-muted rounded-full mt-1">
+                            <div className="h-full bg-[#16a34a] rounded-full" style={{ width: `${f.fundedPercent}%` }} />
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
@@ -292,14 +292,14 @@ export default function OfftakerDashboard() {
                   <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input value={farmSearch} onChange={e => setFarmSearch(e.target.value)}
                     placeholder="Search by crop, farm, or location…"
-                    className="w-full pl-9 pr-4 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:border-primary bg-white" />
+                    className="w-full pl-9 pr-4 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:border-primary bg-background" />
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto pb-0.5 no-scrollbar">
                   {uniqueCrops.map(c => (
                     <button key={c} onClick={() => setCropFilter(c)}
                       className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all ${
-                        cropFilter === c ? "bg-primary text-white border-primary" : "bg-white text-muted-foreground border-border"
+                        cropFilter === c ? "bg-primary text-white border-primary" : "bg-card text-muted-foreground border-border"
                       }`}>
                       {c === "all" ? "All Crops" : `${cropEmoji(c)} ${c.charAt(0).toUpperCase() + c.slice(1)}`}
                     </button>
@@ -312,12 +312,12 @@ export default function OfftakerDashboard() {
                   </div>
                 ) : filteredFarms.map(f => (
                   <motion.div key={f.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                    className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+                    className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
                     {/* Coloured top bar */}
                     <div className="h-1.5 bg-gradient-to-r from-green-500 to-emerald-400" style={{ width: `${f.fundedPercent}%` }} />
                     <div className="p-4">
                       <div className="flex items-start gap-3 mb-3">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center text-3xl flex-shrink-0 border border-green-200">
+                        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-3xl flex-shrink-0 border border-primary/20">
                           {cropEmoji(f.cropType)}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -339,9 +339,9 @@ export default function OfftakerDashboard() {
 
                       <div className="grid grid-cols-3 gap-2 mb-3">
                         {[
-                          { label: "Yield Est.", val: `${f.estimatedYieldTons}t`, color: "bg-blue-50 text-blue-700" },
-                          { label: "Harvest In", val: `${f.daysToHarvest}d`, color: "bg-amber-50 text-amber-700" },
-                          { label: "Min Order", val: `${f.minOrderTons}t`, color: "bg-green-50 text-green-700" },
+                          { label: "Yield Est.", val: `${f.estimatedYieldTons}t`, color: "bg-blue-500/10 text-blue-500" },
+                          { label: "Harvest In", val: `${f.daysToHarvest}d`, color: "bg-amber-500/10 text-amber-500" },
+                          { label: "Min Order", val: `${f.minOrderTons}t`, color: "bg-[#16a34a]/10 text-[#16a34a]" },
                         ].map(s => (
                           <div key={s.label} className={`${s.color} rounded-xl p-2 text-center`}>
                             <p className="font-extrabold text-xs">{s.val}</p>
@@ -355,7 +355,7 @@ export default function OfftakerDashboard() {
                           <span className="text-muted-foreground font-medium">Investment Progress</span>
                           <span className="font-bold text-green-600">{f.fundedPercent}% funded</span>
                         </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
                           <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all" style={{ width: `${f.fundedPercent}%` }} />
                         </div>
                       </div>
@@ -390,7 +390,7 @@ export default function OfftakerDashboard() {
                 </div>
 
                 {contracts.length === 0 ? (
-                  <div className="bg-white border border-border rounded-2xl p-8 text-center">
+                  <div className="bg-card border border-border rounded-2xl p-8 text-center">
                     <FileText size={32} className="text-muted-foreground mx-auto mb-3 opacity-30" />
                     <p className="text-foreground font-semibold text-sm mb-1">No contracts yet</p>
                     <p className="text-muted-foreground text-xs mb-4">Browse available farms and place your first purchase order.</p>
@@ -400,7 +400,7 @@ export default function OfftakerDashboard() {
                     </button>
                   </div>
                 ) : contracts.map(c => (
-                  <div key={c.id} className="bg-white border border-border rounded-2xl p-4">
+                  <div key={c.id} className="bg-card border border-border rounded-2xl p-4">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-xl flex-shrink-0">
                         {cropEmoji(c.cropType)}
@@ -416,11 +416,11 @@ export default function OfftakerDashboard() {
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-gray-50 rounded-xl p-2 text-center">
+                      <div className="bg-muted/50 rounded-xl p-2 text-center">
                         <p className="text-foreground font-bold text-xs">{c.quantityTons}t</p>
                         <p className="text-muted-foreground text-[9px]">Quantity</p>
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-2 text-center">
+                      <div className="bg-muted/50 rounded-xl p-2 text-center">
                         <p className="text-foreground font-bold text-xs">KES {c.pricePerKg}/kg</p>
                         <p className="text-muted-foreground text-[9px]">Price</p>
                       </div>
@@ -451,8 +451,8 @@ export default function OfftakerDashboard() {
                 {prices.map(p => {
                   const isUp = p.trend.startsWith("+");
                   return (
-                    <div key={p.crop} className="bg-white border border-border rounded-2xl p-4 flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center text-xl flex-shrink-0">
+                    <div key={p.crop} className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-xl flex-shrink-0">
                         {cropEmoji(p.crop)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -469,13 +469,13 @@ export default function OfftakerDashboard() {
                   );
                 })}
 
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                  <p className="text-amber-800 font-bold text-xs mb-1">💡 Price Tip</p>
-                  <p className="text-amber-700 text-[11px] leading-relaxed">
+                <div className="bg-amber-500/10 border border-amber-400/30 rounded-2xl p-4">
+                  <p className="text-amber-500 font-bold text-xs mb-1">💡 Price Tip</p>
+                  <p className="text-amber-500 text-[11px] leading-relaxed">
                     Lock in today's prices by placing a forward contract directly with farms on Investa Farm. Prices are guaranteed at contract time.
                   </p>
                   <button onClick={() => setTab("farms")}
-                    className="mt-2 text-amber-700 text-[11px] font-bold underline">Browse Farms →</button>
+                    className="mt-2 text-amber-500 text-[11px] font-bold underline">Browse Farms →</button>
                 </div>
               </div>
             )}
@@ -483,7 +483,7 @@ export default function OfftakerDashboard() {
             {/* ── PROFILE TAB ── */}
             {tab === "profile" && (
               <div className="space-y-4">
-                <div className="bg-white border border-border rounded-2xl p-4">
+                <div className="bg-card border border-border rounded-2xl p-4">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
                       <Truck size={24} className="text-primary" />
@@ -509,7 +509,7 @@ export default function OfftakerDashboard() {
                   </div>
                 </div>
 
-                <div className="bg-white border border-border rounded-2xl divide-y divide-border">
+                <div className="bg-card border border-border rounded-2xl divide-y divide-border">
                   {[
                     { icon: "🤝", label: "Browse Partner Farms", action: () => setTab("farms") },
                     { icon: "📋", label: "My Purchase Contracts", action: () => setTab("contracts") },
@@ -535,7 +535,7 @@ export default function OfftakerDashboard() {
       </div>
 
       {/* ── BOTTOM NAV ── */}
-      <nav className="flex-shrink-0 bg-white border-t border-border"
+      <nav className="flex-shrink-0 bg-background border-t border-border"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0)" }}>
         <div className="flex justify-around max-w-[430px] mx-auto">
           {TABS.map(({ id, label, icon: Icon }) => {
@@ -559,9 +559,9 @@ export default function OfftakerDashboard() {
               className="absolute inset-0 bg-black/50" onClick={closeOrder} />
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="relative w-full max-w-[430px] bg-white rounded-t-3xl shadow-xl max-h-[85dvh] overflow-y-auto">
+              className="relative w-full max-w-[430px] bg-background rounded-t-3xl shadow-xl max-h-[85dvh] overflow-y-auto">
 
-              <div className="sticky top-0 bg-white border-b border-border px-5 pt-5 pb-3 flex items-center justify-between">
+              <div className="sticky top-0 bg-background border-b border-border px-5 pt-5 pb-3 flex items-center justify-between">
                 <div>
                   <p className="text-foreground font-bold text-base">{orderDone ? "Order Placed!" : "Place Purchase Order"}</p>
                   <p className="text-muted-foreground text-xs">{selectedFarm.name} · {selectedFarm.cropType}</p>
@@ -594,11 +594,11 @@ export default function OfftakerDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-start gap-3">
+                    <div className="bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-2xl p-3 flex items-start gap-3">
                       <span className="text-2xl">{cropEmoji(selectedFarm.cropType)}</span>
                       <div>
-                        <p className="text-green-800 font-bold text-sm">{selectedFarm.cropType} from {selectedFarm.name}</p>
-                        <p className="text-green-700 text-xs mt-0.5">
+                        <p className="text-foreground font-bold text-sm">{selectedFarm.cropType} from {selectedFarm.name}</p>
+                        <p className="text-muted-foreground text-xs mt-0.5">
                           {selectedFarm.estimatedYieldTons}t available · Harvest ~{selectedFarm.daysToHarvest} days · <strong>KES {selectedFarm.pricePerKgKes}/kg</strong>
                         </p>
                       </div>

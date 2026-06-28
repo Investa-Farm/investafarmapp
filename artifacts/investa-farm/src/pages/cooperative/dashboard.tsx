@@ -75,9 +75,9 @@ function VoucherRedemptionTab({ token }: { token: string }) {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { val: vouchersLoading ? "…" : String(pendingCount), label: "Pending", color: "bg-amber-50 text-amber-700 border-amber-200" },
-          { val: vouchersLoading ? "…" : String(voucherList.filter(v => v.status === "fulfilled").length), label: "Fulfilled", color: "bg-green-50 text-green-700 border-green-200" },
-          { val: vouchersLoading ? "…" : `${(totalRevenue / 1000).toFixed(0)}K`, label: "KES Earned", color: "bg-blue-50 text-blue-700 border-blue-200" },
+          { val: vouchersLoading ? "…" : String(pendingCount), label: "Pending", color: "bg-amber-500/10 text-amber-500 border-amber-400/30" },
+          { val: vouchersLoading ? "…" : String(voucherList.filter(v => v.status === "fulfilled").length), label: "Fulfilled", color: "bg-[#16a34a]/10 text-[#16a34a] border-[#16a34a]/20" },
+          { val: vouchersLoading ? "…" : `${(totalRevenue / 1000).toFixed(0)}K`, label: "KES Earned", color: "bg-blue-500/10 text-blue-500 border-blue-400/30" },
         ].map(({ val, label, color }) => (
           <div key={label} className={`rounded-2xl p-3 border text-center ${color}`}>
             <p className="font-bold text-sm">{val}</p>
@@ -87,7 +87,7 @@ function VoucherRedemptionTab({ token }: { token: string }) {
       </div>
 
       {/* Voucher Scanner */}
-      <div className="bg-white border border-border rounded-2xl p-4">
+      <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-3">
           <QrCode size={15} className="text-blue-600" />
           <p className="text-sm font-semibold">Verify Voucher</p>
@@ -110,24 +110,24 @@ function VoucherRedemptionTab({ token }: { token: string }) {
         <AnimatePresence>
           {scanError && (
             <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="mt-3 bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+              className="mt-3 bg-red-500/10 border border-red-400/20 rounded-xl p-3 flex items-start gap-2">
               <AlertTriangle size={13} className="text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-red-600 text-xs">{scanError}</p>
+              <p className="text-red-500 text-xs">{scanError}</p>
             </motion.div>
           )}
           {scannedVoucher && (
             <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className={`mt-3 rounded-2xl border p-4 ${scannedVoucher.status === "pending" ? "bg-green-50 border-green-200" : scannedVoucher.status === "fulfilled" ? "bg-gray-50 border-gray-200" : "bg-red-50 border-red-200"}`}>
+              className={`mt-3 rounded-2xl border p-4 ${scannedVoucher.status === "pending" ? "bg-[#16a34a]/10 border-[#16a34a]/20" : scannedVoucher.status === "fulfilled" ? "bg-muted/60 border-border" : "bg-red-500/10 border-red-400/20"}`}>
               <div className="flex items-center justify-between mb-2">
                 <code className="text-[10px] font-mono font-bold text-foreground">{scannedVoucher.voucherCode}</code>
                 {scannedVoucher.status === "pending" && (
-                  <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">VALID</span>
+                  <span className="text-[9px] font-bold bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full">VALID</span>
                 )}
                 {scannedVoucher.status === "fulfilled" && (
-                  <span className="text-[9px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">USED</span>
+                  <span className="text-[9px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">USED</span>
                 )}
                 {scannedVoucher.status === "expired" && (
-                  <span className="text-[9px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">EXPIRED</span>
+                  <span className="text-[9px] font-bold bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">EXPIRED</span>
                 )}
               </div>
               <p className="text-foreground font-semibold text-sm">{scannedVoucher.farmerName}</p>
@@ -155,7 +155,7 @@ function VoucherRedemptionTab({ token }: { token: string }) {
           <div className="flex gap-1">
             {(["all","pending","fulfilled"] as const).map(s => (
               <button key={s} onClick={() => setFilterStatus(s)}
-                className={`text-[9px] font-bold px-2 py-1 rounded-full capitalize transition-all ${filterStatus === s ? "bg-[#16a34a] text-white" : "bg-gray-100 text-gray-500"}`}>
+                className={`text-[9px] font-bold px-2 py-1 rounded-full capitalize transition-all ${filterStatus === s ? "bg-[#16a34a] text-white" : "bg-muted text-muted-foreground"}`}>
                 {s}
               </button>
             ))}
@@ -164,7 +164,7 @@ function VoucherRedemptionTab({ token }: { token: string }) {
         {vouchersLoading ? (
           <div className="space-y-2">{Array(3).fill(0).map((_, i) => <div key={i} className="h-16 rounded-2xl bg-muted animate-pulse" />)}</div>
         ) : listed.length === 0 ? (
-          <div className="text-center py-8 bg-white border border-border rounded-2xl">
+          <div className="text-center py-8 bg-card border border-border rounded-2xl">
             <Package size={24} className="text-muted-foreground mx-auto mb-2" />
             <p className="text-muted-foreground text-sm">No vouchers found</p>
           </div>
@@ -173,9 +173,9 @@ function VoucherRedemptionTab({ token }: { token: string }) {
           {listed.map(v => {
             const isFulfilled = v.status === "fulfilled";
             return (
-              <div key={v.id} className="bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isFulfilled ? "bg-green-100" : v.status === "expired" ? "bg-red-100" : "bg-amber-100"}`}>
-                  {isFulfilled ? <CheckCircle2 size={16} className="text-green-600" /> : v.status === "expired" ? <XCircle size={16} className="text-red-500" /> : <Clock size={16} className="text-amber-600" />}
+              <div key={v.id} className="bg-card border border-border rounded-2xl p-3.5 flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isFulfilled ? "bg-[#16a34a]/10" : v.status === "expired" ? "bg-red-500/10" : "bg-amber-500/10"}`}>
+                  {isFulfilled ? <CheckCircle2 size={16} className="text-[#16a34a]" /> : v.status === "expired" ? <XCircle size={16} className="text-red-500" /> : <Clock size={16} className="text-amber-500" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground text-xs font-bold truncate">{v.farmerName}</p>
@@ -185,7 +185,7 @@ function VoucherRedemptionTab({ token }: { token: string }) {
                 <div className="text-right">
                   <p className="text-foreground text-xs font-bold">KES {(Number(v.amount)/1000).toFixed(1)}K</p>
                   <p className="text-[9px] text-muted-foreground">{new Date(v.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}</p>
-                  <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 inline-block ${isFulfilled ? "bg-green-100 text-green-700" : v.status === "expired" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                  <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 inline-block ${isFulfilled ? "bg-[#16a34a]/10 text-[#16a34a]" : v.status === "expired" ? "bg-red-500/10 text-red-500" : "bg-amber-500/10 text-amber-500"}`}>
                     {isFulfilled ? "Fulfilled" : v.status === "expired" ? "Expired" : "Pending"}
                   </span>
                 </div>
@@ -356,9 +356,9 @@ function RouteOptimizationPanel({ deliveries }: { deliveries: Delivery[] }) {
             </div>
           </div>
 
-          <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
-            <Leaf size={12} className="text-green-600 flex-shrink-0" />
-            <p className="text-green-700 text-[10px] leading-snug">
+          <div className="bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-xl px-3 py-2.5 flex items-center gap-2">
+            <Leaf size={12} className="text-[#16a34a] flex-shrink-0" />
+            <p className="text-muted-foreground text-[10px] leading-snug">
               Nearest-neighbour optimisation cuts drive distance ~<strong>35%</strong> vs unplanned stops, saving ~<strong>KES {Math.round(fuelEst * 0.35).toLocaleString("en-KE")}</strong> in fuel per run.
             </p>
           </div>
@@ -397,10 +397,10 @@ function LastMileDeliveryTab() {
   };
 
   const statusConfig: Record<DeliveryStatus, { label: string; color: string; bg: string; dot: string }> = {
-    pending:    { label: "Pending",    color: "text-amber-700", bg: "bg-amber-50 border-amber-200", dot: "bg-amber-400" },
-    in_transit: { label: "In Transit", color: "text-blue-700",  bg: "bg-blue-50 border-blue-200",  dot: "bg-blue-500 animate-pulse" },
-    delivered:  { label: "Delivered",  color: "text-green-700", bg: "bg-green-50 border-green-200", dot: "bg-green-500" },
-    failed:     { label: "Failed",     color: "text-red-700",   bg: "bg-red-50 border-red-200",     dot: "bg-red-400" },
+    pending:    { label: "Pending",    color: "text-amber-500", bg: "bg-amber-500/10 border-amber-400/30", dot: "bg-amber-400" },
+    in_transit: { label: "In Transit", color: "text-blue-500",  bg: "bg-blue-500/10 border-blue-400/30",  dot: "bg-blue-500 animate-pulse" },
+    delivered:  { label: "Delivered",  color: "text-[#16a34a]", bg: "bg-[#16a34a]/10 border-[#16a34a]/20", dot: "bg-[#16a34a]" },
+    failed:     { label: "Failed",     color: "text-red-500",   bg: "bg-red-500/10 border-red-400/30",     dot: "bg-red-400" },
   };
 
   return (
@@ -408,9 +408,9 @@ function LastMileDeliveryTab() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { val: String(pending),    label: "To Dispatch", color: "bg-amber-50 text-amber-700 border-amber-200" },
-          { val: String(inTransit),  label: "In Transit",  color: "bg-blue-50 text-blue-700 border-blue-200"   },
-          { val: String(delivered),  label: "Delivered",   color: "bg-green-50 text-green-700 border-green-200"},
+          { val: String(pending),    label: "To Dispatch", color: "bg-amber-500/10 text-amber-500 border-amber-400/30" },
+          { val: String(inTransit),  label: "In Transit",  color: "bg-blue-500/10 text-blue-500 border-blue-400/30"   },
+          { val: String(delivered),  label: "Delivered",   color: "bg-[#16a34a]/10 text-[#16a34a] border-[#16a34a]/20"},
         ].map(({ val, label, color }) => (
           <div key={label} className={`rounded-2xl p-3 border text-center ${color}`}>
             <p className="font-bold text-base">{val}</p>
@@ -423,7 +423,7 @@ function LastMileDeliveryTab() {
       <div className="flex gap-1.5 flex-wrap">
         {(["all","pending","in_transit","delivered"] as const).map(s => (
           <button key={s} onClick={() => setFilterStatus(s)}
-            className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize transition-all ${filterStatus === s ? "bg-[#16a34a] text-white" : "bg-gray-100 text-gray-500"}`}>
+            className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize transition-all ${filterStatus === s ? "bg-[#16a34a] text-white" : "bg-muted text-muted-foreground"}`}>
             {s === "all" ? `All (${deliveries.length})` : s === "in_transit" ? "In Transit" : s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
@@ -435,7 +435,7 @@ function LastMileDeliveryTab() {
           const cfg = statusConfig[d.status];
           return (
             <motion.div key={d.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-              className="bg-white border border-border rounded-2xl overflow-hidden">
+              className="bg-card border border-border rounded-2xl overflow-hidden">
               {/* Card header */}
               <div className={`px-4 py-2.5 border-b flex items-center justify-between ${cfg.bg}`}>
                 <div className="flex items-center gap-2">
@@ -461,7 +461,7 @@ function LastMileDeliveryTab() {
                   <p className="text-foreground font-bold text-sm flex-shrink-0">KES {d.amountKes.toLocaleString("en-KE")}</p>
                 </div>
 
-                <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3">
+                <div className="bg-muted/50 rounded-xl px-3 py-2 mb-3">
                   <p className="text-muted-foreground text-[10px] leading-relaxed">📦 {d.items}</p>
                   {d.farmerPhone && <p className="text-muted-foreground text-[10px] mt-0.5">📞 {d.farmerPhone}</p>}
                 </div>
@@ -755,7 +755,7 @@ export default function CooperativeDashboard() {
       ];
 
   return (
-    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-gray-50 pb-24">
+    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-background pb-24">
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       {/* Header */}
       <div className="hero-header rounded-b-3xl px-5 pt-12 pb-5 text-white overflow-hidden relative">
@@ -808,12 +808,12 @@ export default function CooperativeDashboard() {
         {/* ── OVERVIEW TAB ── */}
         {activeTab === "overview" && (
           <>
-            <div className={`rounded-2xl p-4 border ${isInputProvider ? "bg-blue-50 border-blue-200" : "bg-[#16a34a]/5 border-[#16a34a]/20"}`}>
+            <div className={`rounded-2xl p-4 border ${isInputProvider ? "bg-blue-500/10 border-blue-400/20" : "bg-[#16a34a]/5 border-[#16a34a]/20"}`}>
               <div className="flex items-center gap-2 mb-2">
-                {isInputProvider ? <Package size={15} className="text-blue-600" /> : <Globe size={15} className="text-[#16a34a]" />}
+                {isInputProvider ? <Package size={15} className="text-blue-500" /> : <Globe size={15} className="text-[#16a34a]" />}
                 <p className="text-sm font-semibold">{isInputProvider ? "Input Provider Dashboard" : "Welcome to Investa Farm Partners"}</p>
               </div>
-              <p className={`text-xs leading-relaxed ${isInputProvider ? "text-blue-600" : "text-muted-foreground"}`}>
+              <p className={`text-xs leading-relaxed ${isInputProvider ? "text-blue-500" : "text-muted-foreground"}`}>
                 {isInputProvider
                   ? "As an Input Provider, you can list products, accept voucher payments from Investa-funded farmers, and track order fulfilment across your distribution network."
                   : "You are registered as a Farmers Connect partner. Use this dashboard to manage your farmer network, access loan facilitation, and integrate our data into your operations."}
@@ -821,7 +821,7 @@ export default function CooperativeDashboard() {
             </div>
 
             {/* Org profile card */}
-            <div className="bg-white border border-green-100 rounded-2xl overflow-hidden shadow-lg shadow-green-500/10">
+            <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
               <div className="relative h-28">
                 <img src={profileImage} alt="Organization" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -852,7 +852,7 @@ export default function CooperativeDashboard() {
               <div className="space-y-2">
                 {services.map(svc => (
                   <motion.div key={svc.title} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                    className="bg-white border border-green-100 rounded-2xl p-4 flex items-center gap-3 shadow-md shadow-green-500/10">
+                    className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3 shadow-sm">
                     <div className="w-10 h-10 rounded-xl bg-[#16a34a]/10 flex items-center justify-center text-xl flex-shrink-0">
                       {svc.icon}
                     </div>
@@ -860,7 +860,7 @@ export default function CooperativeDashboard() {
                       <p className="text-foreground text-sm font-semibold">{svc.title}</p>
                       <p className="text-muted-foreground text-[10px] mt-0.5">{svc.desc}</p>
                     </div>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${svc.badge === "Active" ? "bg-[#16a34a]/10 text-[#16a34a]" : svc.badge === "Beta" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${svc.badge === "Active" ? "bg-[#16a34a]/10 text-[#16a34a]" : svc.badge === "Beta" ? "bg-blue-500/10 text-blue-500" : "bg-muted text-muted-foreground"}`}>
                       {svc.badge}
                     </span>
                   </motion.div>
@@ -884,7 +884,7 @@ export default function CooperativeDashboard() {
         {activeTab === "api" && (
           <>
             {/* Generate new key */}
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Key size={15} className="text-[#16a34a]" />
                 <p className="text-sm font-semibold">API Key Management</p>
@@ -905,13 +905,13 @@ export default function CooperativeDashboard() {
               </div>
               {revealedKey && (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                  className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3">
-                  <p className="text-green-700 text-[10px] font-semibold mb-1.5">⚠ Copy your key now — it won't be shown again in full</p>
+                  className="mt-3 bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-xl p-3">
+                  <p className="text-[#16a34a] text-[10px] font-semibold mb-1.5">⚠ Copy your key now — it won't be shown again in full</p>
                   <div className="flex items-center gap-2">
-                    <code className="text-green-800 text-[10px] font-mono flex-1 truncate">{revealedKey}</code>
+                    <code className="text-foreground text-[10px] font-mono flex-1 truncate">{revealedKey}</code>
                     <button onClick={() => copyKey(revealedKey)}
-                      className="flex-shrink-0 w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center">
-                      {copiedKey === revealedKey ? <Check size={12} className="text-green-600" /> : <Copy size={12} className="text-green-600" />}
+                      className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#16a34a]/10 flex items-center justify-center">
+                      {copiedKey === revealedKey ? <Check size={12} className="text-[#16a34a]" /> : <Copy size={12} className="text-[#16a34a]" />}
                     </button>
                   </div>
                 </motion.div>
@@ -919,7 +919,7 @@ export default function CooperativeDashboard() {
             </div>
 
             {/* Existing keys */}
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <p className="text-sm font-semibold mb-3">Your API Keys ({apiKeys.length})</p>
               {apiKeys.length === 0 ? (
                 <div className="text-center py-6">
@@ -929,7 +929,7 @@ export default function CooperativeDashboard() {
               ) : (
                 <div className="space-y-2">
                   {apiKeys.map(k => (
-                    <div key={k.key} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                    <div key={k.key} className="flex items-center gap-3 bg-muted/50 rounded-xl p-3">
                       <div className="w-8 h-8 rounded-lg bg-[#16a34a]/10 flex items-center justify-center flex-shrink-0">
                         <Key size={13} className="text-[#16a34a]" />
                       </div>
@@ -938,11 +938,11 @@ export default function CooperativeDashboard() {
                         <p className="text-muted-foreground text-[9px] font-mono">{k.key.slice(0, 20)}••••</p>
                       </div>
                       <button onClick={() => copyKey(k.key)}
-                        className="w-7 h-7 rounded-lg bg-gray-200 flex items-center justify-center">
-                        {copiedKey === k.key ? <Check size={11} className="text-green-600" /> : <Copy size={11} className="text-muted-foreground" />}
+                        className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center">
+                        {copiedKey === k.key ? <Check size={11} className="text-[#16a34a]" /> : <Copy size={11} className="text-muted-foreground" />}
                       </button>
                       <button onClick={() => revokeKey(k.key)}
-                        className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
+                        className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center">
                         <Trash2 size={11} className="text-red-500" />
                       </button>
                     </div>
@@ -952,7 +952,7 @@ export default function CooperativeDashboard() {
             </div>
 
             {/* Code snippet */}
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Plug size={15} className="text-[#16a34a]" />
                 <p className="text-sm font-semibold">REST API Example</p>
@@ -966,11 +966,11 @@ export default function CooperativeDashboard() {
               </div>
             </div>
 
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <FileSpreadsheet size={15} className="text-[#16a34a]" />
                 <p className="text-sm font-semibold">Excel / Google Sheets Plugin</p>
-                <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Beta</span>
+                <span className="text-[9px] font-bold bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full">Beta</span>
               </div>
               <div className="bg-gray-900 rounded-xl p-3 relative">
                 <pre className="text-yellow-400 text-[10px] font-mono">{EXCEL_SNIPPET}</pre>
@@ -981,7 +981,7 @@ export default function CooperativeDashboard() {
               </div>
             </div>
 
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Code2 size={15} className="text-purple-600" />
                 <p className="text-sm font-semibold">Available Endpoints</p>
@@ -994,8 +994,8 @@ export default function CooperativeDashboard() {
                   { method: "GET", path: "/v1/vouchers", desc: "Input vouchers issued" },
                   { method: "POST", path: "/v1/webhooks", desc: "Receive event notifications" },
                 ].map(ep => (
-                  <div key={ep.path} className="flex items-center gap-3 bg-gray-50 rounded-xl p-2.5">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${ep.method === "GET" ? "bg-blue-100 text-blue-700" : "bg-[#16a34a]/10 text-[#16a34a]"}`}>{ep.method}</span>
+                  <div key={ep.path} className="flex items-center gap-3 bg-muted/50 rounded-xl p-2.5">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${ep.method === "GET" ? "bg-blue-500/10 text-blue-500" : "bg-[#16a34a]/10 text-[#16a34a]"}`}>{ep.method}</span>
                     <code className="text-foreground text-[10px] font-mono flex-1">{ep.path}</code>
                     <span className="text-muted-foreground text-[9px]">{ep.desc}</span>
                   </div>
@@ -1009,13 +1009,13 @@ export default function CooperativeDashboard() {
         {activeTab === "farmers" && (
           <>
             {/* Invitation link */}
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <UserPlus size={15} className="text-[#16a34a]" />
                 <p className="text-sm font-semibold">Farmer Invitation Link</p>
               </div>
               <p className="text-muted-foreground text-xs mb-3">Share this link with farmers in your network. Their registrations will be automatically linked to your cooperative account.</p>
-              <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5 border border-border">
+              <div className="flex items-center gap-2 bg-muted/50 rounded-xl p-2.5 border border-border">
                 <Link size={12} className="text-muted-foreground flex-shrink-0" />
                 <p className="text-muted-foreground text-[10px] font-mono flex-1 truncate">{inviteLink}</p>
                 <button onClick={copyInviteLink}
@@ -1027,37 +1027,37 @@ export default function CooperativeDashboard() {
             </div>
 
             {/* CSV Import */}
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
-                <BarChart3 size={15} className="text-blue-600" />
+                <BarChart3 size={15} className="text-blue-500" />
                 <p className="text-sm font-semibold">Bulk CSV Import</p>
               </div>
-              <p className="text-blue-600 text-xs mb-3">Upload a CSV of your farmer members. Required columns: <code className="bg-blue-50 px-1 rounded">name, phone, county</code>. Optional: <code className="bg-blue-50 px-1 rounded">email, cropType</code>.</p>
+              <p className="text-blue-500 text-xs mb-3">Upload a CSV of your farmer members. Required columns: <code className="bg-blue-500/10 px-1 rounded">name, phone, county</code>. Optional: <code className="bg-blue-500/10 px-1 rounded">email, cropType</code>.</p>
 
               {csvSuccess ? (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-start gap-2">
-                  <Check size={14} className="text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-xl p-3 flex items-start gap-2">
+                  <Check size={14} className="text-[#16a34a] flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-green-700 text-xs">{csvSuccess}</p>
-                    <button onClick={() => setCsvSuccess(null)} className="text-green-600 text-[10px] underline mt-1">Import more</button>
+                    <p className="text-[#16a34a] text-xs">{csvSuccess}</p>
+                    <button onClick={() => setCsvSuccess(null)} className="text-[#16a34a] text-[10px] underline mt-1">Import more</button>
                   </div>
                 </div>
               ) : csvError ? (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                <div className="bg-red-500/10 border border-red-400/20 rounded-xl p-3 flex items-start gap-2">
                   <AlertTriangle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-red-600 text-xs">{csvError}</p>
+                    <p className="text-red-500 text-xs">{csvError}</p>
                     <button onClick={() => { setCsvError(null); setCsvData(null); if (csvRef.current) csvRef.current.value = ""; }} className="text-red-500 text-[10px] underline mt-1">Try again</button>
                   </div>
                 </div>
               ) : csvData ? (
                 <div className="space-y-3">
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                    <p className="text-blue-700 text-xs font-semibold">{csvData.rows.length} farmers found</p>
-                    <p className="text-blue-600 text-[10px] mt-0.5">Columns: {csvData.headers.join(", ")}</p>
+                  <div className="bg-blue-500/10 border border-blue-400/20 rounded-xl p-3">
+                    <p className="text-blue-500 text-xs font-semibold">{csvData.rows.length} farmers found</p>
+                    <p className="text-blue-500 text-[10px] mt-0.5">Columns: {csvData.headers.join(", ")}</p>
                     <div className="mt-2 space-y-1 max-h-24 overflow-y-auto">
                       {csvData.rows.slice(0, 3).map((row, i) => (
-                        <p key={i} className="text-blue-600 text-[10px] font-mono">{Object.values(row).slice(0, 3).join(" · ")}</p>
+                        <p key={i} className="text-blue-500 text-[10px] font-mono">{Object.values(row).slice(0, 3).join(" · ")}</p>
                       ))}
                       {csvData.rows.length > 3 && <p className="text-blue-400 text-[10px]">…and {csvData.rows.length - 3} more</p>}
                     </div>
@@ -1075,9 +1075,9 @@ export default function CooperativeDashboard() {
                   </div>
                 </div>
               ) : (
-                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-blue-200 rounded-xl p-6 cursor-pointer hover:bg-blue-50 transition-colors">
-                  <Upload size={18} className="text-blue-400" />
-                  <span className="text-blue-600 text-sm font-medium">Click to upload CSV</span>
+                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-blue-400/30 rounded-xl p-6 cursor-pointer hover:bg-blue-500/5 transition-colors">
+                  <Upload size={18} className="text-blue-500" />
+                  <span className="text-blue-500 text-sm font-medium">Click to upload CSV</span>
                   <input ref={csvRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvFile} />
                 </label>
               )}
@@ -1089,14 +1089,14 @@ export default function CooperativeDashboard() {
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Your Network ({farmersLoading ? "…" : networkFarmers.length})
                 </p>
-                <span className="text-[9px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                <span className="text-[9px] font-bold bg-[#16a34a]/10 text-[#16a34a] px-2 py-0.5 rounded-full">
                   {networkFarmers.filter(f => f.funded).length} funded
                 </span>
               </div>
               {farmersLoading ? (
                 <div className="space-y-2">{Array(4).fill(0).map((_, i) => <div key={i} className="h-16 rounded-2xl bg-muted animate-pulse" />)}</div>
               ) : networkFarmers.length === 0 ? (
-                <div className="text-center py-8 bg-white border border-border rounded-2xl">
+                <div className="text-center py-8 bg-card border border-border rounded-2xl">
                   <Users size={24} className="text-muted-foreground mx-auto mb-2" />
                   <p className="text-muted-foreground text-sm font-medium">No farmers in your network yet</p>
                   <p className="text-muted-foreground text-xs mt-1">Share your invitation link or import via CSV above</p>
@@ -1105,7 +1105,7 @@ export default function CooperativeDashboard() {
                 <div className="space-y-2">
                   {networkFarmers.map(f => (
                     <motion.div key={f.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                      className="bg-white border border-border rounded-2xl p-3.5 flex items-center gap-3">
+                      className="bg-card border border-border rounded-2xl p-3.5 flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-[#16a34a]/10 flex items-center justify-center flex-shrink-0">
                         <span className="text-sm font-bold text-[#16a34a]">{f.name.charAt(0)}</span>
                       </div>
@@ -1119,10 +1119,10 @@ export default function CooperativeDashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full block mb-1 ${f.status === "active" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full block mb-1 ${f.status === "active" ? "bg-[#16a34a]/10 text-[#16a34a]" : "bg-amber-500/10 text-amber-500"}`}>
                           {f.status === "active" ? "Active" : "Pending"}
                         </span>
-                        {f.funded && <span className="text-[8px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Funded</span>}
+                        {f.funded && <span className="text-[8px] font-bold bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded-full">Funded</span>}
                       </div>
                     </motion.div>
                   ))}
@@ -1155,7 +1155,7 @@ export default function CooperativeDashboard() {
               </p>
             </div>
 
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <p className="text-sm font-semibold mb-3">How Co-Investment Works</p>
               <div className="space-y-3">
                 {[
@@ -1177,16 +1177,16 @@ export default function CooperativeDashboard() {
 
             {/* Co-investment application */}
             {coinvestSubmitted ? (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
-                <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle2 size={28} className="text-green-600" />
+              <div className="bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-2xl p-5 text-center">
+                <div className="w-14 h-14 rounded-full bg-[#16a34a]/10 flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle2 size={28} className="text-[#16a34a]" />
                 </div>
-                <p className="text-green-700 font-bold text-sm">Application Submitted!</p>
-                <p className="text-green-800 font-mono text-[10px] mt-1 mb-2">{coinvestSubmitted.referenceId}</p>
-                <p className="text-green-600 text-xs">Our team will review within 2 business days.</p>
-                <div className="mt-3 bg-green-100 rounded-xl p-3">
-                  <p className="text-green-700 text-xs font-semibold">Estimated Return</p>
-                  <p className="text-green-800 font-bold text-sm mt-0.5">KES {coinvestSubmitted.estimatedReturn}</p>
+                <p className="text-foreground font-bold text-sm">Application Submitted!</p>
+                <p className="text-muted-foreground font-mono text-[10px] mt-1 mb-2">{coinvestSubmitted.referenceId}</p>
+                <p className="text-muted-foreground text-xs">Our team will review within 2 business days.</p>
+                <div className="mt-3 bg-[#16a34a]/10 rounded-xl p-3">
+                  <p className="text-[#16a34a] text-xs font-semibold">Estimated Return</p>
+                  <p className="text-foreground font-bold text-sm mt-0.5">KES {coinvestSubmitted.estimatedReturn}</p>
                 </div>
                 <button onClick={() => { setCoinvestSubmitted(null); setCoinvestFarm(""); setCoinvestAmount(""); setCoinvestMemberCount(""); setCoinvestNotes(""); }}
                   className="mt-3 text-[#16a34a] text-xs font-semibold underline">
@@ -1194,7 +1194,7 @@ export default function CooperativeDashboard() {
                 </button>
               </div>
             ) : (
-              <div className="bg-white border border-border rounded-2xl p-4">
+              <div className="bg-card border border-border rounded-2xl p-4">
                 <p className="text-sm font-semibold mb-3">Apply for Co-Investment</p>
                 <div className="space-y-3">
                   <div>
@@ -1227,9 +1227,9 @@ export default function CooperativeDashboard() {
                       className="w-full border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#16a34a] resize-none" />
                   </div>
                   {coinvestError && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                    <div className="bg-red-500/10 border border-red-400/20 rounded-xl p-3 flex items-center gap-2">
                       <AlertTriangle size={13} className="text-red-500 flex-shrink-0" />
-                      <p className="text-red-600 text-xs">{coinvestError}</p>
+                      <p className="text-red-500 text-xs">{coinvestError}</p>
                     </div>
                   )}
                   <button
@@ -1265,7 +1265,7 @@ export default function CooperativeDashboard() {
       </div>
 
       {/* ── MOBILE BOTTOM NAV ── */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-200 z-[60]">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-background border-t border-border z-[60]">
         <div className={`grid h-16 ${NAV_TABS.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
           {NAV_TABS.map(({ id, label, emoji }) => (
             <button key={id} onClick={() => goTab(id)}

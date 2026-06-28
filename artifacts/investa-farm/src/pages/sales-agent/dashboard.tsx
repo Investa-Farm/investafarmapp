@@ -53,14 +53,14 @@ function CommissionWithdrawal({ token, agentCode, availableKes }: { token: strin
   return (
     <>
       <button onClick={() => { setOpen(true); }}
-        className="w-full py-3.5 rounded-2xl border-2 border-green-600 text-green-700 font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all bg-green-50">
+        className="w-full py-3.5 rounded-2xl border-2 border-[#16a34a] text-[#16a34a] font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all bg-[#16a34a]/10">
         <Wallet size={16} /> Request Commission Withdrawal
       </button>
 
       {open && (
         <div className="fixed inset-0 z-[70] flex items-end justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={close} />
-          <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl shadow-xl">
+          <div className="relative w-full max-w-[430px] bg-background rounded-t-3xl shadow-xl">
             <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border">
               <p className="text-foreground font-bold text-base">{step === "done" ? "Request Submitted!" : "Withdraw Commission"}</p>
               <button onClick={close} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center"><X size={15} /></button>
@@ -68,23 +68,23 @@ function CommissionWithdrawal({ token, agentCode, availableKes }: { token: strin
             <div className="px-5 pt-4 pb-8">
               {step === "done" ? (
                 <div className="text-center py-4">
-                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 size={32} className="text-green-600" />
+                  <div className="w-16 h-16 rounded-full bg-[#16a34a]/10 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 size={32} className="text-[#16a34a]" />
                   </div>
                   <p className="text-foreground font-extrabold text-lg mb-1">Request Received!</p>
                   <p className="text-muted-foreground text-sm mb-3">Your withdrawal is being processed.</p>
-                  <div className="bg-green-50 border border-green-200 rounded-2xl p-3 mb-4">
-                    <p className="text-green-700 text-xs font-semibold">Reference Code</p>
-                    <p className="text-green-800 font-bold text-base mt-0.5">{refCode}</p>
+                  <div className="bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-2xl p-3 mb-4">
+                    <p className="text-[#16a34a] text-xs font-semibold">Reference Code</p>
+                    <p className="text-foreground font-bold text-base mt-0.5">{refCode}</p>
                   </div>
                   <p className="text-muted-foreground text-xs leading-relaxed">Funds will be sent to your M-Pesa within <strong>5 business days</strong>. Quote your reference code for any queries.</p>
-                  <button onClick={close} className="mt-5 w-full bg-green-600 text-white font-bold py-3.5 rounded-2xl active:scale-95">Done</button>
+                  <button onClick={close} className="mt-5 w-full bg-primary text-white font-bold py-3.5 rounded-2xl active:scale-95">Done</button>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-                    <p className="text-green-700 text-xs font-semibold">Available for Withdrawal</p>
-                    <p className="text-green-800 font-bold text-xl mt-0.5">{formatKES(availableKes)}</p>
+                  <div className="bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-xl p-3">
+                    <p className="text-[#16a34a] text-xs font-semibold">Available for Withdrawal</p>
+                    <p className="text-foreground font-bold text-xl mt-0.5">{formatKES(availableKes)}</p>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">M-Pesa Number</label>
@@ -103,9 +103,9 @@ function CommissionWithdrawal({ token, agentCode, availableKes }: { token: strin
                     <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder={`Min KES 100 · Max ${formatKES(availableKes)}`} required min={100} max={availableKes}
                       className="w-full border border-border rounded-xl px-4 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-green-500" />
                   </div>
-                  {error && <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-red-600 text-xs">{error}</div>}
+                  {error && <div className="bg-red-500/10 border border-red-400/20 rounded-xl px-3 py-2.5 text-red-500 text-xs">{error}</div>}
                   <button type="submit" disabled={submitting || !mpesaNumber || !amount}
-                    className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-40">
+                    className="w-full bg-primary text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-40">
                     {submitting ? <Loader2 size={16} className="animate-spin" /> : <Wallet size={16} />}
                     {submitting ? "Submitting…" : "Request Withdrawal"}
                   </button>
@@ -199,8 +199,8 @@ export default function SalesAgentDashboard() {
   }
 
   function handleLogout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.removeItem("investa_token");
+    localStorage.removeItem("investa_user");
     localStorage.removeItem("investa_coop_sub_type");
     setLocation("/cooperative-auth");
   }
@@ -269,12 +269,12 @@ export default function SalesAgentDashboard() {
                 </div>
                 <p className="text-white/70 text-[11px]">Share with farmers — earn commission when they get funded</p>
               </div>
-              <div className="-mt-3 mx-3 bg-white rounded-2xl p-3 border border-green-100 shadow-md mb-3">
+              <div className="-mt-3 mx-3 bg-card rounded-2xl p-3 border border-border shadow-md mb-3">
                 <p className="text-foreground font-mono text-[11px] break-all leading-relaxed">{referralLink}</p>
               </div>
               <div className="grid grid-cols-2 gap-2 px-3 pb-4">
                 <button onClick={copyLink}
-                  className="flex items-center justify-center gap-1.5 bg-white border-2 border-green-300 text-green-700 text-xs font-bold py-3 rounded-xl active:scale-95 shadow-sm">
+                  className="flex items-center justify-center gap-1.5 bg-card border-2 border-[#16a34a]/40 text-[#16a34a] text-xs font-bold py-3 rounded-xl active:scale-95 shadow-sm">
                   {copiedLink ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
                   {copiedLink ? "Copied!" : "Copy Link"}
                 </button>
@@ -287,10 +287,10 @@ export default function SalesAgentDashboard() {
             </div>
 
             {/* Submit Proposal */}
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-foreground font-bold text-sm">Submit Crop Proposal</p>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">+ Commission</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/10 text-[#16a34a]">+ Commission</span>
               </div>
               <p className="text-muted-foreground text-xs leading-relaxed mb-3">
                 Know a farmer ready for investment? Submit a proposal on their behalf — our team reviews and reaches out.
@@ -304,7 +304,7 @@ export default function SalesAgentDashboard() {
             </div>
 
             {/* How it works */}
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <p className="text-foreground font-bold text-sm mb-3">How It Works</p>
               <div className="space-y-3">
                 {[
@@ -314,8 +314,8 @@ export default function SalesAgentDashboard() {
                   { step: "4", title: "You earn", desc: "Commission credited to your agent wallet." },
                 ].map(s => (
                   <div key={s.step} className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-green-700 text-[10px] font-bold">{s.step}</span>
+                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-primary text-[10px] font-bold">{s.step}</span>
                     </div>
                     <div>
                       <p className="text-foreground font-semibold text-xs">{s.title}</p>
@@ -339,20 +339,20 @@ export default function SalesAgentDashboard() {
                 <p className="text-foreground font-semibold text-sm">No farmers yet</p>
                 <p className="text-muted-foreground text-xs mt-1">Share your referral link to onboard farmers.</p>
                 <button onClick={shareLink}
-                  className="mt-4 bg-green-600 text-white text-xs font-semibold px-5 py-2.5 rounded-xl active:scale-95">
+                  className="mt-4 bg-primary text-white text-xs font-semibold px-5 py-2.5 rounded-xl active:scale-95">
                   Share Link Now
                 </button>
               </div>
             ) : farmers.map((f: any) => (
-              <div key={f.id} className="bg-white border border-border rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <Users size={16} className="text-green-600" />
+              <div key={f.id} className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Users size={16} className="text-primary" />
                 </div>
                 <div className="flex-1">
                   <p className="text-foreground font-semibold text-sm">{f.name}</p>
                   <p className="text-muted-foreground text-xs">{f.email}</p>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${f.farmFunded ? "bg-green-100 text-green-700" : "bg-green-50 text-green-600"}`}>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${f.farmFunded ? "bg-[#16a34a]/10 text-[#16a34a]" : "bg-amber-500/10 text-amber-500"}`}>
                   {f.farmFunded ? "Funded" : "Pending"}
                 </span>
               </div>
@@ -364,7 +364,7 @@ export default function SalesAgentDashboard() {
         {activeTab === "proposals" && (
           <div className="space-y-3">
             <button onClick={() => setLocation("/farmer/crop-proposal")}
-              className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-semibold px-4 py-3 rounded-2xl text-sm active:scale-95 shadow-sm shadow-green-600/20">
+              className="w-full flex items-center justify-center gap-2 bg-primary text-white font-semibold px-4 py-3 rounded-2xl text-sm active:scale-95">
               <FileText size={15} />
               New Crop Proposal
             </button>
@@ -377,20 +377,20 @@ export default function SalesAgentDashboard() {
                 <p className="text-muted-foreground text-xs mt-1">Submit a crop proposal to get started.</p>
               </div>
             ) : proposals.map((p: any) => (
-              <div key={p.id} className="bg-white border border-border rounded-2xl p-4">
+              <div key={p.id} className="bg-card border border-border rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-foreground font-semibold text-sm">{p.cropType ?? "Crop"} Farm</p>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    p.status === "approved" ? "bg-green-100 text-green-700" :
-                    p.status === "rejected" ? "bg-red-100 text-red-700" :
-                    "bg-green-50 text-green-600"
+                    p.status === "approved" ? "bg-[#16a34a]/10 text-[#16a34a]" :
+                    p.status === "rejected" ? "bg-red-500/10 text-red-500" :
+                    "bg-amber-500/10 text-amber-500"
                   }`}>{p.status ?? "pending"}</span>
                 </div>
                 <p className="text-muted-foreground text-xs">{p.location ?? ""} · {p.size ?? ""} acres</p>
                 {p.status === "approved" && (
-                  <div className="mt-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2 flex items-center justify-between">
-                    <p className="text-green-700 text-xs font-semibold">Commission earned</p>
-                    <p className="text-green-800 font-bold text-xs">{formatKES(500)}</p>
+                  <div className="mt-2 bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-xl px-3 py-2 flex items-center justify-between">
+                    <p className="text-[#16a34a] text-xs font-semibold">Commission earned</p>
+                    <p className="text-foreground font-bold text-xs">{formatKES(500)}</p>
                   </div>
                 )}
               </div>
@@ -425,9 +425,9 @@ export default function SalesAgentDashboard() {
             </div>
 
             {/* Commission structure */}
-            <div className="bg-white border border-border rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
-                <TrendingUp size={15} className="text-green-600" />
+                <TrendingUp size={15} className="text-primary" />
                 <p className="text-foreground font-bold text-sm">Commission Structure</p>
               </div>
               <div className="space-y-2">
@@ -436,25 +436,25 @@ export default function SalesAgentDashboard() {
                   { milestone: "Farm 50%+ Funded", reward: "1% of raise", icon: "🌱", desc: "Paid when half the target is raised" },
                   { milestone: "Farm Fully Funded", reward: "2% total raise", icon: "🏆", desc: "Bonus on full funding completion" },
                 ].map(r => (
-                  <div key={r.milestone} className="flex items-center gap-3 p-3 bg-green-50 border border-green-100 rounded-xl">
+                  <div key={r.milestone} className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/10 rounded-xl">
                     <span className="text-xl flex-shrink-0">{r.icon}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-foreground font-semibold text-xs">{r.milestone}</p>
                       <p className="text-muted-foreground text-[10px]">{r.desc}</p>
                     </div>
-                    <p className="text-green-700 font-bold text-xs flex-shrink-0">{r.reward}</p>
+                    <p className="text-primary font-bold text-xs flex-shrink-0">{r.reward}</p>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Payment info */}
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+            <div className="bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Wallet size={15} className="text-green-600" />
-                <p className="text-green-800 font-bold text-sm">Payment Schedule</p>
+                <Wallet size={15} className="text-[#16a34a]" />
+                <p className="text-foreground font-bold text-sm">Payment Schedule</p>
               </div>
-              <p className="text-green-700 text-xs leading-relaxed">
+              <p className="text-muted-foreground text-xs leading-relaxed">
                 Confirmed commissions are paid to your M-Pesa within <strong>5 business days</strong> of farm funding milestones. 
                 Contact support with agent code <strong>IFV-{agentCode}</strong> for payout queries.
               </p>
@@ -468,7 +468,7 @@ export default function SalesAgentDashboard() {
       </div>
 
       {/* Fixed bottom nav */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-white border-t border-border"
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 bg-background border-t border-border"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0)" }}>
         <div className="flex justify-around items-stretch">
           {AGENT_TABS.map(({ id, label, icon: Icon }) => {
