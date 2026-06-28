@@ -90,6 +90,41 @@ type Listing = {
   changePercent: number; imageUrl?: string;
 };
 
+/** Seeded deterministic base so each farm always starts from the same number */
+function seedSold(listingId: number, pricePerShare: number, changePercent: number): number {
+  const base = ((listingId * 11 + Math.round(pricePerShare)) % 60) + 8;
+  return Math.max(5, base + Math.round(Math.abs(changePercent) * 2.5));
+}
+
+/** Live counter that slowly ticks up to simulate real-time share sales */
+function LiveCounter({ listingId, pricePerShare, changePercent }: { listingId: number; pricePerShare: number; changePercent: number }) {
+  const base = useMemo(() => seedSold(listingId, pricePerShare, changePercent), [listingId, pricePerShare, changePercent]);
+  const [count, setCount] = useState(base);
+
+  useEffect(() => {
+    // Stagger tick intervals so cards don't all update at once (15–50 s)
+    const ms = 15_000 + (listingId % 8) * 4_500;
+    const t = setInterval(() => {
+      setCount(c => c + Math.ceil(Math.random() * 2 + 0.5));
+    }, ms);
+    return () => clearInterval(t);
+  }, [listingId]);
+
+  return (
+    <motion.span
+      key={count}
+      initial={{ opacity: 0.5, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="flex items-center gap-1 text-green-600"
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
+      <span className="text-[9px] font-black tabular-nums">{count}</span>
+      <span className="text-[8px] font-semibold text-green-500">sold/hr</span>
+    </motion.span>
+  );
+}
+
 function TickerTape({ listings }: { listings: Listing[] }) {
   const items = listings.slice(0, 8);
   if (!items.length) return null;
@@ -342,6 +377,11 @@ export default function PrimaryMarket() {
                           <span className="text-[9px] font-mono">{listing.sharesAvailable.toLocaleString()}</span>
                           <span className="text-[8px]">avail</span>
                         </div>
+                        <LiveCounter
+                          listingId={listing.id}
+                          pricePerShare={listing.pricePerShare}
+                          changePercent={listing.changePercent}
+                        />
                       </div>
                       <div className="flex items-center gap-1">
                         <button onClick={(e) => { e.stopPropagation(); setAlertListing(listing); setAlertOpen(true); }}
