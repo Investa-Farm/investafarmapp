@@ -17,6 +17,18 @@ const app: Express = express();
 app.use(
   (pinoHttp as unknown as (opts: object) => ReturnType<typeof pinoHttp>)({
     logger,
+    // Redact any sensitive fields that might appear in log output
+    redact: {
+      paths: [
+        "req.headers.authorization",
+        "req.headers.cookie",
+        "req.body.password",
+        "req.body.token",
+        "req.body.otp",
+        "req.body.secret",
+      ],
+      censor: "[REDACTED]",
+    },
     serializers: {
       req(req: { id: string | number; method?: string; url?: string }) {
         return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
