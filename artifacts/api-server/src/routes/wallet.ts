@@ -15,6 +15,7 @@ import { sendWalletTopupSms, sendWithdrawalSms } from "../lib/sms";
 import { sendWalletCreditEmail, sendWithdrawalConfirmationEmail } from "../lib/email";
 import { isCircleConfigured, getKesUsdcRate, createPaymentIntent, getPaymentIntentStatus, getStaticUsdcAddress } from "../lib/circle";
 import { createPaymentIntent as stripeCreateIntent, retrievePaymentIntent, createMpesaPaymentIntent, isConfigured as isStripeConfigured, STRIPE_PUBLIC_KEY, constructWebhookEvent } from "../lib/stripe";
+import { initiateStkPush, queryStkStatus, isDarajaConfigured } from "../lib/daraja";
 
 const router: IRouter = Router();
 
@@ -422,6 +423,107 @@ router.post("/wallet/stripe/confirm", financialRateLimit, async (req, res): Prom
     const msg = err instanceof Error ? err.message : "Confirmation failed";
     res.status(502).json({ error: msg });
   }
+});
+
+// ─── DARAJA M-PESA ROUTES ────────────────────────────────────────────────────
+
+// POST /wallet/daraja/stk — initiate M-Pesa STK push via Safaricom Daraja
+router.post("/wallet/daraja/stk", financialRateLimit, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const amount = Number(req.body.amount);
+  const phone = String(req.body.phone ?? "").trim();
+  if (!amount || amount < 10 || amount > 1_000_000) {
+    res.status(400).json({ error: "Amount must be between KES 10 and KES 1,000,000." }); return;
+  }
+  if (!phone) { res.status(400).json({ error: "Phone number required for M-Pesa." }); return; }
+  const check = checkDepositVelocity(user.id, amount);
+  if (!check.ok) { res.status(400).json({ error: check.error }); return; }
+
+  const reference = `IF-${user.id}-${Date.now()}`;
+
+  if (!isDarajaConfigured()) {
+    // Dev demo mode — auto-credit after short delay
+    res.json({ checkoutRequestId: `DEMO-${Date.now()}`, configured: false, customerMessage: "Demo mode — no real STK push sent" });
+    return;
+  }
+
+  try {
+    const result = await initiateStkPush({ phone, amountKES: amount, reference, description: "InvestaFarm" });
+    res.json({ ...result, reference, configured: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "STK push failed";
+    res.status(502).json({ error: msg });
+  }
+});
+
+// GET /wallet/daraja/status/:checkoutRequestId — poll STK push result
+router.get("/wallet/daraja/status/:checkoutRequestId", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { checkoutRequestId } = req.params;
+  const { amount: amountStr, reference } = req.query;
+
+  if (checkoutRequestId.startsWith("DEMO-")) {
+    // Demo: credit immediately
+    const amount = Number(amountStr) || 0;
+    if (amount > 0) {
+      const ref = `DARAJA-DEMO-${checkoutRequestId}`;
+      const result = await creditWallet(user.id, amount, ref, "M-Pesa deposit (demo)");
+      if (!(result as any).alreadyCredited) recordDeposit(user.id, amount);
+    }
+    res.json({ paid: true, resultCode: "0", resultDesc: "Demo success" });
+    return;
+  }
+
+  if (!isDarajaConfigured()) {
+    res.json({ paid: false, resultCode: "pending", resultDesc: "Not configured" }); return;
+  }
+
+  try {
+    const status = await queryStkStatus(checkoutRequestId);
+    if (status.paid) {
+      const amount = Number(amountStr) || 0;
+      const ref = `DARAJA-${checkoutRequestId}`;
+      const result = await creditWallet(user.id, amount, ref, "M-Pesa deposit via Daraja");
+      if (!(result as any).alreadyCredited) {
+        recordDeposit(user.id, amount);
+        notifyUser(user.id, "wallet_credit", "💰 M-Pesa Confirmed!", `KES ${amount.toLocaleString("en-KE")} added to your Investa Farm wallet.`, "/wallet").catch(() => {});
+        const userRow = await db.select({ phone: usersTable.phone, email: usersTable.email, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, user.id)).limit(1).then(r => r[0]).catch(() => null);
+        if (userRow) {
+          const newBal = parseFloat((result as any).wallet?.balance ?? "0");
+          sendWalletCreditEmail(userRow.email, userRow.name, amount, newBal, "M-Pesa Daraja").catch(() => {});
+          if (userRow.phone) sendWalletTopupSms(userRow.phone, amount, newBal).catch(() => {});
+        }
+      }
+    }
+    res.json(status);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Status check failed";
+    res.status(502).json({ error: msg });
+  }
+});
+
+// POST /wallet/daraja/callback — Safaricom callback (no auth needed)
+router.post("/wallet/daraja/callback", async (req, res): Promise<void> => {
+  try {
+    const body = req.body?.Body?.stkCallback;
+    if (!body) { res.json({ ResultCode: 0, ResultDesc: "OK" }); return; }
+    const resultCode = String(body.ResultCode ?? "1");
+    if (resultCode !== "0") { res.json({ ResultCode: 0, ResultDesc: "OK" }); return; }
+    const items: any[] = body.CallbackMetadata?.Item ?? [];
+    const get = (name: string) => items.find((i: any) => i.Name === name)?.Value;
+    const amount = Number(get("Amount") ?? 0);
+    const mpesaRef = String(get("MpesaReceiptNumber") ?? "");
+    const phone = String(get("PhoneNumber") ?? "");
+    const checkoutId = String(body.CheckoutRequestID ?? "");
+    if (!amount || !mpesaRef) { res.json({ ResultCode: 0, ResultDesc: "OK" }); return; }
+    // We can't reliably match to a user from callback alone — the status poll will credit
+    console.info(`[Daraja] Callback success: ${mpesaRef} KES ${amount} from ${phone} (checkout: ${checkoutId})`);
+  } catch (e) {
+    console.error("[Daraja] Callback error:", e);
+  }
+  res.json({ ResultCode: 0, ResultDesc: "OK" });
 });
 
 // ─── STRIPE M-PESA ROUTES ────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'investa-farm-v3';
+const CACHE_NAME = 'investa-farm-v4';
 const STATIC_ASSETS = ['/logo.png', '/favicon.png'];
 
 self.addEventListener('install', e => {
@@ -42,7 +42,6 @@ self.addEventListener('push', event => {
   const {
     title = 'Investa Farm',
     body = 'You have a new notification',
-    tag = 'investa-farm',
     url = '/',
     type = 'general',
     amount,
@@ -52,13 +51,17 @@ self.addEventListener('push', event => {
   const displayTitle = `${cfg.emoji} ${title}`;
   const displayBody = amount ? `${body}` : body;
 
+  // Use a unique tag per notification so every push fires its own alert on Android/iOS.
+  // Static tags collapse new notifications into the existing one and suppress vibration.
+  const uniqueTag = `investa-${type}-${Date.now()}`;
+
   event.waitUntil(
     self.registration.showNotification(displayTitle, {
       body: displayBody,
       icon: '/logo.png',
       badge: '/favicon.png',
-      tag,
-      renotify: true,
+      tag: uniqueTag,
+      renotify: false,
       data: { url, type, amount },
       actions: cfg.requireInteract
         ? [{ action: 'open', title: '👁 View' }, { action: 'dismiss', title: 'Dismiss' }]

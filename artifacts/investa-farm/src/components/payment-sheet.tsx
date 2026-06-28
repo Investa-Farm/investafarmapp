@@ -2,14 +2,16 @@
  * PaymentSheet — in-app payment bottom-sheet for Investa Farm
  *
  * Tabs:
- *   Card  — Stripe Payment Element → in-page card form → confirm
- *   USDC  — Circle USDC on-chain deposit address + manual confirm
+ *   M-Pesa — Safaricom Daraja STK push
+ *   Card   — Stripe Payment Element → in-page card form → confirm
+ *   USDC   — Circle USDC on-chain deposit address + manual confirm
  */
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, CreditCard, Coins, Loader2, CheckCircle2,
-  Copy, Check, ExternalLink, AlertCircle, ChevronRight, Wallet, Smartphone,
+  Copy, Check, AlertCircle, Wallet, Smartphone,
+  Shield, Lock, Zap,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getToken, getStoredUser, formatKES } from "@/lib/auth";
@@ -40,14 +42,14 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const [tab, setTab] = useState<Tab>("mpesa");
   const [amount, setAmount] = useState("");
 
-  // M-Pesa state
+  // M-Pesa (Daraja) state
   const [mpesaPhone, setMpesaPhone] = useState("");
   const [mpesaCode, setMpesaCode] = useState("+254");
   const [mpesaStep, setMpesaStep] = useState<"idle" | "sending" | "polling" | "done">("idle");
-  const [mpesaRef, setMpesaRef] = useState<string | null>(null);
+  const [mpesaCheckoutId, setMpesaCheckoutId] = useState<string | null>(null);
   const [mpesaError, setMpesaError] = useState<string | null>(null);
   const [mpesaConfigured, setMpesaConfigured] = useState(true);
-  const [mpesaProvider, setMpesaProvider] = useState<"stripe" | "paystack">("stripe");
+  const [mpesaMessage, setMpesaMessage] = useState<string>("");
   const mpesaPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Stripe card state
@@ -72,7 +74,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   // Success state
   const [success, setSuccess] = useState(false);
 
-  // Load Circle info when USDC tab is opened
   useEffect(() => {
     if (tab === "usdc" && !circleInfo && token) {
       fetch("/api/wallet/circle/info", { headers: { Authorization: `Bearer ${token}` } })
@@ -82,32 +83,28 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     }
   }, [tab, circleInfo, token]);
 
-  // Reset when sheet closes
   useEffect(() => {
     if (!open) resetAll();
   }, [open]);
 
   function resetAll() {
     setAmount("");
-    // M-Pesa
-    setMpesaPhone(""); setMpesaStep("idle"); setMpesaRef(null); setMpesaError(null); setMpesaProvider("stripe");
+    setMpesaPhone(""); setMpesaStep("idle"); setMpesaCheckoutId(null); setMpesaError(null); setMpesaMessage("");
     if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
-    // Stripe
     setStripeStep("idle"); setStripeIntentId(null); setStripeClientSecret(null); setCardError(null);
     stripeInstanceRef.current = null; stripeElementsRef.current = null;
-    // Circle
     setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false); setWalletModalOpen(false);
   }
 
-  // ─── M-PESA (via Stripe) ────────────────────────────────────────────────────
+  // ─── M-PESA via Daraja ──────────────────────────────────────────────────────
   async function handleMpesaSend() {
     const amt = parseFloat(amount);
-    if (!amt || amt < 100 || !mpesaPhone.trim()) return;
+    if (!amt || amt < 10 || !mpesaPhone.trim()) return;
 
     const digits = mpesaPhone.replace(/\D/g, "");
     const local = digits.startsWith("0") ? digits.slice(1) : digits;
-    if (mpesaCode === "+254" && (local.length < 9 || local.length > 9)) {
-      setMpesaError("Enter a valid Safaricom number — 9 digits after the country code (e.g. 712 345 678).");
+    if (mpesaCode === "+254" && local.length !== 9) {
+      setMpesaError("Enter a valid Safaricom number — 9 digits after country code (e.g. 712 345 678).");
       return;
     }
 
@@ -116,8 +113,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setMpesaError(null);
 
     try {
-      // Use Stripe M-Pesa endpoint (falls back to demo mode if Stripe not configured)
-      const r = await fetch("/api/wallet/stripe/mpesa", {
+      const r = await fetch("/api/wallet/daraja/stk", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ amount: amt, phone: fullPhone }),
@@ -125,55 +121,42 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Failed to initiate M-Pesa payment");
 
-      setMpesaRef(d.intentId);
+      setMpesaCheckoutId(d.checkoutRequestId);
       setMpesaConfigured(d.configured !== false);
-      setMpesaProvider("stripe");
-
-      // If Stripe is live-configured, trigger STK push via Stripe.js confirmMpesaPayment
-      if (d.configured && d.clientSecret && d.publicKey) {
-        try {
-          const stripe = await loadStripeJs(d.publicKey);
-          // confirmMpesaPayment sends the STK push; errors surface as stripe error
-          const { error } = await (stripe as any).confirmMpesaPayment(d.clientSecret, {
-            payment_method: { billing_details: { phone: fullPhone } },
-          });
-          if (error) {
-            setMpesaError(error.message ?? "M-Pesa confirmation failed");
-            setMpesaStep("idle"); return;
-          }
-        } catch {
-          // Stripe.js M-Pesa not available — poll and let webhook handle it
-        }
-      }
-
+      setMpesaMessage(d.customerMessage ?? "Check your phone for the M-Pesa prompt");
       setMpesaStep("polling");
 
-      // Demo mode: credit immediately after a short delay
+      // Demo mode: credit immediately
       if (d.configured === false) {
-        setTimeout(() => { handleSuccess(amt); }, 2500);
+        setTimeout(async () => {
+          const sr = await fetch(`/api/wallet/daraja/status/${d.checkoutRequestId}?amount=${amt}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => null);
+          handleSuccess(amt);
+        }, 2000);
         return;
       }
 
-      // Poll Stripe status every 4 seconds for up to 2 minutes
+      // Poll every 4 s for up to 2 min
       let polls = 0;
       mpesaPollRef.current = setInterval(async () => {
         polls++;
         if (polls > 30) {
           clearInterval(mpesaPollRef.current!); mpesaPollRef.current = null;
-          setMpesaError("Payment timed out. Please check your M-Pesa and try again.");
+          setMpesaError("Payment timed out. Check your M-Pesa messages and try again.");
           setMpesaStep("idle"); return;
         }
         try {
-          const sr = await fetch(`/api/wallet/stripe/mpesa/status/${d.intentId}`, {
+          const sr = await fetch(`/api/wallet/daraja/status/${d.checkoutRequestId}?amount=${amt}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const sd = await sr.json();
           if (sd.paid) {
             clearInterval(mpesaPollRef.current!); mpesaPollRef.current = null;
             handleSuccess(amt);
-          } else if (sd.status === "canceled" || sd.status === "payment_failed") {
+          } else if (sd.resultCode && sd.resultCode !== "0" && sd.resultCode !== "pending") {
             clearInterval(mpesaPollRef.current!); mpesaPollRef.current = null;
-            setMpesaError("Payment was cancelled or failed. Please try again.");
+            setMpesaError(sd.resultDesc || "Payment was cancelled or failed. Please try again.");
             setMpesaStep("idle");
           }
         } catch { /* keep polling */ }
@@ -215,14 +198,19 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     });
   }
 
-  // Mount Stripe card element once the form step renders and the ref is available
   useEffect(() => {
     if (stripeStep !== "form" || !stripeElementsRef.current || !stripeContainerRef.current) return;
-    // Avoid double-mounting
     if (stripeContainerRef.current.childElementCount > 0) return;
     const cardEl = stripeElementsRef.current.create("card", {
       style: {
-        base: { fontSize: "15px", color: "#111827", "::placeholder": { color: "#9ca3af" } },
+        base: {
+          fontSize: "16px",
+          color: "#111827",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          fontSmoothing: "antialiased",
+          "::placeholder": { color: "#9ca3af" },
+        },
+        invalid: { color: "#ef4444" },
       },
       hidePostalCode: true,
     });
@@ -242,23 +230,18 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Failed to create payment");
-
       setStripeIntentId(data.intentId);
       setStripeClientSecret(data.clientSecret);
-
       const stripe = await loadStripeJs(data.publicKey);
       stripeInstanceRef.current = stripe;
-
       const elements = stripe.elements({
         clientSecret: data.clientSecret,
         appearance: {
           theme: "stripe",
-          variables: { colorPrimary: "#16a34a", borderRadius: "12px", fontFamily: "inherit" },
+          variables: { colorPrimary: "#2563eb", borderRadius: "14px", fontFamily: "inherit" },
         },
       });
       stripeElementsRef.current = elements;
-
-      // Setting step to "form" triggers the useEffect above which mounts the card element
       setStripeStep("form");
     } catch (err) {
       setCardError((err as Error).message);
@@ -271,7 +254,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setStripeStep("confirming");
     setCardError(null);
     try {
-      // Use confirmCardPayment (card element) not confirmPayment (payment element)
       const cardEl = stripeElementsRef.current.getElement("card");
       const { error, paymentIntent } = await stripeInstanceRef.current.confirmCardPayment(
         stripeClientSecret ?? "",
@@ -344,10 +326,10 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const amt = parseFloat(amount) || 0;
   const usdcEstimate = circleInfo ? (amt / circleInfo.kesRate).toFixed(2) : "0.00";
 
-  const TABS: { id: Tab; label: string; icon: React.ReactNode; color: string }[] = [
-    { id: "mpesa", label: "M-Pesa", icon: <Smartphone size={15} />, color: "bg-green-600" },
-    { id: "card", label: "Card", icon: <CreditCard size={15} />, color: "bg-blue-600" },
-    { id: "usdc", label: "USDC", icon: <Coins size={15} />, color: "bg-purple-600" },
+  const TABS: { id: Tab; label: string; icon: React.ReactNode; activeClass: string }[] = [
+    { id: "mpesa", label: "M-Pesa", icon: <Smartphone size={14} />, activeClass: "bg-green-600 text-white shadow-green-600/30" },
+    { id: "card", label: "Card", icon: <CreditCard size={14} />, activeClass: "bg-blue-600 text-white shadow-blue-600/30" },
+    { id: "usdc", label: "USDC", icon: <Coins size={14} />, activeClass: "bg-purple-600 text-white shadow-purple-600/30" },
   ];
 
   return (
@@ -362,7 +344,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
 
           <motion.div
             className="relative w-full max-w-[430px] bg-background rounded-t-3xl shadow-2xl overflow-hidden"
-            style={{ maxHeight: "90dvh" }}
+            style={{ maxHeight: "92dvh" }}
             initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
           >
@@ -372,12 +354,12 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
               <div>
                 <h3 className="font-bold text-lg text-foreground">Add Funds</h3>
                 <p className="text-muted-foreground text-xs">Choose your payment method</p>
               </div>
-              <button onClick={onClose} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+              <button onClick={onClose} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors">
                 <X size={15} className="text-foreground" />
               </button>
             </div>
@@ -398,45 +380,46 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
               )}
             </AnimatePresence>
 
-            <div className="overflow-y-auto px-5 pb-8 space-y-4">
+            <div className="overflow-y-auto px-5 pb-8 space-y-4 pt-4">
               {/* Tab selector */}
-              <div className="flex gap-2 p-1 bg-muted rounded-2xl">
+              <div className="flex gap-1.5 p-1 bg-muted rounded-2xl">
                 {TABS.map(t => (
-                  <button key={t.id} onClick={() => { setTab(t.id); setCardError(null); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                      tab === t.id ? `${t.color} text-white shadow-sm` : "text-muted-foreground"
+                  <button key={t.id} onClick={() => { setTab(t.id); setCardError(null); setMpesaError(null); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                      tab === t.id ? `${t.activeClass} shadow-md` : "text-muted-foreground hover:text-foreground"
                     }`}>
                     {t.icon} {t.label}
                   </button>
                 ))}
               </div>
 
-              {/* Amount input (shared — hide when Stripe form is active or M-Pesa is in-flight) */}
+              {/* Amount input */}
               {!circleIntentId && !(tab === "card" && stripeStep !== "idle") && !(tab === "mpesa" && mpesaStep !== "idle") && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
                     Amount (KES)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">KES</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">KES</span>
                     <input
                       type="text" inputMode="decimal" value={amount}
                       onChange={e => {
                         const raw = e.target.value.replace(/[^0-9.]/g, "");
-                        // Allow only one decimal point
                         const parts = raw.split(".");
                         const val = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : raw;
                         setAmount(val);
                       }}
                       placeholder={tab === "usdc" ? "500" : "1000"}
-                      className="w-full border border-border rounded-2xl pl-14 pr-4 py-3.5 text-foreground font-bold text-base focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className="w-full border-2 border-border rounded-2xl pl-14 pr-4 py-4 text-foreground font-bold text-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
                     />
                   </div>
-                  <div className="flex gap-2 mt-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                  <div className="flex gap-2 mt-2.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
                     {QUICK_AMOUNTS.map(a => (
                       <button key={a} type="button" onClick={() => setAmount(String(a))}
-                        className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all active:scale-95 ${
-                          amount === String(a) ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary/40"
+                        className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all active:scale-95 ${
+                          amount === String(a)
+                            ? "bg-primary text-white border-primary"
+                            : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
                         }`}>
                         {formatKES(a)}
                       </button>
@@ -445,16 +428,23 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                 </div>
               )}
 
-              {/* ─── M-PESA TAB ────────────────────────────────────────────── */}
+              {/* ─── M-PESA TAB (Daraja) ─────────────────────────────────── */}
               {tab === "mpesa" && (
                 <div className="space-y-4">
                   {mpesaStep === "idle" && (
                     <>
-                      <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-start gap-2.5">
-                        <span className="text-xl">📱</span>
-                        <div>
-                          <p className="text-green-800 font-semibold text-xs">Pay with M-Pesa · mobile money</p>
-                          <p className="text-green-700 text-xs mt-0.5">Enter your Safaricom number. An STK push will arrive on your phone — enter your M-Pesa PIN to confirm.</p>
+                      {/* Daraja branding banner */}
+                      <div className="relative overflow-hidden bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-4">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-6 translate-x-6" />
+                        <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-4 -translate-x-4" />
+                        <div className="relative flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xl">📱</span>
+                          </div>
+                          <div>
+                            <p className="text-white font-bold text-sm">Pay with M-Pesa</p>
+                            <p className="text-green-100 text-xs mt-0.5 leading-relaxed">Powered by Safaricom Daraja · You'll receive an STK push on your phone — enter your M-Pesa PIN to confirm.</p>
+                          </div>
                         </div>
                       </div>
 
@@ -464,7 +454,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                           <select
                             value={mpesaCode}
                             onChange={e => setMpesaCode(e.target.value)}
-                            className="border border-border rounded-xl px-2 py-3 text-sm bg-background focus:outline-none focus:border-primary appearance-none w-[90px] flex-shrink-0 text-center font-medium"
+                            className="border-2 border-border rounded-xl px-2 py-3 text-sm bg-background focus:outline-none focus:border-green-500 appearance-none w-[88px] flex-shrink-0 text-center font-semibold transition-colors"
                           >
                             {MPESA_CODES.map(c => (
                               <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
@@ -474,52 +464,105 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                             type="tel"
                             value={mpesaPhone}
                             onChange={e => setMpesaPhone(e.target.value.replace(/\D/g, ""))}
-                            placeholder={mpesaCode === "+254" ? "07XXXXXXXX or 7XXXXXXXX" : "Phone number"}
-                            className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary"
+                            placeholder={mpesaCode === "+254" ? "712 345 678" : "Phone number"}
+                            className="flex-1 border-2 border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-colors"
                           />
                         </div>
                       </div>
 
                       {mpesaError && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                          className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
                           <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
                           <p className="text-red-700 text-xs">{mpesaError}</p>
-                        </div>
+                        </motion.div>
                       )}
 
                       <button
                         onClick={handleMpesaSend}
-                        disabled={!amount || amt < 100 || !mpesaPhone.trim()}
-                        className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-green-600/20"
+                        disabled={!amount || amt < 10 || !mpesaPhone.trim()}
+                        className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-600/25"
                       >
                         <Smartphone size={18} />
-                        {amt >= 100 && mpesaPhone.trim()
-                          ? `Send KES ${amt.toLocaleString()} via M-Pesa`
-                          : !mpesaPhone.trim() ? "Enter your M-Pesa number" : "Enter at least KES 100"}
+                        {amt >= 10 && mpesaPhone.trim()
+                          ? `Send ${formatKES(amt)} via M-Pesa`
+                          : !mpesaPhone.trim() ? "Enter your M-Pesa number" : "Enter at least KES 10"}
                       </button>
+
+                      {/* Trust badges */}
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="flex items-center gap-1 text-muted-foreground/60">
+                          <Shield size={10} />
+                          <span className="text-[10px]">Safaricom Daraja API</span>
+                        </div>
+                        <span className="text-border">·</span>
+                        <div className="flex items-center gap-1 text-muted-foreground/60">
+                          <Lock size={10} />
+                          <span className="text-[10px]">End-to-end encrypted</span>
+                        </div>
+                        <span className="text-border">·</span>
+                        <div className="flex items-center gap-1 text-muted-foreground/60">
+                          <Zap size={10} />
+                          <span className="text-[10px]">Instant credit</span>
+                        </div>
+                      </div>
                     </>
                   )}
 
                   {(mpesaStep === "sending" || mpesaStep === "polling") && (
-                    <div className="py-10 flex flex-col items-center gap-4 text-center">
-                      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                        <Loader2 size={28} className="animate-spin text-green-600" />
+                    <div className="py-8 flex flex-col items-center gap-4 text-center">
+                      <div className="relative">
+                        <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
+                          <Loader2 size={32} className="animate-spin text-green-600" />
+                        </div>
+                        <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-green-600 flex items-center justify-center">
+                          <span className="text-white text-xs">📱</span>
+                        </div>
                       </div>
                       {mpesaStep === "sending" ? (
                         <>
-                          <p className="text-foreground font-semibold">Sending STK push…</p>
-                          <p className="text-muted-foreground text-sm">Initiating payment request to {mpesaCode}{mpesaPhone}</p>
+                          <div>
+                            <p className="text-foreground font-bold text-base">Sending STK push…</p>
+                            <p className="text-muted-foreground text-sm mt-1">Initiating payment request to {mpesaCode}{mpesaPhone}</p>
+                          </div>
                         </>
                       ) : (
                         <>
-                          <p className="text-foreground font-semibold">Check your phone 📱</p>
-                          <p className="text-muted-foreground text-sm">Enter your M-Pesa PIN on the pop-up to confirm {formatKES(amt)}.</p>
+                          <div>
+                            <p className="text-foreground font-bold text-base">Check your phone 📱</p>
+                            <p className="text-muted-foreground text-sm mt-1">
+                              {mpesaMessage || `Enter your M-Pesa PIN to confirm ${formatKES(amt)}`}
+                            </p>
+                          </div>
                           {!mpesaConfigured && (
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 w-full">
-                              <p className="text-amber-700 text-xs">Demo mode — no real STK push sent. Crediting automatically…</p>
+                              <p className="text-amber-700 text-xs font-medium">Demo mode — crediting automatically…</p>
                             </div>
                           )}
-                          <p className="text-muted-foreground text-xs">Waiting for confirmation…</p>
+                          <div className="bg-muted rounded-2xl p-4 w-full space-y-2">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Amount</span>
+                              <span className="font-bold text-foreground">{formatKES(amt)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Number</span>
+                              <span className="font-bold text-foreground">{mpesaCode}{mpesaPhone}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Provider</span>
+                              <span className="font-bold text-green-600">Safaricom M-Pesa</span>
+                            </div>
+                          </div>
+                          <p className="text-muted-foreground text-xs">Waiting for PIN confirmation…</p>
+                          <button
+                            onClick={() => {
+                              if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
+                              setMpesaStep("idle"); setMpesaError(null);
+                            }}
+                            className="text-xs text-muted-foreground underline underline-offset-2"
+                          >
+                            Cancel
+                          </button>
                         </>
                       )}
                     </div>
@@ -530,65 +573,101 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
               {/* ─── CARD TAB (Stripe) ─────────────────────────────────────── */}
               {tab === "card" && (
                 <div className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-start gap-2.5">
-                    <span className="text-xl">💳</span>
-                    <div>
-                      <p className="text-blue-800 font-semibold text-xs">Visa, Mastercard & more</p>
-                      <p className="text-blue-600 text-xs mt-0.5">Secure checkout powered by Stripe. Your card details are encrypted end-to-end.</p>
+                  {/* Card preview visual */}
+                  <div className="relative overflow-hidden rounded-2xl h-36 bg-gradient-to-br from-slate-800 via-blue-900 to-blue-800 p-5 shadow-xl shadow-blue-900/30">
+                    {/* Decorative circles */}
+                    <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-blue-400/20 -translate-y-8 translate-x-8" />
+                    <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-blue-600/20 translate-y-8 -translate-x-6" />
+                    {/* Card chip */}
+                    <div className="relative flex flex-col h-full justify-between">
+                      <div className="flex items-center justify-between">
+                        <div className="w-8 h-6 rounded-sm bg-gradient-to-br from-yellow-300 to-yellow-500 opacity-90" />
+                        <div className="flex items-center gap-1.5">
+                          {["VISA", "MC", "Amex"].map(b => (
+                            <span key={b} className="text-[9px] font-black text-white/60 bg-white/10 px-1.5 py-0.5 rounded">{b}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-white/40 text-[9px] font-semibold uppercase tracking-widest mb-0.5">Secure card payment</p>
+                        <p className="text-white font-bold text-lg tracking-widest">
+                          {amt > 0 ? formatKES(amt) : "KES ––––"}
+                        </p>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
+                    <Shield size={13} className="text-blue-600 flex-shrink-0" />
+                    <p className="text-blue-700 text-xs">Encrypted & powered by Stripe · PCI-DSS Level 1</p>
+                    <Lock size={11} className="text-blue-400 ml-auto flex-shrink-0" />
                   </div>
 
                   {stripeStep === "idle" && (
                     <>
                       {cardError && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                          className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
                           <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
                           <p className="text-red-700 text-xs">{cardError}</p>
-                        </div>
+                        </motion.div>
                       )}
                       <button
                         onClick={handleStripeInit}
                         disabled={!amount || amt < 100}
-                        className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-blue-600/20">
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/25">
                         <CreditCard size={18} />
                         {amt >= 100 ? `Pay ${formatKES(amt)} by Card` : "Enter at least KES 100"}
                       </button>
-                      <div className="flex items-center justify-center gap-3 pt-1">
-                        {["VISA", "MC", "Amex", "Stripe"].map(m => (
-                          <span key={m} className="text-[9px] font-bold bg-muted border border-border px-2 py-1 rounded text-muted-foreground">{m}</span>
-                        ))}
-                      </div>
                     </>
                   )}
 
                   {stripeStep === "loading" && (
-                    <div className="py-10 flex flex-col items-center gap-3">
-                      <Loader2 size={28} className="animate-spin text-blue-600" />
-                      <p className="text-sm text-muted-foreground">Initialising secure payment…</p>
+                    <div className="py-8 flex flex-col items-center gap-3">
+                      <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Loader2 size={24} className="animate-spin text-blue-600" />
+                      </div>
+                      <p className="text-sm font-medium text-muted-foreground">Setting up secure payment…</p>
                     </div>
                   )}
 
                   {(stripeStep === "form" || stripeStep === "confirming") && (
                     <div className="space-y-4">
-                      <div ref={stripeContainerRef} className="min-h-[120px]" />
+                      {/* Stripe card element container */}
+                      <div className="border-2 border-border rounded-2xl overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                        <div className="px-4 pt-3 pb-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Card Details</p>
+                        </div>
+                        <div ref={stripeContainerRef} className="px-4 pb-4 min-h-[52px]" />
+                      </div>
+
                       {cardError && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                          className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
                           <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
                           <p className="text-red-700 text-xs">{cardError}</p>
-                        </div>
+                        </motion.div>
                       )}
+
+                      {/* Payment summary */}
+                      <div className="bg-muted/60 rounded-xl p-3 flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground font-medium">Total charge</span>
+                        <span className="font-bold text-foreground">{formatKES(amt)}</span>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-3">
                         <button
                           onClick={() => { setStripeStep("idle"); setCardError(null); stripeElementsRef.current = null; stripeInstanceRef.current = null; }}
-                          className="border border-border text-foreground font-semibold py-3 rounded-2xl text-sm active:scale-95">
+                          className="border-2 border-border text-foreground font-semibold py-3.5 rounded-2xl text-sm active:scale-95 transition-all hover:bg-muted">
                           ← Back
                         </button>
                         <button
                           onClick={handleStripeConfirm}
                           disabled={stripeStep === "confirming"}
-                          className="bg-blue-600 text-white font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-60 shadow-sm">
-                          {stripeStep === "confirming" ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                          {stripeStep === "confirming" ? "Processing…" : "Pay Now"}
+                          className="bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60 shadow-md shadow-blue-600/20 transition-all">
+                          {stripeStep === "confirming"
+                            ? <><Loader2 size={14} className="animate-spin" /> Processing…</>
+                            : <><Lock size={13} /> Pay Now</>}
                         </button>
                       </div>
                     </div>
@@ -634,7 +713,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                         {amt >= 500 ? `Generate USDC Address for ${usdcEstimate} USDC` : "Enter at least KES 500"}
                       </button>
 
-                      {/* Connect Web3 wallet directly */}
                       <div className="relative flex items-center gap-2">
                         <div className="flex-1 h-px bg-border" />
                         <span className="text-muted-foreground text-[10px] font-semibold uppercase">or</span>
@@ -649,7 +727,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                       </button>
                     </>
                   ) : (
-                    /* USDC deposit address shown */
                     <div className="space-y-4">
                       <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-3">
                         <div className="flex items-center gap-2">
@@ -662,7 +739,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                           </div>
                         </div>
 
-                        {/* Address */}
                         <div className="bg-white rounded-xl border border-purple-200 p-3 space-y-2">
                           <p className="text-muted-foreground text-[10px] uppercase tracking-wider">Deposit Address</p>
                           <div className="flex items-center gap-2">
@@ -673,7 +749,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                           </div>
                         </div>
 
-                        {/* Memo */}
                         {circleInfo?.memo && (
                           <div className="bg-white rounded-xl border border-purple-200 p-3">
                             <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Memo / Tag (required)</p>
@@ -689,7 +764,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
 
                       <div className="grid grid-cols-2 gap-3">
                         <button onClick={() => { setCircleIntentId(null); setCircleAmountUSDC(""); }}
-                          className="border border-border text-foreground font-semibold py-3 rounded-2xl text-sm active:scale-95">
+                          className="border-2 border-border text-foreground font-semibold py-3 rounded-2xl text-sm active:scale-95">
                           ← Back
                         </button>
                         <button onClick={confirmCircle} disabled={circleConfirming}
@@ -705,9 +780,9 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
               )}
 
               {/* Security footer */}
-              <div className="flex items-center justify-center gap-1.5 pt-1">
-                <span className="text-[10px] text-muted-foreground/60">🔒</span>
-                <p className="text-[10px] text-muted-foreground/60">256-bit SSL · M-Pesa &amp; Cards by Stripe · Circle USDC · PCI-DSS L1</p>
+              <div className="flex items-center justify-center gap-1.5 pt-1 pb-1">
+                <Lock size={9} className="text-muted-foreground/50" />
+                <p className="text-[10px] text-muted-foreground/50">256-bit SSL · M-Pesa by Safaricom Daraja · Cards by Stripe · PCI-DSS L1</p>
               </div>
             </div>
           </motion.div>
@@ -715,7 +790,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       )}
     </AnimatePresence>
 
-    {/* Web3 Wallet Connect Modal */}
     <WalletConnectModal
       open={walletModalOpen}
       onClose={() => setWalletModalOpen(false)}
