@@ -27,7 +27,9 @@ export function SwapModal({ open, holding, onClose }: Props) {
   const [selected, setSelected] = useState<SecListing | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
-  const { data: listings = [] } = useQuery<SecListing[]>({
+  const [marketSource, setMarketSource] = useState<"secondary" | "primary">("secondary");
+
+  const { data: secListings = [] } = useQuery<SecListing[]>({
     queryKey: ["secondary-for-swap"],
     queryFn: async () => {
       const r = await fetch("/api/market/secondary", { headers: { Authorization: `Bearer ${token}` } });
@@ -39,7 +41,20 @@ export function SwapModal({ open, holding, onClose }: Props) {
     staleTime: 30_000,
   });
 
-  const eligible = listings.filter(l => l.farmId !== holding?.farmId);
+  const { data: primListings = [] } = useQuery<SecListing[]>({
+    queryKey: ["primary-for-swap"],
+    queryFn: async () => {
+      const r = await fetch("/api/market/primary", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      const d = await r.json();
+      return Array.isArray(d) ? d : (d.listings ?? []);
+    },
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  const allListings = marketSource === "secondary" ? secListings : primListings;
+  const eligible = allListings.filter(l => l.farmId !== holding?.farmId);
 
   const handleConfirm = () => {
     if (!selected || !holding) return;
@@ -122,9 +137,25 @@ export function SwapModal({ open, holding, onClose }: Props) {
                 </div>
               </div>
 
+              {/* Market source toggle */}
+              <div className="flex gap-1.5 p-1 bg-muted rounded-xl">
+                {(["secondary", "primary"] as const).map(src => (
+                  <button key={src} onClick={() => { setMarketSource(src); setSelected(null); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                      marketSource === src
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground"
+                    }`}>
+                    {src === "secondary" ? "🔄 Secondary Market" : "🌱 New Listings"}
+                  </button>
+                ))}
+              </div>
+
               {/* Select target */}
               <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Swap Into</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  {marketSource === "secondary" ? "Available on Secondary Market" : "Primary Market Farms"}
+                </p>
                 {eligible.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border p-6 text-center">
                     <TrendingUp size={24} className="text-muted-foreground mx-auto mb-2" />

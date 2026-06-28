@@ -117,6 +117,9 @@ export default function Portfolio() {
   const [brokerUnlockStep, setBrokerUnlockStep] = useState(0);
   const [statDetail, setStatDetail] = useState<"invested" | "pnl" | "holdings" | null>(null);
   const [roiDetailHolding, setRoiDetailHolding] = useState<Holding | null>(null);
+  const [aiExplainTopic, setAiExplainTopic] = useState<"swap" | "exit" | "sell" | null>(null);
+  const [aiExplainLoading, setAiExplainLoading] = useState(false);
+  const [aiExplainText, setAiExplainText] = useState<string | null>(null);
   const [holdingIdx, setHoldingIdx] = useState(0);
   const [, setLocation] = useLocation();
   const touchStartX = useRef<number | null>(null);
@@ -202,6 +205,56 @@ export default function Portfolio() {
   const handleExitClick = (h: Holding) => { setSelectedHolding(h); setExitOpen(true); };
   const handleSellClick = (h: Holding) => { setSelectedHolding(h); setSellOpen(true); };
   const handleSwapClick = (h: Holding) => { setSwapHolding(h); setSwapOpen(true); };
+
+  const AI_EXPLAIN: Record<"swap" | "exit" | "sell", { icon: string; title: string; color: string; short: string; bullets: string[] }> = {
+    swap: {
+      icon: "🔄", title: "What is Swap?", color: "from-indigo-500 to-violet-500",
+      short: "Move your money from one farm to another without withdrawing it.",
+      bullets: [
+        "Your current shares are listed on the secondary market at market price",
+        "You pick a different farm to invest in from the same market",
+        "Both sides settle when a buyer is matched — usually within 24–48 hrs",
+        "Best used when you spot a better opportunity and want to reallocate capital",
+      ],
+    },
+    exit: {
+      icon: "🚪", title: "What is Exit?", color: "from-green-500 to-emerald-500",
+      short: "Request to close your investment and get your money back, with returns.",
+      bullets: [
+        "Mid-Season Exit (30–60 days): ~10% return — sell to another investor via the platform",
+        "Full-Season Exit (~6 months): ~22–28% return — receive your share of the harvest revenue",
+        "Early exit may incur a small penalty if the season hasn't matured yet",
+        "Request is processed within 1–5 business days and funds land in your wallet",
+      ],
+    },
+    sell: {
+      icon: "🏷️", title: "What is Sell?", color: "from-blue-500 to-cyan-500",
+      short: "List your shares on the secondary market so other investors can buy them.",
+      bullets: [
+        "You set the quantity and price per share — full control over your listing",
+        "Your shares are visible to all investors browsing the secondary market",
+        "You receive funds in your wallet as soon as a buyer purchases your shares",
+        "Unlike Exit, Sell goes directly to the market — no platform approval needed",
+      ],
+    },
+  };
+
+  const openAiExplain = async (topic: "swap" | "exit" | "sell") => {
+    setAiExplainTopic(topic);
+    setAiExplainText(null);
+    setAiExplainLoading(true);
+    try {
+      const info = AI_EXPLAIN[topic];
+      const r = await fetch("/api/ai/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ context: `Explain "${topic}" in the context of farm investing on Investa Farm. ${info.short} Give a friendly 2-sentence plain-English explanation for a first-time investor.` }),
+      });
+      const d = await r.json();
+      setAiExplainText(d.explanation ?? null);
+    } catch { setAiExplainText(null); }
+    finally { setAiExplainLoading(false); }
+  };
 
   useEffect(() => {
     if (qualification?.qualified && localStorage.getItem("investa_broker_unlocked") !== "true") {
@@ -840,6 +893,17 @@ export default function Portfolio() {
                           </button>
 
                           {/* Action buttons */}
+                          {h.status === "active" && (
+                            <div className="flex items-center justify-end gap-1 mb-1.5">
+                              <span className="text-[9px] text-muted-foreground/60 font-medium">What do these mean?</span>
+                              {(["swap", "sell", "exit"] as const).map(t => (
+                                <button key={t} onClick={() => openAiExplain(t)}
+                                  className="text-[9px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full border border-border active:scale-90 transition-transform capitalize">
+                                  {t} ⓘ
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <div className="flex gap-2">
                             <Link href={h.farmId ? `/market/${h.farmId}` : "/market/primary"}
                               className="h-11 px-3 rounded-xl border border-border text-muted-foreground text-[11px] font-semibold active:scale-95 transition-all flex items-center justify-center gap-1 flex-shrink-0 bg-muted/50">
@@ -1165,6 +1229,99 @@ export default function Portfolio() {
                         <span className={`w-2 h-2 rounded-full bg-gradient-to-br ${d.color} flex-shrink-0`} />
                         <p className="text-foreground text-xs font-medium">{b}</p>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* ── AI EXPLAIN SHEET (Swap / Exit / Sell) ── */}
+      <AnimatePresence>
+        {aiExplainTopic && (() => {
+          const info = AI_EXPLAIN[aiExplainTopic];
+          return (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-end justify-center"
+              onClick={() => { setAiExplainTopic(null); setAiExplainText(null); }}
+            >
+              <motion.div
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="w-full max-w-[430px] bg-background rounded-t-3xl overflow-hidden shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Gradient header bar */}
+                <div className={`h-1.5 bg-gradient-to-r ${info.color}`} />
+                <div className="px-5 pt-4 pb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${info.color} flex items-center justify-center shadow-md`}>
+                        <span className="text-2xl">{info.icon}</span>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">AI Explanation</p>
+                        <p className="font-extrabold text-lg leading-none text-foreground">{info.title}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setAiExplainTopic(null); setAiExplainText(null); }}
+                      className="w-9 h-9 rounded-full bg-muted flex items-center justify-center active:scale-95 transition-all"
+                    >
+                      <X size={14} className="text-muted-foreground" />
+                    </button>
+                  </div>
+
+                  {/* Short summary */}
+                  <div className="bg-muted/60 rounded-2xl px-4 py-3 mb-4">
+                    <p className="text-foreground text-sm font-medium leading-relaxed">{info.short}</p>
+                  </div>
+
+                  {/* AI response or bullets */}
+                  {aiExplainLoading ? (
+                    <div className="flex items-center gap-3 py-2 mb-4">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-xs">✨</span>
+                      </div>
+                      <div className="flex gap-1">
+                        {[0,1,2].map(i => (
+                          <motion.div key={i} className="w-1.5 h-1.5 rounded-full bg-violet-400"
+                            animate={{ scale: [1, 1.4, 1] }}
+                            transition={{ repeat: Infinity, delay: i * 0.15, duration: 0.6 }} />
+                        ))}
+                      </div>
+                      <p className="text-muted-foreground text-xs">AI is thinking…</p>
+                    </div>
+                  ) : aiExplainText ? (
+                    <div className="flex items-start gap-2.5 mb-4 bg-violet-50 border border-violet-100 rounded-2xl px-3.5 py-3">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-white text-[10px]">✨</span>
+                      </div>
+                      <p className="text-violet-800 text-xs leading-relaxed font-medium">{aiExplainText}</p>
+                    </div>
+                  ) : null}
+
+                  {/* How-it-works bullets */}
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2.5">How it works</p>
+                  <div className="space-y-2 mb-4">
+                    {info.bullets.map((b, i) => (
+                      <div key={i} className="flex items-start gap-3 bg-muted/50 rounded-xl px-3.5 py-2.5">
+                        <span className={`w-5 h-5 rounded-full bg-gradient-to-br ${info.color} text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5`}>{i+1}</span>
+                        <p className="text-foreground text-xs leading-relaxed">{b}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Switch topic chips */}
+                  <div className="flex gap-2">
+                    {(["swap", "exit", "sell"] as const).filter(t => t !== aiExplainTopic).map(t => (
+                      <button key={t} onClick={() => openAiExplain(t)}
+                        className="flex-1 py-2.5 rounded-xl border border-border text-muted-foreground text-xs font-bold active:scale-95 transition-all bg-muted/50 capitalize">
+                        {AI_EXPLAIN[t].icon} {t}
+                      </button>
                     ))}
                   </div>
                 </div>

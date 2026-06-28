@@ -319,6 +319,8 @@ export default function FarmDetail() {
   const [shareOpen, setShareOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [compareOpen, setCompareOpen] = useState(false);
+  const [comparePickerOpen, setComparePickerOpen] = useState(false);
+  const [compareTarget, setCompareTarget] = useState<CompareListing | null>(null);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [imgIdx, setImgIdx] = useState(0);
@@ -433,7 +435,7 @@ export default function FarmDetail() {
   const vegCover = getVegetationCover(farm.cropType, ndviNow);
   const healthScore = Math.min(100, Math.round(ndviNow * 55 + (growth?.percent ?? 50) * 0.3 + 10));
 
-  const compareFarm = (primaryListings as CompareListing[] | undefined)?.find(l => l.farmId !== farmId);
+  const compareOptions = (primaryListings as CompareListing[] | undefined)?.filter(l => l.farmId !== farmId) ?? [];
 
   const aiTags: { text: string; color: string }[] = [];
   if (farm.changePercent > 3) aiTags.push({ text: `📈 +${farm.changePercent.toFixed(1)}% momentum`, color: "bg-[#16a34a]/10 border-[#16a34a]/20 text-[#16a34a]" });
@@ -562,14 +564,12 @@ export default function FarmDetail() {
         >
           <Share2 size={13} /> Share
         </button>
-        {compareFarm && (
-          <button
-            onClick={() => setCompareOpen(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 rounded-xl py-2.5 text-xs font-semibold text-blue-600 active:scale-95 transition-transform"
-          >
-            <Scale size={13} /> Compare
-          </button>
-        )}
+        <button
+          onClick={() => setComparePickerOpen(true)}
+          className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 rounded-xl py-2.5 text-xs font-semibold text-blue-600 active:scale-95 transition-transform"
+        >
+          <Scale size={13} /> Compare
+        </button>
         <button
           onClick={toggleWatchlist}
           disabled={watchlistLoading}
@@ -1298,6 +1298,84 @@ export default function FarmDetail() {
         } : null}
       />
 
+      {/* ── COMPARE FARM PICKER ── */}
+      <AnimatePresence>
+        {comparePickerOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex flex-col justify-end"
+            onClick={() => setComparePickerOpen(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="bg-background rounded-t-3xl overflow-hidden"
+              style={{ maxHeight: "80dvh" }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-border rounded-full" />
+              </div>
+              <div className="px-4 pb-2 pt-2 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-base text-foreground">Choose a Farm to Compare</h3>
+                    <p className="text-muted-foreground text-xs mt-0.5">Side-by-side vs <span className="font-semibold text-foreground">{farm?.farmName}</span></p>
+                  </div>
+                  <button onClick={() => setComparePickerOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                    <ChevronUp size={14} className="text-muted-foreground" />
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-y-auto pb-8">
+                {compareOptions.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
+                    <Scale size={32} className="opacity-30" />
+                    <p className="text-sm font-medium">No other farms available to compare</p>
+                  </div>
+                ) : (
+                  compareOptions.map(opt => {
+                    const isUp = opt.changePercent >= 0;
+                    const optRoi = Math.round((opt as any).roi ?? 15 + opt.changePercent * 0.4);
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => {
+                          setCompareTarget(opt);
+                          setComparePickerOpen(false);
+                          setCompareOpen(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 border-b border-border/50 active:bg-muted/60 transition-colors"
+                      >
+                        <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0">
+                          <img src={getCropImage(opt.cropType, opt.imageUrl)} alt={opt.farmName} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className="font-bold text-sm text-foreground truncate">{opt.farmName}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <MapPin size={9} className="text-muted-foreground flex-shrink-0" />
+                            <span className="text-muted-foreground text-[10px] truncate">{opt.location}</span>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="font-bold text-sm text-foreground">{formatKES(opt.pricePerShare)}</p>
+                          <p className={`text-[10px] font-bold ${isUp ? "text-[#16a34a]" : "text-red-500"}`}>
+                            {isUp ? "+" : ""}{opt.changePercent.toFixed(1)}%
+                          </p>
+                        </div>
+                        <div className="ml-1 w-7 h-7 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+                          <Scale size={12} className="text-blue-600" />
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {(() => {
         const thisListing: CompareListing | null = listing ? {
           id: listing.id,
@@ -1316,7 +1394,7 @@ export default function FarmDetail() {
             open={compareOpen}
             onClose={() => setCompareOpen(false)}
             farmA={thisListing}
-            farmB={compareFarm ?? null}
+            farmB={compareTarget}
           />
         );
       })()}
