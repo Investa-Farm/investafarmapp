@@ -10,7 +10,7 @@ import {
 import { getCurrentUser } from "./auth";
 import { sendFundingVoucherEmail, sendFirstInvestmentEmail, sendInvestmentConfirmationEmail } from "../lib/email";
 import { notifyUser } from "../lib/push";
-import { financialRateLimit, checkInvestmentVelocity, recordInvestment } from "../lib/security";
+import { financialRateLimit, requireNonce, checkInvestmentVelocity, recordInvestment } from "../lib/security";
 
 const router: IRouter = Router();
 
@@ -235,7 +235,7 @@ router.get("/market/summary", async (_req, res): Promise<void> => {
   });
 });
 
-router.post("/market/buy", financialRateLimit, async (req, res): Promise<void> => {
+router.post("/market/buy", financialRateLimit, requireNonce, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) {
     res.status(401).json({ error: "Unauthorized" });

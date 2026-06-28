@@ -6,6 +6,7 @@ import { getCurrentUser } from "./auth";
 import { verifyTransaction, initializePayment, initiateMpesaCharge, checkChargeStatus, isConfigured as isPaystackConfigured, PAYSTACK_PUBLIC_KEY } from "../lib/paystack";
 import {
   financialRateLimit,
+  requireNonce,
   checkDepositVelocity, recordDeposit,
   checkWithdrawalVelocity, recordWithdrawal,
   getUserVelocitySummary,
@@ -93,7 +94,7 @@ router.post("/wallet/deposit", financialRateLimit, async (req, res): Promise<voi
 });
 
 // ─── POST /wallet/withdraw ───────────────────────────────────────────────────
-router.post("/wallet/withdraw", financialRateLimit, async (req, res): Promise<void> => {
+router.post("/wallet/withdraw", financialRateLimit, requireNonce, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const amount = Number(req.body.amount);

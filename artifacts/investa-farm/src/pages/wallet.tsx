@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
-import { ArrowDownLeft, ArrowUpRight, Plus, TrendingUp, RefreshCw, Loader2, ArrowLeft, CheckCircle2, Wallet, CreditCard, Copy, Check } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Plus, TrendingUp, RefreshCw, Loader2, ArrowLeft, CheckCircle2, Wallet, CreditCard, Copy, Check, Filter } from "lucide-react";
+import { nonceHeaders } from "@/lib/nonce";
 // CheckCircle2 used in success toast below
 import { PaymentSheet } from "@/components/payment-sheet";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -41,6 +42,7 @@ export default function InvestorWallet() {
   const [phone, setPhone] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
   const [stellarCopied, setStellarCopied] = useState(false);
+  const [txFilter, setTxFilter] = useState<"all" | "deposit" | "withdrawal" | "investment" | "fee">("all");
   const { currency, setCurrency, formatAmount } = useCurrency();
 
   const { data: stellarAcct } = useQuery<{ accountNumber: string } | null>({
@@ -97,7 +99,7 @@ export default function InvestorWallet() {
     mutationFn: async ({ amt, phoneNum }: { amt: number; phoneNum: string }) => {
       const r = await fetch("/api/wallet/withdraw", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...nonceHeaders() },
         body: JSON.stringify({ amount: amt, phone: phoneNum }),
       });
       if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
@@ -116,6 +118,7 @@ export default function InvestorWallet() {
 
   const balance = parseFloat(data?.wallet.balance ?? "0");
   const txs = data?.transactions ?? [];
+  const filteredTxs = txFilter === "all" ? txs : txs.filter((tx: any) => tx.type === txFilter);
 
   const cardNumber = `•••• •••• •••• ${String(user?.id ?? 0).padStart(4, "0")}`;
   const expiry = new Date(new Date().setFullYear(new Date().getFullYear() + 4));
@@ -354,16 +357,30 @@ export default function InvestorWallet() {
         </div>
 
         <div>
-          <p className="text-sm font-semibold mb-3">Transaction History</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold">Transaction History</p>
+            <Filter size={13} className="text-muted-foreground" />
+          </div>
+          {/* Filter chips */}
+          <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3" style={{ scrollbarWidth: "none" }}>
+            {(["all", "deposit", "withdrawal", "investment", "fee"] as const).map(f => (
+              <button key={f} onClick={() => setTxFilter(f)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 ${
+                  txFilter === f ? "bg-primary text-white border-primary" : "bg-muted border-border text-muted-foreground"
+                }`}>
+                {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1) + "s"}
+              </button>
+            ))}
+          </div>
           {isLoading ? (
             Array(3).fill(0).map((_, i) => <div key={i} className="h-14 rounded-xl bg-muted animate-pulse mb-2" />)
-          ) : txs.length === 0 ? (
+          ) : filteredTxs.length === 0 ? (
             <div className="text-center py-10 bg-muted/40 rounded-2xl">
               <Wallet size={28} className="text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground text-sm">No transactions yet.</p>
-              <p className="text-muted-foreground text-xs">Add funds to get started.</p>
+              <p className="text-muted-foreground text-sm">{txs.length === 0 ? "No transactions yet." : "No matching transactions."}</p>
+              <p className="text-muted-foreground text-xs">{txs.length === 0 ? "Add funds to get started." : "Try a different filter."}</p>
             </div>
-          ) : txs.map(tx => {
+          ) : filteredTxs.map((tx: any) => {
             const cfg = TX_ICONS[tx.type] ?? { emoji: "💳", color: "text-foreground" };
             const isCredit = ["deposit", "return", "transfer"].includes(tx.type);
             return (

@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield, Wallet } from "lucide-react";
 import { formatKES, formatChange, getToken, isDemoAccount } from "@/lib/auth";
 import { getCropImage } from "@/lib/crops";
-import { useBuyShares, getListPrimaryMarketQueryKey, getGetFarmQueryKey } from "@workspace/api-client-react";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { getListPrimaryMarketQueryKey, getGetFarmQueryKey } from "@workspace/api-client-react";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
+import { nonceHeaders } from "@/lib/nonce";
 import { InvestorKycModal } from "./investor-kyc-modal";
 import { haptic } from "@/lib/haptic";
 
@@ -50,7 +51,17 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const [quantity, setQuantity] = useState(10);
   const [kycOpen, setKycOpen] = useState(false);
   const [, setLocation] = useLocation();
-  const buyShares = useBuyShares();
+  const buyShares = useMutation({
+    mutationFn: async (payload: { listingId: number; quantity: number; exitType: string }) => {
+      const r = await fetch("/api/market/buy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...nonceHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Purchase failed"); }
+      return r.json();
+    },
+  });
   const qc = useQueryClient();
   const token = getToken();
 
@@ -102,7 +113,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
 
   const handlePayFromWallet = () => {
     haptic("medium");
-    buyShares.mutate({ data: { listingId: listing.id, quantity, exitType } }, {
+    buyShares.mutate({ listingId: listing.id, quantity, exitType }, {
       onSuccess: () => {
         haptic("success");
         qc.invalidateQueries({ queryKey: getListPrimaryMarketQueryKey() });

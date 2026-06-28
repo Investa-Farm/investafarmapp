@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useListTransactions } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowUpRight, Clock, Receipt, X, ChevronRight, Calendar, Layers, DollarSign, CheckCircle2, Newspaper, MapPin } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowUpRight, Clock, Receipt, X, ChevronRight, Calendar, Layers, DollarSign, CheckCircle2, Newspaper, MapPin, Share2, Copy, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
