@@ -574,7 +574,7 @@ export default function PrimaryMarket() {
 
                             {/* View Full Details link */}
                             <button
-                              onClick={() => setLocation(`/market/farm/${listing.farmId}`)}
+                              onClick={() => setLocation(`/market/${listing.farmId}`)}
                               className="w-full py-2 rounded-lg text-[10px] font-bold text-primary bg-primary/5 border border-primary/15 active:scale-95 transition-transform flex items-center justify-center gap-1">
                               View Full Farm Details →
                             </button>

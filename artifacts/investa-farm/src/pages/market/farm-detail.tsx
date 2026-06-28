@@ -392,7 +392,7 @@ export default function FarmDetail() {
   useEffect(() => {
     const timer = setInterval(() => {
       setSlideIndex(i => (i + 1) % 4);
-    }, 30_000);
+    }, 4_000);
     return () => clearInterval(timer);
   }, []);
 
