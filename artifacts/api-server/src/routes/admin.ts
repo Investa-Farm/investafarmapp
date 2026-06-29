@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, notInArray } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "crypto";
-import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable } from "@workspace/db";
+import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail, sendGenericEmail } from "../lib/email";
 import { sendPushToUser, createInAppNotification } from "../lib/push";
@@ -268,12 +268,14 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/transactions", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
   const txs = await db
     .select({ tx: walletTransactionsTable, user: usersTable })
     .from(walletTransactionsTable)
     .leftJoin(usersTable, eq(usersTable.id, walletTransactionsTable.userId))
     .orderBy(desc(walletTransactionsTable.createdAt))
-    .limit(100);
+    .limit(200);
 
   res.json(txs.map(r => ({
     id: r.tx.id,
@@ -284,6 +286,7 @@ router.get("/admin/transactions", async (req, res): Promise<void> => {
     amount: r.tx.amount,
     balanceAfter: r.tx.balanceAfter,
     description: r.tx.description,
+    reference: r.tx.reference ?? null,
     status: r.tx.status,
     createdAt: r.tx.createdAt.toISOString(),
   })));
@@ -366,6 +369,8 @@ router.patch("/admin/users/:id/approve", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/kyc", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
   const docs = await db.select().from(kycDocumentsTable).orderBy(desc(kycDocumentsTable.createdAt));
   const withUser = await Promise.all(
     docs.map(async d => {
@@ -784,18 +789,160 @@ router.get("/admin-messages/mine", async (req, res): Promise<void> => {
   })));
 });
 
+// ─── AI BATCH KYC REVIEW (Admin) ─────────────────────────────────────────────
+
+const GROQ_BASE = "https://api.groq.com/openai/v1";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+async function groqReviewDoc(docType: string, title: string, notes: string): Promise<{ status: "approved" | "rejected"; reason: string }> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return { status: "approved", reason: "Auto-approved (AI not configured)" };
+
+  const prompt = `You are an AI KYC compliance officer for Investa Farm, a Kenyan agricultural investment platform.
+Evaluate this uploaded document and decide: approve or reject.
+
+Document Type: ${docType}
+Document Title: "${title}"
+Notes: "${notes || "none"}"
+
+Rules:
+- national_id / national_id_back: approve if title looks like a real name or ID number reference
+- selfie: approve unless title/notes suggest fraud or mismatch
+- farm_report: approve if title references farm, crop, season, or production data
+- land_title: approve if title references land, title deed, lease, or property
+- group_certificate: approve if title references group, cooperative, chama, or registration
+- financial_statement: approve if title references bank, M-Pesa, statement, or account
+- other: approve by default
+
+Respond ONLY with valid JSON: {"status":"approved","reason":"brief reason"} or {"status":"rejected","reason":"specific issue found"}`;
+
+  try {
+    const resp = await fetch(`${GROQ_BASE}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: GROQ_MODEL, messages: [{ role: "user", content: prompt }], temperature: 0.1, max_tokens: 120 }),
+    });
+    const data = await resp.json() as { choices?: { message?: { content?: string } }[] };
+    const text = data.choices?.[0]?.message?.content ?? "";
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]) as { status: "approved" | "rejected"; reason: string };
+    return { status: "approved", reason: "Auto-approved by AI" };
+  } catch {
+    return { status: "approved", reason: "Auto-approved (AI fallback)" };
+  }
+}
+
+// POST /admin/kyc/ai-review-pending — AI reviews all pending docs across all users
+router.post("/admin/kyc/ai-review-pending", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+
+  const pendingDocs = await db
+    .select({ doc: kycDocumentsTable, user: usersTable })
+    .from(kycDocumentsTable)
+    .leftJoin(usersTable, eq(kycDocumentsTable.userId, usersTable.id))
+    .where(eq(kycDocumentsTable.status, "pending"));
+
+  if (pendingDocs.length === 0) {
+    res.json({ reviewed: 0, approved: 0, rejected: 0, results: [] });
+    return;
+  }
+
+  const results: { docId: number; userId: number; userName: string; docType: string; status: string; reason: string }[] = [];
+  const userResultsMap: Record<number, { approved: number; rejected: number; total: number; userName: string }> = {};
+
+  for (const { doc, user } of pendingDocs) {
+    const result = await groqReviewDoc(doc.docType, doc.title, doc.notes ?? "");
+    const updatedNote = doc.notes ? `${doc.notes} | AI: ${result.reason}` : `AI: ${result.reason}`;
+    await db.update(kycDocumentsTable)
+      .set({ status: result.status, reviewedAt: new Date(), notes: updatedNote })
+      .where(eq(kycDocumentsTable.id, doc.id));
+
+    results.push({ docId: doc.id, userId: doc.userId, userName: user?.name ?? "Unknown", docType: doc.docType, status: result.status, reason: result.reason });
+
+    if (!userResultsMap[doc.userId]) {
+      userResultsMap[doc.userId] = { approved: 0, rejected: 0, total: 0, userName: user?.name ?? "Unknown" };
+    }
+    userResultsMap[doc.userId]!.total++;
+    if (result.status === "approved") userResultsMap[doc.userId]!.approved++;
+    else userResultsMap[doc.userId]!.rejected++;
+  }
+
+  // Post-process per-user: set credit limit if all docs approved, notify admin if any rejected
+  for (const [userIdStr, summary] of Object.entries(userResultsMap)) {
+    const userId = Number(userIdStr);
+    const allUserDocs = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.userId, userId));
+    const allApproved = allUserDocs.length > 0 && allUserDocs.every(d => d.status === "approved");
+    const anyRejected = allUserDocs.some(d => d.status === "rejected");
+
+    if (allApproved) {
+      // Set default credit limit (KES 500,000) for approved farmers
+      await db.update(usersTable)
+        .set({ creditLimitKES: "500000" } as any)
+        .where(eq(usersTable.id, userId));
+      // Notify user of full approval
+      await db.insert(notificationsTable).values({
+        userId,
+        type: "kyc_approved",
+        title: "🎉 KYC Fully Approved by AI",
+        body: "All your documents have been verified. Your credit limit has been set to KES 500,000.",
+      }).catch(() => {});
+      sendKycApprovedEmail(
+        allUserDocs[0] ? (await db.select().from(usersTable).where(eq(usersTable.id, userId)).then(([u]) => u?.email ?? "")) : "",
+        summary.userName
+      ).catch(() => {});
+    }
+
+    if (anyRejected) {
+      // Create admin notification about rejected docs
+      const admins = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, "admin"));
+      if (admins.length > 0) {
+        await db.insert(notificationsTable).values(
+          admins.map(a => ({
+            userId: a.id,
+            type: "kyc_rejected",
+            title: `⚠️ AI KYC Issues: ${summary.userName}`,
+            body: `${summary.rejected} of ${summary.total} documents failed AI review and need manual inspection.`,
+          }))
+        ).catch(() => {});
+      }
+      // Notify the user
+      await db.insert(notificationsTable).values({
+        userId,
+        type: "kyc_rejected",
+        title: "⚠️ KYC Documents Need Attention",
+        body: `${summary.rejected} of your document${summary.rejected !== 1 ? "s were" : " was"} flagged. Please re-upload clearer versions.`,
+      }).catch(() => {});
+    }
+  }
+
+  const approved = results.filter(r => r.status === "approved").length;
+  const rejected = results.filter(r => r.status === "rejected").length;
+  res.json({ reviewed: results.length, approved, rejected, results });
+});
+
 // ─── ACTIVITY / LOGIN LOGS ────────────────────────────────────────────────────
 
-// GET /admin/activity — recent login and transaction activity across all users
+// GET /admin/activity — recent transactions and login audit events
 router.get("/admin/activity", async (req, res): Promise<void> => {
   const ok = await requireAdmin(req, res);
   if (!ok) return;
-  const txs = await db
-    .select({ tx: walletTransactionsTable, user: usersTable })
-    .from(walletTransactionsTable)
-    .leftJoin(usersTable, eq(walletTransactionsTable.userId, usersTable.id))
-    .orderBy(desc(walletTransactionsTable.createdAt))
-    .limit(100);
+
+  const [txs, loginEvents] = await Promise.all([
+    db
+      .select({ tx: walletTransactionsTable, user: usersTable })
+      .from(walletTransactionsTable)
+      .leftJoin(usersTable, eq(walletTransactionsTable.userId, usersTable.id))
+      .orderBy(desc(walletTransactionsTable.createdAt))
+      .limit(100),
+    db
+      .select({ log: auditLogsTable, user: usersTable })
+      .from(auditLogsTable)
+      .leftJoin(usersTable, eq(auditLogsTable.userId, usersTable.id))
+      .where(eq(auditLogsTable.action, "login"))
+      .orderBy(desc(auditLogsTable.createdAt))
+      .limit(100),
+  ]);
 
   res.json({
     recentTransactions: txs.map(r => ({
@@ -809,6 +956,15 @@ router.get("/admin/activity", async (req, res): Promise<void> => {
       description: r.tx.description,
       reference: r.tx.reference,
       createdAt: r.tx.createdAt?.toISOString() ?? null,
+    })),
+    loginEvents: loginEvents.map(r => ({
+      id: r.log.id,
+      userId: r.log.userId,
+      userName: r.user?.name ?? "Unknown",
+      userEmail: r.user?.email ?? "",
+      ipAddress: r.log.ipAddress ?? "Unknown",
+      userAgent: r.log.userAgent ?? "Unknown",
+      createdAt: r.log.createdAt?.toISOString() ?? null,
     })),
   });
 });

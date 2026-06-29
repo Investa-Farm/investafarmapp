@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, pgEnum, boolean, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -16,6 +16,9 @@ export const usersTable = pgTable("users", {
   totpEnabled: boolean("totp_enabled").default(false).notNull(),
   phone: text("phone"),
   county: text("county"),
+  creditLimitKES: numeric("credit_limit_kes", { precision: 15, scale: 2 }),
+  maxDepositKES: numeric("max_deposit_kes", { precision: 15, scale: 2 }),
+  maxWithdrawalKES: numeric("max_withdrawal_kes", { precision: 15, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

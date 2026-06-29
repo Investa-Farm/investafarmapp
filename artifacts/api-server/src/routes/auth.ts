@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
 import { createHmac, timingSafeEqual, randomBytes } from "crypto";
-import { db, usersTable, otpCodesTable, passwordResetTokensTable, walletsTable, notificationsTable } from "@workspace/db";
+import { db, usersTable, otpCodesTable, passwordResetTokensTable, walletsTable, notificationsTable, auditLogsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { LoginBody } from "@workspace/api-zod";
@@ -282,6 +282,18 @@ router.post("/auth/login", authRateLimit, async (req, res): Promise<void> => {
     return;
   }
   const token = signToken(user.id);
+
+  // Write login audit log (non-blocking)
+  db.insert(auditLogsTable).values({
+    userId: user.id,
+    action: "login",
+    entityType: "user",
+    entityId: user.id,
+    metadata: JSON.stringify({ email: user.email, role: user.role }),
+    ipAddress: ip,
+    userAgent: (req.headers["user-agent"] ?? null) as string | null,
+  }).catch(() => {});
+
   res.json({
     user: { id: user.id, email: user.email, name: user.name, role: user.role, emailVerified: resolvedVerified, createdAt: user.createdAt.toISOString() },
     token,

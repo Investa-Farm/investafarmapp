@@ -88,6 +88,9 @@ router.post("/wallet/deposit", financialRateLimit, async (req, res): Promise<voi
   if (!amount || isNaN(amount)) { res.status(400).json({ error: "Invalid amount." }); return; }
   const check = checkDepositVelocity(user.id, amount);
   if (!check.ok) { res.status(400).json({ error: check.error }); return; }
+  if (user.maxDepositKES && amount > Number(user.maxDepositKES)) {
+    res.status(400).json({ error: `Deposit of KES ${amount.toLocaleString()} exceeds your single-transaction limit of KES ${Number(user.maxDepositKES).toLocaleString()}.` }); return;
+  }
   const result = await creditWallet(user.id, amount, `DEP-${Date.now()}`, req.body.description ?? "M-Pesa deposit");
   recordDeposit(user.id, amount);
   res.json(result);
@@ -101,6 +104,9 @@ router.post("/wallet/withdraw", financialRateLimit, requireNonce, async (req, re
   if (!amount || isNaN(amount)) { res.status(400).json({ error: "Invalid amount." }); return; }
   const check = checkWithdrawalVelocity(user.id, amount);
   if (!check.ok) { res.status(400).json({ error: check.error }); return; }
+  if (user.maxWithdrawalKES && amount > Number(user.maxWithdrawalKES)) {
+    res.status(400).json({ error: `Withdrawal of KES ${amount.toLocaleString()} exceeds your single-transaction limit of KES ${Number(user.maxWithdrawalKES).toLocaleString()}.` }); return;
+  }
   const wallet = await getOrCreateWallet(user.id);
   const FEE_RATE = 0.005;
   const FEE_CAP = 260;

@@ -128,6 +128,9 @@ export default function AdminDashboard() {
   const [directCreditRef, setDirectCreditRef] = useState("");
   const [directCreditNote, setDirectCreditNote] = useState("");
   const [directCrediting, setDirectCrediting] = useState(false);
+  const [activityLoginEvents, setActivityLoginEvents] = useState<any[]>([]);
+  const [aiKycRunning, setAiKycRunning] = useState(false);
+  const [txFilter, setTxFilter] = useState("all");
 
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
@@ -282,6 +285,7 @@ export default function AdminDashboard() {
       if (r.ok) {
         const data = await r.json();
         setActivity(data.recentTransactions ?? []);
+        setActivityLoginEvents(data.loginEvents ?? []);
       }
     } finally { setActivityLoading(false); }
   };
@@ -349,6 +353,27 @@ export default function AdminDashboard() {
         fetchActivity();
       } else showToast(data.error ?? "Credit failed", "error");
     } finally { setDirectCrediting(false); }
+  };
+
+  const runAiKycAll = async () => {
+    setAiKycRunning(true);
+    try {
+      const r = await fetch("/api/admin/kyc/ai-review-pending", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showToast(`🤖 AI reviewed ${data.reviewed} docs — ✓ ${data.approved} approved, ✗ ${data.rejected} flagged`);
+        fetchKyc();
+      } else {
+        showToast(data.error ?? "AI review failed", "error");
+      }
+    } catch {
+      showToast("AI review failed", "error");
+    } finally {
+      setAiKycRunning(false);
+    }
   };
 
   const sendMessage = async () => {
@@ -990,9 +1015,17 @@ export default function AdminDashboard() {
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 {kycdocs.length} total documents
               </p>
-              <button onClick={fetchKyc} className="text-xs text-primary flex items-center gap-1">
-                <RefreshCw size={11} className={kycLoading ? "animate-spin" : ""} /> Refresh
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={runAiKycAll}
+                  disabled={aiKycRunning || kycdocs.filter(d => d.status === "pending").length === 0}
+                  className="text-xs text-white bg-violet-600 px-2.5 py-1 rounded-full flex items-center gap-1 disabled:opacity-50">
+                  {aiKycRunning ? <RefreshCw size={10} className="animate-spin" /> : "🤖"} AI Review All
+                </button>
+                <button onClick={fetchKyc} className="text-xs text-primary flex items-center gap-1">
+                  <RefreshCw size={11} className={kycLoading ? "animate-spin" : ""} /> Refresh
+                </button>
+              </div>
             </div>
 
             {kycLoading ? (
@@ -1019,7 +1052,8 @@ export default function AdminDashboard() {
                         className="ml-2 w-14 flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform">
                         <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-primary/30 bg-gray-100 flex items-center justify-center">
                           {(doc.fileUrl.startsWith("data:image/") || doc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i))
-                            ? <img src={doc.fileUrl} alt="Doc" className="w-full h-full object-cover" />
+                            ? <img src={doc.fileUrl} alt="Doc" className="w-full h-full object-cover"
+                                onError={(e) => { e.currentTarget.style.display = "none"; }} />
                             : (doc.fileUrl.startsWith("data:application/pdf") || doc.fileUrl.match(/\.pdf$/i))
                               ? <div className="flex flex-col items-center justify-center w-full h-full bg-red-50">
                                   <FileText size={20} className="text-red-500" />
@@ -1100,11 +1134,21 @@ export default function AdminDashboard() {
               </button>
             </div>
 
+            {/* Filter pills */}
+            <div className="flex gap-2 flex-wrap">
+              {["all", "deposit", "withdrawal", "investment", "return"].map(f => (
+                <button key={f} onClick={() => setTxFilter(f)}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${txFilter === f ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>
+                  {f === "all" ? "All" : f}
+                </button>
+              ))}
+            </div>
+
             {txLoading ? (
               <div className="text-center py-8 text-muted-foreground text-sm">Loading transactions…</div>
-            ) : transactions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">No transactions yet</div>
-            ) : transactions.map(tx => (
+            ) : transactions.filter(tx => txFilter === "all" || tx.type === txFilter).length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No transactions</div>
+            ) : transactions.filter(tx => txFilter === "all" || tx.type === txFilter).map(tx => (
               <div key={tx.id} className="bg-card border border-border rounded-2xl px-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-base flex-shrink-0">
@@ -1118,6 +1162,9 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <p className="text-muted-foreground text-[10px] truncate">{tx.description ?? tx.type}</p>
+                    {tx.reference && (
+                      <p className="text-[10px] font-mono text-blue-600 truncate">Ref: {tx.reference}</p>
+                    )}
                     <div className="flex items-center justify-between mt-0.5">
                       <p className="text-muted-foreground text-[10px] truncate">{tx.userEmail}</p>
                       <p className="text-muted-foreground text-[10px] flex-shrink-0">{new Date(tx.createdAt).toLocaleDateString("en-KE")}</p>
@@ -1763,6 +1810,37 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Login Audit Log */}
+            {activityLoginEvents.length > 0 && (
+              <div className="mt-4">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                  🔐 Login Audit Log ({activityLoginEvents.length})
+                </p>
+                <div className="space-y-2">
+                  {activityLoginEvents.map((ev: any) => (
+                    <div key={ev.id} className="bg-card border border-border rounded-2xl px-4 py-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0 text-base">🔑</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-foreground text-xs font-semibold truncate">{ev.userName}</p>
+                            <p className="text-muted-foreground text-[10px] flex-shrink-0">
+                              {ev.createdAt ? new Date(ev.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
+                            </p>
+                          </div>
+                          <p className="text-muted-foreground text-[10px] truncate">{ev.userEmail}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-[9px] font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">IP: {ev.ipAddress}</span>
+                            <span className="text-[9px] text-muted-foreground truncate max-w-[160px]">{ev.userAgent}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>

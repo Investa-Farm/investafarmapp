@@ -9,6 +9,7 @@ export const auditLogsTable = pgTable("audit_logs", {
   entityId: integer("entity_id"),
   metadata: text("metadata"),
   ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
   requestId: text("request_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
