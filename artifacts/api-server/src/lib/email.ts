@@ -744,7 +744,7 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
         </div>
 
         <p style="color:#9ca3af;font-size:12px;margin:20px 0 0 0;text-align:center;">
-          Need help? Email us at <a href="mailto:support@investafarm.com" style="color:${GRASS_GREEN};text-decoration:none;">support@investafarm.com</a> or visit
+          Need help? Email us at <a href="mailto:investafarm@proton.me" style="color:${GRASS_GREEN};text-decoration:none;">investafarm@proton.me</a> or visit
           <a href="https://app.investafarm.com" style="color:${GRASS_GREEN};text-decoration:none;">app.investafarm.com</a>
         </p>
       </td>

@@ -5,7 +5,7 @@ import {
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
   Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2,
   Settings, Bell, Percent, Coins, ChevronRight, BarChart3, Trash2, ExternalLink, Star, MessageSquare,
-  Send, Reply, Monitor
+  Send, Reply, Monitor, Ticket, AlertCircle, CreditCard, Smartphone, CheckSquare
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -35,7 +35,7 @@ interface TxRecord {
   description: string | null; status: string; createdAt: string;
 }
 
-type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals" | "reviews" | "settings" | "messages" | "activity";
+type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals" | "reviews" | "settings" | "messages" | "activity" | "support";
 
 interface PlatformSettings {
   withdrawalFeePct: number;
@@ -111,6 +111,24 @@ export default function AdminDashboard() {
   const [activity, setActivity] = useState<any[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
 
+  // Support tickets
+  const [supportTickets, setSupportTickets] = useState<any[]>([]);
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [supportFilter, setSupportFilter] = useState("all");
+  const [expandedTicket, setExpandedTicket] = useState<number | null>(null);
+  const [ticketReply, setTicketReply] = useState<Record<number, string>>({});
+  const [ticketReplying, setTicketReplying] = useState<number | null>(null);
+  const [creditTicketId, setCreditTicketId] = useState<number | null>(null);
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditNote, setCreditNote] = useState("");
+  const [crediting, setCrediting] = useState(false);
+  // Direct wallet credit (Activity tab)
+  const [directCreditUserId, setDirectCreditUserId] = useState<number | null>(null);
+  const [directCreditAmount, setDirectCreditAmount] = useState("");
+  const [directCreditRef, setDirectCreditRef] = useState("");
+  const [directCreditNote, setDirectCreditNote] = useState("");
+  const [directCrediting, setDirectCrediting] = useState(false);
+
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
   const token = adminSessionToken || getToken();
@@ -147,6 +165,7 @@ export default function AdminDashboard() {
     if (tab === "reviews") fetchReviews();
     if (tab === "messages") { if (users.length === 0) fetchUsers(); fetchMessages(); }
     if (tab === "activity") fetchActivity();
+    if (tab === "support") fetchSupportTickets();
   }, [tab]);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -265,6 +284,71 @@ export default function AdminDashboard() {
         setActivity(data.recentTransactions ?? []);
       }
     } finally { setActivityLoading(false); }
+  };
+
+  const fetchSupportTickets = async () => {
+    setSupportLoading(true);
+    try {
+      const r = await fetch(`/api/admin/support-tickets`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setSupportTickets(await r.json());
+    } finally { setSupportLoading(false); }
+  };
+
+  const replyToTicket = async (ticketId: number, status: string) => {
+    const reply = ticketReply[ticketId]?.trim();
+    setTicketReplying(ticketId);
+    try {
+      const r = await fetch(`/api/admin/support-tickets/${ticketId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ adminReply: reply, status }),
+      });
+      if (r.ok) {
+        showToast("Reply sent ✓");
+        setTicketReply(p => { const n = { ...p }; delete n[ticketId]; return n; });
+        fetchSupportTickets();
+      } else showToast("Failed to reply", "error");
+    } finally { setTicketReplying(null); }
+  };
+
+  const creditFromTicket = async () => {
+    if (!creditTicketId || !creditAmount) { showToast("Enter an amount", "error"); return; }
+    const amt = Number(creditAmount);
+    if (!amt || amt <= 0) { showToast("Invalid amount", "error"); return; }
+    setCrediting(true);
+    try {
+      const r = await fetch(`/api/admin/support-tickets/${creditTicketId}/credit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amountKES: amt, note: creditNote }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showToast(`✓ KES ${amt.toLocaleString("en-KE")} credited to wallet`);
+        setCreditTicketId(null); setCreditAmount(""); setCreditNote("");
+        fetchSupportTickets();
+      } else showToast(data.error ?? "Credit failed", "error");
+    } finally { setCrediting(false); }
+  };
+
+  const creditDirect = async () => {
+    if (!directCreditUserId || !directCreditAmount) { showToast("Enter user and amount", "error"); return; }
+    const amt = Number(directCreditAmount);
+    if (!amt || amt <= 0) { showToast("Invalid amount", "error"); return; }
+    setDirectCrediting(true);
+    try {
+      const r = await fetch(`/api/admin/wallet/${directCreditUserId}/credit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amountKES: amt, reference: directCreditRef, note: directCreditNote }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showToast(`✓ KES ${amt.toLocaleString("en-KE")} credited`);
+        setDirectCreditUserId(null); setDirectCreditAmount(""); setDirectCreditRef(""); setDirectCreditNote("");
+        fetchActivity();
+      } else showToast(data.error ?? "Credit failed", "error");
+    } finally { setDirectCrediting(false); }
   };
 
   const sendMessage = async () => {
@@ -552,8 +636,9 @@ export default function AdminDashboard() {
     { id: "transactions", label: "Transactions", icon: <Activity size={18} />,      color: "text-purple-600",  bg: "bg-purple-50" },
     { id: "farms",        label: "Farms",        icon: <Tractor size={18} />,       color: "text-teal-600",    bg: "bg-teal-50" },
     { id: "payouts",      label: "Payouts",      icon: <DollarSign size={18} />,    color: "text-orange-600",  bg: "bg-orange-50" },
-    { id: "messages",     label: "Messages",     icon: <MessageSquare size={18} />, color: "text-sky-600",     bg: "bg-sky-50",   badge: messages.filter(m => !m.isReadByAdmin && m.reply).length },
+    { id: "messages",     label: "Messages",     icon: <MessageSquare size={18} />, color: "text-sky-600",     bg: "bg-sky-50",      badge: messages.filter(m => !m.isReadByAdmin && m.reply).length },
     { id: "activity",     label: "Activity",     icon: <Monitor size={18} />,       color: "text-violet-600",  bg: "bg-violet-50" },
+    { id: "support",      label: "Support",      icon: <Ticket size={18} />,        color: "text-rose-600",    bg: "bg-rose-50",     badge: supportTickets.filter(t => t.status === "open").length },
     { id: "reviews",      label: "Reviews",      icon: <Star size={18} />,          color: "text-amber-600",   bg: "bg-amber-50" },
     { id: "settings",     label: "Settings",     icon: <Settings size={18} />,      color: "text-gray-600",    bg: "bg-gray-100" },
   ];
@@ -1633,7 +1718,7 @@ export default function AdminDashboard() {
             ) : (
               <div className="space-y-2">
                 {activity.map((a: any) => (
-                  <div key={a.id} className="bg-card border border-border rounded-2xl px-4 py-3">
+                  <div key={a.id} className={`bg-card border rounded-2xl px-4 py-3 ${a.status === "pending" && a.type === "deposit" ? "border-amber-300" : "border-border"}`}>
                     <div className="flex items-center gap-3">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base ${
                         a.type === "deposit" ? "bg-green-100" :
@@ -1645,7 +1730,7 @@ export default function AdminDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="text-foreground font-semibold text-xs truncate max-w-[120px]">{a.userName}</p>
+                          <p className="text-foreground font-semibold text-xs truncate max-w-[100px]">{a.userName}</p>
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize flex-shrink-0 ${
                             a.type === "deposit" ? "bg-green-100 text-green-700" :
                             a.type === "withdrawal" ? "bg-red-100 text-red-600" :
@@ -1666,6 +1751,14 @@ export default function AdminDashboard() {
                         <p className="text-muted-foreground text-[9px]">
                           {a.createdAt ? new Date(a.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
                         </p>
+                        {/* Validate button for pending/failed deposits */}
+                        {a.type === "deposit" && (a.status === "pending" || a.status === "failed") && (
+                          <button
+                            onClick={() => { setDirectCreditUserId(a.userId); setDirectCreditAmount(String(a.amount ?? "")); setDirectCreditRef(a.reference ?? ""); setDirectCreditNote(`Manual validation of ${a.description ?? a.reference ?? "payment"}`); }}
+                            className="mt-1 text-[9px] font-bold text-rose-600 border border-rose-300 bg-rose-50 px-2 py-0.5 rounded-full active:scale-95">
+                            ✓ Validate
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1859,7 +1952,205 @@ export default function AdminDashboard() {
           </>
         )}
 
+        {/* ── SUPPORT TICKETS TAB ── */}
+        {tab === "support" && (
+          <>
+            {/* Filter pills */}
+            <div className="flex gap-2 overflow-x-auto pb-1 mb-4 scrollbar-hide">
+              {(["all", "open", "in_progress", "resolved", "closed"] as const).map(f => (
+                <button key={f} onClick={() => setSupportFilter(f)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold capitalize transition-all ${supportFilter === f ? "bg-rose-600 text-white" : "bg-card border border-border text-muted-foreground"}`}>
+                  {f === "all" ? `All (${supportTickets.length})` : f === "in_progress" ? `In Progress (${supportTickets.filter(t => t.status === "in_progress").length})` : `${f.charAt(0).toUpperCase() + f.slice(1)} (${supportTickets.filter(t => t.status === f).length})`}
+                </button>
+              ))}
+            </div>
+
+            {supportLoading ? (
+              <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-rose-500" /></div>
+            ) : supportTickets.filter(t => supportFilter === "all" || t.status === supportFilter).length === 0 ? (
+              <div className="text-center py-12">
+                <Ticket size={32} className="text-muted-foreground mx-auto mb-3" />
+                <p className="text-foreground font-semibold text-sm">No tickets</p>
+                <p className="text-muted-foreground text-xs mt-1">Filtered by: {supportFilter}</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {supportTickets.filter(t => supportFilter === "all" || t.status === supportFilter).map((t: any) => {
+                  const isOpen = expandedTicket === t.id;
+                  const statusColors: Record<string, string> = {
+                    open: "bg-blue-50 text-blue-700 border-blue-200",
+                    in_progress: "bg-amber-50 text-amber-700 border-amber-200",
+                    resolved: "bg-green-50 text-green-700 border-green-200",
+                    closed: "bg-gray-50 text-gray-500 border-gray-200",
+                  };
+                  const isPayment = t.category === "payment";
+                  return (
+                    <div key={t.id} className={`bg-card border rounded-2xl overflow-hidden ${isPayment ? "border-amber-300" : "border-border"}`}>
+                      <button className="w-full px-4 py-3 text-left" onClick={() => setExpandedTicket(isOpen ? null : t.id)}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                              <span className="text-foreground font-bold text-xs">#{t.id}</span>
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusColors[t.status] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}>
+                                {t.status === "in_progress" ? "In Progress" : t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                              </span>
+                              {isPayment && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1"><CreditCard size={9} /> Payment</span>}
+                              {t.walletCredited > 0 && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-300"><CheckSquare size={9} className="inline mr-0.5" />KES {Number(t.walletCredited).toLocaleString("en-KE")} credited</span>}
+                            </div>
+                            <p className="text-foreground text-xs font-semibold truncate">{t.subject}</p>
+                            <p className="text-muted-foreground text-[10px] mt-0.5">{t.userName} · {t.userEmail} · {new Date(t.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}</p>
+                          </div>
+                          <ChevronDown size={14} className={`text-muted-foreground flex-shrink-0 mt-1 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                        </div>
+                      </button>
+
+                      {isOpen && (
+                        <div className="px-4 pb-4 pt-2 border-t border-border space-y-3">
+                          {/* User query */}
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">User Query</p>
+                            <p className="text-foreground text-xs leading-relaxed bg-gray-50 rounded-xl px-3 py-2.5">{t.description}</p>
+                          </div>
+
+                          {/* Payment details */}
+                          {(t.mpesaRef || t.amountClaimed) && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-1.5">
+                              <p className="text-amber-800 font-bold text-xs flex items-center gap-1.5"><AlertCircle size={12} /> Payment Details</p>
+                              {t.mpesaRef && <p className="text-amber-700 text-xs">M-Pesa Ref: <span className="font-mono font-bold">{t.mpesaRef}</span></p>}
+                              {t.amountClaimed && <p className="text-amber-700 text-xs">Amount claimed: <strong>KES {Number(t.amountClaimed).toLocaleString("en-KE")}</strong></p>}
+                              {t.paymentMethod && <p className="text-amber-700 text-xs flex items-center gap-1">
+                                {t.paymentMethod.includes("M-Pesa") ? <Smartphone size={11} /> : <CreditCard size={11} />} {t.paymentMethod}
+                              </p>}
+                            </div>
+                          )}
+
+                          {/* Previous reply */}
+                          {t.adminReply && (
+                            <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+                              <p className="text-[10px] font-bold text-green-800 mb-1">Previous Reply</p>
+                              <p className="text-green-700 text-xs leading-relaxed">{t.adminReply}</p>
+                            </div>
+                          )}
+
+                          {/* Reply textarea */}
+                          {t.status !== "closed" && t.status !== "resolved" && (
+                            <div className="space-y-2">
+                              <textarea
+                                value={ticketReply[t.id] ?? ""}
+                                onChange={e => setTicketReply(p => ({ ...p, [t.id]: e.target.value }))}
+                                placeholder="Write your reply to the user…"
+                                rows={3}
+                                className="w-full border border-border rounded-xl px-3 py-2.5 text-xs bg-white focus:outline-none focus:border-rose-400 resize-none"
+                              />
+                              <div className="flex gap-2">
+                                <button onClick={() => replyToTicket(t.id, "in_progress")} disabled={ticketReplying === t.id || !ticketReply[t.id]?.trim()}
+                                  className="flex-1 bg-sky-600 text-white text-xs font-bold py-2.5 rounded-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                                  {ticketReplying === t.id ? <Loader2 size={12} className="animate-spin" /> : <Reply size={12} />}
+                                  Reply
+                                </button>
+                                <button onClick={() => replyToTicket(t.id, "resolved")} disabled={ticketReplying === t.id}
+                                  className="flex-1 bg-green-600 text-white text-xs font-bold py-2.5 rounded-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                                  <CheckCircle2 size={12} /> Resolve
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Validate payment / credit wallet */}
+                          {!t.walletCredited && isPayment && t.status !== "closed" && (
+                            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3">
+                              <p className="text-rose-800 font-bold text-xs mb-2 flex items-center gap-1.5"><CreditCard size={12} /> Validate Payment & Credit Wallet</p>
+                              {creditTicketId === t.id ? (
+                                <div className="space-y-2">
+                                  <input type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)}
+                                    placeholder={t.amountClaimed ? `Claimed: KES ${t.amountClaimed}` : "Amount (KES)"}
+                                    className="w-full border border-rose-300 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none" />
+                                  <input type="text" value={creditNote} onChange={e => setCreditNote(e.target.value)}
+                                    placeholder="Note (optional)"
+                                    className="w-full border border-rose-300 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none" />
+                                  <div className="flex gap-2">
+                                    <button onClick={creditFromTicket} disabled={crediting || !creditAmount}
+                                      className="flex-1 bg-rose-600 text-white text-xs font-bold py-2.5 rounded-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                                      {crediting ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
+                                      {crediting ? "Crediting…" : "Confirm & Credit Wallet"}
+                                    </button>
+                                    <button onClick={() => { setCreditTicketId(null); setCreditAmount(""); setCreditNote(""); }}
+                                      className="w-10 bg-muted rounded-xl flex items-center justify-center active:scale-95">
+                                      <X size={13} className="text-muted-foreground" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button onClick={() => { setCreditTicketId(t.id); if (t.amountClaimed) setCreditAmount(t.amountClaimed); }}
+                                  className="w-full bg-rose-600 text-white text-xs font-bold py-2.5 rounded-xl active:scale-95 flex items-center justify-center gap-1.5">
+                                  <CreditCard size={12} /> Validate & Credit Wallet
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Status change */}
+                          {t.status !== "closed" && (
+                            <button onClick={() => replyToTicket(t.id, "closed")} disabled={ticketReplying === t.id}
+                              className="w-full bg-gray-100 text-gray-600 text-xs font-semibold py-2 rounded-xl active:scale-95 disabled:opacity-50">
+                              Close Ticket
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
       </div>
+
+      {/* ── CREDIT WALLET MODAL (Activity tab) ── */}
+      {directCreditUserId && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDirectCreditUserId(null)} />
+          <div className="relative bg-white rounded-t-3xl w-full max-w-[430px] px-5 pt-5 pb-10 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-foreground font-bold text-sm flex items-center gap-2"><CreditCard size={15} className="text-rose-600" /> Manual Wallet Credit</p>
+                <p className="text-muted-foreground text-xs mt-0.5">User ID: {directCreditUserId}</p>
+              </div>
+              <button onClick={() => setDirectCreditUserId(null)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center"><X size={14} /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Amount (KES)</label>
+                <input type="number" value={directCreditAmount} onChange={e => setDirectCreditAmount(e.target.value)}
+                  placeholder="e.g. 1000"
+                  className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-rose-400" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">M-Pesa / Transaction Reference</label>
+                <input type="text" value={directCreditRef} onChange={e => setDirectCreditRef(e.target.value)}
+                  placeholder="e.g. UFTAE9OYR3"
+                  className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none focus:border-rose-400" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Note</label>
+                <input type="text" value={directCreditNote} onChange={e => setDirectCreditNote(e.target.value)}
+                  placeholder="Reason for manual credit"
+                  className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-rose-400" />
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                <p className="text-amber-800 text-[11px]">⚠️ This will immediately credit the user's wallet and send them an email + push notification. This action cannot be undone.</p>
+              </div>
+              <button onClick={creditDirect} disabled={directCrediting || !directCreditAmount}
+                className="w-full bg-rose-600 text-white font-bold py-3.5 rounded-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
+                {directCrediting ? <Loader2 size={15} className="animate-spin" /> : <CreditCard size={15} />}
+                {directCrediting ? "Crediting…" : "Confirm & Credit Wallet"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Admin Modal */}
       {addAdminOpen && (

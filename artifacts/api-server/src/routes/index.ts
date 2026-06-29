@@ -33,6 +33,7 @@ import transactionsRouter from "./transactions";
 import farmerHealthRouter from "./farmer-health";
 import harvestRouter from "./harvest";
 import reviewsRouter from "./reviews";
+import supportRouter from "./support";
 
 const router: IRouter = Router();
 
@@ -69,5 +70,6 @@ router.use(transactionsRouter);
 router.use(aiRateLimit, farmerHealthRouter);
 router.use(harvestRouter);
 router.use(reviewsRouter);
+router.use(supportRouter);
 
 export default router;
