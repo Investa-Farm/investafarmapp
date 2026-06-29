@@ -79,12 +79,13 @@ export default function FaqPage() {
   const user = getStoredUser();
   const token = getToken();
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"faqs" | "submit" | "tickets">("faqs");
+  const [activeTab, setActiveTab] = useState<"faqs" | "submit" | "tickets">("submit");
   const [openItem, setOpenItem] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<number | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [expandedTicket, setExpandedTicket] = useState<number | null>(null);
 
   const backPath = user?.role === "farmer" ? "/farmer/profile" : "/profile";
@@ -107,7 +108,9 @@ export default function FaqPage() {
 
   const submitTicket = async () => {
     if (!form.subject.trim() || !form.description.trim()) return;
+    if (!token) { setSubmitError("You must be logged in to submit a query. Please log in and try again."); return; }
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const r = await fetch("/api/support/tickets", {
         method: "POST",
@@ -126,7 +129,11 @@ export default function FaqPage() {
         setSubmitted(data.ticketId);
         setForm(EMPTY_FORM);
         qc.invalidateQueries({ queryKey: ["support-tickets-mine"] });
+      } else {
+        setSubmitError(data.error ?? "Submission failed. Please try again or email us directly.");
       }
+    } catch {
+      setSubmitError("Network error. Please check your connection and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -152,9 +159,9 @@ export default function FaqPage() {
         {/* Tabs */}
         <div className="flex gap-1 bg-white/10 rounded-2xl p-1">
           {([
-            { id: "faqs",    label: "FAQs",         icon: <HelpCircle size={13} /> },
             { id: "submit",  label: "Submit Query",  icon: <Send size={13} /> },
             { id: "tickets", label: "My Tickets",    icon: <Ticket size={13} />, badge: myTickets.filter((t: any) => t.adminReply && t.status !== "closed").length },
+            { id: "faqs",    label: "FAQs",         icon: <HelpCircle size={13} /> },
           ] as const).map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all relative ${
@@ -329,6 +336,13 @@ export default function FaqPage() {
                     rows={5}
                     className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm bg-card focus:outline-none focus:border-primary resize-none" />
                 </div>
+
+                {submitError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+                    <AlertCircle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-red-700 text-xs leading-relaxed">{submitError}</p>
+                  </div>
+                )}
 
                 <button onClick={submitTicket} disabled={submitting || !form.subject.trim() || !form.description.trim()}
                   className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
