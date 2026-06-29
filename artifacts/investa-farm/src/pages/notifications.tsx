@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Bell, BellOff, Check, CheckCheck, Trash2, TrendingUp, TrendingDown, Sprout, DollarSign, AlertTriangle, Info, Zap, Newspaper, Gift, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Check, CheckCheck, Trash2, TrendingUp, TrendingDown, Sprout, DollarSign, AlertTriangle, Info, Zap, Newspaper, Gift, ShieldCheck, MessageSquare, Reply, Send, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getToken } from "@/lib/auth";
 import { BottomNav } from "@/components/bottom-nav";
@@ -19,16 +19,18 @@ interface Notif {
 function notifIcon(type: string) {
   const cls = "w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0";
   switch (type) {
-    case "price_alert":    return <div className={`${cls} bg-amber-100 text-amber-600`}><TrendingUp size={16} /></div>;
-    case "price_drop":     return <div className={`${cls} bg-red-100 text-red-500`}><TrendingDown size={16} /></div>;
-    case "farm_update":    return <div className={`${cls} bg-green-100 text-[#16a34a]`}><Sprout size={16} /></div>;
-    case "dividend":       return <div className={`${cls} bg-emerald-100 text-emerald-600`}><DollarSign size={16} /></div>;
-    case "investment":     return <div className={`${cls} bg-blue-100 text-blue-600`}><Zap size={16} /></div>;
-    case "kyc":            return <div className={`${cls} bg-purple-100 text-purple-600`}><ShieldCheck size={16} /></div>;
-    case "news":           return <div className={`${cls} bg-sky-100 text-sky-600`}><Newspaper size={16} /></div>;
-    case "reward":         return <div className={`${cls} bg-pink-100 text-pink-600`}><Gift size={16} /></div>;
-    case "warning":        return <div className={`${cls} bg-red-100 text-red-500`}><AlertTriangle size={16} /></div>;
-    default:               return <div className={`${cls} bg-gray-100 text-gray-500`}><Info size={16} /></div>;
+    case "price_alert":        return <div className={`${cls} bg-amber-100 text-amber-600`}><TrendingUp size={16} /></div>;
+    case "price_drop":         return <div className={`${cls} bg-red-100 text-red-500`}><TrendingDown size={16} /></div>;
+    case "farm_update":        return <div className={`${cls} bg-green-100 text-[#16a34a]`}><Sprout size={16} /></div>;
+    case "dividend":           return <div className={`${cls} bg-emerald-100 text-emerald-600`}><DollarSign size={16} /></div>;
+    case "investment":         return <div className={`${cls} bg-blue-100 text-blue-600`}><Zap size={16} /></div>;
+    case "kyc":                return <div className={`${cls} bg-purple-100 text-purple-600`}><ShieldCheck size={16} /></div>;
+    case "news":               return <div className={`${cls} bg-sky-100 text-sky-600`}><Newspaper size={16} /></div>;
+    case "reward":             return <div className={`${cls} bg-pink-100 text-pink-600`}><Gift size={16} /></div>;
+    case "warning":            return <div className={`${cls} bg-red-100 text-red-500`}><AlertTriangle size={16} /></div>;
+    case "admin_message":      return <div className={`${cls} bg-sky-100 text-sky-600`}><MessageSquare size={16} /></div>;
+    case "admin_message_reply":return <div className={`${cls} bg-sky-100 text-sky-600`}><Reply size={16} /></div>;
+    default:                   return <div className={`${cls} bg-gray-100 text-gray-500`}><Info size={16} /></div>;
   }
 }
 
@@ -44,7 +46,6 @@ function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString("en-KE", { day: "numeric", month: "short" });
 }
 
-// Local demo notifications for a richer experience
 const DEMO_NOTIFS: Notif[] = [
   { id: 9001, type: "dividend",    title: "Harvest Payout Received",        body: "KES 3,200 credited — Nakuru Maize Farm mid-season payout. Funds available in your wallet.",                    read: false, createdAt: new Date(Date.now() - 5 * 60000).toISOString() },
   { id: 9002, type: "price_alert", title: "Maize Price Alert Triggered",    body: "Maize futures rose 4.2% — your alert threshold of 3% has been exceeded. Consider reviewing your position.", read: false, createdAt: new Date(Date.now() - 2 * 3600000).toISOString() },
@@ -57,12 +58,101 @@ const DEMO_NOTIFS: Notif[] = [
 ];
 
 const FILTER_TABS = [
-  { id: "all",       label: "All" },
-  { id: "unread",    label: "Unread" },
-  { id: "dividend",  label: "Payouts" },
+  { id: "all",         label: "All" },
+  { id: "unread",      label: "Unread" },
+  { id: "dividend",    label: "Payouts" },
   { id: "price_alert", label: "Alerts" },
   { id: "farm_update", label: "Farm" },
+  { id: "admin_message", label: "Messages" },
 ];
+
+function AdminMessageReply({ notif, token }: { notif: Notif; token: string | null }) {
+  const [open, setOpen] = useState(false);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [msgId, setMsgId] = useState<number | null>(null);
+
+  const qc = useQueryClient();
+
+  const fetchMsgId = async () => {
+    if (msgId) return msgId;
+    try {
+      const r = await fetch("/api/admin-messages/mine", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return null;
+      const msgs = await r.json();
+      const match = msgs.find((m: any) =>
+        (notif.meta?.messageId && m.id === notif.meta.messageId) ||
+        (m.subject && notif.title.includes(m.subject))
+      );
+      if (match) { setMsgId(match.id); return match.id; }
+      // Fall back to latest message
+      if (msgs.length > 0) { setMsgId(msgs[0].id); return msgs[0].id; }
+    } catch {}
+    return null;
+  };
+
+  const handleSend = async () => {
+    if (!reply.trim() || !token) return;
+    setSending(true);
+    try {
+      const id = await fetchMsgId();
+      if (!id) { setSending(false); return; }
+      const r = await fetch("/api/admin-messages/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ messageId: id, reply: reply.trim() }),
+      });
+      if (r.ok) {
+        setSent(true);
+        setReply("");
+        setOpen(false);
+        qc.invalidateQueries({ queryKey: ["notifications"] });
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (sent) return (
+    <div className="mt-2 flex items-center gap-1.5 text-green-600 text-[10px] font-semibold">
+      <Check size={11} /> Reply sent
+    </div>
+  );
+
+  return (
+    <div className="mt-2">
+      {!open ? (
+        <button onClick={() => setOpen(true)}
+          className="flex items-center gap-1.5 text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-full active:scale-95 transition-transform">
+          <Reply size={10} /> Reply
+        </button>
+      ) : (
+        <div className="mt-1 space-y-2" onClick={e => e.stopPropagation()}>
+          <textarea
+            value={reply}
+            onChange={e => setReply(e.target.value)}
+            placeholder="Type your reply…"
+            rows={3}
+            autoFocus
+            className="w-full border border-sky-200 rounded-xl px-3 py-2 text-xs bg-sky-50 focus:outline-none focus:border-sky-400 resize-none"
+          />
+          <div className="flex gap-2">
+            <button onClick={handleSend} disabled={sending || !reply.trim()}
+              className="flex-1 bg-sky-600 text-white text-xs font-bold py-2 rounded-xl disabled:opacity-50 flex items-center justify-center gap-1.5 active:scale-95">
+              {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+              {sending ? "Sending…" : "Send Reply"}
+            </button>
+            <button onClick={() => setOpen(false)}
+              className="px-3 py-2 rounded-xl text-xs text-muted-foreground bg-muted">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function NotificationsPage() {
   const [, setLocation] = useLocation();
@@ -90,7 +180,6 @@ export default function NotificationsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
-  // Only show demo notifs for demo accounts; real users get live API data only
   const apiIds = new Set(apiNotifs.map(n => n.id));
   const isDemoUser = typeof window !== "undefined" &&
     !!localStorage.getItem("investa_token")?.includes("john.farmer") === false &&
@@ -150,7 +239,6 @@ export default function NotificationsPage() {
           )}
         </div>
 
-        {/* Unread badge */}
         <div className="mt-4 flex items-center gap-2">
           <div className="bg-white/10 rounded-2xl px-3 py-2 flex items-center gap-2">
             <Bell size={15} className="text-white" />
@@ -197,6 +285,7 @@ export default function NotificationsPage() {
           ) : (
             displayed.map((n) => {
               const isRead = n.read || localRead.has(n.id);
+              const isAdminMsg = n.type === "admin_message" || n.type === "admin_message_reply";
               return (
                 <motion.div key={n.id}
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -40 }}
@@ -204,7 +293,9 @@ export default function NotificationsPage() {
                   onClick={() => markOneRead(n)}
                   className={`flex gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer active:scale-[0.98] ${
                     !isRead
-                      ? "bg-white border-[#16a34a]/20 shadow-sm shadow-green-100"
+                      ? isAdminMsg
+                        ? "bg-white border-sky-200 shadow-sm shadow-sky-50"
+                        : "bg-white border-[#16a34a]/20 shadow-sm shadow-green-100"
                       : "bg-white/70 border-gray-100"
                   }`}>
                   {notifIcon(n.type)}
@@ -214,10 +305,16 @@ export default function NotificationsPage() {
                         {n.title}
                       </p>
                       {!isRead && (
-                        <span className="w-2 h-2 rounded-full bg-[#16a34a] flex-shrink-0 mt-1.5" />
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${isAdminMsg ? "bg-sky-500" : "bg-[#16a34a]"}`} />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{n.body}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-3">{n.body}</p>
+
+                    {/* Admin message reply UI */}
+                    {n.type === "admin_message" && (
+                      <AdminMessageReply notif={n} token={token} />
+                    )}
+
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-[10px] text-gray-400 font-medium">{timeAgo(n.createdAt)}</span>
                       <div className="flex items-center gap-1.5">

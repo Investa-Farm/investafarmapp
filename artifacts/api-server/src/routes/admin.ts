@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, notInArray } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "crypto";
-import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable } from "@workspace/db";
+import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
-import { sendKycApprovedEmail, sendKycRejectedEmail } from "../lib/email";
+import { sendKycApprovedEmail, sendKycRejectedEmail, sendGenericEmail } from "../lib/email";
 import { sendPushToUser, createInAppNotification } from "../lib/push";
 import { triggerFarmHarvest } from "../scheduler";
 import { loadSettings, saveSettings, type PlatformSettings } from "../lib/platformSettings";
@@ -419,12 +419,18 @@ router.delete("/admin/farms/:id", async (req, res): Promise<void> => {
   if (!ok) return;
   const id = parseInt(req.params["id"] ?? "0", 10);
   if (!id) { res.status(400).json({ error: "Invalid farm id" }); return; }
-  await db.delete(marketListingsTable).where(eq(marketListingsTable.farmId, id));
-  await db.delete(transactionsTable).where(eq(transactionsTable.farmId, id));
-  await db.delete(investmentsTable).where(eq(investmentsTable.farmId, id));
-  await db.delete(farmUpdatesTable).where(eq(farmUpdatesTable.farmId, id));
-  await db.delete(farmsTable).where(eq(farmsTable.id, id));
-  res.json({ ok: true, deleted: id });
+  try {
+    await db.delete(orderBookTable).where(eq(orderBookTable.farmId, id));
+    await db.delete(dividendsTable).where(eq(dividendsTable.farmId, id));
+    await db.delete(marketListingsTable).where(eq(marketListingsTable.farmId, id));
+    await db.delete(transactionsTable).where(eq(transactionsTable.farmId, id));
+    await db.delete(investmentsTable).where(eq(investmentsTable.farmId, id));
+    await db.delete(farmUpdatesTable).where(eq(farmUpdatesTable.farmId, id));
+    await db.delete(farmsTable).where(eq(farmsTable.id, id));
+    res.json({ ok: true, deleted: id });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
 });
 
 router.get("/admin/farms", async (req, res): Promise<void> => {
@@ -644,6 +650,167 @@ router.delete("/admin/clear-database", async (req, res): Promise<void> => {
   }
 
   res.json({ ok: true, deleted: nonDemoIds.length, message: `Deleted ${nonDemoIds.length} non-demo user(s) and their data. Demo accounts preserved.` });
+});
+
+// ─── ADMIN MESSAGING SYSTEM ──────────────────────────────────────────────────
+
+// GET /admin/messages — all messages sent by admin
+router.get("/admin/messages", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const messages = await db
+    .select({ msg: adminMessagesTable, user: usersTable })
+    .from(adminMessagesTable)
+    .leftJoin(usersTable, eq(adminMessagesTable.userId, usersTable.id))
+    .orderBy(desc(adminMessagesTable.createdAt))
+    .limit(200);
+  res.json(messages.map(r => ({
+    id: r.msg.id,
+    userId: r.msg.userId,
+    userName: r.user?.name ?? "Unknown",
+    userEmail: r.user?.email ?? "",
+    subject: r.msg.subject,
+    message: r.msg.message,
+    reply: r.msg.reply,
+    repliedAt: r.msg.repliedAt?.toISOString() ?? null,
+    isReadByUser: r.msg.isReadByUser,
+    isReadByAdmin: r.msg.isReadByAdmin,
+    createdAt: r.msg.createdAt.toISOString(),
+  })));
+});
+
+// POST /admin/messages — send a message to a user
+router.post("/admin/messages", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const { userId, subject, message } = req.body as { userId: number; subject: string; message: string };
+  if (!userId || !subject || !message) {
+    res.status(400).json({ error: "userId, subject, and message are required" });
+    return;
+  }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const [msg] = await db.insert(adminMessagesTable).values({ userId, subject, message }).returning();
+
+  // In-app notification
+  await db.insert(notificationsTable).values({
+    userId,
+    type: "admin_message",
+    title: `📩 Message from Investa Team: ${subject}`,
+    body: message.slice(0, 200),
+  });
+  sendPushToUser(userId, { title: `📩 ${subject}`, body: message.slice(0, 100), type: "admin_message", url: "/notifications" }).catch(() => {});
+
+  // Email notification
+  sendGenericEmail(user.email, subject, `
+    <p>Hi ${user.name},</p>
+    <p>You have a new message from the Investa Farm team:</p>
+    <blockquote style="border-left:4px solid #16a34a;padding-left:12px;color:#374151;margin:16px 0">${message}</blockquote>
+    <p>Please log in to reply: <a href="https://app.investafarm.com/notifications" style="color:#16a34a">Open App</a></p>
+  `).catch(() => {});
+
+  res.json({ ok: true, id: msg.id });
+});
+
+// POST /admin/messages/:id/read — mark a message as read by admin
+router.post("/admin/messages/:id/read", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const id = parseInt(req.params["id"] ?? "0", 10);
+  await db.update(adminMessagesTable).set({ isReadByAdmin: true }).where(eq(adminMessagesTable.id, id));
+  res.json({ ok: true });
+});
+
+// POST /api/admin-messages/reply — user replies to an admin message
+router.post("/admin-messages/reply", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { messageId, reply } = req.body as { messageId: number; reply: string };
+  if (!messageId || !reply?.trim()) { res.status(400).json({ error: "messageId and reply required" }); return; }
+
+  const [msg] = await db.select().from(adminMessagesTable)
+    .where(eq(adminMessagesTable.id, messageId));
+  if (!msg || msg.userId !== user.id) { res.status(403).json({ error: "Not your message" }); return; }
+
+  await db.update(adminMessagesTable)
+    .set({ reply: reply.trim(), repliedAt: new Date(), isReadByAdmin: false })
+    .where(eq(adminMessagesTable.id, messageId));
+
+  // Notify admin of reply via notification to all admins
+  const admins = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, "admin"));
+  if (admins.length > 0) {
+    await db.insert(notificationsTable).values(
+      admins.map(a => ({
+        userId: a.id,
+        type: "admin_message_reply",
+        title: `💬 Reply from ${user.name}`,
+        body: `Re: ${msg.subject} — ${reply.trim().slice(0, 120)}`,
+      }))
+    );
+  }
+
+  // Email admin
+  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@investafarm.com";
+  sendGenericEmail(adminEmail, `Reply from ${user.name}: ${msg.subject}`, `
+    <p><strong>${user.name}</strong> (${user.email}) replied to your message:</p>
+    <p style="color:#6b7280"><em>Original: ${msg.message}</em></p>
+    <blockquote style="border-left:4px solid #16a34a;padding-left:12px;color:#374151;margin:16px 0">${reply}</blockquote>
+  `).catch(() => {});
+
+  res.json({ ok: true });
+});
+
+// GET /api/admin-messages/mine — user fetches their admin messages
+router.get("/admin-messages/mine", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const messages = await db.select().from(adminMessagesTable)
+    .where(eq(adminMessagesTable.userId, user.id))
+    .orderBy(desc(adminMessagesTable.createdAt))
+    .limit(50);
+  // Mark as read
+  await db.update(adminMessagesTable)
+    .set({ isReadByUser: true })
+    .where(eq(adminMessagesTable.userId, user.id));
+  res.json(messages.map(m => ({
+    id: m.id,
+    subject: m.subject,
+    message: m.message,
+    reply: m.reply,
+    repliedAt: m.repliedAt?.toISOString() ?? null,
+    isReadByUser: m.isReadByUser,
+    createdAt: m.createdAt.toISOString(),
+  })));
+});
+
+// ─── ACTIVITY / LOGIN LOGS ────────────────────────────────────────────────────
+
+// GET /admin/activity — recent login and transaction activity across all users
+router.get("/admin/activity", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const txs = await db
+    .select({ tx: walletTransactionsTable, user: usersTable })
+    .from(walletTransactionsTable)
+    .leftJoin(usersTable, eq(walletTransactionsTable.userId, usersTable.id))
+    .orderBy(desc(walletTransactionsTable.createdAt))
+    .limit(100);
+
+  res.json({
+    recentTransactions: txs.map(r => ({
+      id: r.tx.id,
+      userId: r.tx.userId,
+      userName: r.user?.name ?? "Unknown",
+      userEmail: r.user?.email ?? "",
+      type: r.tx.type,
+      amount: Number(r.tx.amount),
+      status: r.tx.status,
+      description: r.tx.description,
+      reference: r.tx.reference,
+      createdAt: r.tx.createdAt?.toISOString() ?? null,
+    })),
+  });
 });
 
 // Public endpoint — no auth required — exposes safe subset of platform settings to frontend

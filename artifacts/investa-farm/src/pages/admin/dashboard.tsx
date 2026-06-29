@@ -4,7 +4,8 @@ import {
   Shield, Users, Tractor, DollarSign, TrendingUp, FileText,
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
   Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2,
-  Settings, Bell, Percent, Coins, ChevronRight, BarChart3, Trash2, ExternalLink, Star, MessageSquare
+  Settings, Bell, Percent, Coins, ChevronRight, BarChart3, Trash2, ExternalLink, Star, MessageSquare,
+  Send, Reply, Monitor
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -34,7 +35,7 @@ interface TxRecord {
   description: string | null; status: string; createdAt: string;
 }
 
-type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals" | "reviews" | "settings";
+type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals" | "reviews" | "settings" | "messages" | "activity";
 
 interface PlatformSettings {
   withdrawalFeePct: number;
@@ -99,6 +100,17 @@ export default function AdminDashboard() {
   const [reviews, setReviews] = useState<{ reviews: any[]; avgRating: number; total: number; distribution: { rating: number; count: number }[] } | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
+  // Messages
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [msgForm, setMsgForm] = useState({ userId: "", subject: "", message: "" });
+  const [msgSending, setMsgSending] = useState(false);
+  const [msgUserSearch, setMsgUserSearch] = useState("");
+
+  // Activity
+  const [activity, setActivity] = useState<any[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
   const token = adminSessionToken || getToken();
@@ -133,6 +145,8 @@ export default function AdminDashboard() {
     if (tab === "proposals") fetchProposals();
     if (tab === "settings") fetchSettings();
     if (tab === "reviews") fetchReviews();
+    if (tab === "messages") { if (users.length === 0) fetchUsers(); fetchMessages(); }
+    if (tab === "activity") fetchActivity();
   }, [tab]);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -232,6 +246,47 @@ export default function AdminDashboard() {
       const r = await fetch("/api/admin/reviews", { headers: { Authorization: `Bearer ${token}` } });
       if (r.ok) setReviews(await r.json());
     } finally { setReviewsLoading(false); }
+  };
+
+  const fetchMessages = async () => {
+    setMessagesLoading(true);
+    try {
+      const r = await fetch("/api/admin/messages", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setMessages(await r.json());
+    } finally { setMessagesLoading(false); }
+  };
+
+  const fetchActivity = async () => {
+    setActivityLoading(true);
+    try {
+      const r = await fetch("/api/admin/activity", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) {
+        const data = await r.json();
+        setActivity(data.recentTransactions ?? []);
+      }
+    } finally { setActivityLoading(false); }
+  };
+
+  const sendMessage = async () => {
+    if (!msgForm.userId || !msgForm.subject.trim() || !msgForm.message.trim()) {
+      showToast("Select a user, enter a subject and message", "error"); return;
+    }
+    setMsgSending(true);
+    try {
+      const r = await fetch("/api/admin/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId: Number(msgForm.userId), subject: msgForm.subject, message: msgForm.message }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showToast("Message sent ✓");
+        setMsgForm({ userId: "", subject: "", message: "" });
+        fetchMessages();
+      } else {
+        showToast(data.error ?? "Failed to send", "error");
+      }
+    } finally { setMsgSending(false); }
   };
 
   const sendBroadcast = async () => {
@@ -494,11 +549,13 @@ export default function AdminDashboard() {
     { id: "proposals", label: "Proposals", icon: <Sprout size={18} />,     color: "text-green-600",   bg: "bg-green-50",  badge: proposals.length },
   ];
   const SECONDARY_TABS: { id: Tab; label: string; icon: React.ReactNode; color: string; bg: string; badge?: number }[] = [
-    { id: "transactions", label: "Transactions", icon: <Activity size={18} />,   color: "text-purple-600",  bg: "bg-purple-50" },
-    { id: "farms",        label: "Farms",        icon: <Tractor size={18} />,    color: "text-teal-600",    bg: "bg-teal-50" },
-    { id: "payouts",      label: "Payouts",      icon: <DollarSign size={18} />, color: "text-orange-600",  bg: "bg-orange-50" },
-    { id: "reviews",      label: "Reviews",      icon: <Star size={18} />,       color: "text-amber-600",   bg: "bg-amber-50" },
-    { id: "settings",     label: "Settings",     icon: <Settings size={18} />,   color: "text-gray-600",    bg: "bg-gray-100" },
+    { id: "transactions", label: "Transactions", icon: <Activity size={18} />,      color: "text-purple-600",  bg: "bg-purple-50" },
+    { id: "farms",        label: "Farms",        icon: <Tractor size={18} />,       color: "text-teal-600",    bg: "bg-teal-50" },
+    { id: "payouts",      label: "Payouts",      icon: <DollarSign size={18} />,    color: "text-orange-600",  bg: "bg-orange-50" },
+    { id: "messages",     label: "Messages",     icon: <MessageSquare size={18} />, color: "text-sky-600",     bg: "bg-sky-50",   badge: messages.filter(m => !m.isReadByAdmin && m.reply).length },
+    { id: "activity",     label: "Activity",     icon: <Monitor size={18} />,       color: "text-violet-600",  bg: "bg-violet-50" },
+    { id: "reviews",      label: "Reviews",      icon: <Star size={18} />,          color: "text-amber-600",   bg: "bg-amber-50" },
+    { id: "settings",     label: "Settings",     icon: <Settings size={18} />,      color: "text-gray-600",    bg: "bg-gray-100" },
   ];
   const ALL_TABS = [...PRIMARY_TABS, ...SECONDARY_TABS];
   const activeTabMeta = ALL_TABS.find(t => t.id === tab);
@@ -1409,6 +1466,211 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </>
+            )}
+          </>
+        )}
+
+        {/* MESSAGES TAB */}
+        {tab === "messages" && (
+          <>
+            <div className="bg-gradient-to-br from-sky-600 to-cyan-500 rounded-2xl p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                  <MessageSquare size={20} className="text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-bold text-base">User Messages</p>
+                  <p className="text-sky-100 text-[10px]">Send Q&A messages to individual users</p>
+                </div>
+                <button onClick={fetchMessages} className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                  <RefreshCw size={14} className={`text-white ${messagesLoading ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Compose form */}
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-border bg-sky-50 flex items-center gap-2">
+                <Send size={13} className="text-sky-600" />
+                <p className="text-sky-900 font-bold text-xs">New Message</p>
+              </div>
+              <div className="px-4 py-4 space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Select User</label>
+                  <input
+                    type="text"
+                    value={msgUserSearch}
+                    onChange={e => setMsgUserSearch(e.target.value)}
+                    placeholder="Search by name or email…"
+                    className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm bg-gray-50 focus:outline-none focus:border-sky-400 focus:bg-white transition-colors"
+                  />
+                  {msgUserSearch.length > 1 && (
+                    <div className="mt-1 bg-white border border-border rounded-xl shadow-lg max-h-40 overflow-y-auto">
+                      {users.filter(u => u.name.toLowerCase().includes(msgUserSearch.toLowerCase()) || u.email.toLowerCase().includes(msgUserSearch.toLowerCase())).slice(0, 8).map(u => (
+                        <button key={u.id} onClick={() => { setMsgForm(f => ({ ...f, userId: String(u.id) })); setMsgUserSearch(`${u.name} (${u.email})`); }}
+                          className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-sky-50 text-sm transition-colors border-b border-border last:border-0 ${msgForm.userId === String(u.id) ? "bg-sky-50" : ""}`}>
+                          <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center flex-shrink-0">
+                            <span className="text-sky-700 font-bold text-xs">{u.name.charAt(0)}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-foreground text-xs truncate">{u.name}</p>
+                            <p className="text-muted-foreground text-[10px] truncate">{u.email} · {u.role}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Subject</label>
+                  <input
+                    type="text"
+                    value={msgForm.subject}
+                    onChange={e => setMsgForm(f => ({ ...f, subject: e.target.value }))}
+                    placeholder="e.g. Update on your KYC status"
+                    className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm bg-gray-50 focus:outline-none focus:border-sky-400 focus:bg-white transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Message</label>
+                  <textarea
+                    value={msgForm.message}
+                    onChange={e => setMsgForm(f => ({ ...f, message: e.target.value }))}
+                    placeholder="Write your message here…"
+                    rows={4}
+                    className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm bg-gray-50 focus:outline-none focus:border-sky-400 focus:bg-white transition-colors resize-none"
+                  />
+                </div>
+                <button
+                  onClick={sendMessage}
+                  disabled={msgSending || !msgForm.userId || !msgForm.subject.trim() || !msgForm.message.trim()}
+                  className="w-full bg-sky-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                >
+                  {msgSending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                  {msgSending ? "Sending…" : "Send Message"}
+                </button>
+              </div>
+            </div>
+
+            {/* Message history */}
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Message History ({messages.length})</p>
+            {messagesLoading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading…</div>
+            ) : messages.length === 0 ? (
+              <div className="text-center py-8">
+                <MessageSquare size={32} className="text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No messages sent yet</p>
+              </div>
+            ) : messages.map((m: any) => (
+              <div key={m.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-border">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground font-semibold text-xs">{m.userName}</p>
+                      <p className="text-muted-foreground text-[10px]">{m.userEmail}</p>
+                    </div>
+                    <p className="text-muted-foreground text-[10px] flex-shrink-0">{new Date(m.createdAt).toLocaleDateString("en-KE", { day:"numeric", month:"short" })}</p>
+                  </div>
+                  <p className="text-foreground font-bold text-xs mt-1">{m.subject}</p>
+                </div>
+                <div className="px-4 py-3 bg-sky-50/40">
+                  <p className="text-foreground text-xs leading-relaxed">{m.message}</p>
+                </div>
+                {m.reply && (
+                  <div className="px-4 py-3 border-t border-border bg-green-50/40">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Reply size={11} className="text-green-600" />
+                      <p className="text-green-700 text-[10px] font-bold">User Reply — {m.repliedAt ? new Date(m.repliedAt).toLocaleDateString("en-KE") : ""}</p>
+                      {!m.isReadByAdmin && <span className="ml-auto bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">New</span>}
+                    </div>
+                    <p className="text-foreground text-xs leading-relaxed">{m.reply}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* ACTIVITY TAB */}
+        {tab === "activity" && (
+          <>
+            <div className="bg-gradient-to-br from-violet-600 to-purple-500 rounded-2xl p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Monitor size={20} className="text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-bold text-base">Platform Activity</p>
+                  <p className="text-violet-100 text-[10px]">All user transactions and wallet activity</p>
+                </div>
+                <button onClick={fetchActivity} className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                  <RefreshCw size={14} className={`text-white ${activityLoading ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+              {activity.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  {[
+                    { label: "Total Events", val: activity.length },
+                    { label: "Unique Users", val: new Set(activity.map((a: any) => a.userId)).size },
+                    { label: "Total Volume", val: `KES ${activity.reduce((s: number, a: any) => s + (a.amount ?? 0), 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}` },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="bg-white/10 rounded-xl p-2 text-center">
+                      <p className="text-white font-extrabold text-sm leading-none">{val}</p>
+                      <p className="text-white/60 text-[9px] mt-0.5">{label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {activityLoading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading activity…</div>
+            ) : activity.length === 0 ? (
+              <div className="text-center py-8">
+                <Monitor size={32} className="text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No activity yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {activity.map((a: any) => (
+                  <div key={a.id} className="bg-card border border-border rounded-2xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base ${
+                        a.type === "deposit" ? "bg-green-100" :
+                        a.type === "withdrawal" ? "bg-red-100" :
+                        a.type === "investment" ? "bg-blue-100" :
+                        "bg-violet-100"
+                      }`}>
+                        {TX_EMOJI[a.type] ?? "📋"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-foreground font-semibold text-xs truncate max-w-[120px]">{a.userName}</p>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize flex-shrink-0 ${
+                            a.type === "deposit" ? "bg-green-100 text-green-700" :
+                            a.type === "withdrawal" ? "bg-red-100 text-red-600" :
+                            a.type === "investment" ? "bg-blue-100 text-blue-700" :
+                            "bg-violet-100 text-violet-700"
+                          }`}>{a.type}</span>
+                        </div>
+                        <p className="text-muted-foreground text-[10px] truncate">{a.userEmail}</p>
+                        {a.description && <p className="text-muted-foreground text-[10px] truncate">{a.description}</p>}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className={`font-extrabold text-sm ${a.type === "deposit" ? "text-green-600" : a.type === "withdrawal" ? "text-red-500" : "text-foreground"}`}>
+                          {a.type === "withdrawal" ? "-" : "+"}{fmtKES(a.amount ?? 0)}
+                        </p>
+                        <p className={`text-[9px] font-semibold mt-0.5 ${a.status === "completed" ? "text-green-600" : a.status === "failed" ? "text-red-500" : "text-amber-600"}`}>
+                          {a.status}
+                        </p>
+                        <p className="text-muted-foreground text-[9px]">
+                          {a.createdAt ? new Date(a.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </>
         )}

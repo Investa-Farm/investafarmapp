@@ -428,6 +428,10 @@ router.post("/wallet/stripe/confirm", financialRateLimit, async (req, res): Prom
 
 // ─── DARAJA M-PESA ROUTES ────────────────────────────────────────────────────
 
+// In-memory map: checkoutRequestId → { userId, amount, reference }
+// Used to credit the wallet when Safaricom fires the callback
+const pendingStkPushes = new Map<string, { userId: number; amount: number; reference: string }>();
+
 // POST /wallet/daraja/stk — initiate M-Pesa STK push via Safaricom Daraja
 router.post("/wallet/daraja/stk", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
@@ -451,6 +455,12 @@ router.post("/wallet/daraja/stk", financialRateLimit, async (req, res): Promise<
 
   try {
     const result = await initiateStkPush({ phone, amountKES: amount, reference, description: "InvestaFarm" });
+    // Store so the callback can credit the wallet even if the poll never fires
+    if (result.checkoutRequestId) {
+      pendingStkPushes.set(result.checkoutRequestId, { userId: user.id, amount, reference });
+      // Auto-expire after 10 minutes
+      setTimeout(() => pendingStkPushes.delete(result.checkoutRequestId), 10 * 60 * 1000);
+    }
     res.json({ ...result, reference, configured: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "STK push failed";
@@ -511,16 +521,44 @@ router.post("/wallet/daraja/callback", async (req, res): Promise<void> => {
     const body = req.body?.Body?.stkCallback;
     if (!body) { res.json({ ResultCode: 0, ResultDesc: "OK" }); return; }
     const resultCode = String(body.ResultCode ?? "1");
-    if (resultCode !== "0") { res.json({ ResultCode: 0, ResultDesc: "OK" }); return; }
+    const checkoutId = String(body.CheckoutRequestID ?? "");
+    if (resultCode !== "0") {
+      console.info(`[Daraja] Callback failure (code ${resultCode}): ${body.ResultDesc ?? ""} checkout: ${checkoutId}`);
+      pendingStkPushes.delete(checkoutId);
+      res.json({ ResultCode: 0, ResultDesc: "OK" });
+      return;
+    }
     const items: any[] = body.CallbackMetadata?.Item ?? [];
     const get = (name: string) => items.find((i: any) => i.Name === name)?.Value;
     const amount = Number(get("Amount") ?? 0);
     const mpesaRef = String(get("MpesaReceiptNumber") ?? "");
     const phone = String(get("PhoneNumber") ?? "");
-    const checkoutId = String(body.CheckoutRequestID ?? "");
     if (!amount || !mpesaRef) { res.json({ ResultCode: 0, ResultDesc: "OK" }); return; }
-    // We can't reliably match to a user from callback alone — the status poll will credit
-    console.info(`[Daraja] Callback success: ${mpesaRef} KES ${amount} from ${phone} (checkout: ${checkoutId})`);
+
+    const pending = pendingStkPushes.get(checkoutId);
+    if (pending) {
+      const { userId, amount: pendingAmount, reference } = pending;
+      const creditAmount = amount || pendingAmount;
+      const result = await creditWallet(userId, creditAmount, `DARAJA-${mpesaRef}`, `M-Pesa deposit (${mpesaRef})`).catch(e => {
+        console.error("[Daraja] Callback creditWallet error:", e);
+        return null;
+      });
+      if (result && !(result as any).alreadyCredited) {
+        recordDeposit(userId, creditAmount);
+        notifyUser(userId, "wallet_credit", "💰 M-Pesa Confirmed!", `KES ${creditAmount.toLocaleString("en-KE")} added to your Investa Farm wallet.`, "/wallet").catch(() => {});
+        const userRow = await db.select({ email: usersTable.email, name: usersTable.name, phone: usersTable.phone })
+          .from(usersTable).where(eq(usersTable.id, userId)).limit(1).then(r => r[0]).catch(() => null);
+        if (userRow) {
+          const newBal = parseFloat((result as any).wallet?.balance ?? "0");
+          sendWalletCreditEmail(userRow.email, userRow.name, creditAmount, newBal, "M-Pesa Daraja").catch(() => {});
+          if (userRow.phone) sendWalletTopupSms(userRow.phone, creditAmount, newBal).catch(() => {});
+        }
+        console.info(`[Daraja] Credited KES ${creditAmount} to user ${userId} — ref ${mpesaRef}`);
+      }
+      pendingStkPushes.delete(checkoutId);
+    } else {
+      console.warn(`[Daraja] Callback received but no pending entry for checkout: ${checkoutId} — payment ${mpesaRef} KES ${amount} from ${phone}`);
+    }
   } catch (e) {
     console.error("[Daraja] Callback error:", e);
   }

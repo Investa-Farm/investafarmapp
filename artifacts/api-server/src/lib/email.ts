@@ -167,6 +167,18 @@ function createTransport() {
   };
 }
 
+// Generic transactional email — used by admin messaging system
+export async function sendGenericEmail(to: string, subject: string, bodyHtml: string): Promise<void> {
+  const transport = createTransport();
+  if (!transport) return;
+  await transport.sendMail({
+    from: from(APP_NAME),
+    to,
+    subject,
+    html: emailWrapper(`<tr><td style="padding:0 40px 32px">${bodyHtml}</td></tr>`, subject),
+  });
+}
+
 export async function testSmtpConnection(): Promise<void> {
   const hasResend = !!process.env.RESEND_API_KEY;
   const smtpUser = process.env.GOOGLE_SMTP_USER;

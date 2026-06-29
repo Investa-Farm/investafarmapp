@@ -449,7 +449,7 @@ export function WalletModal({ open, onClose }: Props) {
                           </div>
                           <div>
                             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Card / Account Number</label>
-                            <input type="text" value={cardNumber} onChange={e => setCardNumber(e.target.value.replace(/\D/g, "").slice(0, 16))}
+                            <input type="text" value={withdrawCardNum} onChange={e => setWithdrawCardNum(e.target.value.replace(/\D/g, "").slice(0, 16))}
                               placeholder="16-digit card number"
                               className="w-full border border-border rounded-xl px-3 py-3 text-foreground font-mono font-bold text-sm focus:outline-none focus:border-blue-500" />
                           </div>

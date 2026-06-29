@@ -385,9 +385,12 @@ function Router() {
         <FaqPage />
       </Route>
 
-      {/* System architecture docs */}
+      {/* System architecture docs — admin only */}
       <Route path="/architecture">
-        <SystemArchitecture />
+        {(() => {
+          const adminAuth = typeof window !== "undefined" && sessionStorage.getItem("admin_auth");
+          return adminAuth ? <SystemArchitecture /> : <Redirect to="/admin/dashboard" />;
+        })()}
       </Route>
 
       {/* Admin routes — no AuthGuard, uses sessionStorage */}
