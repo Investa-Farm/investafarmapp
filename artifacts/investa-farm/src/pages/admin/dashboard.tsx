@@ -131,6 +131,9 @@ export default function AdminDashboard() {
   const [activityLoginEvents, setActivityLoginEvents] = useState<any[]>([]);
   const [aiKycRunning, setAiKycRunning] = useState(false);
   const [txFilter, setTxFilter] = useState("all");
+  const [limitsEditId, setLimitsEditId] = useState<number | null>(null);
+  const [limitsForm, setLimitsForm] = useState({ creditLimitKES: "", maxDepositKES: "", maxWithdrawalKES: "" });
+  const [limitsSaving, setLimitsSaving] = useState(false);
 
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
@@ -355,6 +358,41 @@ export default function AdminDashboard() {
     } finally { setDirectCrediting(false); }
   };
 
+  const openLimitsPanel = (u: any) => {
+    setLimitsEditId(u.id);
+    setLimitsForm({
+      creditLimitKES: u.creditLimitKES ?? "",
+      maxDepositKES: u.maxDepositKES ?? "",
+      maxWithdrawalKES: u.maxWithdrawalKES ?? "",
+    });
+  };
+
+  const saveUserLimits = async () => {
+    if (!limitsEditId) return;
+    setLimitsSaving(true);
+    try {
+      const body: Record<string, number | null> = {};
+      body.creditLimitKES = limitsForm.creditLimitKES.trim() ? Number(limitsForm.creditLimitKES) : null;
+      body.maxDepositKES = limitsForm.maxDepositKES.trim() ? Number(limitsForm.maxDepositKES) : null;
+      body.maxWithdrawalKES = limitsForm.maxWithdrawalKES.trim() ? Number(limitsForm.maxWithdrawalKES) : null;
+      const r = await fetch(`/api/admin/users/${limitsEditId}/limits`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      if (r.ok) {
+        showToast("✓ Limits saved");
+        setLimitsEditId(null);
+        fetchUsers();
+      } else {
+        const data = await r.json().catch(() => ({}));
+        showToast(data.error ?? "Failed to save limits", "error");
+      }
+    } finally {
+      setLimitsSaving(false);
+    }
+  };
+
   const runAiKycAll = async () => {
     setAiKycRunning(true);
     try {
@@ -490,8 +528,11 @@ export default function AdminDashboard() {
       const r = await fetch(`/api/admin/farms/${farmId}`, {
         method: "DELETE", headers: { Authorization: `Bearer ${token}` },
       });
-      if (!r.ok) throw new Error("Delete failed");
-      showToast("Farm deleted");
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        throw new Error(data.error ?? "Delete failed");
+      }
+      showToast("✓ Farm deleted successfully");
       fetchFarms();
     } catch (e) {
       showToast((e as Error).message, "error");
@@ -975,6 +1016,54 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                 )}
+                {/* Limits Panel Button */}
+                {u.role !== "admin" && isMasterAdmin && (
+                  <div className="border-t border-border px-4 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2 flex-wrap text-[10px] text-muted-foreground">
+                      {u.creditLimitKES && <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded font-mono">Credit: {Number(u.creditLimitKES).toLocaleString("en-KE")}</span>}
+                      {u.maxDepositKES && <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-mono">Dep: {Number(u.maxDepositKES).toLocaleString("en-KE")}</span>}
+                      {u.maxWithdrawalKES && <span className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-mono">Wd: {Number(u.maxWithdrawalKES).toLocaleString("en-KE")}</span>}
+                      {!u.creditLimitKES && !u.maxDepositKES && !u.maxWithdrawalKES && <span className="text-muted-foreground">No limits set</span>}
+                    </div>
+                    <button onClick={() => limitsEditId === u.id ? setLimitsEditId(null) : openLimitsPanel(u)}
+                      className="flex-shrink-0 flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-violet-50 border border-violet-200 text-violet-700 active:scale-95 transition-transform">
+                      🎚 Limits
+                    </button>
+                  </div>
+                )}
+                {/* Limits Edit Panel */}
+                {limitsEditId === u.id && (
+                  <div className="border-t border-violet-200 bg-violet-50/60 px-4 py-3 space-y-2.5">
+                    <p className="text-violet-800 font-bold text-[10px] uppercase tracking-wider">Set Transaction Limits for {u.name}</p>
+                    <p className="text-violet-600 text-[10px]">Leave blank to remove a limit. Amounts in KES.</p>
+                    {[
+                      { key: "creditLimitKES" as const, label: "Credit Limit", icon: "💳", color: "violet" },
+                      { key: "maxDepositKES" as const, label: "Max Deposit", icon: "📥", color: "green" },
+                      { key: "maxWithdrawalKES" as const, label: "Max Withdrawal", icon: "📤", color: "amber" },
+                    ].map(({ key, label, icon }) => (
+                      <div key={key}>
+                        <label className="text-[10px] font-semibold text-muted-foreground block mb-1">{icon} {label} (KES)</label>
+                        <input
+                          type="number"
+                          value={limitsForm[key]}
+                          onChange={e => setLimitsForm(f => ({ ...f, [key]: e.target.value }))}
+                          placeholder="e.g. 500000 — blank = no limit"
+                          className="w-full border border-violet-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-violet-500"
+                        />
+                      </div>
+                    ))}
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={saveUserLimits} disabled={limitsSaving}
+                        className="flex-1 bg-violet-600 text-white text-xs font-bold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1.5">
+                        {limitsSaving ? <><RefreshCw size={11} className="animate-spin" /> Saving…</> : "✓ Save Limits"}
+                      </button>
+                      <button onClick={() => setLimitsEditId(null)}
+                        className="px-4 bg-white border border-border text-muted-foreground text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {/* Delete user */}
                 {u.role !== "admin" && (
                   <div className="border-t border-border px-4 py-2">
@@ -1075,19 +1164,37 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 </div>
-                {doc.status === "pending" && (
+                {(doc.status === "pending" || doc.status === "rejected") && (
                   <div className="border-t border-border px-4 py-2.5 flex gap-2">
                     {isMasterAdmin ? (
                       <>
-                        <button onClick={() => approveKycDoc(doc.id, "approved")} disabled={actionLoading === doc.id}
-                          className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
-                          <CheckCircle2 size={13} />
-                          {actionLoading === doc.id ? "…" : "Approve"}
-                        </button>
-                        <button onClick={() => approveKycDoc(doc.id, "rejected")} disabled={actionLoading === doc.id}
-                          className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
-                          <XCircle size={13} /> Reject
-                        </button>
+                        {doc.status === "pending" && (
+                          <button onClick={() => approveKycDoc(doc.id, "approved")} disabled={actionLoading === doc.id}
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
+                            <CheckCircle2 size={13} />
+                            {actionLoading === doc.id ? "…" : "Approve"}
+                          </button>
+                        )}
+                        {doc.status === "pending" && (
+                          <button onClick={() => approveKycDoc(doc.id, "rejected")} disabled={actionLoading === doc.id}
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
+                            <XCircle size={13} /> Reject
+                          </button>
+                        )}
+                        {doc.status === "rejected" && (
+                          <>
+                            <button onClick={() => approveKycDoc(doc.id, "approved")} disabled={actionLoading === doc.id}
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
+                              <CheckCircle2 size={13} />
+                              {actionLoading === doc.id ? "…" : "Approve"}
+                            </button>
+                            <button onClick={() => approveKycDoc(doc.id, "pending")} disabled={actionLoading === doc.id}
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50">
+                              <RefreshCw size={13} />
+                              {actionLoading === doc.id ? "…" : "↩ Undo Reject"}
+                            </button>
+                          </>
+                        )}
                       </>
                     ) : (
                       <button onClick={() => sendKycReminder(doc.userId)} disabled={actionLoading === doc.userId}

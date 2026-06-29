@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, notInArray } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "crypto";
-import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable } from "@workspace/db";
+import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail, sendGenericEmail } from "../lib/email";
 import { sendPushToUser, createInAppNotification } from "../lib/push";
@@ -319,7 +319,37 @@ router.get("/admin/users", async (req, res): Promise<void> => {
     };
   });
 
-  res.json(mapped);
+  res.json(mapped.map(u => {
+    const full = users.find(uu => uu.id === u.id);
+    return {
+      ...u,
+      creditLimitKES: full?.creditLimitKES ?? null,
+      maxDepositKES: full?.maxDepositKES ?? null,
+      maxWithdrawalKES: full?.maxWithdrawalKES ?? null,
+    };
+  }));
+});
+
+// PATCH /admin/users/:id/limits — set per-user transaction limits
+router.patch("/admin/users/:id/limits", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const id = Number(req.params["id"]);
+  const { creditLimitKES, maxDepositKES, maxWithdrawalKES } = req.body as {
+    creditLimitKES?: number | null;
+    maxDepositKES?: number | null;
+    maxWithdrawalKES?: number | null;
+  };
+
+  const updates: Record<string, string | null> = {};
+  if (creditLimitKES !== undefined) updates["creditLimitKES"] = creditLimitKES == null ? null : String(creditLimitKES);
+  if (maxDepositKES !== undefined) updates["maxDepositKES"] = maxDepositKES == null ? null : String(maxDepositKES);
+  if (maxWithdrawalKES !== undefined) updates["maxWithdrawalKES"] = maxWithdrawalKES == null ? null : String(maxWithdrawalKES);
+
+  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No fields to update" }); return; }
+
+  await db.update(usersTable).set(updates as any).where(eq(usersTable.id, id));
+  res.json({ ok: true });
 });
 
 router.patch("/admin/users/:id/approve", async (req, res): Promise<void> => {
@@ -383,14 +413,14 @@ router.get("/admin/kyc", async (req, res): Promise<void> => {
 
 router.patch("/admin/kyc/:id/approve", async (req, res): Promise<void> => {
   const id = Number(req.params["id"]);
-  const { status } = req.body as { status: "approved" | "rejected" };
-  if (!["approved", "rejected"].includes(status)) {
+  const { status } = req.body as { status: "approved" | "rejected" | "pending" };
+  if (!["approved", "rejected", "pending"].includes(status)) {
     res.status(400).json({ error: "Invalid status" });
     return;
   }
   const [doc] = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.id, id));
   await db.update(kycDocumentsTable)
-    .set({ status, reviewedAt: new Date() })
+    .set({ status, reviewedAt: status === "pending" ? null : new Date() })
     .where(eq(kycDocumentsTable.id, id));
 
   if (doc) {
@@ -425,7 +455,14 @@ router.delete("/admin/farms/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params["id"] ?? "0", 10);
   if (!id) { res.status(400).json({ error: "Invalid farm id" }); return; }
   try {
+    // Delete in FK dependency order — child tables first
+    await db.delete(watchlistTable).where(eq(watchlistTable.farmId, id));
+    await db.delete(priceAlertsTable).where(eq(priceAlertsTable.farmId, id));
     await db.delete(orderBookTable).where(eq(orderBookTable.farmId, id));
+    await db.delete(harvestPaymentsTable).where(eq(harvestPaymentsTable.farmId, id));
+    await db.delete(portfolioHoldingsTable).where(eq(portfolioHoldingsTable.farmId, id));
+    await db.delete(platformRevenueTable).where(eq(platformRevenueTable.farmId, id));
+    await db.delete(transactionFeesTable).where(eq(transactionFeesTable.farmId, id));
     await db.delete(dividendsTable).where(eq(dividendsTable.farmId, id));
     await db.delete(marketListingsTable).where(eq(marketListingsTable.farmId, id));
     await db.delete(transactionsTable).where(eq(transactionsTable.farmId, id));
@@ -434,7 +471,8 @@ router.delete("/admin/farms/:id", async (req, res): Promise<void> => {
     await db.delete(farmsTable).where(eq(farmsTable.id, id));
     res.json({ ok: true, deleted: id });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    console.error("[admin] farm delete error:", e);
+    res.status(500).json({ error: `Could not delete farm: ${String(e)}` });
   }
 });
 
