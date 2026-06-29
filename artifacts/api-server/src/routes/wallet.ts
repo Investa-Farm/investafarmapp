@@ -661,4 +661,89 @@ router.get("/wallet/pending-exits", async (req, res): Promise<void> => {
   });
 });
 
+// ─── POST /wallet/withdraw/card ──────────────────────────────────────────────
+router.post("/wallet/withdraw/card", financialRateLimit, requireNonce, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const amount = Number(req.body.amount);
+  if (!amount || isNaN(amount) || amount < 100) { res.status(400).json({ error: "Minimum withdrawal is KES 100" }); return; }
+  const { cardholderName, cardNumber: cardNum } = req.body;
+  if (!cardholderName?.trim() || !cardNum?.trim()) { res.status(400).json({ error: "Cardholder name and card number are required" }); return; }
+  const check = checkWithdrawalVelocity(user.id, amount);
+  if (!check.ok) { res.status(400).json({ error: check.error }); return; }
+  const wallet = await getOrCreateWallet(user.id);
+  const FEE_RATE = 0.005;
+  const FEE_CAP = 260;
+  const fee = Math.min(Math.round(amount * FEE_RATE * 100) / 100, FEE_CAP);
+  const totalDeducted = amount + fee;
+  if (parseFloat(wallet.balance) < totalDeducted) {
+    res.status(400).json({ error: `Insufficient balance. Amount + fee (KES ${fee.toFixed(0)}) requires KES ${totalDeducted.toLocaleString("en-KE")}.` });
+    return;
+  }
+  const newBalance = parseFloat(wallet.balance) - totalDeducted;
+  await db.update(walletsTable).set({ balance: String(newBalance), updatedAt: new Date() }).where(eq(walletsTable.id, wallet.id));
+  const ref = `WCARD-${Date.now()}`;
+  await db.insert(walletTransactionsTable).values({
+    walletId: wallet.id, userId: user.id, type: "withdrawal",
+    amount: String(amount), balanceAfter: String(newBalance),
+    description: `Card withdrawal to ••••${String(cardNum).slice(-4)} (${cardholderName})`, reference: ref, status: "processing",
+  });
+  if (fee > 0) {
+    await db.insert(walletTransactionsTable).values({
+      walletId: wallet.id, userId: user.id, type: "fee",
+      amount: String(fee), balanceAfter: String(newBalance),
+      description: "Withdrawal fee (0.5%, max KES 260)", reference: `FEE-${ref}`, status: "completed",
+    }).catch(() => {});
+  }
+  recordWithdrawal(user.id, amount);
+  notifyUser(user.id, "withdrawal", "Card Withdrawal Initiated",
+    `KES ${amount.toLocaleString("en-KE")} will arrive at your card within 2–5 business days.`, "/wallet").catch(() => {});
+  res.json({ wallet: { ...wallet, balance: String(newBalance) }, fee, ref, status: "processing" });
+});
+
+// ─── POST /wallet/withdraw/usdc ──────────────────────────────────────────────
+router.post("/wallet/withdraw/usdc", financialRateLimit, requireNonce, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const amount = Number(req.body.amount);
+  if (!amount || isNaN(amount) || amount < 500) { res.status(400).json({ error: "Minimum USDC withdrawal is KES 500" }); return; }
+  const { walletAddress } = req.body;
+  if (!walletAddress?.startsWith("0x") || walletAddress.length < 42) {
+    res.status(400).json({ error: "Invalid Polygon USDC wallet address — must start with 0x and be 42 chars" }); return;
+  }
+  const check = checkWithdrawalVelocity(user.id, amount);
+  if (!check.ok) { res.status(400).json({ error: check.error }); return; }
+  const wallet = await getOrCreateWallet(user.id);
+  const kesRate = await getKesUsdcRate().catch(() => 130);
+  const usdcAmount = (amount / kesRate).toFixed(2);
+  const FEE_RATE = 0.005;
+  const FEE_CAP = 260;
+  const fee = Math.min(Math.round(amount * FEE_RATE * 100) / 100, FEE_CAP);
+  const totalDeducted = amount + fee;
+  if (parseFloat(wallet.balance) < totalDeducted) {
+    res.status(400).json({ error: `Insufficient balance. Amount + fee (KES ${fee.toFixed(0)}) requires KES ${totalDeducted.toLocaleString("en-KE")}.` });
+    return;
+  }
+  const newBalance = parseFloat(wallet.balance) - totalDeducted;
+  await db.update(walletsTable).set({ balance: String(newBalance), updatedAt: new Date() }).where(eq(walletsTable.id, wallet.id));
+  const ref = `WUSDC-${Date.now()}`;
+  await db.insert(walletTransactionsTable).values({
+    walletId: wallet.id, userId: user.id, type: "withdrawal",
+    amount: String(amount), balanceAfter: String(newBalance),
+    description: `USDC withdrawal (${usdcAmount} USDC) → ${walletAddress.slice(0, 8)}…${walletAddress.slice(-4)}`,
+    reference: ref, status: "processing",
+  });
+  if (fee > 0) {
+    await db.insert(walletTransactionsTable).values({
+      walletId: wallet.id, userId: user.id, type: "fee",
+      amount: String(fee), balanceAfter: String(newBalance),
+      description: "Withdrawal fee (0.5%, max KES 260)", reference: `FEE-${ref}`, status: "completed",
+    }).catch(() => {});
+  }
+  recordWithdrawal(user.id, amount);
+  notifyUser(user.id, "withdrawal", "USDC Withdrawal Queued",
+    `${usdcAmount} USDC being sent to your Polygon wallet. Usually arrives within 30 min.`, "/wallet").catch(() => {});
+  res.json({ wallet: { ...wallet, balance: String(newBalance) }, fee, ref, usdcAmount, status: "processing" });
+});
+
 export default router;

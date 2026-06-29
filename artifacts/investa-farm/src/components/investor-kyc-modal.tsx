@@ -398,7 +398,13 @@ export function InvestorKycModal({ open, onClose }: InvestorKycModalProps) {
                           <div className="flex items-center gap-1.5">
                             {statusIcon(uploaded.status)}
                             <span className="text-[9px] capitalize text-muted-foreground">{uploaded.status}</span>
-                            <button onClick={() => remove.mutate(uploaded.id)} className="w-5 h-5 rounded bg-red-50 flex items-center justify-center ml-1">
+                            {uploaded.status === "rejected" && (
+                              <button onClick={() => { remove.mutate(uploaded.id); setTimeout(() => setUploadDoc(dt), 400); }}
+                                className="text-[9px] font-bold text-orange-600 border border-orange-300 bg-orange-50 rounded-lg px-2 py-0.5 ml-1 flex items-center gap-0.5">
+                                <Upload size={8} /> Re-upload
+                              </button>
+                            )}
+                            <button onClick={() => remove.mutate(uploaded.id)} className="w-5 h-5 rounded bg-red-50 flex items-center justify-center ml-0.5">
                               <Trash2 size={10} className="text-red-400" />
                             </button>
                           </div>

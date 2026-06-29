@@ -443,8 +443,8 @@ function PwaInstallBanner() {
           {/* Header */}
           <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-white/10">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                <img src={logoSrc} alt="Investa Farm" className="h-9 w-9 object-contain" />
+              <div className="w-11 h-11 rounded-2xl overflow-hidden flex-shrink-0 border border-white/20">
+                <img src="/icon-192.png" alt="Investa Farm" className="w-full h-full object-cover" />
               </div>
               <div>
                 <p className="text-white font-black text-sm leading-tight tracking-tight">Install Now</p>
@@ -503,16 +503,16 @@ function PwaInstallBanner() {
   return (
     <div className="fixed bottom-20 left-0 right-0 z-[70] px-4 max-w-[430px] mx-auto">
       <div className="bg-[#052e16] rounded-2xl shadow-2xl flex items-center gap-3 px-4 py-3.5 border border-green-700">
-        <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
-          <img src={logoSrc} alt="Investa Farm" className="h-8 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
+        <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 border-2 border-green-600/40">
+          <img src="/icon-192.png" alt="Investa Farm" className="w-full h-full object-cover" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-bold text-sm leading-tight">Install Investa Farm</p>
-          <p className="text-white/60 text-[10px]">Add to home screen — fast access, no browser</p>
+          <p className="text-white/60 text-[10px]">Add to home screen — works offline, instant access</p>
         </div>
         <button onClick={install}
           className="bg-[#16a34a] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex-shrink-0 active:scale-95 transition-transform shadow-lg shadow-green-900/40">
-          Install Now
+          Install
         </button>
         <button onClick={dismiss} className="text-white/50 text-xl leading-none flex-shrink-0 w-7 flex items-center justify-center">×</button>
       </div>

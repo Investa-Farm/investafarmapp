@@ -43,12 +43,13 @@ export function WalletModal({ open, onClose }: Props) {
   const qc = useQueryClient();
   const [modal, setModal] = useState<"deposit" | "withdraw" | null>(null);
   const [withdrawTab, setWithdrawTab] = useState<"mpesa" | "card" | "usdc">("mpesa");
+  const [txFilter, setTxFilter] = useState<"all" | "deposits" | "withdrawals">("all");
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("+254");
   const [usdcAddress, setUsdcAddress] = useState("");
   const [cardName, setCardName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
+  const [withdrawCardNum, setWithdrawCardNum] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
   const [receiptTx, setReceiptTx] = useState<WalletData["transactions"][number] | null>(null);
   const { currency, setCurrency, formatAmount } = useCurrency();
@@ -78,17 +79,55 @@ export function WalletModal({ open, onClose }: Props) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["wallet"] });
       setModal(null); setAmount(""); setPhone("");
-      setSuccess("Withdrawal initiated to M-Pesa.");
-      import("@/components/success-toast").then(({ showSuccessToast }) => {
-        showSuccessToast("Withdrawal initiated!", "Funds sent to M-Pesa · usually instant");
+      setSuccess("Withdrawal initiated to M-Pesa. Funds sent within 1–2 business days.");
+      setTimeout(() => setSuccess(null), 5000);
+    },
+  });
+
+  const withdrawCardMutation = useMutation({
+    mutationFn: async ({ amt, name, num }: { amt: number; name: string; num: string }) => {
+      const r = await fetch("/api/wallet/withdraw/card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount: amt, cardholderName: name, cardNumber: num }),
       });
-      setTimeout(() => setSuccess(null), 4000);
+      if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wallet"] });
+      setModal(null); setAmount(""); setCardName(""); setWithdrawCardNum("");
+      setSuccess("Card withdrawal initiated. Funds arrive in 2–5 business days.");
+      setTimeout(() => setSuccess(null), 5000);
+    },
+  });
+
+  const withdrawUsdcMutation = useMutation({
+    mutationFn: async ({ amt, addr }: { amt: number; addr: string }) => {
+      const r = await fetch("/api/wallet/withdraw/usdc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount: amt, walletAddress: addr }),
+      });
+      if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
+      return r.json();
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["wallet"] });
+      setModal(null); setAmount(""); setUsdcAddress("");
+      setSuccess(`USDC withdrawal queued — ${data.usdcAmount ?? ""} USDC arriving within 30 min.`);
+      setTimeout(() => setSuccess(null), 5000);
     },
   });
 
   const balance = parseFloat(data?.wallet.balance ?? "0");
-  const txs = (data?.transactions ?? []).slice(0, 8);
-  const cardNumber = `•••• •••• •••• ${String(user?.id ?? 0).padStart(4, "0")}`;
+  const allTxs = data?.transactions ?? [];
+  const filteredTxs = txFilter === "all"
+    ? allTxs
+    : txFilter === "deposits"
+      ? allTxs.filter(t => ["deposit", "return"].includes(t.type))
+      : allTxs.filter(t => ["withdrawal", "fee"].includes(t.type));
+  const walletCardNum = `•••• •••• •••• ${String(user?.id ?? 0).padStart(4, "0")}`;
   const expiry = new Date(new Date().setFullYear(new Date().getFullYear() + 4));
   const expiryStr = `${String(expiry.getMonth() + 1).padStart(2, "0")}/${String(expiry.getFullYear()).slice(-2)}`;
 
@@ -180,7 +219,7 @@ export function WalletModal({ open, onClose }: Props) {
                   <div className="flex items-end justify-between">
                     <div>
                       <p className="text-white/50 text-[8px] uppercase tracking-wider">{user?.name ?? "Cardholder"}</p>
-                      <p className="text-white font-mono text-xs tracking-widest">{cardNumber}</p>
+                      <p className="text-white font-mono text-xs tracking-widest">{walletCardNum}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-white/50 text-[8px] uppercase tracking-wider">Valid Thru</p>
@@ -238,19 +277,39 @@ export function WalletModal({ open, onClose }: Props) {
                 )}
               </AnimatePresence>
 
-              {/* Transaction history */}
+              {/* Transaction history with tabs */}
               <div>
-                <p className="text-sm font-semibold mb-2">Recent Transactions</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold">Transaction History</p>
+                  <span className="text-muted-foreground text-[10px]">{filteredTxs.length} records</span>
+                </div>
+                {/* Filter tabs */}
+                <div className="flex gap-1.5 mb-3 bg-muted/50 p-1 rounded-xl">
+                  {([
+                    { id: "all" as const,         label: "All" },
+                    { id: "deposits" as const,    label: "Deposits" },
+                    { id: "withdrawals" as const, label: "Withdrawals" },
+                  ]).map(f => (
+                    <button key={f.id} onClick={() => setTxFilter(f.id)}
+                      className={`flex-1 text-[11px] font-semibold py-1.5 rounded-lg transition-all ${
+                        txFilter === f.id ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"
+                      }`}>
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
                 {isLoading
                   ? Array(3).fill(0).map((_, i) => <div key={i} className="h-14 rounded-xl bg-muted animate-pulse mb-2" />)
-                  : txs.length === 0
+                  : filteredTxs.length === 0
                   ? (
                     <div className="text-center py-8 bg-muted/40 rounded-2xl">
                       <Wallet size={24} className="text-muted-foreground mx-auto mb-2" />
-                      <p className="text-muted-foreground text-sm">No transactions yet.</p>
+                      <p className="text-muted-foreground text-sm">
+                        {txFilter === "all" ? "No transactions yet." : `No ${txFilter} yet.`}
+                      </p>
                     </div>
                   )
-                  : txs.map(tx => {
+                  : filteredTxs.map(tx => {
                     const cfg = TX_ICONS[tx.type] ?? { emoji: "💳" };
                     const isCredit = ["deposit", "return", "transfer"].includes(tx.type);
                     return (
@@ -395,15 +454,13 @@ export function WalletModal({ open, onClose }: Props) {
                               className="w-full border border-border rounded-xl px-3 py-3 text-foreground font-mono font-bold text-sm focus:outline-none focus:border-blue-500" />
                           </div>
                           <button
-                            disabled={!amount || parseFloat(amount) < 100 || !cardName.trim() || !cardNumber.trim()}
-                            onClick={() => {
-                              setModal(null); setAmount(""); setCardName(""); setCardNumber("");
-                              setSuccess("Card withdrawal initiated. Funds arrive in 2–5 business days.");
-                              setTimeout(() => setSuccess(null), 5000);
-                            }}
+                            disabled={withdrawCardMutation.isPending || !amount || parseFloat(amount) < 100 || !cardName.trim() || !withdrawCardNum.trim()}
+                            onClick={() => withdrawCardMutation.mutate({ amt: parseFloat(amount), name: cardName, num: withdrawCardNum })}
                             className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 shadow-md shadow-blue-600/20">
-                            <CreditCard size={16} /> Withdraw to Card
+                            {withdrawCardMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                            {withdrawCardMutation.isPending ? "Processing…" : "Withdraw to Card"}
                           </button>
+                          {withdrawCardMutation.isError && <p className="text-red-500 text-xs text-center">{(withdrawCardMutation.error as Error).message}</p>}
                         </div>
                       )}
 
