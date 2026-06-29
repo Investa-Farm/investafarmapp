@@ -329,7 +329,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const TABS: { id: Tab; label: string; icon: React.ReactNode; activeClass: string; gradient: string }[] = [
     { id: "mpesa", label: "M-Pesa", icon: <Smartphone size={14} />, activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#15803d,#16a34a)" },
     { id: "card",  label: "Card",   icon: <CreditCard size={14} />, activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#1d4ed8,#3b82f6)" },
-    { id: "usdc",  label: "USDC",   icon: <Coins size={14} />,      activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#7c3aed,#a855f7)" },
+    { id: "usdc",  label: "USDC",   icon: <Coins size={14} />,      activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#1652F0,#2D56FA)" },
   ];
 
   return (
@@ -714,9 +714,9 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                     <>
                       {/* USDC premium crypto card */}
                       <div className="relative overflow-hidden rounded-2xl p-4"
-                        style={{ background: "linear-gradient(135deg,#1e0b3a 0%,#3b0764 50%,#6d28d9 100%)", boxShadow: "0 10px 36px rgba(109,40,217,0.45)" }}>
-                        <div className="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-purple-400/10" />
-                        <div className="absolute bottom-0 left-8 w-16 h-16 rounded-full bg-purple-600/10" />
+                        style={{ background: "linear-gradient(135deg,#0a1628 0%,#0d3085 50%,#1652F0 100%)", boxShadow: "0 10px 36px rgba(22,82,240,0.45)" }}>
+                        <div className="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-blue-400/10" />
+                        <div className="absolute bottom-0 left-8 w-16 h-16 rounded-full bg-blue-600/10" />
                         <div className="relative flex items-start gap-3">
                           <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
                             style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.15)" }}>
@@ -725,9 +725,9 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-0.5">
                               <p className="text-white font-black text-sm">USDC</p>
-                              <span className="bg-white/15 text-purple-200 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white/15">CIRCLE</span>
+                              <span className="bg-white/15 text-blue-200 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white/15">CIRCLE</span>
                             </div>
-                            <p className="text-purple-200/80 text-[11px] leading-relaxed">
+                            <p className="text-blue-200/80 text-[11px] leading-relaxed">
                               {circleInfo
                                 ? `Rate: KES ${circleInfo.kesRate.toFixed(0)} / USDC · ${circleInfo.chain} network`
                                 : "Polygon (MATIC) · Ideal for diaspora investors"}
@@ -761,7 +761,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                       <button
                         onClick={createCircleIntent}
                         disabled={!amount || amt < 500}
-                        className="w-full bg-purple-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-purple-600/20">
+                        className="w-full text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-lg"
+                        style={{ background: "linear-gradient(135deg,#1652F0,#2D56FA)", boxShadow: "0 6px 20px rgba(22,82,240,0.35)" }}>
                         <Coins size={18} />
                         {amt >= 500 ? `Generate USDC Address for ${usdcEstimate} USDC` : "Enter at least KES 500"}
                       </button>
@@ -774,36 +775,36 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                       <button
                         onClick={() => setWalletModalOpen(true)}
                         disabled={!amount || amt < 500}
-                        className="w-full border-2 border-purple-300 text-purple-700 font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40 bg-purple-50">
+                        className="w-full border-2 border-blue-300 text-blue-700 font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40 bg-blue-50">
                         <Wallet size={18} />
-                        Connect Wallet (Binance / MetaMask / Others)
+                        Connect Wallet (Binance / MetaMask / Coinbase)
                       </button>
                     </>
                   ) : (
                     <div className="space-y-4">
-                      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-3">
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center">
-                            <Coins size={16} className="text-purple-600" />
+                          <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
+                            <Coins size={16} className="text-[#1652F0]" />
                           </div>
                           <div>
-                            <p className="text-purple-800 font-bold text-sm">Send {circleAmountUSDC} USDC</p>
-                            <p className="text-purple-600 text-xs">{circleInfo?.chain ?? "Polygon (MATIC)"} network</p>
+                            <p className="text-blue-800 font-bold text-sm">Send {circleAmountUSDC} USDC</p>
+                            <p className="text-blue-600 text-xs">{circleInfo?.chain ?? "Polygon (MATIC)"} network</p>
                           </div>
                         </div>
 
-                        <div className="bg-white rounded-xl border border-purple-200 p-3 space-y-2">
+                        <div className="bg-white rounded-xl border border-blue-200 p-3 space-y-2">
                           <p className="text-muted-foreground text-[10px] uppercase tracking-wider">Deposit Address</p>
                           <div className="flex items-center gap-2">
                             <p className="text-foreground font-mono text-xs flex-1 break-all leading-relaxed">{circleInfo?.depositAddress}</p>
-                            <button onClick={copyUSDC} className="flex-shrink-0 w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                              {usdcCopied ? <Check size={13} className="text-purple-600" /> : <Copy size={13} className="text-purple-600" />}
+                            <button onClick={copyUSDC} className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                              {usdcCopied ? <Check size={13} className="text-[#1652F0]" /> : <Copy size={13} className="text-[#1652F0]" />}
                             </button>
                           </div>
                         </div>
 
                         {circleInfo?.memo && (
-                          <div className="bg-white rounded-xl border border-purple-200 p-3">
+                          <div className="bg-white rounded-xl border border-blue-200 p-3">
                             <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Memo / Tag (required)</p>
                             <p className="text-foreground font-mono text-sm font-bold">{circleInfo.memo}</p>
                           </div>
@@ -821,7 +822,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                           ← Back
                         </button>
                         <button onClick={confirmCircle} disabled={circleConfirming}
-                          className="bg-purple-600 text-white font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-60 shadow-sm shadow-purple-600/20">
+                          className="text-white font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-60"
+                          style={{ background: "linear-gradient(135deg,#1652F0,#2D56FA)" }}>
                           {circleConfirming ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                           I've Sent USDC
                         </button>

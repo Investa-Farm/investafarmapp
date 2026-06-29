@@ -3,6 +3,7 @@ import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Building2, Loader2, CheckCircle2, MapPin, Phone, CheckSquare, Users, Package, Briefcase, Truck } from "lucide-react";
 import { setToken, storeUser } from "@/lib/auth";
+import { Captcha } from "@/components/captcha";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import coopBg from "@assets/pexels-nc-farm-bureau-mark-27083566_1778315943106.jpg";
 import { TermsModal } from "@/components/terms-modal";
@@ -63,6 +64,7 @@ export default function CooperativeAuth() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [captchaOk, setCaptchaOk] = useState(false);
   const [termsOpen, setTermsOpen] = useState<"terms" | "privacy" | null>(null);
   const [welcomeStep, setWelcomeStep] = useState<number | null>(null);
 
@@ -450,7 +452,8 @@ export default function CooperativeAuth() {
                         <button type="button" onClick={() => setTermsOpen("privacy")} className="text-[#16a34a] font-medium underline">Privacy Policy</button>
                       </span>
                     </label>
-                    <button type="submit" disabled={loading}
+                    <Captcha onVerified={ok => setCaptchaOk(ok)} />
+                    <button type="submit" disabled={loading || !captchaOk}
                       className="w-full text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-60 shadow-lg"
                       style={{ background: "linear-gradient(135deg,#15803d,#16a34a)" }}>
                       {loading ? <Loader2 size={16} className="animate-spin" /> : null}

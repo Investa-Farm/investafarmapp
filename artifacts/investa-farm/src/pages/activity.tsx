@@ -27,6 +27,18 @@ function ReceiptSheet({ tx, onClose }: { tx: TxItem; onClose: () => void }) {
   const date = new Date(tx.createdAt);
   const ref = `IF-${String(tx.id).padStart(6, "0")}`;
   const isDebit = tx.type === "buy";
+  const [receiptCopied, setReceiptCopied] = useState(false);
+
+  const shareReceipt = async () => {
+    const text = `Investa Farm Trade Receipt\n${ref}\n${cfg.label}: ${tx.farmName}\n${tx.cropType} · ${tx.quantity} shares\nAmount: ${isDebit ? "-" : "+"}${formatKES(tx.totalAmount)}\nDate: ${date.toLocaleDateString("en-KE", { weekday: "short", year: "numeric", month: "short", day: "numeric" })}`;
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try { await navigator.share({ title: "Investa Farm Receipt", text }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(text).catch(() => {});
+      setReceiptCopied(true);
+      setTimeout(() => setReceiptCopied(false), 2500);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
@@ -104,13 +116,23 @@ function ReceiptSheet({ tx, onClose }: { tx: TxItem; onClose: () => void }) {
           </div>
         </div>
 
-        <div className="px-5 pb-8 pt-2">
-          <button
-            onClick={onClose}
-            className="w-full py-3.5 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform"
-          >
-            Close Receipt
-          </button>
+        <div className="px-5 pb-8 pt-2 space-y-2">
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={shareReceipt}
+              className="py-3.5 rounded-2xl border-2 border-border text-foreground font-bold text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5"
+            >
+              {receiptCopied
+                ? <><Check size={14} className="text-green-600" /> Copied!</>
+                : <><Share2 size={14} /> Share</>}
+            </button>
+            <button
+              onClick={onClose}
+              className="py-3.5 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>

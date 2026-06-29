@@ -3,6 +3,7 @@ import { useLocation, Link } from "wouter";
 import { useRegister } from "@workspace/api-client-react";
 import { setToken, storeUser } from "@/lib/auth";
 import { Loader2, Tractor, BarChart2, Handshake, Package, Eye, EyeOff, Check, X, ArrowLeft, Gift } from "lucide-react";
+import { Captcha } from "@/components/captcha";
 
 function isEmailValid(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -35,6 +36,7 @@ export default function Register() {
   const [agribizType, setAgribizType] = useState<AgribizType>("farmer_connector");
   const [error, setError] = useState("");
   const [touched, setTouched] = useState({ name: false, email: false, password: false });
+  const [captchaOk, setCaptchaOk] = useState(false);
 
   // Referral info from URL — URLSearchParams already decodes, no extra decodeURIComponent needed
   const [referredById] = useState(() => {
@@ -68,6 +70,7 @@ export default function Register() {
     if (!email.trim()) { setError("Please enter your email address."); return; }
     if (!isEmailValid(email)) { setError("Please enter a valid email address (e.g. you@example.com)."); return; }
     if (!pwValid) { setError("Password must be 8+ characters with uppercase, lowercase, and a number."); return; }
+    if (!captchaOk) { setError("Please complete the security check before creating your account."); return; }
 
     const finalRole = role === "agribusiness" ? "agribusiness" : role;
     register.mutate(
@@ -316,10 +319,12 @@ export default function Register() {
               </div>
             )}
 
+            <Captcha onVerified={ok => setCaptchaOk(ok)} />
+
             <button
               data-testid="button-register"
               type="submit"
-              disabled={register.isPending}
+              disabled={register.isPending || !captchaOk}
               className="w-full bg-primary hover:bg-primary/90 active:scale-95 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 mt-2 shadow-md shadow-primary/20 disabled:opacity-60"
             >
               {register.isPending ? <Loader2 size={18} className="animate-spin" /> : null}

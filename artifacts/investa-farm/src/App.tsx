@@ -72,6 +72,7 @@ import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 import FaqPage from "@/pages/faq";
 import NotificationsPage from "@/pages/notifications";
+import SystemArchitecture from "@/pages/architecture";
 import NotFound from "@/pages/not-found";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -382,6 +383,11 @@ function Router() {
       {/* FAQ — accessible from profile for any logged-in user */}
       <Route path="/faq">
         <FaqPage />
+      </Route>
+
+      {/* System architecture docs */}
+      <Route path="/architecture">
+        <SystemArchitecture />
       </Route>
 
       {/* Admin routes — no AuthGuard, uses sessionStorage */}

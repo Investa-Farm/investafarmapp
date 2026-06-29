@@ -238,6 +238,7 @@ export default function Profile() {
       badgeLabel: totpStatus?.totpEnabled ? "ON" : "OFF",
     },
     { icon: HelpCircle, label: "Help & FAQs", sublabel: "Answers & support", action: () => setLocation("/faq"), badge: null, badgeLabel: null },
+    { icon: Zap, label: "System Architecture", sublabel: "Tech stack & data flow", action: () => setLocation("/architecture"), badge: null, badgeLabel: null },
   ];
 
   return (

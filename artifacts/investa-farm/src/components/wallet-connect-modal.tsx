@@ -29,6 +29,16 @@ const BinanceIcon = () => (
   </svg>
 );
 
+const CoinbaseIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="6" fill="#0052FF" />
+    <path fillRule="evenodd" clipRule="evenodd"
+      d="M12 19C9.23858 19 7 16.7614 7 14V10C7 7.23858 9.23858 5 12 5C14.7614 5 17 7.23858 17 10V11H15V10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10V14C9 15.6569 10.3431 17 12 17C13.6569 17 15 15.6569 15 14V13H17V14C17 16.7614 14.7614 19 12 19Z"
+      fill="white"
+    />
+  </svg>
+);
+
 const WALLETS: WalletInfo[] = [
   {
     id: "binance",
@@ -47,11 +57,11 @@ const WALLETS: WalletInfo[] = [
     description: "Browser extension or MetaMask Mobile",
   },
   {
-    id: "others",
-    name: "Others (Manual Send)",
-    icon: "🔗",
-    color: "#6366F1",
-    description: "Trust Wallet, Coinbase, Phantom, or any USDC wallet",
+    id: "coinbase",
+    name: "Coinbase Wallet",
+    icon: "coinbase",
+    color: "#0052FF",
+    description: "Connect your Coinbase Wallet to send USDC",
   },
 ];
 
@@ -71,7 +81,7 @@ interface Props {
 }
 
 export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, chain, memo, onConnected }: Props) {
-  const [step, setStep] = useState<"select" | "metamask" | "deeplink" | "qr">("select");
+  const [step, setStep] = useState<"select" | "metamask" | "deeplink" | "qr" | "coinbase">("select");
   const [selectedWallet, setSelectedWallet] = useState<WalletInfo | null>(null);
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -165,8 +175,8 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-border">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center">
-                <Wallet size={18} className="text-purple-600" />
+              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+                <Wallet size={18} className="text-[#0052FF]" />
               </div>
               <div>
                 <h3 className="font-bold text-base text-foreground">Connect Wallet</h3>
@@ -180,14 +190,14 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
 
           <div className="overflow-y-auto px-5 py-4 pb-8">
             {/* Amount chip */}
-            <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-2xl px-4 py-3 mb-4">
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 mb-4">
               <div>
-                <p className="text-purple-700 text-xs font-semibold">Amount to send</p>
-                <p className="text-purple-900 font-black text-xl">{amountUSDC} USDC</p>
+                <p className="text-blue-700 text-xs font-semibold">Amount to send</p>
+                <p className="text-blue-900 font-black text-xl">{amountUSDC} USDC</p>
               </div>
               <div className="text-right">
-                <p className="text-purple-600 text-xs">{chain} Network</p>
-                {memo && <p className="text-purple-700 font-mono text-xs mt-0.5">Memo: {memo}</p>}
+                <p className="text-blue-600 text-xs">{chain} Network</p>
+                {memo && <p className="text-blue-700 font-mono text-xs mt-0.5">Memo: {memo}</p>}
               </div>
             </div>
 
@@ -215,9 +225,9 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
                           setSelectedWallet(wallet);
                           setStep("deeplink");
                         }
-                      } else if (wallet.id === "others") {
+                      } else if (wallet.id === "coinbase") {
                         setSelectedWallet(wallet);
-                        setStep("deeplink");
+                        setStep("coinbase");
                       } else {
                         handleDeepLink(wallet);
                       }
@@ -229,7 +239,7 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
                       className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
                       style={{ background: `${wallet.color}18` }}
                     >
-                      {wallet.icon === "binance" ? <BinanceIcon /> : wallet.icon}
+                      {wallet.icon === "binance" ? <BinanceIcon /> : wallet.icon === "coinbase" ? <CoinbaseIcon /> : wallet.icon}
                     </div>
                     <div className="flex-1 text-left">
                       <p className="text-foreground font-bold text-sm">{wallet.name}</p>
@@ -237,6 +247,9 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
                     </div>
                     {wallet.id === "metamask" && hasMetaMask && (
                       <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">Detected</span>
+                    )}
+                    {wallet.id === "coinbase" && (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">In-App</span>
                     )}
                     {connecting && wallet.id === "metamask" && (
                       <Loader2 size={16} className="animate-spin text-muted-foreground" />
@@ -285,7 +298,7 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
                   href={`https://polygonscan.com/address/${depositAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 text-purple-600 text-xs font-semibold"
+                  className="flex items-center justify-center gap-1.5 text-blue-600 text-xs font-semibold"
                 >
                   View on PolygonScan <ExternalLink size={11} />
                 </a>
@@ -293,6 +306,83 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
                 <button onClick={onClose}
                   className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">
                   I've Sent — Back to Confirm
+                </button>
+              </div>
+            )}
+
+            {/* Step: Coinbase Wallet — in-app connection flow */}
+            {step === "coinbase" && (
+              <div className="space-y-4">
+                {/* Coinbase header */}
+                <div className="rounded-2xl overflow-hidden"
+                  style={{ background: "linear-gradient(135deg,#003ab5 0%,#0052FF 100%)", boxShadow: "0 10px 32px rgba(0,82,255,0.35)" }}>
+                  <div className="p-5 flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0 border border-white/20">
+                      <CoinbaseIcon />
+                    </div>
+                    <div>
+                      <p className="text-white font-black text-base">Coinbase Wallet</p>
+                      <p className="text-white/70 text-xs">Send {amountUSDC} USDC on {chain}</p>
+                    </div>
+                  </div>
+                  <div className="bg-white/10 px-5 py-3 flex items-center justify-between">
+                    <p className="text-white/80 text-xs font-semibold">Amount</p>
+                    <p className="text-white font-black text-lg">{amountUSDC} USDC</p>
+                  </div>
+                </div>
+
+                {/* Step instructions */}
+                <div className="space-y-2">
+                  {[
+                    { n: "1", text: "Copy the deposit address below" },
+                    { n: "2", text: "Open Coinbase Wallet app on your device" },
+                    { n: "3", text: `Send exactly ${amountUSDC} USDC on the ${chain} network` },
+                    { n: "4", text: "Return here and tap \"I've Sent\"" },
+                  ].map(s => (
+                    <div key={s.n} className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center flex-shrink-0">
+                        {s.n}
+                      </div>
+                      <p className="text-foreground text-xs font-medium">{s.text}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Deposit address */}
+                <div>
+                  <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wider mb-1.5">Deposit Address ({chain})</p>
+                  <div className="bg-muted/50 rounded-xl p-3 flex items-center gap-2">
+                    <p className="text-foreground font-mono text-xs flex-1 break-all leading-relaxed">{depositAddress}</p>
+                    <button onClick={copyAddress}
+                      className="flex-shrink-0 w-9 h-9 rounded-lg bg-background border border-border flex items-center justify-center active:scale-90 transition-transform">
+                      {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} className="text-muted-foreground" />}
+                    </button>
+                  </div>
+                  {copied && <p className="text-green-600 text-[11px] font-medium mt-1">Address copied ✓</p>}
+                </div>
+
+                {memo && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <p className="text-amber-700 text-xs"><strong>⚠ Include this Memo:</strong> {memo} (required for crediting)</p>
+                  </div>
+                )}
+
+                {/* Deep link as secondary option */}
+                <a
+                  href={`coinbasewallet://dapp?url=${encodeURIComponent(`https://app.investafarm.com?pay=${depositAddress}&amount=${amountUSDC}&chain=${chain}`)}`}
+                  className="w-full py-3 rounded-2xl border-2 border-blue-200 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform bg-blue-50"
+                >
+                  <CoinbaseIcon /> Open Coinbase Wallet App
+                </a>
+
+                <button onClick={onClose}
+                  className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
+                  style={{ background: "linear-gradient(135deg,#003ab5,#0052FF)" }}>
+                  I've Sent — Back to Confirm
+                </button>
+
+                <button onClick={() => setStep("select")} className="w-full text-muted-foreground text-xs font-medium underline underline-offset-2">
+                  ← Choose a different wallet
                 </button>
               </div>
             )}

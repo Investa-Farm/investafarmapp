@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Captcha } from "@/components/captcha";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -46,6 +47,7 @@ export default function WealthAuth() {
   const [termsOpen, setTermsOpen] = useState<"terms" | "privacy" | null>(null);
   const [error, setError] = useState("");
   const [welcomeStep, setWelcomeStep] = useState<"auth" | "welcome">("auth");
+  const [captchaOk, setCaptchaOk] = useState(false);
   const [welcomeIdx, setWelcomeIdx] = useState(0);
 
   const [totpStep, setTotpStep] = useState(false);
@@ -335,7 +337,8 @@ export default function WealthAuth() {
                       <button type="button" onClick={() => setTermsOpen("privacy")} className="text-indigo-600 font-medium underline">Privacy Policy</button>
                     </span>
                   </label>
-                  <button type="submit" disabled={register.isPending}
+                  <Captcha onVerified={ok => setCaptchaOk(ok)} />
+                  <button type="submit" disabled={register.isPending || !captchaOk}
                     className="w-full bg-indigo-600 text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-indigo-200 mt-2 disabled:opacity-60">
                     {register.isPending && <Loader2 size={16} className="animate-spin" />}
                     {register.isPending ? "Creating account…" : "Create Wealth Manager Account"}

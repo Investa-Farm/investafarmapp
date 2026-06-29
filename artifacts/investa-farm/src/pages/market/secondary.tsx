@@ -119,6 +119,9 @@ export default function SecondaryMarket() {
   const [search, setSearch] = useState("");
   const token = getToken();
   const qc = useQueryClient();
+  const { containerRef, isPulling, isRefreshing, pullProgress, onTouchStart, onTouchMove, onTouchEnd } = usePullToRefresh({
+    onRefresh: async () => { await qc.invalidateQueries(); },
+  });
 
   const { data: myListings = [], isLoading: myLoading } = useQuery<Listing[]>({
     queryKey: ["my-listings"],
@@ -213,7 +216,8 @@ export default function SecondaryMarket() {
   const losers = allListings.filter(l => l.changePercent < 0).length;
 
   return (
-    <div className="min-h-dvh w-full max-w-[430px] mx-auto flex flex-col pb-20 bg-background">
+    <div ref={containerRef} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="min-h-dvh w-full max-w-[430px] mx-auto flex flex-col pb-20 bg-background">
+      <PullToRefreshIndicator isPulling={isPulling} isRefreshing={isRefreshing} pullProgress={pullProgress} />
 
       {/* Header */}
       <div className="bg-background border-b border-border">
@@ -435,7 +439,7 @@ export default function SecondaryMarket() {
                                             <Bell size={9} className="text-muted-foreground" />
                                           </button>
                                           <button
-                                            onClick={(e) => { e.stopPropagation(); setSelectedListing(listing); setInvestOpen(true); }}
+                                            onClick={(e) => { e.stopPropagation(); haptic("light"); setSelectedListing(listing); setInvestOpen(true); }}
                                             className="px-2.5 py-1.5 rounded-lg text-[10px] font-black text-white active:scale-90 transition-transform bg-primary">
                                             BUY
                                           </button>
