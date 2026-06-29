@@ -872,13 +872,13 @@ export default function AdminDashboard() {
                           "bg-amber-100 text-amber-700"}`}>{doc.status}</span>
                       </div>
                     </div>
-                    {doc.fileUrl && (
+                    {doc.fileUrl && !doc.fileUrl.startsWith("selfie://") && !doc.fileUrl.startsWith("uploaded://") && (
                       <button onClick={() => setViewingDoc(doc)}
                         className="ml-2 w-14 flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform">
                         <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-primary/30 bg-gray-100 flex items-center justify-center">
-                          {doc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i)
+                          {(doc.fileUrl.startsWith("data:image/") || doc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i))
                             ? <img src={doc.fileUrl} alt="Doc" className="w-full h-full object-cover" />
-                            : doc.fileUrl.match(/\.pdf$/i)
+                            : (doc.fileUrl.startsWith("data:application/pdf") || doc.fileUrl.match(/\.pdf$/i))
                               ? <div className="flex flex-col items-center justify-center w-full h-full bg-red-50">
                                   <FileText size={20} className="text-red-500" />
                                 </div>
@@ -888,12 +888,12 @@ export default function AdminDashboard() {
                           }
                         </div>
                         <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
-                          doc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? "bg-green-100 text-green-700" :
-                          doc.fileUrl.match(/\.pdf$/i) ? "bg-red-100 text-red-700" :
+                          (doc.fileUrl.startsWith("data:image/") || doc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i)) ? "bg-green-100 text-green-700" :
+                          (doc.fileUrl.startsWith("data:application/pdf") || doc.fileUrl.match(/\.pdf$/i)) ? "bg-red-100 text-red-700" :
                           "bg-blue-100 text-blue-700"
                         }`}>
-                          {doc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? "IMG" :
-                           doc.fileUrl.match(/\.pdf$/i) ? "PDF" : "DOC"}
+                          {(doc.fileUrl.startsWith("data:image/") || doc.fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i)) ? "IMG" :
+                           (doc.fileUrl.startsWith("data:application/pdf") || doc.fileUrl.match(/\.pdf$/i)) ? "PDF" : "DOC"}
                         </span>
                       </button>
                     )}
@@ -1762,9 +1762,13 @@ export default function AdminDashboard() {
       {/* KYC Document Viewer Modal */}
       {viewingDoc && (() => {
         const rawUrl = viewingDoc.fileUrl;
-        const docUrl = rawUrl.startsWith("http") ? rawUrl : `${window.location.origin}${rawUrl.startsWith("/") ? rawUrl : "/" + rawUrl}`;
-        const isImage = /\.(jpg|jpeg|png|webp|gif)/i.test(rawUrl);
-        const isPdf = /\.pdf/i.test(rawUrl);
+        // Handle data: URIs directly; build absolute URL only for relative paths
+        const docUrl = rawUrl.startsWith("data:") || rawUrl.startsWith("http")
+          ? rawUrl
+          : `${window.location.origin}${rawUrl.startsWith("/") ? rawUrl : "/" + rawUrl}`;
+        const isImage = rawUrl.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)/i.test(rawUrl);
+        const isPdf = rawUrl.startsWith("data:application/pdf") || /\.pdf/i.test(rawUrl);
+        const isPlaceholder = rawUrl.startsWith("selfie://") || rawUrl.startsWith("uploaded://");
         return (
           <div
             className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
@@ -1790,7 +1794,13 @@ export default function AdminDashboard() {
 
               {/* Document preview */}
               <div className="bg-gray-100 flex items-center justify-center" style={{ minHeight: 300 }}>
-                {isImage ? (
+                {isPlaceholder ? (
+                  <div className="flex flex-col items-center gap-3 p-8 text-center">
+                    <FileText size={40} className="text-muted-foreground" />
+                    <p className="text-muted-foreground text-sm font-medium">Document was submitted before file upload was enabled.</p>
+                    <p className="text-muted-foreground text-xs">Ask the user to re-submit their document.</p>
+                  </div>
+                ) : isImage ? (
                   <img
                     src={docUrl}
                     alt={viewingDoc.docType}
@@ -1800,27 +1810,15 @@ export default function AdminDashboard() {
                       const t = e.currentTarget;
                       t.onerror = null;
                       t.style.display = "none";
-                      const msg = document.createElement("div");
-                      msg.className = "flex flex-col items-center gap-3 p-8 text-center";
-                      msg.innerHTML = `<p class='text-sm text-gray-500'>Image could not load — <a href='${docUrl}' target='_blank' class='text-blue-600 underline'>open in new tab</a></p>`;
-                      t.parentNode?.appendChild(msg);
                     }}
                   />
                 ) : isPdf ? (
-                  <object
-                    data={docUrl}
-                    type="application/pdf"
+                  <iframe
+                    src={docUrl}
+                    title={viewingDoc.docType}
                     className="w-full"
-                    style={{ height: 420, border: "none" }}>
-                    <div className="flex flex-col items-center gap-3 p-8 text-center h-full justify-center">
-                      <FileText size={40} className="text-muted-foreground" />
-                      <p className="text-muted-foreground text-sm">PDF preview not available in this browser.</p>
-                      <a href={docUrl} target="_blank" rel="noreferrer"
-                        className="bg-primary text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5">
-                        <ExternalLink size={12} /> Open PDF
-                      </a>
-                    </div>
-                  </object>
+                    style={{ height: 420, border: "none" }}
+                  />
                 ) : /\.(doc|docx|xls|xlsx|ppt|pptx)/i.test(rawUrl) ? (
                   <iframe
                     src={`https://docs.google.com/viewer?url=${encodeURIComponent(docUrl)}&embedded=true`}

@@ -70,7 +70,7 @@ function UploadPopup({
     canvas.getContext("2d")?.drawImage(videoRef.current, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     setCapturedSelfie(dataUrl);
-    setFileUrl(`selfie://captured/${Date.now()}`);
+    setFileUrl(dataUrl); // store actual image data so admin can view it
     setTitle("Live Selfie");
     stopCamera();
   }, [stopCamera]);
@@ -86,7 +86,11 @@ function UploadPopup({
     if (!file) return;
     setTitle(t => t || file.name.replace(/\.[^.]+$/, ""));
     setFilePreview(file.name);
-    setFileUrl(`uploaded://${file.name}/${Date.now()}`);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setFileUrl(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const [submitted, setSubmitted] = useState(false);

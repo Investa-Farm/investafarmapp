@@ -136,7 +136,8 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
     setSelectedWallet(wallet);
     if (wallet.deepLink) {
       const link = wallet.deepLink(depositAddress, amountUSDC, chain);
-      window.location.href = link;
+      // Open in new tab so user stays inside Investa Farm
+      window.open(link, "_blank", "noopener,noreferrer");
     }
     setStep("deeplink");
   }

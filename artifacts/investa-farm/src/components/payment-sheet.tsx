@@ -19,6 +19,16 @@ import { WalletConnectModal } from "@/components/wallet-connect-modal";
 
 const QUICK_AMOUNTS = [500, 1000, 5000, 10000, 25000];
 
+// Real Circle (circle.com) logo — the "C" arc mark, used for USDC branding
+function CircleLogo({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#2775CA" />
+      <path d="M20.022 18.124c0 2.124-1.4 3.544-3.578 3.796v1.338c0 .182-.144.318-.326.318h-1.156c-.182 0-.326-.136-.326-.318V21.92C12.32 21.668 10.92 20.246 10.92 18.124h1.846c0 1.114.742 1.876 1.876 1.876s1.876-.762 1.876-1.876c0-1.272-.858-1.764-2.076-2.236-1.61-.63-3.484-1.37-3.484-3.54 0-2.04 1.372-3.416 3.578-3.668V7.342c0-.182.144-.318.326-.318h1.156c.182 0 .326.136.326.318V8.68c2.02.252 3.392 1.624 3.392 3.668H17.872c0-1.092-.728-1.84-1.848-1.84s-1.848.748-1.848 1.84c0 1.232.858 1.722 2.076 2.194 1.624.63 3.77 1.386 3.77 3.582z" fill="white" />
+    </svg>
+  );
+}
+
 type Tab = "mpesa" | "card" | "usdc";
 
 interface Props {
@@ -329,7 +339,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const TABS: { id: Tab; label: string; icon: React.ReactNode; activeClass: string; gradient: string }[] = [
     { id: "mpesa", label: "M-Pesa", icon: <Smartphone size={14} />, activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#15803d,#16a34a)" },
     { id: "card",  label: "Card",   icon: <CreditCard size={14} />, activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#1d4ed8,#3b82f6)" },
-    { id: "usdc",  label: "USDC",   icon: <Coins size={14} />,      activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#1652F0,#2D56FA)" },
+    { id: "usdc",  label: "USDC",   icon: <CircleLogo size={14} />, activeClass: "text-white shadow-md", gradient: "linear-gradient(135deg,#1652F0,#2D56FA)" },
   ];
 
   return (
@@ -763,7 +773,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                         disabled={!amount || amt < 500}
                         className="w-full text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-lg"
                         style={{ background: "linear-gradient(135deg,#1652F0,#2D56FA)", boxShadow: "0 6px 20px rgba(22,82,240,0.35)" }}>
-                        <Coins size={18} />
+                        <CircleLogo size={18} />
                         {amt >= 500 ? `Generate USDC Address for ${usdcEstimate} USDC` : "Enter at least KES 500"}
                       </button>
 
@@ -785,7 +795,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
-                            <Coins size={16} className="text-[#1652F0]" />
+                            <CircleLogo size={16} />
                           </div>
                           <div>
                             <p className="text-blue-800 font-bold text-sm">Send {circleAmountUSDC} USDC</p>

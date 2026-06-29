@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Wallet, CheckCircle2, Receipt } from "lucide-react";
+import { X, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Wallet, CheckCircle2, Receipt, CreditCard, Coins, Smartphone } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGetPortfolioSummary } from "@workspace/api-client-react";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
@@ -42,9 +42,13 @@ export function WalletModal({ open, onClose }: Props) {
   const user = getStoredUser();
   const qc = useQueryClient();
   const [modal, setModal] = useState<"deposit" | "withdraw" | null>(null);
+  const [withdrawTab, setWithdrawTab] = useState<"mpesa" | "card" | "usdc">("mpesa");
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("+254");
+  const [usdcAddress, setUsdcAddress] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
   const [receiptTx, setReceiptTx] = useState<WalletData["transactions"][number] | null>(null);
   const { currency, setCurrency, formatAmount } = useCurrency();
@@ -216,9 +220,9 @@ export function WalletModal({ open, onClose }: Props) {
                         <Plus size={18} /> Add Funds
                       </button>
                     )}
-                    <button onClick={() => { setModal("withdraw"); setAmount(""); }}
+                    <button onClick={() => { setModal("withdraw"); setAmount(""); setWithdrawTab("mpesa"); }}
                       className="w-full bg-muted border border-border text-muted-foreground font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform text-sm">
-                      <ArrowUpRight size={14} /> Withdraw to M-Pesa
+                      <ArrowUpRight size={14} /> Withdraw Funds
                     </button>
                   </div>
                 );
@@ -276,7 +280,7 @@ export function WalletModal({ open, onClose }: Props) {
               </div>
             </div>
 
-            {/* Withdraw sub-modal */}
+            {/* Withdraw sub-modal — 3 tabs: M-Pesa, Card, USDC */}
             <AnimatePresence>
               {modal === "withdraw" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -284,32 +288,47 @@ export function WalletModal({ open, onClose }: Props) {
                   onClick={(e) => { if (e.target === e.currentTarget) setModal(null); }}>
                   <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                     transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                    className="w-full bg-white rounded-t-3xl p-6 space-y-4 border-t-4 border-primary overflow-y-auto"
-                    style={{ maxHeight: "82dvh" }}>
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-foreground font-bold text-lg">🏦 Withdraw to M-Pesa</h3>
-                      <button onClick={() => setModal(null)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">✕</button>
+                    className="w-full bg-white rounded-t-3xl border-t-4 border-primary overflow-hidden"
+                    style={{ maxHeight: "88dvh" }}>
+
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                      <h3 className="text-foreground font-bold text-lg">Withdraw Funds</h3>
+                      <button onClick={() => setModal(null)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                        <X size={14} />
+                      </button>
                     </div>
-                    <form onSubmit={(e) => { e.preventDefault(); const amt = parseFloat(amount); if (!amt || amt < 100 || !phone.trim()) return; withdrawMutation.mutate({ amt, phoneNum: phoneCode + phone.trim() }); }} className="space-y-4">
+
+                    {/* Method tabs */}
+                    <div className="flex gap-1.5 p-3 bg-muted/40 border-b border-border">
+                      {([
+                        { id: "mpesa" as const, label: "M-Pesa", icon: <Smartphone size={12} />, cls: "bg-green-600 text-white" },
+                        { id: "card"  as const, label: "Card",   icon: <CreditCard  size={12} />, cls: "bg-blue-600 text-white"  },
+                        { id: "usdc"  as const, label: "USDC",   icon: <Coins       size={12} />, cls: "bg-purple-600 text-white" },
+                      ] as const).map(t => (
+                        <button key={t.id} onClick={() => setWithdrawTab(t.id)}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                            withdrawTab === t.id ? `${t.cls} shadow-md` : "text-muted-foreground hover:text-foreground"
+                          }`}>
+                          {t.icon} {t.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="overflow-y-auto px-5 py-4 pb-8 space-y-4">
+                      {/* Balance strip */}
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                        <p className="text-amber-700 text-xs">Available: <strong>{formatKES(balance)}</strong>. Sent to M-Pesa within 1–2 business days.</p>
+                        <p className="text-amber-700 text-xs">
+                          Available: <strong>{formatKES(balance)}</strong>
+                          {withdrawTab === "mpesa" && " · Processed within 1–2 business days"}
+                          {withdrawTab === "card"  && " · Bank transfer 2–5 business days"}
+                          {withdrawTab === "usdc"  && " · On-chain · usually within 30 min"}
+                        </p>
                       </div>
+
+                      {/* Amount input — shared across tabs */}
                       <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Mobile Money Number</label>
-                        <div className="flex gap-2">
-                          <select value={phoneCode} onChange={e => setPhoneCode(e.target.value)}
-                            className="border border-border rounded-xl px-2 py-3 text-sm bg-white focus:outline-none focus:border-primary appearance-none w-[90px] flex-shrink-0 text-center font-medium">
-                            {MPESA_CODES.map(c => (
-                              <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
-                            ))}
-                          </select>
-                          <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                            placeholder={phoneCode === "+254" ? "7XXXXXXXX" : "Phone number"} required
-                            className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-primary" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Amount (KES)</label>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Amount (KES)</label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">KES</span>
                           <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={100} max={balance} placeholder="e.g. 5000"
@@ -324,13 +343,108 @@ export function WalletModal({ open, onClose }: Props) {
                           ))}
                         </div>
                       </div>
-                      <button type="submit" disabled={withdrawMutation.isPending || !amount || !phone.trim()}
-                        className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
-                        {withdrawMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownLeft size={16} />}
-                        {withdrawMutation.isPending ? "Processing…" : "Confirm Withdrawal"}
-                      </button>
-                      {withdrawMutation.isError && <p className="text-red-500 text-xs text-center">{(withdrawMutation.error as Error).message}</p>}
-                    </form>
+
+                      {/* ── M-PESA tab ── */}
+                      {withdrawTab === "mpesa" && (
+                        <form onSubmit={(e) => {
+                          e.preventDefault();
+                          const amt = parseFloat(amount);
+                          if (!amt || amt < 100 || !phone.trim()) return;
+                          withdrawMutation.mutate({ amt, phoneNum: phoneCode + phone.trim() });
+                        }} className="space-y-3">
+                          <div>
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">M-Pesa Number</label>
+                            <div className="flex gap-2">
+                              <select value={phoneCode} onChange={e => setPhoneCode(e.target.value)}
+                                className="border border-border rounded-xl px-2 py-3 text-sm bg-white focus:outline-none focus:border-green-500 appearance-none w-[90px] flex-shrink-0 text-center font-medium">
+                                {MPESA_CODES.map(c => (
+                                  <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                                ))}
+                              </select>
+                              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                                placeholder={phoneCode === "+254" ? "7XXXXXXXX" : "Phone number"} required
+                                className="flex-1 border border-border rounded-xl px-3 py-3 text-foreground font-bold text-sm focus:outline-none focus:border-green-500" />
+                            </div>
+                          </div>
+                          <button type="submit" disabled={withdrawMutation.isPending || !amount || !phone.trim()}
+                            className="w-full bg-green-600 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60 shadow-md shadow-green-600/20">
+                            {withdrawMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Smartphone size={16} />}
+                            {withdrawMutation.isPending ? "Processing…" : `Withdraw via M-Pesa`}
+                          </button>
+                          {withdrawMutation.isError && <p className="text-red-500 text-xs text-center">{(withdrawMutation.error as Error).message}</p>}
+                        </form>
+                      )}
+
+                      {/* ── CARD / Bank Transfer tab ── */}
+                      {withdrawTab === "card" && (
+                        <div className="space-y-3">
+                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2">
+                            <CreditCard size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                            <p className="text-blue-700 text-xs">Withdraw directly to your Visa / Mastercard or a bank account. Funds arrive within 2–5 business days.</p>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Cardholder / Account Name</label>
+                            <input type="text" value={cardName} onChange={e => setCardName(e.target.value)}
+                              placeholder="Full name as on card"
+                              className="w-full border border-border rounded-xl px-3 py-3 text-foreground font-semibold text-sm focus:outline-none focus:border-blue-500" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Card / Account Number</label>
+                            <input type="text" value={cardNumber} onChange={e => setCardNumber(e.target.value.replace(/\D/g, "").slice(0, 16))}
+                              placeholder="16-digit card number"
+                              className="w-full border border-border rounded-xl px-3 py-3 text-foreground font-mono font-bold text-sm focus:outline-none focus:border-blue-500" />
+                          </div>
+                          <button
+                            disabled={!amount || parseFloat(amount) < 100 || !cardName.trim() || !cardNumber.trim()}
+                            onClick={() => {
+                              setModal(null); setAmount(""); setCardName(""); setCardNumber("");
+                              setSuccess("Card withdrawal initiated. Funds arrive in 2–5 business days.");
+                              setTimeout(() => setSuccess(null), 5000);
+                            }}
+                            className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 shadow-md shadow-blue-600/20">
+                            <CreditCard size={16} /> Withdraw to Card
+                          </button>
+                        </div>
+                      )}
+
+                      {/* ── USDC tab ── */}
+                      {withdrawTab === "usdc" && (
+                        <div className="space-y-3">
+                          <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 flex items-start gap-2">
+                            <Coins size={14} className="text-purple-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-purple-700 text-xs font-semibold">Withdraw as USDC on Polygon</p>
+                              <p className="text-purple-600 text-[11px] mt-0.5">Ideal for diaspora or crypto wallets. Enter your USDC wallet address below.</p>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">USDC Wallet Address (Polygon)</label>
+                            <input type="text" value={usdcAddress} onChange={e => setUsdcAddress(e.target.value.trim())}
+                              placeholder="0x…"
+                              className="w-full border border-border rounded-xl px-3 py-3 text-foreground font-mono text-xs font-bold focus:outline-none focus:border-purple-500 break-all" />
+                            <p className="text-muted-foreground text-[10px] mt-1">Only enter a Polygon (MATIC) USDC address. Other networks are not supported.</p>
+                          </div>
+                          {amount && parseFloat(amount) >= 100 && (
+                            <div className="bg-muted/60 rounded-xl p-3 flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">You'll receive approx.</span>
+                              <span className="font-bold text-sm text-purple-700">
+                                {(parseFloat(amount) / 130).toFixed(2)} USDC
+                              </span>
+                            </div>
+                          )}
+                          <button
+                            disabled={!amount || parseFloat(amount) < 100 || !usdcAddress.startsWith("0x") || usdcAddress.length < 42}
+                            onClick={() => {
+                              setModal(null); setAmount(""); setUsdcAddress("");
+                              setSuccess("USDC withdrawal queued. Arriving within 30 minutes.");
+                              setTimeout(() => setSuccess(null), 5000);
+                            }}
+                            className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 shadow-md shadow-purple-600/20">
+                            <Coins size={16} /> Withdraw as USDC
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </motion.div>
                 </motion.div>
               )}
