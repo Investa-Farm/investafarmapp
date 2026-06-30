@@ -108,8 +108,15 @@ export function PriceAlertWatcher() {
         isFirstPollRef.current = false;
         markSeen(fresh.map(n => n.id));
 
+        // Only show banners for high-value events — skip noisy operational ones
+        const BANNER_TYPES = new Set([
+          "kyc_approved", "kyc_rejected", "harvest_payout", "harvest",
+          "dividend_paid", "dividend", "farm_fully_funded", "loan_approved",
+          "order_filled", "general", "admin_message",
+        ]);
+
         // Only show up to 2 notifications per poll to avoid flooding
-        const toShow = fresh.slice(0, 2);
+        const toShow = fresh.filter(n => BANNER_TYPES.has(n.type)).slice(0, 2);
 
         for (const n of toShow) {
           const richType = richTypeFromNotif(n.type);

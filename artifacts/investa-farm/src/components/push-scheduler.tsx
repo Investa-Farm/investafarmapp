@@ -3,6 +3,8 @@
  * Fires native phone notifications via the service worker's showNotification()
  * when the user has granted permission. Falls back silently if not granted.
  * Never shows in-app banners — those are handled separately for real-time events.
+ *
+ * Only fires between 07:00–21:00 EAT and at most every 90–180 minutes.
  */
 import { useEffect } from "react";
 import { getToken, getStoredUser } from "@/lib/auth";
@@ -34,6 +36,14 @@ function randomAmount(min: number, max: number) { return Math.round((Math.random
 function randomReturn() { return (8 + Math.random() * 22).toFixed(1); }
 function randomInvestors() { return Math.floor(12 + Math.random() * 180); }
 function randomPercent(min = 1, max = 8) { return (Math.random() * (max - min) + min).toFixed(1); }
+
+/** Returns true if current EAT time is within allowed push hours (07:00–21:00) */
+function isWithinAllowedHours(): boolean {
+  const now = new Date();
+  // EAT = UTC+3
+  const eatHour = (now.getUTCHours() + 3) % 24;
+  return eatHour >= 7 && eatHour < 21;
+}
 
 function buildTemplate(): NotifTemplate {
   const farm = randomFarm();
@@ -97,11 +107,6 @@ function buildTemplate(): NotifTemplate {
       url: "/market/secondary",
     },
     {
-      type: "farm_update",
-      title: `Rain forecast: ${farm}`,
-      body: `MET Kenya forecasts 45mm rainfall this week — optimal for ${crop} growth.`,
-    },
-    {
       type: "general",
       title: `${randomInvestors()} new investors this week`,
       body: `Investa Farm community keeps growing. Refer friends and earn KES 500 per referral.`,
@@ -142,8 +147,9 @@ async function firePhoneNotification(tpl: NotifTemplate) {
   }
 }
 
-const MIN_INTERVAL_MS = 45_000;
-const MAX_INTERVAL_MS = 110_000;
+// Fire every 90–180 minutes (much more respectful than before)
+const MIN_INTERVAL_MS = 90 * 60 * 1000;
+const MAX_INTERVAL_MS = 180 * 60 * 1000;
 function randomDelay() { return MIN_INTERVAL_MS + Math.random() * (MAX_INTERVAL_MS - MIN_INTERVAL_MS); }
 
 export function PushScheduler() {
@@ -155,12 +161,16 @@ export function PushScheduler() {
     let timeoutId: ReturnType<typeof setTimeout>;
 
     const fire = () => {
-      const tpl = buildTemplate();
-      firePhoneNotification(tpl);
+      // Respect quiet hours — skip entirely outside 07:00–21:00 EAT
+      if (isWithinAllowedHours()) {
+        const tpl = buildTemplate();
+        firePhoneNotification(tpl);
+      }
       timeoutId = setTimeout(fire, randomDelay());
     };
 
-    const initialDelay = 18_000 + Math.random() * 12_000;
+    // First fire after a long initial delay (2–4 hours after app load)
+    const initialDelay = 2 * 60 * 60 * 1000 + Math.random() * 2 * 60 * 60 * 1000;
     timeoutId = setTimeout(fire, initialDelay);
 
     return () => clearTimeout(timeoutId);

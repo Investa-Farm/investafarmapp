@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, notInArray } from "drizzle-orm";
+import { eq, desc, notInArray, and } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
@@ -1003,6 +1003,58 @@ router.get("/admin/activity", async (req, res): Promise<void> => {
       ipAddress: r.log.ipAddress ?? "Unknown",
       userAgent: r.log.userAgent ?? "Unknown",
       createdAt: r.log.createdAt?.toISOString() ?? null,
+    })),
+  });
+});
+
+/** Admin notification bell — returns unread counts + recent actionable items */
+router.get("/admin/notifications-bell", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+
+  const [pendingKyc, pendingDeposits, openTickets] = await Promise.all([
+    db.select({ doc: kycDocumentsTable, user: usersTable })
+      .from(kycDocumentsTable)
+      .leftJoin(usersTable, eq(kycDocumentsTable.userId, usersTable.id))
+      .where(eq(kycDocumentsTable.status, "pending"))
+      .orderBy(desc(kycDocumentsTable.createdAt))
+      .limit(10),
+    db.select({ tx: walletTransactionsTable, user: usersTable })
+      .from(walletTransactionsTable)
+      .leftJoin(usersTable, eq(walletTransactionsTable.userId, usersTable.id))
+      .where(and(eq(walletTransactionsTable.type, "deposit"), eq(walletTransactionsTable.status, "pending")))
+      .orderBy(desc(walletTransactionsTable.createdAt))
+      .limit(10),
+    db.select()
+      .from(adminMessagesTable)
+      .where(eq(adminMessagesTable.isReadByAdmin, false))
+      .orderBy(desc(adminMessagesTable.createdAt))
+      .limit(10),
+  ]);
+
+  res.json({
+    total: pendingKyc.length + pendingDeposits.length + openTickets.length,
+    pendingKyc: pendingKyc.map(r => ({
+      id: r.doc.id,
+      userId: r.doc.userId,
+      userName: r.user?.name ?? "Unknown",
+      userEmail: r.user?.email ?? "",
+      docType: r.doc.documentType,
+      createdAt: r.doc.createdAt?.toISOString() ?? null,
+    })),
+    pendingDeposits: pendingDeposits.map(r => ({
+      id: r.tx.id,
+      userId: r.tx.userId,
+      userName: r.user?.name ?? "Unknown",
+      amount: Number(r.tx.amount),
+      reference: r.tx.reference ?? "",
+      createdAt: r.tx.createdAt?.toISOString() ?? null,
+    })),
+    unreadMessages: openTickets.map(m => ({
+      id: m.id,
+      subject: m.subject,
+      userId: m.userId,
+      createdAt: m.createdAt?.toISOString() ?? null,
     })),
   });
 });

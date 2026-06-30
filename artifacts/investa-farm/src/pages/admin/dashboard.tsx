@@ -135,6 +135,15 @@ export default function AdminDashboard() {
   const [limitsForm, setLimitsForm] = useState({ creditLimitKES: "", maxDepositKES: "", maxWithdrawalKES: "" });
   const [limitsSaving, setLimitsSaving] = useState(false);
 
+  // Admin notification bell
+  const [bellOpen, setBellOpen] = useState(false);
+  const [bellData, setBellData] = useState<{
+    total: number;
+    pendingKyc: { id: number; userId: number; userName: string; userEmail: string; docType: string; createdAt: string | null }[];
+    pendingDeposits: { id: number; userId: number; userName: string; amount: number; reference: string; createdAt: string | null }[];
+    unreadMessages: { id: number; subject: string; userId: number; createdAt: string | null }[];
+  } | null>(null);
+
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
   const token = adminSessionToken || getToken();
@@ -178,6 +187,21 @@ export default function AdminDashboard() {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  const fetchAdminBell = async () => {
+    try {
+      const r = await fetch("/api/admin/notifications-bell", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setBellData(await r.json());
+    } catch { /* silent */ }
+  };
+
+  // Poll notification bell every 30 seconds
+  useEffect(() => {
+    if (!token) return;
+    fetchAdminBell();
+    const interval = setInterval(fetchAdminBell, 30_000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -738,6 +762,103 @@ export default function AdminDashboard() {
               className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
               <RefreshCw size={14} className={`text-white ${loading ? "animate-spin" : ""}`} />
             </button>
+
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => { setBellOpen(o => !o); if (!bellOpen) fetchAdminBell(); }}
+                className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center relative"
+              >
+                <Bell size={14} className="text-white" />
+                {(bellData?.total ?? 0) > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center leading-none">
+                    {bellData!.total > 99 ? "99+" : bellData!.total}
+                  </span>
+                )}
+              </button>
+
+              {bellOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div className="fixed inset-0 z-40" onClick={() => setBellOpen(false)} />
+                  {/* Dropdown */}
+                  <div className="absolute right-0 top-11 w-[300px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                      <p className="text-sm font-bold text-gray-900">Notifications</p>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                        {bellData?.total ?? 0} pending
+                      </span>
+                    </div>
+                    <div className="overflow-y-auto max-h-[320px] divide-y divide-gray-50">
+                      {/* Pending KYC */}
+                      {(bellData?.pendingKyc ?? []).map(k => (
+                        <button
+                          key={`kyc-${k.id}`}
+                          onClick={() => { setTab("kyc"); setBellOpen(false); }}
+                          className="w-full text-left px-4 py-3 hover:bg-amber-50 transition-colors flex items-start gap-3"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <FileText size={13} className="text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-semibold text-gray-900 truncate">KYC Review: {k.userName}</p>
+                            <p className="text-[10px] text-gray-500 truncate">{k.docType} · {k.userEmail}</p>
+                          </div>
+                          <ChevronRight size={12} className="text-gray-300 mt-1 flex-shrink-0" />
+                        </button>
+                      ))}
+
+                      {/* Pending Deposits */}
+                      {(bellData?.pendingDeposits ?? []).map(d => (
+                        <button
+                          key={`dep-${d.id}`}
+                          onClick={() => { setTab("transactions"); setBellOpen(false); }}
+                          className="w-full text-left px-4 py-3 hover:bg-green-50 transition-colors flex items-start gap-3"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <DollarSign size={13} className="text-green-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-semibold text-gray-900 truncate">Pending Deposit: {d.userName}</p>
+                            <p className="text-[10px] text-gray-500">KES {d.amount.toLocaleString("en-KE")} · {d.reference || "No ref"}</p>
+                          </div>
+                          <ChevronRight size={12} className="text-gray-300 mt-1 flex-shrink-0" />
+                        </button>
+                      ))}
+
+                      {/* Unread Messages */}
+                      {(bellData?.unreadMessages ?? []).map(m => (
+                        <button
+                          key={`msg-${m.id}`}
+                          onClick={() => { setTab("messages"); setBellOpen(false); }}
+                          className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors flex items-start gap-3"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <MessageSquare size={13} className="text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-semibold text-gray-900 truncate">Unread: {m.subject}</p>
+                          </div>
+                          <ChevronRight size={12} className="text-gray-300 mt-1 flex-shrink-0" />
+                        </button>
+                      ))}
+
+                      {/* Empty state */}
+                      {(bellData?.total === 0) && (
+                        <div className="px-4 py-8 text-center">
+                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                            <CheckCircle2 size={18} className="text-green-600" />
+                          </div>
+                          <p className="text-sm font-semibold text-gray-700">All clear!</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">No pending actions</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <button onClick={handleLogout} className="w-9 h-9 rounded-full bg-red-500/30 flex items-center justify-center">
               <LogOut size={14} className="text-white" />
             </button>
