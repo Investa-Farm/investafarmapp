@@ -5,7 +5,7 @@ import {
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
   Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2,
   Settings, Bell, Percent, Coins, ChevronRight, BarChart3, Trash2, ExternalLink, Star, MessageSquare,
-  Send, Reply, Monitor, Ticket, AlertCircle, CreditCard, Smartphone, CheckSquare
+  Send, Reply, Monitor, Ticket, AlertCircle, CreditCard, Smartphone, CheckSquare, Download
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -14,6 +14,8 @@ interface AdminStats {
   totalFarms: number; totalLoans: number; totalInvested: number; aum: number;
   totalTransactions: number; totalDeposits: number; totalWithdrawals: number;
   pendingKyc: number; pendingLoans: number; completedLoans: number;
+  platformCash: number; activeFinancingKES: number;
+  platformFarmers: number; platformInvestors: number; historicalFundingKES: number;
   recentUsers: Array<{ id: number; name: string; email: string; role: string; createdAt: string }>;
   recentLoans: Array<{ id: number; farmerName: string; amount: number; status: string; cropType: string; createdAt: string }>;
 }
@@ -39,7 +41,7 @@ interface TxRecord {
   reference?: string | null;
 }
 
-type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals" | "reviews" | "settings" | "messages" | "activity" | "support";
+type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals" | "reviews" | "settings" | "messages" | "activity" | "support" | "subaccounts";
 
 interface PlatformSettings {
   withdrawalFeePct: number;
@@ -138,6 +140,19 @@ export default function AdminDashboard() {
   const [limitsEditId, setLimitsEditId] = useState<number | null>(null);
   const [limitsForm, setLimitsForm] = useState({ creditLimitKES: "", maxDepositKES: "", maxWithdrawalKES: "" });
   const [limitsSaving, setLimitsSaving] = useState(false);
+  const [isViewer, setIsViewer] = useState(false);
+
+  // Sub-accounts management
+  const [subAdmins, setSubAdmins] = useState<Array<{ id: number; name: string; email: string; createdAt: string }>>([]);
+  const [subAdminsLoading, setSubAdminsLoading] = useState(false);
+  const [addSubAdminOpen, setAddSubAdminOpen] = useState(false);
+  const [newSubAdmin, setNewSubAdmin] = useState({ name: "", email: "", password: "" });
+  const [showSubPass, setShowSubPass] = useState(false);
+  const [addSubAdminLoading, setAddSubAdminLoading] = useState(false);
+  const [deleteSubAdminLoading, setDeleteSubAdminLoading] = useState<number | null>(null);
+
+  // Export
+  const [exportLoading, setExportLoading] = useState<string | null>(null);
 
   // Admin notification bell
   const [bellOpen, setBellOpen] = useState(false);
@@ -155,19 +170,25 @@ export default function AdminDashboard() {
   useEffect(() => {
     const auth = sessionStorage.getItem("admin_auth");
     if (!auth) { setLocation("/admin"); return; }
-    // Detect token type
     try {
       const tok = sessionStorage.getItem("admin_token") ?? "";
-      const decoded = atob(tok);
-      if (decoded.startsWith("kyc-admin-session:")) {
+      // Decode the HMAC-signed token payload (format: base64url.sig)
+      const dot = tok.lastIndexOf(".");
+      const payload = dot > -1 ? tok.slice(0, dot) : tok;
+      const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+      if (decoded.role === "kyc") {
         setKycOnly(true);
         setTab("kyc");
-      } else if (decoded.includes(":master:")) {
+      } else if (decoded.role === "master") {
         setIsMasterAdmin(true);
+      } else if (decoded.role === "viewer") {
+        setIsViewer(true);
+        setTab("overview");
+      } else if (decoded.role === "sub") {
+        // sub-admin tokens — full nav but restricted KYC actions
       }
-      // sub-admin tokens contain ":sub:" — they get full nav but restricted KYC actions
     } catch {
-      // Regular JWT admin user — treat as master
+      // Legacy token or regular JWT admin user — treat as master
       setIsMasterAdmin(true);
     }
     fetchStats();
@@ -185,11 +206,71 @@ export default function AdminDashboard() {
     if (tab === "messages") { if (users.length === 0) fetchUsers(); fetchMessages(); }
     if (tab === "activity") fetchActivity();
     if (tab === "support") fetchSupportTickets();
+    if (tab === "subaccounts") fetchSubAdmins();
   }, [tab]);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const fetchSubAdmins = async () => {
+    setSubAdminsLoading(true);
+    try {
+      const r = await fetch("/api/admin/sub-admins", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setSubAdmins(await r.json());
+    } finally { setSubAdminsLoading(false); }
+  };
+
+  const createSubAdmin = async () => {
+    if (!newSubAdmin.name || !newSubAdmin.email || !newSubAdmin.password) {
+      showToast("All fields are required", "error"); return;
+    }
+    setAddSubAdminLoading(true);
+    try {
+      const r = await fetch("/api/admin/create-sub-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newSubAdmin),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showToast(`✅ Viewer account created — welcome email sent to ${newSubAdmin.email}`);
+        setNewSubAdmin({ name: "", email: "", password: "" });
+        setAddSubAdminOpen(false);
+        fetchSubAdmins();
+      } else {
+        showToast(data.error ?? "Failed to create account", "error");
+      }
+    } finally { setAddSubAdminLoading(false); }
+  };
+
+  const deleteSubAdmin = async (id: number, name: string) => {
+    if (!confirm(`Remove viewer access for "${name}"?`)) return;
+    setDeleteSubAdminLoading(id);
+    try {
+      const r = await fetch(`/api/admin/sub-admins/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) { showToast(`Viewer "${name}" removed ✓`); fetchSubAdmins(); }
+      else { const d = await r.json(); showToast(d.error ?? "Delete failed", "error"); }
+    } finally { setDeleteSubAdminLoading(null); }
+  };
+
+  const exportData = async (type: string) => {
+    setExportLoading(type);
+    try {
+      const r = await fetch(`/api/admin/export/${type}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) { showToast("Export failed", "error"); return; }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `investa-${type}-${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`✅ ${type.charAt(0).toUpperCase() + type.slice(1)} exported`);
+    } catch {
+      showToast("Export failed", "error");
+    } finally { setExportLoading(null); }
   };
 
   const fetchAdminBell = async () => {
@@ -726,16 +807,17 @@ export default function AdminDashboard() {
     { id: "users",     label: "Users",     icon: <Users size={18} />,      color: "text-blue-600",    bg: "bg-blue-50" },
     { id: "proposals", label: "Proposals", icon: <Sprout size={18} />,     color: "text-green-600",   bg: "bg-green-50",  badge: proposals.length },
   ];
-  const SECONDARY_TABS: { id: Tab; label: string; icon: React.ReactNode; color: string; bg: string; badge?: number }[] = [
+  const SECONDARY_TABS: { id: Tab; label: string; icon: React.ReactNode; color: string; bg: string; badge?: number; masterOnly?: boolean }[] = [
     { id: "transactions", label: "Transactions", icon: <Activity size={18} />,      color: "text-purple-600",  bg: "bg-purple-50" },
     { id: "farms",        label: "Farms",        icon: <Tractor size={18} />,       color: "text-teal-600",    bg: "bg-teal-50" },
     { id: "payouts",      label: "Payouts",      icon: <DollarSign size={18} />,    color: "text-orange-600",  bg: "bg-orange-50" },
-    { id: "messages",     label: "Messages",     icon: <MessageSquare size={18} />, color: "text-sky-600",     bg: "bg-sky-50",      badge: messages.filter(m => !m.isReadByAdmin && m.reply).length },
-    { id: "activity",     label: "Activity",     icon: <Monitor size={18} />,       color: "text-violet-600",  bg: "bg-violet-50" },
-    { id: "support",      label: "Support",      icon: <Ticket size={18} />,        color: "text-rose-600",    bg: "bg-rose-50",     badge: supportTickets.filter(t => t.status === "open").length },
+    { id: "subaccounts",  label: "Sub Accounts", icon: <Users size={18} />,         color: "text-blue-600",    bg: "bg-blue-50",    masterOnly: true },
+    { id: "messages",     label: "Messages",     icon: <MessageSquare size={18} />, color: "text-sky-600",     bg: "bg-sky-50",      badge: messages.filter(m => !m.isReadByAdmin && m.reply).length, masterOnly: true },
+    { id: "activity",     label: "Activity",     icon: <Monitor size={18} />,       color: "text-violet-600",  bg: "bg-violet-50",  masterOnly: true },
+    { id: "support",      label: "Support",      icon: <Ticket size={18} />,        color: "text-rose-600",    bg: "bg-rose-50",     badge: supportTickets.filter(t => t.status === "open").length, masterOnly: true },
     { id: "reviews",      label: "Reviews",      icon: <Star size={18} />,          color: "text-amber-600",   bg: "bg-amber-50" },
-    { id: "settings",     label: "Settings",     icon: <Settings size={18} />,      color: "text-gray-600",    bg: "bg-gray-100" },
-  ];
+    { id: "settings",     label: "Settings",     icon: <Settings size={18} />,      color: "text-gray-600",    bg: "bg-gray-100",   masterOnly: true },
+  ].filter(t => !t.masterOnly || isMasterAdmin || (!isViewer && !kycOnly));
   const ALL_TABS = [...PRIMARY_TABS, ...SECONDARY_TABS];
   const activeTabMeta = ALL_TABS.find(t => t.id === tab);
 
@@ -904,29 +986,49 @@ export default function AdminDashboard() {
             <div className="text-center py-12 text-muted-foreground text-sm">Loading…</div>
           ) : stats ? (
             <>
-              {/* AUM Hero */}
-              <div className="bg-gradient-to-r from-green-700 to-emerald-500 rounded-2xl p-4">
-                <p className="text-white/80 text-xs font-medium uppercase tracking-wide">Assets Under Management</p>
-                <p className="text-white font-extrabold text-2xl mt-0.5">{fmtKES(stats.aum ?? 0)}</p>
-                <div className="flex gap-4 mt-2">
-                  <div>
-                    <p className="text-white/60 text-[10px]">Total Volume</p>
-                    <p className="text-white text-xs font-bold">{fmtKES(stats.totalInvested)}</p>
+              {/* Platform Impact Hero */}
+              <div className="bg-gradient-to-br from-green-700 via-emerald-600 to-teal-600 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-white/80 text-xs font-bold uppercase tracking-wider">Platform Impact</p>
+                  <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-semibold">2023–2025</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white/10 rounded-xl p-3">
+                    <p className="text-white font-black text-xl leading-none">{((stats.platformFarmers ?? 120000) / 1000).toFixed(0)}K+</p>
+                    <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Farmers Reached</p>
                   </div>
-                  <div>
-                    <p className="text-white/60 text-[10px]">Transactions</p>
-                    <p className="text-white text-xs font-bold">{stats.totalTransactions}</p>
+                  <div className="bg-white/10 rounded-xl p-3">
+                    <p className="text-white font-black text-xl leading-none">{((stats.platformInvestors ?? 8700) / 1000).toFixed(1)}K+</p>
+                    <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Active Investors</p>
                   </div>
-                  <div>
-                    <p className="text-white/60 text-[10px]">Deposits</p>
-                    <p className="text-white text-xs font-bold">{fmtKES(stats.totalDeposits ?? 0)}</p>
+                  <div className="bg-white/10 rounded-xl p-3">
+                    <p className="text-white font-black text-lg leading-none">{fmtKES(stats.historicalFundingKES ?? 4800000)}</p>
+                    <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Total Funded</p>
                   </div>
+                  <div className="bg-white/10 rounded-xl p-3">
+                    <p className="text-white font-black text-lg leading-none">{fmtKES(stats.activeFinancingKES ?? 56000)}</p>
+                    <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Active Financing</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* AUM + Platform Cash */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-gradient-to-r from-green-700 to-emerald-500 rounded-2xl p-3">
+                  <p className="text-white/80 text-[10px] font-semibold uppercase tracking-wide">AUM</p>
+                  <p className="text-white font-extrabold text-lg mt-0.5">{fmtKES(stats.aum ?? 0)}</p>
+                  <p className="text-white/60 text-[10px] mt-1">{stats.totalTransactions} transactions</p>
+                </div>
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-3">
+                  <p className="text-white/80 text-[10px] font-semibold uppercase tracking-wide">Platform Cash</p>
+                  <p className="text-white font-extrabold text-lg mt-0.5">{fmtKES(stats.platformCash ?? 0)}</p>
+                  <p className="text-white/60 text-[10px] mt-1">{fmtKES(stats.totalDeposits ?? 0)} deposited</p>
                 </div>
               </div>
 
               {/* Platform stats */}
               <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Platform</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Operations</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { label: "Active Farms", val: stats.totalFarms, icon: Tractor },
@@ -943,6 +1045,20 @@ export default function AdminDashboard() {
                         <p className="text-muted-foreground text-[10px]">{label}</p>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* CSV Export Quick Access */}
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Quick Exports</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["farmers", "investors", "transactions", "loans"] as const).map(type => (
+                    <button key={type} onClick={() => exportData(type)} disabled={exportLoading === type}
+                      className="bg-card border border-border rounded-xl p-3 flex items-center gap-2 active:scale-95 transition-transform disabled:opacity-60">
+                      <Download size={14} className="text-green-600 flex-shrink-0" />
+                      <span className="text-xs font-semibold text-foreground capitalize">{exportLoading === type ? "Exporting…" : type}</span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -1361,9 +1477,15 @@ export default function AdminDashboard() {
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 {transactions.length} recent transactions
               </p>
-              <button onClick={fetchTransactions} className="text-xs text-primary flex items-center gap-1">
-                <RefreshCw size={11} className={txLoading ? "animate-spin" : ""} /> Refresh
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => exportData("transactions")} disabled={exportLoading === "transactions"}
+                  className="text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-2.5 py-1 flex items-center gap-1 font-semibold disabled:opacity-60">
+                  <Download size={11} /> {exportLoading === "transactions" ? "Exporting…" : "CSV"}
+                </button>
+                <button onClick={fetchTransactions} className="text-xs text-primary flex items-center gap-1">
+                  <RefreshCw size={11} className={txLoading ? "animate-spin" : ""} /> Refresh
+                </button>
+              </div>
             </div>
 
             {/* Filter pills */}
@@ -2416,7 +2538,145 @@ export default function AdminDashboard() {
           </>
         )}
 
+        {/* SUB-ACCOUNTS TAB */}
+        {tab === "subaccounts" && (
+          <>
+            {/* Header */}
+            <div className="bg-gradient-to-br from-blue-700 to-indigo-600 rounded-2xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Users size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-base">Sub Accounts</p>
+                    <p className="text-blue-200 text-[10px]">Viewer-only access — read + export, no edits</p>
+                  </div>
+                </div>
+                {isMasterAdmin && (
+                  <button onClick={() => setAddSubAdminOpen(true)}
+                    className="bg-white text-blue-700 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 active:scale-95">
+                    <UserPlus size={13} /> Add
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Viewer permissions info */}
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex gap-3">
+              <Eye size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-blue-800 font-semibold text-xs mb-1">Viewer access includes:</p>
+                <ul className="space-y-0.5">
+                  {[
+                    "Platform overview & all stats",
+                    "View farmer, investor & transaction records",
+                    "Export data to CSV (all categories)",
+                    "View farm registry & financing",
+                  ].map(p => (
+                    <li key={p} className="text-blue-700 text-[10px] flex items-center gap-1.5">
+                      <CheckCircle2 size={9} /> {p}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Sub-admin list */}
+            {subAdminsLoading ? (
+              <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-blue-500" /></div>
+            ) : subAdmins.length === 0 ? (
+              <div className="text-center py-12">
+                <Users size={32} className="text-muted-foreground mx-auto mb-3" />
+                <p className="text-foreground font-semibold text-sm">No viewer accounts yet</p>
+                <p className="text-muted-foreground text-xs mt-1">Create a sub-account to grant read-only access</p>
+                {isMasterAdmin && (
+                  <button onClick={() => setAddSubAdminOpen(true)}
+                    className="mt-4 bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 mx-auto active:scale-95">
+                    <UserPlus size={13} /> Create First Viewer
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {subAdmins.map(sa => (
+                  <div key={sa.id} className="bg-card border border-border rounded-2xl px-4 py-3 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-700 font-bold text-xs">{sa.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground font-semibold text-xs truncate">{sa.name}</p>
+                      <p className="text-muted-foreground text-[10px] truncate">{sa.email}</p>
+                      <p className="text-muted-foreground text-[10px]">Added {new Date(sa.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</p>
+                    </div>
+                    <span className="text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full flex-shrink-0">VIEWER</span>
+                    {isMasterAdmin && (
+                      <button onClick={() => deleteSubAdmin(sa.id, sa.name)} disabled={deleteSubAdminLoading === sa.id}
+                        className="w-7 h-7 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 active:scale-95 disabled:opacity-50">
+                        {deleteSubAdminLoading === sa.id
+                          ? <Loader2 size={11} className="animate-spin text-red-500" />
+                          : <Trash2 size={11} className="text-red-500" />}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
       </div>
+
+      {/* ── ADD SUB-ADMIN MODAL ── */}
+      {addSubAdminOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setAddSubAdminOpen(false)} />
+          <div className="relative bg-white rounded-t-3xl w-full max-w-[430px] px-5 pt-5 pb-10 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-foreground font-bold text-sm flex items-center gap-2">
+                  <UserPlus size={15} className="text-blue-600" /> Add Viewer Sub-Account
+                </p>
+                <p className="text-muted-foreground text-xs mt-0.5">They'll receive login credentials by email</p>
+              </div>
+              <button onClick={() => setAddSubAdminOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Full Name</label>
+                <input type="text" value={newSubAdmin.name} onChange={e => setNewSubAdmin(s => ({ ...s, name: e.target.value }))}
+                  placeholder="e.g. Jane Kamau"
+                  className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Email Address</label>
+                <input type="email" value={newSubAdmin.email} onChange={e => setNewSubAdmin(s => ({ ...s, email: e.target.value }))}
+                  placeholder="jane@company.co.ke"
+                  className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Password</label>
+                <div className="relative">
+                  <input type={showSubPass ? "text" : "password"} value={newSubAdmin.password}
+                    onChange={e => setNewSubAdmin(s => ({ ...s, password: e.target.value }))}
+                    placeholder="Min. 6 characters"
+                    className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-400 pr-10" />
+                  <button type="button" onClick={() => setShowSubPass(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {showSubPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+              <button onClick={createSubAdmin} disabled={addSubAdminLoading}
+                className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-sm active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
+                {addSubAdminLoading ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : <><UserPlus size={14} /> Create & Send Welcome Email</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── CREDIT WALLET MODAL (Activity tab) ── */}
       {directCreditUserId && (

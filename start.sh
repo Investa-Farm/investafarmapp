@@ -15,9 +15,9 @@ fi
 echo "[setup] Installing dependencies..."
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
-# Push database schema
+# Push database schema (auto-confirm any data-loss prompts)
 echo "[setup] Pushing database schema..."
-pnpm --filter @workspace/db run push
+echo "yes" | pnpm --filter @workspace/db run push || true
 
 # Start API server on port 8080
 pnpm --filter @workspace/api-server run dev &

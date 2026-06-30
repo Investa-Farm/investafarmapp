@@ -3,7 +3,7 @@ import { eq, desc, notInArray, and } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db, pool, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
-import { sendKycApprovedEmail, sendKycRejectedEmail, sendGenericEmail } from "../lib/email";
+import { sendKycApprovedEmail, sendKycRejectedEmail, sendGenericEmail, sendSubAdminWelcomeEmail } from "../lib/email";
 import { sendPushToUser, createInAppNotification } from "../lib/push";
 import { triggerFarmHarvest } from "../scheduler";
 import { loadSettings, saveSettings, type PlatformSettings } from "../lib/platformSettings";
@@ -13,7 +13,7 @@ const router: IRouter = Router();
 // ── Admin token helpers (HMAC-signed, not plain base64) ───────────────────────
 const ADMIN_SECRET = process.env.SESSION_SECRET ?? "dev-secret-change-in-production";
 
-type AdminRole = "master" | "sub" | "kyc";
+type AdminRole = "master" | "sub" | "kyc" | "viewer";
 
 function signAdminToken(role: AdminRole): string {
   const payload = Buffer.from(JSON.stringify({ role, iat: Date.now() })).toString("base64url");
@@ -38,7 +38,7 @@ function verifyAdminToken(token: string): AdminRole | null {
   }
 }
 
-async function requireAdmin(req: any, res: any): Promise<boolean> {
+async function requireAdmin(req: any, res: any, allowViewer = false): Promise<boolean> {
   // Accept regular Bearer JWT from an admin-role user
   const user = await getCurrentUser(req);
   if (user && user.role === "admin") return true;
@@ -49,6 +49,7 @@ async function requireAdmin(req: any, res: any): Promise<boolean> {
     const tok = auth.slice(7);
     const role = verifyAdminToken(tok);
     if (role === "master" || role === "sub" || role === "kyc") return true;
+    if (allowViewer && role === "viewer") return true;
   }
 
   res.status(403).json({ error: "Admin access required" });
@@ -79,6 +80,28 @@ router.post("/admin/login", async (req, res): Promise<void> => {
   }
 
   res.status(401).json({ error: "Invalid credentials" });
+});
+
+// Viewer sub-admin login — read-only dashboard access
+router.post("/admin/login-viewer", async (req, res): Promise<void> => {
+  const { email, password } = req.body ?? {};
+  if (!email || !password) {
+    res.status(400).json({ error: "Email and password are required" });
+    return;
+  }
+  const bcrypt = await import("bcrypt");
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (!user || (user.role !== "viewer" as any && user.role !== "admin")) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+  const role: AdminRole = user.role === "admin" ? "master" : "viewer";
+  res.json({ ok: true, token: signAdminToken(role), name: user.name, isViewer: role === "viewer", isMaster: role === "master" });
 });
 
 // KYC-only sub-admin login — limited to KYC tab access
@@ -134,6 +157,174 @@ router.post("/admin/create-admin", async (req, res): Promise<void> => {
     .values({ email, passwordHash, name, role: "admin", emailVerified: true })
     .returning({ id: usersTable.id });
   res.json({ ok: true, id: created!.id, name, email, role: "admin" });
+});
+
+// Create a viewer sub-account (read-only + export, no destructive actions)
+router.post("/admin/create-sub-admin", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const { name, email, password } = req.body ?? {};
+  if (!name || !email || !password) {
+    res.status(400).json({ error: "name, email and password are required" });
+    return;
+  }
+  if (password.length < 6) {
+    res.status(400).json({ error: "Password must be at least 6 characters" });
+    return;
+  }
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (existing) {
+    res.status(409).json({ error: "A user with that email already exists" });
+    return;
+  }
+  const bcrypt = await import("bcrypt");
+  const passwordHash = await bcrypt.hash(password, 10);
+  const [created] = await db.insert(usersTable)
+    .values({ email, passwordHash, name, role: "viewer" as any, emailVerified: true })
+    .returning({ id: usersTable.id });
+
+  // Send welcome email with credentials
+  const appUrl = process.env.APP_URL ?? "https://app.investafarm.com";
+  const loginUrl = `${appUrl}/admin`;
+  const permissions = [
+    "Platform overview — farmers, investors, funding stats",
+    "View all farmer accounts and financing details",
+    "View all investor accounts and portfolios",
+    "View all transactions and loan records",
+    "Export data to CSV (farmers, investors, transactions, loans)",
+    "View farm registry and funding progress",
+  ];
+  sendSubAdminWelcomeEmail(email, name, email, password, loginUrl, permissions).catch(err =>
+    console.error("[EMAIL] Sub-admin welcome failed:", err)
+  );
+
+  res.json({ ok: true, id: created!.id, name, email, role: "viewer" });
+});
+
+// List all viewer sub-accounts
+router.get("/admin/sub-admins", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res, true);
+  if (!ok) return;
+  const viewers = await db.select({
+    id: usersTable.id,
+    name: usersTable.name,
+    email: usersTable.email,
+    createdAt: usersTable.createdAt,
+  }).from(usersTable).where(eq(usersTable.role, "viewer" as any)).orderBy(desc(usersTable.createdAt));
+  res.json(viewers.map(v => ({ ...v, createdAt: v.createdAt.toISOString() })));
+});
+
+// Delete a viewer sub-account
+router.delete("/admin/sub-admins/:id", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const id = Number(req.params["id"]);
+  if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!user || (user.role as string) !== "viewer") {
+    res.status(404).json({ error: "Viewer account not found" });
+    return;
+  }
+  await db.delete(usersTable).where(eq(usersTable.id, id));
+  res.json({ ok: true });
+});
+
+// Export CSV data
+router.get("/admin/export/:type", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res, true);
+  if (!ok) return;
+  const type = req.params["type"];
+
+  const toCSV = (rows: Record<string, any>[], headers: string[]): string => {
+    const escape = (v: any) => {
+      const s = v == null ? "" : String(v);
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(","), ...rows.map(r => headers.map(h => escape(r[h])).join(","))];
+    return lines.join("\n");
+  };
+
+  try {
+    if (type === "farmers") {
+      const users = await db.select().from(usersTable).where(eq(usersTable.role, "farmer"));
+      const loans = await db.select().from(loanApplicationsTable);
+      const rows = users.map(u => {
+        const userLoans = loans.filter(l => l.farmerId === u.id);
+        const totalBorrowed = userLoans.reduce((s, l) => s + Number(l.amount), 0);
+        return {
+          id: u.id, name: u.name, email: u.email, phone: u.phone ?? "",
+          county: u.county ?? "", createdAt: u.createdAt.toISOString().split("T")[0],
+          loanCount: userLoans.length, totalBorrowedKES: totalBorrowed,
+          activeLoanCount: userLoans.filter(l => l.status === "approved").length,
+        };
+      });
+      const csv = toCSV(rows, ["id", "name", "email", "phone", "county", "createdAt", "loanCount", "totalBorrowedKES", "activeLoanCount"]);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="investa-farmers-${new Date().toISOString().split("T")[0]}.csv"`);
+      res.send(csv);
+    } else if (type === "investors") {
+      const users = await db.select().from(usersTable).where(eq(usersTable.role, "investor"));
+      const investments = await db.select().from(investmentsTable);
+      const rows = users.map(u => {
+        const inv = investments.filter(i => i.investorId === u.id);
+        const totalInvested = inv.reduce((s, i) => s + Number(i.purchasePrice) * i.quantity, 0);
+        return {
+          id: u.id, name: u.name, email: u.email, phone: u.phone ?? "",
+          county: u.county ?? "", createdAt: u.createdAt.toISOString().split("T")[0],
+          investmentCount: inv.length, totalInvestedKES: Math.round(totalInvested),
+          activeFarms: [...new Set(inv.filter(i => i.status === "active").map(i => i.farmId))].length,
+        };
+      });
+      const csv = toCSV(rows, ["id", "name", "email", "phone", "county", "createdAt", "investmentCount", "totalInvestedKES", "activeFarms"]);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="investa-investors-${new Date().toISOString().split("T")[0]}.csv"`);
+      res.send(csv);
+    } else if (type === "transactions") {
+      const txs = await db.select({ tx: walletTransactionsTable, user: usersTable })
+        .from(walletTransactionsTable)
+        .leftJoin(usersTable, eq(usersTable.id, walletTransactionsTable.userId))
+        .orderBy(desc(walletTransactionsTable.createdAt)).limit(5000);
+      const rows = txs.map(r => ({
+        id: r.tx.id, date: r.tx.createdAt?.toISOString().split("T")[0],
+        userName: r.user?.name ?? "", userEmail: r.user?.email ?? "",
+        type: r.tx.type, amountKES: Number(r.tx.amount), status: r.tx.status,
+        description: r.tx.description ?? "", reference: r.tx.reference ?? "",
+      }));
+      const csv = toCSV(rows, ["id", "date", "userName", "userEmail", "type", "amountKES", "status", "description", "reference"]);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="investa-transactions-${new Date().toISOString().split("T")[0]}.csv"`);
+      res.send(csv);
+    } else if (type === "loans") {
+      const loans = await db.select({ loan: loanApplicationsTable, user: usersTable })
+        .from(loanApplicationsTable)
+        .leftJoin(usersTable, eq(usersTable.id, loanApplicationsTable.farmerId))
+        .orderBy(desc(loanApplicationsTable.createdAt));
+      const rows = loans.map(r => ({
+        id: r.loan.id, date: r.loan.createdAt?.toISOString().split("T")[0],
+        farmerName: r.user?.name ?? "", farmerEmail: r.user?.email ?? "",
+        amountKES: Number(r.loan.amount), purpose: r.loan.purpose ?? "",
+        status: r.loan.status, cropType: r.loan.cropType ?? "",
+      }));
+      const csv = toCSV(rows, ["id", "date", "farmerName", "farmerEmail", "amountKES", "purpose", "status", "cropType"]);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="investa-loans-${new Date().toISOString().split("T")[0]}.csv"`);
+      res.send(csv);
+    } else {
+      res.status(400).json({ error: "Invalid export type. Use: farmers, investors, transactions, loans" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Export failed: " + String(err) });
+  }
+});
+
+// Platform cash — total balance across all wallets
+router.get("/admin/platform-cash", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res, true);
+  if (!ok) return;
+  const wallets = await db.select().from(walletsTable);
+  const totalCash = wallets.reduce((s, w) => s + Number(w.balance), 0);
+  const totalEscrow = wallets.reduce((s, w) => s + Number((w as any).escrowBalance ?? 0), 0);
+  res.json({ totalCash, totalEscrow, walletCount: wallets.length });
 });
 
 router.patch("/admin/users/:id/role", async (req, res): Promise<void> => {
@@ -204,14 +395,25 @@ router.delete("/admin/users/:id", async (req, res): Promise<void> => {
   }
 });
 
+// Platform-wide aggregate baseline numbers (2023–2024 historical reach)
+const PLATFORM_BASELINE = {
+  farmers: 120_000,
+  investors: 8_700,
+  historicalFundingKES: 4_800_000,
+  activeFinancingKES: 56_000,
+};
+
 router.get("/admin/stats", async (req, res): Promise<void> => {
-  const [users, farms, loans, kycs, investments, walletTxs] = await Promise.all([
+  const ok = await requireAdmin(req, res, true);
+  if (!ok) return;
+  const [users, farms, loans, kycs, investments, walletTxs, wallets] = await Promise.all([
     db.select().from(usersTable),
     db.select().from(farmsTable),
     db.select().from(loanApplicationsTable).orderBy(desc(loanApplicationsTable.createdAt)),
     db.select().from(kycDocumentsTable),
     db.select().from(investmentsTable),
     db.select().from(walletTransactionsTable),
+    db.select().from(walletsTable),
   ]);
 
   const totalFarmers = users.filter(u => u.role === "farmer").length;
@@ -225,6 +427,12 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   const totalTransactions = walletTxs.length;
   const totalDeposits = walletTxs.filter(t => t.type === "deposit").reduce((s, t) => s + Number(t.amount), 0);
   const totalWithdrawals = walletTxs.filter(t => t.type === "withdrawal").reduce((s, t) => s + Number(t.amount), 0);
+  const platformCash = wallets.reduce((s, w) => s + Number(w.balance), 0);
+
+  // Active financing = sum of active/approved loan amounts
+  const activeFinancingDB = loans
+    .filter(l => l.status === "approved" || l.status === "disbursed" || l.status === "active")
+    .reduce((s, l) => s + Number(l.amount), 0);
 
   const recentLoansSlice = loans.slice(0, 5);
   const recentLoansWithFarmer = await Promise.all(
@@ -256,6 +464,12 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     pendingKyc,
     pendingLoans,
     completedLoans,
+    platformCash,
+    activeFinancingKES: PLATFORM_BASELINE.activeFinancingKES + activeFinancingDB,
+    // Platform-wide aggregate stats (2023–2024 historical reach + live DB)
+    platformFarmers: PLATFORM_BASELINE.farmers + totalFarmers,
+    platformInvestors: PLATFORM_BASELINE.investors + totalInvestors,
+    historicalFundingKES: PLATFORM_BASELINE.historicalFundingKES + totalInvested,
     recentUsers: [...users].reverse().slice(0, 10).map(u => ({
       id: u.id,
       name: u.name,

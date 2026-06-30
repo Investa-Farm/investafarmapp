@@ -179,6 +179,108 @@ export async function sendGenericEmail(to: string, subject: string, bodyHtml: st
   });
 }
 
+export async function sendSubAdminWelcomeEmail(
+  to: string,
+  name: string,
+  email: string,
+  password: string,
+  loginUrl: string,
+  permissions: string[]
+): Promise<void> {
+  const transport = createTransport();
+  if (!transport) {
+    console.log(`[EMAIL] Sub-admin welcome for ${to} (no email provider)`);
+    return;
+  }
+
+  const permissionRows = permissions.map(p => `
+    <tr>
+      <td style="padding:6px 0;color:#374151;font-size:13px;">
+        <span style="color:#16a34a;font-weight:700;">✓</span>&nbsp; ${p}
+      </td>
+    </tr>`).join("");
+
+  const content = `
+    <tr>
+      <td style="padding:0;">
+        <div style="background:linear-gradient(160deg,#1e3a5f 0%,#1d4ed8 100%);padding:32px 40px;text-align:center;">
+          <p style="font-size:44px;margin:0 0 8px 0;">🛡️</p>
+          <h1 style="color:#ffffff;font-size:24px;font-weight:900;margin:0 0 6px 0;">Welcome to Investa Admin</h1>
+          <p style="color:rgba(255,255,255,0.8);font-size:13px;margin:0;">Your viewer account has been created</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:36px 40px;">
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+          Hi <strong>${name}</strong>,<br><br>
+          You've been granted access to the <strong>Investa Farm Admin Portal</strong> as a <strong>Viewer</strong>.
+          You can monitor platform activity, review financing data, and export reports.
+        </p>
+
+        <!-- Login credentials -->
+        <div style="background:#f0f9ff;border:2px solid #bae6fd;border-radius:16px;padding:24px;margin:0 0 24px 0;">
+          <p style="color:#0369a1;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 16px 0;">Your Login Credentials</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;width:100px;">Portal URL</td>
+              <td style="font-size:13px;font-weight:700;text-align:right;">
+                <a href="${loginUrl}" style="color:#1d4ed8;text-decoration:none;">${loginUrl}</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Email</td>
+              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;font-family:monospace;">${email}</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Password</td>
+              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;font-family:monospace;">${password}</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Role</td>
+              <td style="text-align:right;">
+                <span style="background:#dbeafe;color:#1e40af;font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;">Viewer</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- What you can access -->
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:20px;margin:0 0 24px 0;">
+          <p style="color:#166534;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 12px 0;">What you can access</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${permissionRows}
+          </table>
+        </div>
+
+        <!-- Security notice -->
+        <div style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:16px;margin:0 0 24px 0;">
+          <p style="color:#92400e;font-size:13px;margin:0;">
+            🔒 <strong>Security:</strong> Please change your password after first login. 
+            Keep your credentials confidential — this account has read access to sensitive platform data.
+          </p>
+        </div>
+
+        <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+          <tr>
+            <td align="center" style="background:#1d4ed8;border-radius:12px;">
+              <a href="${loginUrl}" style="display:inline-block;color:#ffffff;font-size:15px;font-weight:800;text-decoration:none;padding:14px 40px;border-radius:12px;">
+                🔐 Log In to Admin Portal
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+
+  await transport.sendMail({
+    from: from("Investa Farm Admin"),
+    to,
+    subject: `🛡️ Your Investa Farm Admin Access — ${name}`,
+    html: emailWrapper(content, `You've been granted viewer access to the Investa Farm Admin Portal.`),
+  });
+}
+
 export async function testSmtpConnection(): Promise<void> {
   const hasResend = !!process.env.RESEND_API_KEY;
   const smtpUser = process.env.GOOGLE_SMTP_USER;
