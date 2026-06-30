@@ -283,7 +283,13 @@ async function seedDemoInvestments(userIds: Record<string, number>, log: (msg: s
 }
 
 async function seedFarmsAndListings(userIds: Record<string, number>, log: (msg: string) => void) {
-  const existingFarms = await db.select().from(farmsTable).limit(1);
+  let existingFarms: unknown[];
+  try {
+    existingFarms = await db.select().from(farmsTable).limit(1);
+  } catch (e) {
+    log(`[seed] Skipping farms — table not ready: ${String(e)}`);
+    return;
+  }
   if (existingFarms.length > 0) {
     // Reset changePercent and currentPrice to seed values on every restart
     // (prevents scheduler from leaving stale extreme values between restarts)

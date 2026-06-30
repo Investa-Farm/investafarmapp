@@ -91,6 +91,30 @@ app.use(express.urlencoded({ extended: true, limit: "512kb" }));
 app.use(botDetection);
 app.use(sanitizeInput);
 
+// Public health check — no auth, no rate-limit, for Render + uptime monitors
+app.get("/api/healthz", async (_req, res) => {
+  try {
+    const { pool } = await import("@workspace/db");
+    const client = await pool.connect();
+    try {
+      await client.query("SELECT 1");
+      // Check users table has required newer columns
+      const r = await client.query<{ count: string }>(
+        `SELECT COUNT(*) as count FROM information_schema.columns
+         WHERE table_schema='public' AND table_name='users'
+         AND column_name IN ('id','email','password_hash','role','email_verified','county','credit_limit_kes')`
+      );
+      const colCount = parseInt(r.rows[0]?.count ?? "0", 10);
+      const schemaOk = colCount >= 7;
+      res.json({ ok: schemaOk, db: "connected", schemaOk, usersColumnsFound: colCount, ts: new Date().toISOString() });
+    } finally {
+      client.release();
+    }
+  } catch (e) {
+    res.status(503).json({ ok: false, db: "error", error: (e as Error).message });
+  }
+});
+
 // Tight API CSP (default-src 'none') — correct for JSON-only routes
 app.use("/api", corsMiddleware, globalRateLimit, securityHeaders, unauthorizedTracker, router);
 

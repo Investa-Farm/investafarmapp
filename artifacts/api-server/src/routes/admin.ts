@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, notInArray, and } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "crypto";
-import { db, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable } from "@workspace/db";
+import { db, pool, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail, sendGenericEmail } from "../lib/email";
 import { sendPushToUser, createInAppNotification } from "../lib/push";
@@ -1070,6 +1070,111 @@ router.get("/platform/settings", async (_req, res): Promise<void> => {
     minInvestmentKES: s.minInvestmentKES,
     minSharePurchase: s.minSharePurchase,
   });
+});
+
+// ─── DB Status — admin only ───────────────────────────────────────────────────
+// Returns live database schema compared against the expected Drizzle schema.
+// Useful for diagnosing schema drift between dev and production.
+const EXPECTED_TABLES = [
+  "admin_messages", "app_reviews", "audit_logs", "dividends", "escrow_wallets",
+  "farmer_groups", "farms", "farm_updates", "harvest_payments", "investments",
+  "investor_portfolio_subscriptions", "kyc_documents", "loan_applications",
+  "market_listings", "notifications", "order_book", "otp_codes",
+  "password_reset_tokens", "platform_revenue", "portfolio_fees",
+  "portfolio_holdings", "portfolios", "price_alerts", "push_subscriptions",
+  "reinvestment_rules", "roi_projections", "sentiment_scores", "stellar_accounts",
+  "support_tickets", "transaction_fees", "transactions", "users",
+  "voucher_orders", "wallets", "wallet_transactions", "watchlist",
+];
+
+router.get("/admin/db-status", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user || user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
+
+  const client = await pool.connect();
+  try {
+    // Fetch all tables in the public schema
+    const tablesResult = await client.query<{ table_name: string }>(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+       ORDER BY table_name`
+    );
+    const liveTables = new Set(tablesResult.rows.map(r => r.table_name));
+
+    // Fetch all columns for all live tables at once
+    const colsResult = await client.query<{ table_name: string; column_name: string; data_type: string; is_nullable: string }>(
+      `SELECT table_name, column_name, data_type, is_nullable
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+       ORDER BY table_name, ordinal_position`
+    );
+
+    // Group columns by table
+    const columnsByTable: Record<string, Array<{ name: string; type: string; nullable: boolean }>> = {};
+    for (const row of colsResult.rows) {
+      if (!columnsByTable[row.table_name]) columnsByTable[row.table_name] = [];
+      columnsByTable[row.table_name]!.push({
+        name: row.column_name,
+        type: row.data_type,
+        nullable: row.is_nullable === "YES",
+      });
+    }
+
+    const missingTables = EXPECTED_TABLES.filter(t => !liveTables.has(t));
+    const extraTables = [...liveTables].filter(t => !EXPECTED_TABLES.includes(t));
+
+    const tableStatus = EXPECTED_TABLES.map(name => ({
+      name,
+      exists: liveTables.has(name),
+      columns: columnsByTable[name] ?? [],
+    }));
+
+    // Count row estimates for key tables
+    let rowCounts: Record<string, number> = {};
+    const keyTables = ["users", "farms", "market_listings", "wallets", "investments"];
+    for (const t of keyTables) {
+      if (liveTables.has(t)) {
+        const r = await client.query<{ count: string }>(`SELECT COUNT(*) as count FROM "${t}"`);
+        rowCounts[t] = parseInt(r.rows[0]?.count ?? "0", 10);
+      }
+    }
+
+    res.json({
+      ok: missingTables.length === 0,
+      summary: {
+        expectedTables: EXPECTED_TABLES.length,
+        liveTables: liveTables.size,
+        missingTables: missingTables.length,
+        extraTables: extraTables.length,
+      },
+      missingTables,
+      extraTables,
+      rowCounts,
+      tables: tableStatus,
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Public DB health — lightweight, no auth, safe for uptime monitors
+router.get("/admin/db-health", async (_req, res): Promise<void> => {
+  const client = await pool.connect().catch(() => null);
+  if (!client) { res.status(503).json({ ok: false, db: "unreachable" }); return; }
+  try {
+    await client.query("SELECT 1");
+    // Quick schema sanity — just check users table exists and has the right cols
+    const r = await client.query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM information_schema.columns
+       WHERE table_schema='public' AND table_name='users' AND column_name IN
+       ('id','email','password_hash','role','email_verified','county','credit_limit_kes')`
+    );
+    const colCount = parseInt(r.rows[0]?.count ?? "0", 10);
+    const schemaOk = colCount >= 7;
+    res.json({ ok: schemaOk, db: "connected", usersColumnsFound: colCount, schemaOk });
+  } finally {
+    client.release();
+  }
 });
 
 export default router;
