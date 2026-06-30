@@ -116,7 +116,11 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   const status = (err as { status?: number; statusCode?: number }).status
     ?? (err as { status?: number; statusCode?: number }).statusCode
     ?? 500;
-  res.status(status).json({ error: err.message ?? "Internal server error" });
+  // In production, never leak raw DB errors or stack traces to clients
+  const message = process.env.NODE_ENV === "production" && status === 500
+    ? "Internal server error"
+    : (err.message ?? "Internal server error");
+  res.status(status).json({ error: message });
 });
 
 export default app;
