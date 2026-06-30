@@ -185,6 +185,7 @@ export default function FarmProfile() {
     queryKey: ["my-group"],
     queryFn: async () => {
       const r = await fetch("/api/groups/my", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return null;
       return r.json();
     },
   });
@@ -193,6 +194,7 @@ export default function FarmProfile() {
     queryKey: ["kyc-docs"],
     queryFn: async () => {
       const r = await fetch("/api/kyc/documents", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
       return r.json();
     },
   });
@@ -201,6 +203,7 @@ export default function FarmProfile() {
     queryKey: ["loan-apps"],
     queryFn: async () => {
       const r = await fetch("/api/loans/applications", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
       return r.json();
     },
   });

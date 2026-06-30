@@ -195,6 +195,7 @@ function WeatherNdvi({ lat, lng, cropType, stage }: { lat: number; lng: number; 
     queryFn: async () => {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,relative_humidity_2m,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Africa%2FNairobi&forecast_days=5`;
       const r = await fetch(url);
+      if (!r.ok) return null;
       return r.json();
     },
   });
@@ -273,7 +274,7 @@ function WeatherNdvi({ lat, lng, cropType, stage }: { lat: number; lng: number; 
             </div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">5-Day Forecast</p>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {(wx.daily.time ?? []).slice(0, 5).map((t, i) => (
+              {(wx?.daily?.time ?? []).slice(0, 5).map((t, i) => (
                 <div key={t} className="flex-shrink-0 bg-muted/60 rounded-xl p-2.5 text-center min-w-[56px]">
                   <p className="text-primary text-[9px] font-bold">{new Date(t).toLocaleDateString("en-KE", { weekday: "short" })}</p>
                   <p className="text-foreground font-bold text-sm mt-1">{Math.round(wx.daily.temperature_2m_max[i] ?? 0)}°</p>
@@ -359,7 +360,7 @@ export default function FarmDetail() {
     staleTime: 30 * 60 * 1000,
     queryFn: async () => {
       const r = await fetch("/api/news");
-      const all: NewsItem[] = await r.json().catch(() => []);
+      const all: NewsItem[] = r.ok ? await r.json().catch(() => []) : [];
       const crop = farm?.cropType?.toLowerCase() ?? "";
       const keywords = crop.split(/\s+/).filter((w: string) => w.length > 3);
       return all.map((item: NewsItem) => ({
@@ -377,6 +378,7 @@ export default function FarmDetail() {
     staleTime: 60 * 60 * 1000,
     queryFn: async () => {
       const r = await fetch("/api/news/sentiment");
+      if (!r.ok) return [];
       const d = await r.json().catch(() => ({}));
       return d.scores ?? [];
     },
@@ -392,6 +394,7 @@ export default function FarmDetail() {
     staleTime: 3 * 60 * 1000,
     queryFn: async () => {
       const r = await fetch(`/api/farmer/growth/${farmId}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return null;
       return r.json();
     },
   });

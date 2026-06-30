@@ -177,11 +177,11 @@ export default function Portfolio() {
     staleTime: 300_000,
   });
 
-  const { data: walletData } = useQuery<{ balance: string }>({
+  const { data: walletData } = useQuery<{ wallet: { balance: string }; transactions: any[] }>({
     queryKey: ["wallet"],
     queryFn: async () => {
       const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) return { balance: "0" };
+      if (!r.ok) return { wallet: { balance: "0" }, transactions: [] };
       return r.json();
     },
     staleTime: 30_000,
@@ -197,7 +197,7 @@ export default function Portfolio() {
     staleTime: 60_000,
   });
 
-  const walletFunded = parseFloat(walletData?.balance ?? "0") > 0;
+  const walletFunded = parseFloat(walletData?.wallet?.balance ?? "0") > 0;
   const kycVerified = kycDocs.some((d: any) => d.status === "approved");
   const hasInvestments = (summary?.totalInvested ?? 0) > 0;
 

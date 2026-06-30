@@ -125,7 +125,7 @@ export default function FarmerWallet() {
     setTimeout(() => setStellarCopied(false), 2000);
   };
 
-  const balance = parseFloat(data?.wallet.balance ?? "0");
+  const balance = parseFloat(data?.wallet?.balance ?? "0");
   const txs = data?.transactions ?? [];
   const totalEarned = txs.filter(t => ["deposit", "return", "transfer"].includes(t.type)).reduce((s, t) => s + parseFloat(t.amount), 0);
 

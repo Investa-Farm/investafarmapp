@@ -127,6 +127,7 @@ export default function SecondaryMarket() {
     queryKey: ["my-listings"],
     queryFn: async () => {
       const r = await fetch("/api/market/my-listings", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
       return r.json();
     },
   });
@@ -152,6 +153,7 @@ export default function SecondaryMarket() {
     queryKey: ["orderbook", orderFarmId],
     queryFn: async () => {
       const r = await fetch(`/api/orders/book/${orderFarmId}`);
+      if (!r.ok) return { buys: [], sells: [] };
       return r.json();
     },
     enabled: !!orderFarmId,

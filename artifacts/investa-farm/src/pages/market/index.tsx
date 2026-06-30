@@ -370,7 +370,7 @@ export default function MarketHome() {
   const handleCommitFunds = async () => {
     if (!commitCrop || !commitInput || Number(commitInput) <= 0) return;
     const amt = Number(commitInput);
-    const balance = walletData?.wallet ? Number(walletData.wallet.balance) : 0;
+    const balance = Number(walletData?.wallet?.balance ?? "0");
     if (amt > balance) {
       setCommitOpen(false);
       setWalletOpen(true);
@@ -520,6 +520,7 @@ export default function MarketHome() {
     queryKey: ["wallet-balance"],
     queryFn: async () => {
       const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { wallet: { balance: "0" } };
       return r.json();
     },
   });
@@ -1521,12 +1522,12 @@ export default function MarketHome() {
                   💡 Committing funds reserves your intent to invest when this crop listing opens. No charges now — you'll be notified first when shares go live.
                 </p>
               </div>
-              {commitInput && Number(commitInput) > 0 && walletData?.wallet && Number(commitInput) > Number(walletData.wallet.balance) && (
+              {commitInput && Number(commitInput) > 0 && Number(commitInput) > Number(walletData?.wallet?.balance ?? "0") && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2 mb-0">
                   <AlertTriangle size={14} className="text-amber-600 flex-shrink-0" />
                   <div>
                     <p className="text-amber-700 text-xs font-semibold">Insufficient wallet balance</p>
-                    <p className="text-amber-600 text-[11px]">Your wallet has {formatKES(Number(walletData.wallet.balance))}. Top up to commit this amount.</p>
+                    <p className="text-amber-600 text-[11px]">Your wallet has {formatKES(Number(walletData?.wallet?.balance ?? "0"))}. Top up to commit this amount.</p>
                   </div>
                 </div>
               )}
@@ -1538,7 +1539,7 @@ export default function MarketHome() {
               >
                 {commitLoading
                   ? <><Loader2 size={16} className="animate-spin" /> Processing…</>
-                  : commitInput && Number(commitInput) > 0 && walletData?.wallet && Number(commitInput) > Number(walletData.wallet.balance)
+                  : commitInput && Number(commitInput) > 0 && Number(commitInput) > Number(walletData?.wallet?.balance ?? "0")
                     ? "Top Up Wallet →"
                     : `${committed[commitCrop.id] ? "Update Commitment" : "Reserve · Deduct from Wallet"}${commitInput && Number(commitInput) > 0 ? ` · ${formatKES(Number(commitInput))}` : ""}`
                 }

@@ -116,7 +116,7 @@ export default function InvestorWallet() {
     },
   });
 
-  const balance = parseFloat(data?.wallet.balance ?? "0");
+  const balance = parseFloat(data?.wallet?.balance ?? "0");
   const txs = data?.transactions ?? [];
   const filteredTxs = txFilter === "all" ? txs : txs.filter((tx: any) => tx.type === txFilter);
 
@@ -271,9 +271,9 @@ export default function InvestorWallet() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-amber-800 text-xs font-semibold">Funds in Escrow</p>
-              <p className="text-amber-600 text-[10px]">{escrowData!.escrows.filter(e => e.status === "held").length} active farm investment{escrowData!.escrows.filter(e => e.status === "held").length !== 1 ? "s" : ""} · secured until exit date</p>
+              <p className="text-amber-600 text-[10px]">{(escrowData?.escrows ?? []).filter(e => e.status === "held").length} active farm investment{(escrowData?.escrows ?? []).filter(e => e.status === "held").length !== 1 ? "s" : ""} · secured until exit date</p>
             </div>
-            <p className="text-amber-800 font-bold text-sm flex-shrink-0">{formatAmount(escrowData!.heldTotal)}</p>
+            <p className="text-amber-800 font-bold text-sm flex-shrink-0">{formatAmount(escrowData?.heldTotal ?? 0)}</p>
           </div>
         )}
 
@@ -286,12 +286,12 @@ export default function InvestorWallet() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-blue-800 text-xs font-semibold">Pending Exit Requests</p>
-                <p className="text-blue-600 text-[10px]">{pendingExits!.count} investment{pendingExits!.count !== 1 ? "s" : ""} queued for exit · funds released on schedule</p>
+                <p className="text-blue-600 text-[10px]">{pendingExits?.count ?? 0} investment{(pendingExits?.count ?? 0) !== 1 ? "s" : ""} queued for exit · funds released on schedule</p>
               </div>
-              <p className="text-blue-800 font-bold text-sm flex-shrink-0">{formatAmount(pendingExits!.pendingTotal)}</p>
+              <p className="text-blue-800 font-bold text-sm flex-shrink-0">{formatAmount(pendingExits?.pendingTotal ?? 0)}</p>
             </div>
             <div className="space-y-1.5">
-              {pendingExits!.exits.slice(0, 3).map(ex => (
+              {(pendingExits?.exits ?? []).slice(0, 3).map(ex => (
                 <div key={ex.investmentId} className="flex items-center justify-between bg-white/60 rounded-xl px-3 py-1.5">
                   <div className="min-w-0">
                     <p className="text-blue-900 text-[11px] font-semibold truncate">{ex.farmName}</p>
@@ -303,8 +303,8 @@ export default function InvestorWallet() {
                   <p className="text-blue-800 font-bold text-[11px] flex-shrink-0 ml-2">{formatAmount(ex.amount)}</p>
                 </div>
               ))}
-              {pendingExits!.exits.length > 3 && (
-                <p className="text-blue-500 text-[10px] text-center">+{pendingExits!.exits.length - 3} more</p>
+              {(pendingExits?.exits?.length ?? 0) > 3 && (
+                <p className="text-blue-500 text-[10px] text-center">+{(pendingExits?.exits?.length ?? 0) - 3} more</p>
               )}
             </div>
           </div>
