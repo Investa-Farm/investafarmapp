@@ -37,6 +37,7 @@ export default function Login() {
   const [pendingOtp, setPendingOtp] = useState<{ email: string; ts: number } | null>(() => getPendingOtp());
   const [quickResendLoading, setQuickResendLoading] = useState(false);
   const [quickResendDone, setQuickResendDone] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
 
   const isEmailValid = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -525,28 +526,59 @@ export default function Login() {
           </motion.div>
         )}
 
-        <div className="mt-4 bg-primary/5 border border-primary/20 rounded-xl p-3">
-          <p className="text-muted-foreground text-[11px] font-semibold text-center mb-2">🔑 Demo Accounts — password: <strong className="text-foreground font-bold">password123</strong></p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {[
-              { label: "Farmer", email: "john.farmer@investafarm.com" },
-              { label: "Investor", email: "david.investor@investafarm.com" },
-              { label: "Demo Farmer", email: "demo.farmer@investafarm.com" },
-              { label: "Demo Investor", email: "demo.investor@investafarm.com" },
-              { label: "Sales Agent", email: "demo.agent@investafarm.com" },
-              { label: "Cooperative", email: "demo.coop@investafarm.com" },
-            ].map(({ label, email }) => (
-              <button
-                key={email}
-                type="button"
-                onClick={() => { setEmail(email); setPassword("password123"); }}
-                className="text-left bg-white border border-primary/20 rounded-lg px-2 py-1.5 active:scale-95 transition-all"
+        {/* Try Demo — collapsed by default; user must opt in */}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowDemo(v => !v)}
+            className="w-full flex items-center justify-between bg-muted/60 border border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-muted-foreground active:scale-[0.98] transition-all"
+          >
+            <span className="flex items-center gap-2">
+              <span className="text-base">🔑</span>
+              Try a demo account
+            </span>
+            <span className={`text-xs transition-transform duration-200 ${showDemo ? "rotate-180" : ""}`}>▾</span>
+          </button>
+
+          <AnimatePresence>
+            {showDemo && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
               >
-                <p className="text-[10px] font-semibold text-primary">{label}</p>
-                <p className="text-[9px] text-muted-foreground truncate">{email}</p>
-              </button>
-            ))}
-          </div>
+                <div className="pt-2 pb-1">
+                  <p className="text-muted-foreground text-[10px] text-center mb-2">
+                    Tap a role to fill credentials — password is <strong className="text-foreground">password123</strong>
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { label: "Farmer", email: "john.farmer@investafarm.com", icon: "🌱" },
+                      { label: "Investor", email: "david.investor@investafarm.com", icon: "📈" },
+                      { label: "Demo Farmer", email: "demo.farmer@investafarm.com", icon: "👨‍🌾" },
+                      { label: "Demo Investor", email: "demo.investor@investafarm.com", icon: "💼" },
+                      { label: "Sales Agent", email: "demo.agent@investafarm.com", icon: "🤝" },
+                      { label: "Cooperative", email: "demo.coop@investafarm.com", icon: "🏘️" },
+                    ].map(({ label, email: demoEmail, icon }) => (
+                      <button
+                        key={demoEmail}
+                        type="button"
+                        onClick={() => { setEmail(demoEmail); setPassword("password123"); setShowDemo(false); }}
+                        className="text-left bg-white border border-primary/20 rounded-xl px-3 py-2 active:scale-95 transition-all hover:border-primary/40 hover:bg-primary/5"
+                      >
+                        <p className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                          <span>{icon}</span>{label}
+                        </p>
+                        <p className="text-[9px] text-muted-foreground truncate mt-0.5">{demoEmail}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

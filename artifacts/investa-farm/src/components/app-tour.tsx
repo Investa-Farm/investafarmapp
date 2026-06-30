@@ -250,7 +250,20 @@ export function AppTour({ role = "investor" }: Props) {
             }}
           />
 
-          {/* Card — centred with explicit inset math so nothing clips off-screen */}
+          {/* Centering shell — static fixed overlay; Framer Motion does NOT touch this div's transform */}
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "16px",
+              pointerEvents: "none",
+            }}
+          >
+          {/* Card — Framer Motion only animates opacity/scale/y; centering is handled by the parent flex */}
           <motion.div
             key="tour-card"
             initial={{ opacity: 0, scale: 0.88, y: 30 }}
@@ -260,11 +273,7 @@ export function AppTour({ role = "investor" }: Props) {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             style={{
-              position: "fixed",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              zIndex: 9999,
+              pointerEvents: "all",
               width: "min(360px, calc(100vw - 32px))",
               maxHeight: "min(600px, calc(100vh - 48px))",
               background: "#ffffff",
@@ -424,6 +433,7 @@ export function AppTour({ role = "investor" }: Props) {
               </div>
             </div>
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>,

@@ -22,6 +22,9 @@ interface UserRecord {
   id: number; name: string; email: string; role: string;
   emailVerified: boolean; kycStatus: "approved" | "pending" | "rejected" | "none";
   kycDocCount: number; createdAt: string;
+  creditLimitKES?: number | null;
+  maxDepositKES?: number | null;
+  maxWithdrawalKES?: number | null;
 }
 
 interface KycDoc {
@@ -33,6 +36,7 @@ interface TxRecord {
   id: number; userId: number; userName: string; userEmail: string;
   type: string; amount: string; balanceAfter: string;
   description: string | null; status: string; createdAt: string;
+  reference?: string | null;
 }
 
 type Tab = "overview" | "users" | "kyc" | "transactions" | "farms" | "payouts" | "proposals" | "reviews" | "settings" | "messages" | "activity" | "support";
@@ -614,7 +618,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const approveKycDoc = async (docId: number, status: "approved" | "rejected") => {
+  const approveKycDoc = async (docId: number, status: "approved" | "rejected" | "pending") => {
     setActionLoading(docId);
     try {
       const r = await fetch(`/api/admin/kyc/${docId}/approve`, {
@@ -623,7 +627,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({ status }),
       });
       if (r.ok) {
-        showToast(status === "approved" ? "Document approved ✓" : "Document rejected");
+        showToast(status === "approved" ? "Document approved ✓" : status === "pending" ? "Moved back to review" : "Document rejected");
         fetchKyc();
       }
     } finally {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, HelpCircle, ChevronDown, ChevronUp, Search, Send, Loader2, CheckCircle2, Clock, X, FileText, AlertCircle, Ticket, MessageSquare } from "lucide-react";
@@ -65,7 +65,7 @@ const CATEGORIES = [
   { value: "other", label: "❓ Other", desc: "Anything else" },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: JSX.Element }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: ReactElement }> = {
   open:        { label: "Open",        color: "text-blue-700",  bg: "bg-blue-50 border-blue-200",   icon: <Clock size={12} /> },
   in_progress: { label: "In Progress", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <Loader2 size={12} className="animate-spin" /> },
   resolved:    { label: "Resolved",    color: "text-green-700", bg: "bg-green-50 border-green-200", icon: <CheckCircle2 size={12} /> },
