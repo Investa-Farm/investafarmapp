@@ -138,12 +138,11 @@ export async function seedDemoUsers(log: (msg: string) => void = console.log) {
       const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, u.email));
       if (existing) {
         createdUsers[u.email] = existing.id;
-        // Ensure all demo users are verified and have the correct password
-        const passwordHash = await bcrypt.hash(u.password, 10);
-        await db.update(usersTable)
-          .set({ emailVerified: true, passwordHash })
-          .where(eq(usersTable.email, u.email));
+        // Only update if email not yet verified — avoid expensive bcrypt re-hash on every restart
         if (!existing.emailVerified) {
+          await db.update(usersTable)
+            .set({ emailVerified: true })
+            .where(eq(usersTable.email, u.email));
           log(`[seed] Auto-verified demo account: ${u.email}`);
         }
       } else {

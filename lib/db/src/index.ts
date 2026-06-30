@@ -12,11 +12,11 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: process.env.NODE_ENV === "production" ? 20 : 5,
-  min: 2,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
-  allowExitOnIdle: false,
+  max: process.env.NODE_ENV === "production" ? 10 : 5,
+  min: 0,
+  idleTimeoutMillis: 10_000,
+  connectionTimeoutMillis: 10_000,
+  allowExitOnIdle: true,
 });
 
 pool.on("error", (err) => {
