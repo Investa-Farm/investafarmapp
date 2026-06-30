@@ -1,0 +1,50 @@
+2026-06-30T08:31:53.096144075Z   dist/thread-stream-worker.mjs.map   12.0kb
+2026-06-30T08:31:53.096146415Z 
+2026-06-30T08:31:53.096149546Z ⚡ Done in 980ms
+2026-06-30T08:31:53.113395549Z ==> Build complete!
+2026-06-30T08:32:00.481888029Z ==> Uploading build...
+2026-06-30T08:32:31.305892294Z ==> Uploaded in 15.0s. Compression took 15.8s
+2026-06-30T08:32:31.424343873Z ==> Build successful 🎉
+2026-06-30T08:32:33.686750596Z ==> Deploying...
+2026-06-30T08:33:08.986064245Z ==> Running 'node --enable-source-maps artifacts/api-server/dist/index.mjs'
+2026-06-30T08:33:14.078128919Z {"level":30,"time":1782808394077,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","port":10000,"msg":"Server listening"}
+2026-06-30T08:33:14.079188327Z [EMAIL] Resend API configured — emails will use Resend (HTTP, no SMTP needed)
+2026-06-30T08:33:14.17813287Z (node:71) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+2026-06-30T08:33:14.17815311Z In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-06-30T08:33:14.17815694Z 
+2026-06-30T08:33:14.178176611Z To prepare for this change:
+2026-06-30T08:33:14.178180621Z - If you want the current behavior, explicitly use 'sslmode=verify-full'
+2026-06-30T08:33:14.178183561Z - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+2026-06-30T08:33:14.178186241Z 
+2026-06-30T08:33:14.178189881Z See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+2026-06-30T08:33:14.178193101Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-06-30T08:33:14.478686426Z {"level":40,"time":1782808394478,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","ip":"::1","ua":"go-http-client/1.1","url":"/","msg":"[security] Bot user-agent blocked on mutation"}
+2026-06-30T08:33:14.483249865Z {"level":30,"time":1782808394482,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":403},"responseTime":5,"msg":"request completed"}
+2026-06-30T08:33:14.787494357Z {"level":30,"time":1782808394787,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","msg":"[seed] Skipped john.farmer@investafarm.com: Error: Failed query: select \"id\", \"email\", \"password_hash\", \"name\", \"role\", \"email_verified\", \"account_number\", \"totp_secret\", \"totp_enabled\", \"phone\", \"county\", \"credit_limit_kes\", \"max_deposit_kes\", \"max_withdrawal_kes\", \"created_at\" from \"users\" where \"users\".\"email\" = $1\nparams: john.farmer@investafarm.com"}
+2026-06-30T08:33:15.300763635Z {"level":30,"time":1782808395300,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","msg":"[seed] Skipped david.investor@investafarm.com: Error: Failed query: select \"id\", \"email\", \"password_hash\", \"name\", \"role\", \"email_verified\", \"account_number\", \"totp_secret\", \"totp_enabled\", \"phone\", \"county\", \"credit_limit_kes\", \"max_deposit_kes\", \"max_withdrawal_kes\", \"created_at\" from \"users\" where \"users\".\"email\" = $1\nparams: david.investor@investafarm.com"}
+2026-06-30T08:33:15.806546068Z {"level":30,"time":1782808395806,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","msg":"[seed] Skipped demo.farmer@investafarm.com: Error: Failed query: select \"id\", \"email\", \"password_hash\", \"name\", \"role\", \"email_verified\", \"account_number\", \"totp_secret\", \"totp_enabled\", \"phone\", \"county\", \"credit_limit_kes\", \"max_deposit_kes\", \"max_withdrawal_kes\", \"created_at\" from \"users\" where \"users\".\"email\" = $1\nparams: demo.farmer@investafarm.com"}
+2026-06-30T08:33:16.303331808Z {"level":30,"time":1782808396303,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","msg":"[seed] Skipped demo.investor@investafarm.com: Error: Failed query: select \"id\", \"email\", \"password_hash\", \"name\", \"role\", \"email_verified\", \"account_number\", \"totp_secret\", \"totp_enabled\", \"phone\", \"county\", \"credit_limit_kes\", \"max_deposit_kes\", \"max_withdrawal_kes\", \"created_at\" from \"users\" where \"users\".\"email\" = $1\nparams: demo.investor@investafarm.com"}
+2026-06-30T08:33:16.811881603Z {"level":30,"time":1782808396811,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","msg":"[seed] Skipped demo.coop@investafarm.com: Error: Failed query: select \"id\", \"email\", \"password_hash\", \"name\", \"role\", \"email_verified\", \"account_number\", \"totp_secret\", \"totp_enabled\", \"phone\", \"county\", \"credit_limit_kes\", \"max_deposit_kes\", \"max_withdrawal_kes\", \"created_at\" from \"users\" where \"users\".\"email\" = $1\nparams: demo.coop@investafarm.com"}
+2026-06-30T08:33:17.308458057Z {"level":30,"time":1782808397308,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","msg":"[seed] Skipped admin@investafarm.com: Error: Failed query: select \"id\", \"email\", \"password_hash\", \"name\", \"role\", \"email_verified\", \"account_number\", \"totp_secret\", \"totp_enabled\", \"phone\", \"county\", \"credit_limit_kes\", \"max_deposit_kes\", \"max_withdrawal_kes\", \"created_at\" from \"users\" where \"users\".\"email\" = $1\nparams: admin@investafarm.com"}
+2026-06-30T08:33:17.809434635Z {"level":30,"time":1782808397809,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","msg":"[seed] Skipped grace.farmer@investafarm.com: Error: Failed query: select \"id\", \"email\", \"password_hash\", \"name\", \"role\", \"email_verified\", \"account_number\", \"totp_secret\", \"totp_enabled\", \"phone\", \"county\", \"credit_limit_kes\", \"max_deposit_kes\", \"max_withdrawal_kes\", \"created_at\" from \"users\" where \"users\".\"email\" = $1\nparams: grace.farmer@investafarm.com"}
+2026-06-30T08:33:18.334013538Z {"level":30,"time":1782808398331,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","msg":"[seed] Skipped peter.farmer@investafarm.com: Error: Failed query: select \"id\", \"email\", \"password_hash\", \"name\", \"role\", \"email_verified\", \"account_number\", \"totp_secret\", \"totp_enabled\", \"phone\", \"county\", \"credit_limit_kes\", \"max_deposit_kes\", \"max_withdrawal_kes\", \"created_at\" from \"users\" where \"users\".\"email\" = $1\nparams: peter.farmer@investafarm.com"}
+2026-06-30T08:33:18.82516159Z {"level":30,"time":1782808398824,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","msg":"[seed] Skipped demo.agent@investafarm.com: Error: Failed query: select \"id\", \"email\", \"password_hash\", \"name\", \"role\", \"email_verified\", \"account_number\", \"totp_secret\", \"totp_enabled\", \"phone\", \"county\", \"credit_limit_kes\", \"max_deposit_kes\", \"max_withdrawal_kes\", \"created_at\" from \"users\" where \"users\".\"email\" = $1\nparams: demo.agent@investafarm.com"}
+2026-06-30T08:33:19.308851869Z {"level":30,"time":1782808399308,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","msg":"[seed] Skipped demo.offtaker@investafarm.com: Error: Failed query: select \"id\", \"email\", \"password_hash\", \"name\", \"role\", \"email_verified\", \"account_number\", \"totp_secret\", \"totp_enabled\", \"phone\", \"county\", \"credit_limit_kes\", \"max_deposit_kes\", \"max_withdrawal_kes\", \"created_at\" from \"users\" where \"users\".\"email\" = $1\nparams: demo.offtaker@investafarm.com"}
+2026-06-30T08:33:19.982925269Z [scheduler] Weekly digest (Mon) → next run at 10:22 EAT
+2026-06-30T08:33:20.071929084Z [scheduler] Weekly digest (Fri) → next run at 20:28 EAT
+2026-06-30T08:33:20.075004124Z [scheduler] Verification reminders → next run at 08:27 EAT
+2026-06-30T08:33:20.084160102Z [scheduler] Dividend payouts → next run at 02:19 EAT
+2026-06-30T08:33:20.084184613Z [scheduler] Rainfall alerts → next run at 05:49 EAT
+2026-06-30T08:33:20.171864913Z [scheduler] ROI snapshots → next run at 02:14 EAT
+2026-06-30T08:33:20.175343923Z [scheduler] Price simulation & alerts: every 5 minutes
+2026-06-30T08:33:20.175360154Z [scheduler] Watchlist price alerts: every 5 minutes
+2026-06-30T08:33:20.175478117Z [scheduler] Order matching engine: every 2 minutes
+2026-06-30T08:33:20.175483177Z [scheduler] Daily jobs: randomised times within safe windows
+2026-06-30T08:33:24.784802812Z ==> Your service is live 🎉
+2026-06-30T08:33:24.854682954Z ==> 
+2026-06-30T08:33:24.857572101Z ==> ///////////////////////////////////////////////////////////
+2026-06-30T08:33:24.861206736Z ==> 
+2026-06-30T08:33:24.864185296Z ==> Available at your primary URL https://app.investafarm.com + 1 more domain
+2026-06-30T08:33:24.865059844Z {"level":30,"time":1782808404864,"pid":71,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-668777b89b-vstnw","req":{"id":2,"method":"GET","url":"/"},"res":{"statusCode":200},"responseTime":6,"msg":"request completed"}
+2026-06-30T08:33:24.867104045Z ==> 
+2026-06-30T08:33:24.87073842Z ==> ///////////////////////////////////////////////////////////

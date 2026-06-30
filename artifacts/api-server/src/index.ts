@@ -4,6 +4,7 @@ import { seedDemoUsers } from "./seed";
 import { startScheduler } from "./scheduler";
 import { initVapid } from "./lib/push";
 import { testSmtpConnection } from "./lib/email";
+import { ensureSchema } from "./lib/migrate";
 import { pool } from "@workspace/db";
 
 const rawPort = process.env["PORT"] ?? "8080";
@@ -50,6 +51,7 @@ const server = app.listen(port, async () => {
 
   try {
     await waitForDb();
+    await ensureSchema();
     await seedWithRetry();
   } catch (e) {
     logger.warn({ err: e }, "Seed failed after retries (non-fatal) — demo accounts may be unavailable");
