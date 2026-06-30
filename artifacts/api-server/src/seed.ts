@@ -1,134 +1,270 @@
 import bcrypt from "bcrypt";
 import { db, usersTable, farmsTable, marketListingsTable, walletsTable, walletTransactionsTable, investmentsTable, kycDocumentsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
+
+// ── Realistic Kenyan demo accounts ──────────────────────────────────────────
 
 const DEMO_USERS = [
-  { email: "john.farmer@investafarm.com",   password: "password123", name: "John Kamau",         role: "farmer"       as const },
-  { email: "david.investor@investafarm.com",password: "password123", name: "David Mwangi",       role: "investor"     as const },
-  { email: "demo.farmer@investafarm.com",   password: "password123", name: "Demo Farmer",         role: "farmer"       as const },
-  { email: "demo.investor@investafarm.com", password: "password123", name: "Demo Investor",       role: "investor"     as const },
-  { email: "demo.coop@investafarm.com",     password: "password123", name: "Demo Coop",           role: "cooperative"  as const },
-  { email: "admin@investafarm.com",         password: "admin2024!",  name: "Platform Admin",      role: "admin"        as const },
-  { email: "grace.farmer@investafarm.com",  password: "password123", name: "Grace Wanjiku",       role: "farmer"       as const },
-  { email: "peter.farmer@investafarm.com",  password: "password123", name: "Peter Otieno",        role: "farmer"       as const },
-  { email: "demo.agent@investafarm.com",    password: "password123", name: "Demo Sales Agent",    role: "agribusiness" as const },
-  { email: "demo.offtaker@investafarm.com", password: "password123", name: "Demo Offtaker",       role: "agribusiness" as const },
+  // Core accounts
+  { email: "john.farmer@investafarm.com",       password: "password123", name: "John Kamau",             role: "farmer"       as const },
+  { email: "david.investor@investafarm.com",    password: "password123", name: "David Mwangi",           role: "investor"     as const },
+  { email: "admin@investafarm.com",             password: "admin2024!",  name: "Platform Admin",         role: "admin"        as const },
+  { email: "grace.farmer@investafarm.com",      password: "password123", name: "Grace Wanjiku",          role: "farmer"       as const },
+  { email: "peter.farmer@investafarm.com",      password: "password123", name: "Peter Otieno",           role: "farmer"       as const },
+  { email: "demo.coop@investafarm.com",         password: "password123", name: "Mwea Farmers Coop",      role: "cooperative"  as const },
+  { email: "demo.agent@investafarm.com",        password: "password123", name: "Samuel Njoroge",         role: "agribusiness" as const },
+  { email: "demo.offtaker@investafarm.com",     password: "password123", name: "Rift Valley Buyers Ltd", role: "agribusiness" as const },
+  // Extra farmers — real Kenyan names
+  { email: "mary.akinyi@investafarm.com",       password: "password123", name: "Mary Akinyi",            role: "farmer"       as const },
+  { email: "james.mwangi@investafarm.com",      password: "password123", name: "James Mwangi",           role: "farmer"       as const },
+  { email: "fatuma.hassan@investafarm.com",     password: "password123", name: "Fatuma Hassan",          role: "farmer"       as const },
+  { email: "lucy.chebet@investafarm.com",       password: "password123", name: "Lucy Chebet",            role: "farmer"       as const },
+  { email: "daniel.omondi@investafarm.com",     password: "password123", name: "Daniel Omondi",          role: "farmer"       as const },
+  { email: "sarah.wanjiru@investafarm.com",     password: "password123", name: "Sarah Wanjiru",          role: "farmer"       as const },
+  { email: "moses.kipkemoi@investafarm.com",    password: "password123", name: "Moses Kipkemoi",         role: "farmer"       as const },
+  // Extra investors — real Kenyan names
+  { email: "alice.njeri@investafarm.com",       password: "password123", name: "Alice Njeri",            role: "investor"     as const },
+  { email: "robert.kipchoge@investafarm.com",   password: "password123", name: "Robert Kipchoge",        role: "investor"     as const },
+  { email: "amina.mohamed@investafarm.com",     password: "password123", name: "Amina Mohamed",          role: "investor"     as const },
+  { email: "brian.odhiambo@investafarm.com",    password: "password123", name: "Brian Odhiambo",         role: "investor"     as const },
+  { email: "catherine.wairimu@investafarm.com", password: "password123", name: "Catherine Wairimu",      role: "investor"     as const },
+  { email: "dennis.kamau@investafarm.com",      password: "password123", name: "Dennis Kamau",           role: "investor"     as const },
+  { email: "esther.mutua@investafarm.com",      password: "password123", name: "Esther Mutua",           role: "investor"     as const },
+  { email: "francis.kariuki@investafarm.com",   password: "password123", name: "Francis Kariuki",        role: "investor"     as const },
+  { email: "gloria.achieng@investafarm.com",    password: "password123", name: "Gloria Achieng",         role: "investor"     as const },
+  { email: "hassan.omar@investafarm.com",       password: "password123", name: "Hassan Omar",            role: "investor"     as const },
+  { email: "irene.wambui@investafarm.com",      password: "password123", name: "Irene Wambui",           role: "investor"     as const },
+  // Pre-seeded viewer sub-accounts (read-only admin access)
+  { email: "finance.team@investafarm.com",      password: "viewer2024!", name: "Finance Team",           role: "viewer"       as const },
+  { email: "james.viewer@investafarm.com",      password: "viewer2024!", name: "James Kariuki",          role: "viewer"       as const },
 ];
 
+// All farms — each has a farmerEmail mapping
 const DEMO_FARMS = [
   {
-    name: "Kamau Coffee Estate",
-    cropType: "Coffee",
-    location: "Kiambu, Central Kenya",
-    loanAmount: "850000",
-    totalShares: 8500,
-    sharePrice: "100",
-    sharesAvailable: 3200,
-    changePercent: "8.24",
-    tradeCount: 142,
-    currentPrice: "108",
+    name: "Kamau Coffee Estate",        cropType: "Coffee",    farmerEmail: "john.farmer@investafarm.com",
+    location: "Kiambu, Central Kenya",  loanAmount: "850000",  totalShares: 8500, sharePrice: "100",
+    sharesAvailable: 3200, changePercent: "8.24",  tradeCount: 142, currentPrice: "108", status: "active" as const,
     description: "Premium arabica coffee farm on the slopes of the Aberdare ranges. Award-winning single-origin beans exported to Europe.",
-    status: "active" as const,
   },
   {
-    name: "Rift Valley Maize Farms",
-    cropType: "Maize",
-    location: "Nakuru, Rift Valley",
-    loanAmount: "1200000",
-    totalShares: 12000,
-    sharePrice: "100",
-    sharesAvailable: 4800,
-    changePercent: "3.15",
-    tradeCount: 89,
-    currentPrice: "103",
+    name: "Rift Valley Maize Farms",    cropType: "Maize",     farmerEmail: "john.farmer@investafarm.com",
+    location: "Nakuru, Rift Valley",    loanAmount: "1200000", totalShares: 12000, sharePrice: "100",
+    sharesAvailable: 4800, changePercent: "3.15",  tradeCount: 89,  currentPrice: "103", status: "active" as const,
     description: "Large-scale hybrid maize production serving Nakuru county markets. 3rd generation family farm with modern irrigation.",
-    status: "active" as const,
   },
   {
-    name: "Kirinyaga Tea Cooperative",
-    cropType: "Tea",
-    location: "Kirinyaga, Mt. Kenya Region",
-    loanAmount: "2100000",
-    totalShares: 21000,
-    sharePrice: "100",
-    sharesAvailable: 7500,
-    changePercent: "12.60",
-    tradeCount: 215,
-    currentPrice: "113",
+    name: "Kirinyaga Tea Cooperative",  cropType: "Tea",       farmerEmail: "grace.farmer@investafarm.com",
+    location: "Kirinyaga, Mt. Kenya Region", loanAmount: "2100000", totalShares: 21000, sharePrice: "100",
+    sharesAvailable: 7500, changePercent: "12.60", tradeCount: 215, currentPrice: "113", status: "active" as const,
     description: "High-altitude KTDA-affiliated tea farm at 2,100m. Purple tea and green tea varieties fetching premium export prices.",
-    status: "active" as const,
   },
   {
-    name: "Laikipia Avocado Orchards",
-    cropType: "Avocado",
-    location: "Laikipia, Central Rift",
-    loanAmount: "650000",
-    totalShares: 6500,
-    sharePrice: "100",
-    sharesAvailable: 2800,
-    changePercent: "6.80",
-    tradeCount: 77,
-    currentPrice: "107",
+    name: "Laikipia Avocado Orchards",  cropType: "Avocado",   farmerEmail: "grace.farmer@investafarm.com",
+    location: "Laikipia, Central Rift", loanAmount: "650000",  totalShares: 6500, sharePrice: "100",
+    sharesAvailable: 2800, changePercent: "6.80",  tradeCount: 77,  currentPrice: "107", status: "active" as const,
     description: "Hass avocado orchard supplying EU export markets via Flamingo Horticulture. GlobalGAP certified.",
-    status: "active" as const,
   },
   {
-    name: "Meru Macadamia Plantation",
-    cropType: "Macadamia",
-    location: "Meru, Eastern Kenya",
-    loanAmount: "980000",
-    totalShares: 9800,
-    sharePrice: "100",
-    sharesAvailable: 5500,
-    changePercent: "15.40",
-    tradeCount: 166,
-    currentPrice: "115",
+    name: "Meru Macadamia Plantation",  cropType: "Macadamia", farmerEmail: "peter.farmer@investafarm.com",
+    location: "Meru, Eastern Kenya",    loanAmount: "980000",  totalShares: 9800, sharePrice: "100",
+    sharesAvailable: 5500, changePercent: "15.40", tradeCount: 166, currentPrice: "115", status: "active" as const,
     description: "Macadamia nut farm with processing unit. Premium grade nuts exported to Asia and Middle East markets.",
-    status: "active" as const,
   },
   {
-    name: "Wanjiku Fresh Tomatoes",
-    cropType: "Tomatoes",
-    location: "Thika, Kiambu County",
-    loanAmount: "420000",
-    totalShares: 4200,
-    sharePrice: "100",
-    sharesAvailable: 1900,
-    changePercent: "-2.10",
-    tradeCount: 53,
-    currentPrice: "98",
+    name: "Wanjiku Fresh Tomatoes",     cropType: "Tomatoes",  farmerEmail: "john.farmer@investafarm.com",
+    location: "Thika, Kiambu County",   loanAmount: "420000",  totalShares: 4200, sharePrice: "100",
+    sharesAvailable: 1900, changePercent: "-2.10", tradeCount: 53,  currentPrice: "98",  status: "active" as const,
     description: "Greenhouse tomato farm supplying Nairobi supermarket chains. Drip irrigation system with solar pumping.",
-    status: "active" as const,
   },
   {
-    name: "Otieno Rice Fields",
-    cropType: "Rice",
-    location: "Ahero, Kisumu County",
-    loanAmount: "750000",
-    totalShares: 7500,
-    sharePrice: "100",
-    sharesAvailable: 3100,
-    changePercent: "4.50",
-    tradeCount: 94,
-    currentPrice: "105",
+    name: "Otieno Rice Fields",         cropType: "Rice",      farmerEmail: "peter.farmer@investafarm.com",
+    location: "Ahero, Kisumu County",   loanAmount: "750000",  totalShares: 7500, sharePrice: "100",
+    sharesAvailable: 3100, changePercent: "4.50",  tradeCount: 94,  currentPrice: "105", status: "active" as const,
     description: "Irrigated paddy rice in the Ahero Irrigation Scheme. Supplying Kisumu and Nairobi supermarkets.",
-    status: "active" as const,
   },
   {
-    name: "Narok Sunflower Collective",
-    cropType: "Sorghum",
-    location: "Narok, Rift Valley",
-    loanAmount: "540000",
-    totalShares: 5400,
-    sharePrice: "100",
-    sharesAvailable: 2200,
-    changePercent: "7.30",
-    tradeCount: 61,
-    currentPrice: "107",
+    name: "Narok Sunflower Collective", cropType: "Sorghum",   farmerEmail: "grace.farmer@investafarm.com",
+    location: "Narok, Rift Valley",     loanAmount: "540000",  totalShares: 5400, sharePrice: "100",
+    sharesAvailable: 2200, changePercent: "7.30",  tradeCount: 61,  currentPrice: "107", status: "active" as const,
     description: "Drought-resistant sorghum and sunflower intercropping. Selling to local millers and biofuel processors.",
-    status: "active" as const,
+  },
+  // New farms for new farmers
+  {
+    name: "Akinyi Dairy & Kale Farm",   cropType: "Kale",      farmerEmail: "mary.akinyi@investafarm.com",
+    location: "Kisumu, Nyanza",          loanAmount: "380000",  totalShares: 3800, sharePrice: "100",
+    sharesAvailable: 1500, changePercent: "5.20",  tradeCount: 44,  currentPrice: "105", status: "active" as const,
+    description: "Mixed kale and small-scale dairy supplying Kisumu fresh markets. Solar-powered borehole irrigation.",
+  },
+  {
+    name: "Mwangi Wheat Estate",        cropType: "Wheat",     farmerEmail: "james.mwangi@investafarm.com",
+    location: "Nakuru, Central Rift",   loanAmount: "920000",  totalShares: 9200, sharePrice: "100",
+    sharesAvailable: 4100, changePercent: "2.80",  tradeCount: 67,  currentPrice: "103", status: "active" as const,
+    description: "Certified wheat farm supplying Unga Ltd flour mills. KALRO improved-variety seeds. Fully mechanised harvesting.",
+  },
+  {
+    name: "Hassan Coastal Cassava",     cropType: "Cassava",   farmerEmail: "fatuma.hassan@investafarm.com",
+    location: "Kilifi, Coast Kenya",    loanAmount: "290000",  totalShares: 2900, sharePrice: "100",
+    sharesAvailable: 1200, changePercent: "9.10",  tradeCount: 38,  currentPrice: "109", status: "active" as const,
+    description: "Drought-resilient cassava farm supplying starch processors and local food manufacturers on the Kenya coast.",
+  },
+  {
+    name: "Chebet Highlands Coffee",    cropType: "Coffee",    farmerEmail: "lucy.chebet@investafarm.com",
+    location: "Uasin Gishu, Rift Valley", loanAmount: "470000", totalShares: 4700, sharePrice: "100",
+    sharesAvailable: 2100, changePercent: "11.30", tradeCount: 58,  currentPrice: "111", status: "active" as const,
+    description: "High-altitude arabica coffee intercropping in the Uasin Gishu highlands. Premium export contracts secured.",
+  },
+  {
+    name: "Omondi Homa Bay Fish Farm",  cropType: "Dairy",     farmerEmail: "daniel.omondi@investafarm.com",
+    location: "Homa Bay, Nyanza",       loanAmount: "620000",  totalShares: 6200, sharePrice: "100",
+    sharesAvailable: 2800, changePercent: "6.40",  tradeCount: 72,  currentPrice: "106", status: "active" as const,
+    description: "Cage fish farming in Lake Victoria. Tilapia and Nile perch. Supplying premium hotels and export processors.",
+  },
+  {
+    name: "Wanjiru Banana Plantation",  cropType: "Maize",     farmerEmail: "sarah.wanjiru@investafarm.com",
+    location: "Meru, Mt. Kenya Region", loanAmount: "340000",  totalShares: 3400, sharePrice: "100",
+    sharesAvailable: 1400, changePercent: "8.70",  tradeCount: 51,  currentPrice: "109", status: "active" as const,
+    description: "Cavendish banana plantation integrated with maize intercropping. Export-grade bunches to Middle East supermarkets.",
+  },
+  {
+    name: "Kipkemoi Tea & Flowers",     cropType: "Tea",       farmerEmail: "moses.kipkemoi@investafarm.com",
+    location: "Kericho, Rift Valley",   loanAmount: "780000",  totalShares: 7800, sharePrice: "100",
+    sharesAvailable: 3500, changePercent: "13.20", tradeCount: 95,  currentPrice: "113", status: "active" as const,
+    description: "CTC black tea with intercropped cut flowers for export to Netherlands and Japan. KTDA factory certified.",
   },
 ];
+
+// Wallet balances for all users
+const WALLET_BALANCES: Record<string, number> = {
+  "david.investor@investafarm.com":     150000,
+  "john.farmer@investafarm.com":         25000,
+  "grace.farmer@investafarm.com":        20000,
+  "peter.farmer@investafarm.com":        18000,
+  "demo.agent@investafarm.com":          50000,
+  "demo.offtaker@investafarm.com":       80000,
+  "alice.njeri@investafarm.com":        220000,
+  "robert.kipchoge@investafarm.com":    185000,
+  "amina.mohamed@investafarm.com":      310000,
+  "brian.odhiambo@investafarm.com":      95000,
+  "catherine.wairimu@investafarm.com":  275000,
+  "dennis.kamau@investafarm.com":       140000,
+  "esther.mutua@investafarm.com":        78000,
+  "francis.kariuki@investafarm.com":    430000,
+  "gloria.achieng@investafarm.com":     160000,
+  "hassan.omar@investafarm.com":        520000,
+  "irene.wambui@investafarm.com":       105000,
+  "mary.akinyi@investafarm.com":         32000,
+  "james.mwangi@investafarm.com":        45000,
+  "fatuma.hassan@investafarm.com":       28000,
+  "lucy.chebet@investafarm.com":         38000,
+  "daniel.omondi@investafarm.com":       22000,
+  "sarah.wanjiru@investafarm.com":       31000,
+  "moses.kipkemoi@investafarm.com":      41000,
+};
+
+// Per-investor investment allocations
+const INVESTOR_INVESTMENTS: Array<{
+  email: string;
+  investments: Array<{ farmIdx: number; shares: number; exitType: string }>;
+}> = [
+  {
+    email: "david.investor@investafarm.com",
+    investments: [
+      { farmIdx: 0, shares: 500, exitType: "full_season" },
+      { farmIdx: 1, shares: 800, exitType: "full_season" },
+      { farmIdx: 2, shares: 400, exitType: "mid_season"  },
+      { farmIdx: 3, shares: 600, exitType: "full_season" },
+      { farmIdx: 4, shares: 300, exitType: "mid_season"  },
+    ],
+  },
+  {
+    email: "alice.njeri@investafarm.com",
+    investments: [
+      { farmIdx: 0, shares: 400, exitType: "full_season" },
+      { farmIdx: 2, shares: 700, exitType: "full_season" },
+      { farmIdx: 5, shares: 200, exitType: "mid_season"  },
+    ],
+  },
+  {
+    email: "robert.kipchoge@investafarm.com",
+    investments: [
+      { farmIdx: 1, shares: 600, exitType: "full_season" },
+      { farmIdx: 3, shares: 350, exitType: "mid_season"  },
+      { farmIdx: 6, shares: 500, exitType: "full_season" },
+    ],
+  },
+  {
+    email: "amina.mohamed@investafarm.com",
+    investments: [
+      { farmIdx: 2, shares: 1000, exitType: "full_season" },
+      { farmIdx: 4, shares:  400, exitType: "full_season" },
+      { farmIdx: 7, shares:  300, exitType: "mid_season"  },
+    ],
+  },
+  {
+    email: "brian.odhiambo@investafarm.com",
+    investments: [
+      { farmIdx: 0, shares: 250, exitType: "mid_season"  },
+      { farmIdx: 5, shares: 300, exitType: "full_season" },
+    ],
+  },
+  {
+    email: "catherine.wairimu@investafarm.com",
+    investments: [
+      { farmIdx: 1, shares: 800, exitType: "full_season" },
+      { farmIdx: 3, shares: 500, exitType: "full_season" },
+      { farmIdx: 6, shares: 200, exitType: "mid_season"  },
+    ],
+  },
+  {
+    email: "dennis.kamau@investafarm.com",
+    investments: [
+      { farmIdx: 2, shares: 600, exitType: "full_season" },
+      { farmIdx: 4, shares: 200, exitType: "mid_season"  },
+    ],
+  },
+  {
+    email: "esther.mutua@investafarm.com",
+    investments: [
+      { farmIdx: 0, shares: 150, exitType: "mid_season"  },
+      { farmIdx: 7, shares: 200, exitType: "full_season" },
+    ],
+  },
+  {
+    email: "francis.kariuki@investafarm.com",
+    investments: [
+      { farmIdx: 1, shares: 1200, exitType: "full_season" },
+      { farmIdx: 2, shares:  500, exitType: "full_season" },
+      { farmIdx: 3, shares:  400, exitType: "mid_season"  },
+      { farmIdx: 5, shares:  300, exitType: "full_season" },
+    ],
+  },
+  {
+    email: "gloria.achieng@investafarm.com",
+    investments: [
+      { farmIdx: 3, shares: 500, exitType: "full_season" },
+      { farmIdx: 6, shares: 300, exitType: "mid_season"  },
+    ],
+  },
+  {
+    email: "hassan.omar@investafarm.com",
+    investments: [
+      { farmIdx: 0, shares:  800, exitType: "full_season" },
+      { farmIdx: 2, shares:  600, exitType: "full_season" },
+      { farmIdx: 4, shares:  500, exitType: "full_season" },
+      { farmIdx: 7, shares:  400, exitType: "mid_season"  },
+    ],
+  },
+  {
+    email: "irene.wambui@investafarm.com",
+    investments: [
+      { farmIdx: 1, shares: 400, exitType: "mid_season"  },
+      { farmIdx: 5, shares: 200, exitType: "full_season" },
+    ],
+  },
+];
+
+// ── Main entry ─────────────────────────────────────────────────────────────
 
 export async function seedDemoUsers(log: (msg: string) => void = console.log) {
   const createdUsers: Record<string, number> = {};
@@ -138,20 +274,22 @@ export async function seedDemoUsers(log: (msg: string) => void = console.log) {
       const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, u.email));
       if (existing) {
         createdUsers[u.email] = existing.id;
-        // Only update if email not yet verified — avoid expensive bcrypt re-hash on every restart
         if (!existing.emailVerified) {
-          await db.update(usersTable)
-            .set({ emailVerified: true })
-            .where(eq(usersTable.email, u.email));
-          log(`[seed] Auto-verified demo account: ${u.email}`);
+          await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.email, u.email));
+          log(`[seed] Auto-verified: ${u.email}`);
+        }
+        // Update display name if it was a generic "Demo *" placeholder
+        if (existing.name.startsWith("Demo ")) {
+          await db.update(usersTable).set({ name: u.name }).where(eq(usersTable.email, u.email));
+          log(`[seed] Renamed: ${existing.name} → ${u.name}`);
         }
       } else {
         const passwordHash = await bcrypt.hash(u.password, 10);
         const [inserted] = await db.insert(usersTable)
-          .values({ email: u.email, passwordHash, name: u.name, role: u.role, emailVerified: true })
+          .values({ email: u.email, passwordHash, name: u.name, role: u.role as any, emailVerified: true })
           .returning({ id: usersTable.id });
         createdUsers[u.email] = inserted!.id;
-        log(`[seed] Created: ${u.email} (${u.role})`);
+        log(`[seed] Created: ${u.name} (${u.role})`);
       }
     } catch (err) {
       log(`[seed] Skipped ${u.email}: ${String(err)}`);
@@ -159,221 +297,232 @@ export async function seedDemoUsers(log: (msg: string) => void = console.log) {
   }
 
   await seedFarmsAndListings(createdUsers, log);
-  await seedDemoWallets(createdUsers, log);
-  await seedDemoKyc(createdUsers, log);
+  await seedAllWallets(createdUsers, log);
+  await seedAllKyc(createdUsers, log);
 }
 
-async function seedDemoKyc(userIds: Record<string, number>, log: (msg: string) => void) {
-  const farmerEmails = [
-    "john.farmer@investafarm.com",
-    "demo.farmer@investafarm.com",
-    "grace.farmer@investafarm.com",
-    "peter.farmer@investafarm.com",
-  ];
+// ── KYC ─────────────────────────────────────────────────────────────────────
+
+async function seedAllKyc(userIds: Record<string, number>, log: (msg: string) => void) {
+  const farmerEmails = DEMO_USERS.filter(u => u.role === "farmer").map(u => u.email);
   for (const email of farmerEmails) {
     const userId = userIds[email];
     if (!userId) continue;
     const existing = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.userId, userId));
     if (existing.length > 0) continue;
-    await db.insert(kycDocumentsTable).values([
-      {
-        userId,
-        docType: "national_id" as const,
-        title: "National ID",
-        fileUrl: "",
-        status: "approved" as const,
-        notes: "Demo — auto-approved",
-        reviewedAt: new Date(),
-      },
-      {
-        userId,
-        docType: "farm_report" as const,
-        title: "Farm Report",
-        fileUrl: "",
-        status: "approved" as const,
-        notes: "Demo — auto-approved",
-        reviewedAt: new Date(),
-      },
-    ]);
-    log(`[seed] KYC approved for ${email}`);
+    try {
+      await db.insert(kycDocumentsTable).values([
+        { userId, docType: "national_id" as const, title: "National ID", fileUrl: "", status: "approved" as const, notes: "Demo — auto-approved", reviewedAt: new Date() },
+        { userId, docType: "farm_report" as const,  title: "Farm Report", fileUrl: "", status: "approved" as const, notes: "Demo — auto-approved", reviewedAt: new Date() },
+      ]);
+      log(`[seed] KYC approved for ${email}`);
+    } catch { /* skip */ }
   }
 }
 
-const DEMO_WALLET_BALANCES: Record<string, number> = {
-  "david.investor@investafarm.com":   150000,
-  "demo.investor@investafarm.com":     75000,
-  "john.farmer@investafarm.com":       25000,
-  "demo.farmer@investafarm.com":       15000,
-  "grace.farmer@investafarm.com":      20000,
-  "peter.farmer@investafarm.com":      18000,
-  "demo.agent@investafarm.com":        50000,
-  "demo.offtaker@investafarm.com":     80000,
-};
+// ── Wallets ──────────────────────────────────────────────────────────────────
 
-async function seedDemoWallets(userIds: Record<string, number>, log: (msg: string) => void) {
-  for (const [email, balance] of Object.entries(DEMO_WALLET_BALANCES)) {
+async function seedAllWallets(userIds: Record<string, number>, log: (msg: string) => void) {
+  for (const [email, balance] of Object.entries(WALLET_BALANCES)) {
     const userId = userIds[email];
     if (!userId) continue;
     try {
       const [existing] = await db.select().from(walletsTable).where(eq(walletsTable.userId, userId));
-      if (existing && parseFloat(existing.balance) > 0) continue;
       if (existing) {
-        await db.update(walletsTable)
-          .set({ balance: String(balance), updatedAt: new Date() })
-          .where(eq(walletsTable.id, existing.id));
-      } else {
-        const [wallet] = await db.insert(walletsTable)
-          .values({ userId, balance: String(balance), currency: "KES" })
-          .returning();
-        await db.insert(walletTransactionsTable).values({
-          walletId: wallet!.id,
-          userId,
-          type: "deposit",
-          amount: String(balance),
-          balanceAfter: String(balance),
-          description: "Demo account starter balance",
-          reference: `DEMO-SEED-${userId}`,
-          status: "completed",
-        });
+        if (parseFloat(existing.balance) === 0) {
+          await db.update(walletsTable).set({ balance: String(balance), updatedAt: new Date() }).where(eq(walletsTable.id, existing.id));
+        }
+        continue;
       }
+      const [wallet] = await db.insert(walletsTable)
+        .values({ userId, balance: String(balance), currency: "KES" })
+        .returning();
+      await db.insert(walletTransactionsTable).values({
+        walletId: wallet!.id,
+        userId,
+        type: "deposit",
+        amount: String(balance),
+        balanceAfter: String(balance),
+        description: "Account opening deposit",
+        reference: `SEED-OPEN-${userId}`,
+        status: "completed",
+      });
       log(`[seed] Wallet funded: ${email} → KES ${balance.toLocaleString()}`);
     } catch (err) {
       log(`[seed] Wallet skip ${email}: ${String(err)}`);
     }
   }
-  await seedDemoInvestments(userIds, log);
+
+  await seedRichTransactions(userIds, log);
+  await seedAllInvestments(userIds, log);
 }
 
-async function seedDemoInvestments(userIds: Record<string, number>, log: (msg: string) => void) {
-  const investorId = userIds["david.investor@investafarm.com"] ?? userIds["demo.investor@investafarm.com"];
-  if (!investorId) return;
+// ── Rich transaction history for investors ────────────────────────────────────
 
-  const existingInvestments = await db.select().from(investmentsTable)
-    .where(eq(investmentsTable.investorId, investorId));
-  if (existingInvestments.length > 0) return;
+async function seedRichTransactions(userIds: Record<string, number>, log: (msg: string) => void) {
+  const investorEmails = DEMO_USERS.filter(u => u.role === "investor").map(u => u.email);
 
-  const farms = await db.select().from(farmsTable).limit(5);
-  if (farms.length === 0) return;
+  const TX_DESCRIPTIONS: Record<string, string[]> = {
+    deposit:    ["M-Pesa deposit via Safaricom", "Bank transfer — Equity Bank", "Airtel Money deposit", "Bank transfer — KCB", "Card deposit — Visa", "M-Pesa PayBill deposit"],
+    withdrawal: ["Withdrawal to M-Pesa", "Bank withdrawal — Equity Bank", "M-Pesa cash-out", "Bank withdrawal — Co-op Bank"],
+    return:     ["Mid-season dividend payout", "Full-season harvest return", "Secondary market sale proceeds", "Harvest dividend payment"],
+    fee:        ["Platform fee — primary purchase", "Secondary trade commission", "Withdrawal processing fee"],
+  };
 
-  const demoInvestments = [
-    { shares: 500,  exitType: "full_season" },
-    { shares: 800,  exitType: "full_season" },
-    { shares: 400,  exitType: "mid_season"  },
-    { shares: 600,  exitType: "full_season" },
-    { shares: 300,  exitType: "mid_season"  },
+  const TX_AMOUNTS: Record<string, number[]> = {
+    deposit:    [10000, 25000, 50000, 75000, 100000, 150000],
+    withdrawal: [5000, 10000, 20000, 30000],
+    return:     [3500, 7200, 12400, 18600, 25000],
+    fee:        [150, 375, 750, 1125],
+  };
+
+  const TX_SEQUENCE: Array<"deposit" | "return" | "fee" | "withdrawal"> = [
+    "deposit", "deposit", "return", "fee", "withdrawal", "deposit", "return", "deposit", "fee",
   ];
 
-  for (let i = 0; i < Math.min(farms.length, demoInvestments.length); i++) {
-    const farm = farms[i]!;
-    const cfg = demoInvestments[i]!;
-    try {
-      await db.insert(investmentsTable).values({
-        investorId,
-        farmId: farm.id,
-        quantity: cfg.shares,
-        purchasePrice: farm.sharePrice,
-        exitType: cfg.exitType,
-        status: "active",
-      });
-      log(`[seed] Investment: ${farm.name} — ${cfg.shares} shares for investor ${investorId}`);
-    } catch (err) {
-      log(`[seed] Investment skip ${farm.name}: ${String(err)}`);
+  for (const email of investorEmails) {
+    const userId = userIds[email];
+    if (!userId) continue;
+
+    const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, userId));
+    if (!wallet) continue;
+
+    const [txCountRow] = await db.select({ c: count() }).from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.userId, userId));
+    if ((txCountRow?.c ?? 0) >= 5) continue;
+
+    const numTx = 6 + (userId % 4);
+    let running = parseFloat(wallet.balance);
+
+    for (let i = 0; i < Math.min(numTx, TX_SEQUENCE.length); i++) {
+      const txType = TX_SEQUENCE[i]!;
+      const ref = `TX-SEED-${userId}-${i}`;
+
+      const [dup] = await db.select({ c: count() }).from(walletTransactionsTable)
+        .where(eq(walletTransactionsTable.reference, ref));
+      if ((dup?.c ?? 0) > 0) continue;
+
+      const descs = TX_DESCRIPTIONS[txType]!;
+      const amts  = TX_AMOUNTS[txType]!;
+      const description = descs[(userId + i) % descs.length]!;
+      const amount      = amts[(userId + i) % amts.length]!;
+
+      const isCredit = txType === "deposit" || txType === "return";
+      if (!isCredit && running < amount) continue;
+      running = isCredit ? running + amount : running - amount;
+
+      const daysAgo = (numTx - i) * 14 + (userId % 5);
+      const createdAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+
+      try {
+        await db.insert(walletTransactionsTable).values({
+          walletId: wallet.id,
+          userId,
+          type: txType,
+          amount: String(amount),
+          balanceAfter: String(Math.round(running)),
+          description,
+          reference: ref,
+          status: "completed",
+          createdAt,
+        } as any);
+      } catch { /* skip */ }
     }
+    log(`[seed] Transactions seeded for ${email}`);
   }
 }
 
+// ── Investments ─────────────────────────────────────────────────────────────
+
+async function seedAllInvestments(userIds: Record<string, number>, log: (msg: string) => void) {
+  const farms = await db.select().from(farmsTable).limit(20);
+  if (farms.length === 0) return;
+
+  for (const { email, investments } of INVESTOR_INVESTMENTS) {
+    const investorId = userIds[email];
+    if (!investorId) continue;
+
+    const existing = await db.select().from(investmentsTable).where(eq(investmentsTable.investorId, investorId));
+    if (existing.length > 0) continue;
+
+    for (const inv of investments) {
+      const farm = farms[inv.farmIdx];
+      if (!farm) continue;
+      try {
+        await db.insert(investmentsTable).values({
+          investorId,
+          farmId: farm.id,
+          quantity: inv.shares,
+          purchasePrice: farm.sharePrice,
+          exitType: inv.exitType,
+          status: "active",
+        });
+      } catch { /* skip */ }
+    }
+    log(`[seed] Investments seeded for ${email} (${investments.length} positions)`);
+  }
+}
+
+// ── Farms & listings ────────────────────────────────────────────────────────
+
 async function seedFarmsAndListings(userIds: Record<string, number>, log: (msg: string) => void) {
-  let existingFarms: unknown[];
+  let existingFarms: { id: number; name: string; farmerId: number }[];
   try {
-    existingFarms = await db.select().from(farmsTable).limit(1);
+    existingFarms = await db.select({ id: farmsTable.id, name: farmsTable.name, farmerId: farmsTable.farmerId }).from(farmsTable);
   } catch (e) {
     log(`[seed] Skipping farms — table not ready: ${String(e)}`);
     return;
   }
-  if (existingFarms.length > 0) {
-    // Reset changePercent and currentPrice to seed values on every restart
-    // (prevents scheduler from leaving stale extreme values between restarts)
-    // Match by both name AND known farmer IDs to avoid touching non-demo farms.
-    const demoFarmerIds = Object.values(userIds).filter(Boolean);
-    const allFarms = await db.select({ id: farmsTable.id, name: farmsTable.name, farmerId: farmsTable.farmerId }).from(farmsTable);
-    for (const farm of DEMO_FARMS) {
-      const match = allFarms.find(f => f.name === farm.name && demoFarmerIds.includes(f.farmerId));
-      if (!match) continue;
+
+  const existingNames = new Set(existingFarms.map(f => f.name));
+
+  for (const farm of DEMO_FARMS) {
+    const farmerId = userIds[farm.farmerEmail];
+    if (!farmerId) continue;
+
+    // Reset prices on existing farms to prevent scheduler drift
+    const match = existingFarms.find(f => f.name === farm.name);
+    if (match) {
       await db.update(farmsTable)
         .set({ changePercent: farm.changePercent, currentPrice: farm.currentPrice })
         .where(eq(farmsTable.id, match.id))
         .catch(() => {});
+      continue;
     }
-    await seedSecondaryListings(userIds, log);
-    return;
+
+    if (existingNames.has(farm.name)) continue;
+
+    try {
+      const { farmerEmail: _ignored, ...farmData } = farm;
+      const [inserted] = await db.insert(farmsTable).values({ ...farmData, farmerId }).returning({ id: farmsTable.id });
+      existingNames.add(farm.name);
+      log(`[seed] Farm: ${farm.name}`);
+
+      await db.insert(marketListingsTable).values({
+        farmId: inserted!.id,
+        sellerId: farmerId,
+        listingType: "primary",
+        sharesAvailable: farm.sharesAvailable,
+        pricePerShare: farm.currentPrice,
+        isActive: 1,
+      }).catch(() => {});
+    } catch (err) {
+      log(`[seed] Farm skip ${farm.name}: ${String(err)}`);
+    }
   }
 
-  log("[seed] Seeding demo farms and listings…");
-
-  const farmerEmails = [
-    "john.farmer@investafarm.com",
-    "john.farmer@investafarm.com",
-    "grace.farmer@investafarm.com",
-    "grace.farmer@investafarm.com",
-    "peter.farmer@investafarm.com",
-    "john.farmer@investafarm.com",
-    "peter.farmer@investafarm.com",
-    "grace.farmer@investafarm.com",
-  ];
-
-  const createdFarmIds: number[] = [];
-
-  for (let i = 0; i < DEMO_FARMS.length; i++) {
-    const farm = DEMO_FARMS[i]!;
-    const farmerEmail = farmerEmails[i]!;
-    const farmerId = userIds[farmerEmail];
-    if (!farmerId) continue;
-
-    const [inserted] = await db.insert(farmsTable).values({
-      ...farm,
-      farmerId,
-    }).returning({ id: farmsTable.id });
-
-    createdFarmIds.push(inserted!.id);
-    log(`[seed] Farm: ${farm.name}`);
-
-    await db.insert(marketListingsTable).values({
-      farmId: inserted!.id,
-      sellerId: farmerId,
-      listingType: "primary",
-      sharesAvailable: farm.sharesAvailable,
-      pricePerShare: farm.currentPrice,
-      isActive: 1,
-    });
-    log(`[seed] Primary listing for ${farm.name}`);
-  }
-
-  await seedSecondaryListings(userIds, log, createdFarmIds);
+  await seedSecondaryListings(userIds, log);
 }
 
-async function seedSecondaryListings(
-  userIds: Record<string, number>,
-  log: (msg: string) => void,
-  farmIds?: number[]
-) {
-  const existing = await db
-    .select()
-    .from(marketListingsTable)
+async function seedSecondaryListings(userIds: Record<string, number>, log: (msg: string) => void) {
+  const existing = await db.select().from(marketListingsTable)
     .where(and(eq(marketListingsTable.listingType, "secondary"), eq(marketListingsTable.isActive, 1)));
-
   if (existing.length > 0) return;
 
-  const investorId = userIds["david.investor@investafarm.com"] ?? userIds["demo.investor@investafarm.com"];
+  const investorId = userIds["david.investor@investafarm.com"];
   if (!investorId) return;
 
-  let farms: { id: number; currentPrice: string; name: string }[] = [];
-  if (farmIds && farmIds.length > 0) {
-    const allFarms = await db.select().from(farmsTable).limit(8);
-    farms = allFarms.filter(f => farmIds.includes(f.id)).slice(0, 5);
-  } else {
-    farms = await db.select().from(farmsTable).limit(5);
-  }
-
+  const farms = await db.select().from(farmsTable).limit(8);
   if (farms.length === 0) return;
 
   const resaleConfigs = [
@@ -382,21 +531,23 @@ async function seedSecondaryListings(
     { priceMultiplier: 0.98, shares: 200 },
     { priceMultiplier: 1.12, shares: 60  },
     { priceMultiplier: 1.03, shares: 120 },
+    { priceMultiplier: 1.08, shares: 90  },
   ];
 
-  for (let i = 0; i < Math.min(farms.length, 5); i++) {
+  for (let i = 0; i < Math.min(farms.length, resaleConfigs.length); i++) {
     const farm = farms[i]!;
-    const cfg = resaleConfigs[i]!;
+    const cfg  = resaleConfigs[i]!;
     const price = Math.round(Number(farm.currentPrice) * cfg.priceMultiplier);
-
-    await db.insert(marketListingsTable).values({
-      farmId: farm.id,
-      sellerId: investorId,
-      listingType: "secondary",
-      sharesAvailable: cfg.shares,
-      pricePerShare: String(price),
-      isActive: 1,
-    });
-    log(`[seed] Secondary listing: ${farm.name} — ${cfg.shares} shares @ KES ${price}`);
+    try {
+      await db.insert(marketListingsTable).values({
+        farmId: farm.id,
+        sellerId: investorId,
+        listingType: "secondary",
+        sharesAvailable: cfg.shares,
+        pricePerShare: String(price),
+        isActive: 1,
+      });
+      log(`[seed] Secondary listing: ${farm.name} — ${cfg.shares} shares @ KES ${price}`);
+    } catch { /* skip */ }
   }
 }

@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import {
   Shield, Users, Tractor, DollarSign, TrendingUp, FileText,
   CheckCircle2, Clock, XCircle, LogOut, RefreshCw, LayoutGrid,
   Search, Activity, Sprout, MapPin, UserPlus, X, Eye, EyeOff, ChevronDown, Loader2,
   Settings, Bell, Percent, Coins, ChevronRight, BarChart3, Trash2, ExternalLink, Star, MessageSquare,
-  Send, Reply, Monitor, Ticket, AlertCircle, CreditCard, Smartphone, CheckSquare, Download
+  Send, Reply, Monitor, Ticket, AlertCircle, CreditCard, Smartphone, CheckSquare, Download,
+  HelpCircle, ArrowRight, ArrowLeft, Play
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
@@ -162,6 +163,92 @@ export default function AdminDashboard() {
     pendingDeposits: { id: number; userId: number; userName: string; amount: number; reference: string; createdAt: string | null }[];
     unreadMessages: { id: number; subject: string; userId: number; createdAt: string | null }[];
   } | null>(null);
+
+  // Tour
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+
+  const TOUR_STEPS = [
+    {
+      title: "Welcome to Investa Admin 👋",
+      body: "This quick tour walks you through every section of the admin dashboard. Tap Next to continue or Skip to dismiss.",
+      icon: "🛡️",
+      action: null,
+    },
+    {
+      title: "Platform Overview",
+      body: "The Overview tab shows live stats — total users, farmers, investors, AUM, and pending KYC requests. Refresh any time with the ↻ button.",
+      icon: "📊",
+      action: () => setTab("overview"),
+    },
+    {
+      title: "KYC Review",
+      body: "The KYC tab lists all farmer documents awaiting review. Tap a document to view it full-screen, then Approve or Reject with one tap.",
+      icon: "📋",
+      action: () => setTab("kyc"),
+    },
+    {
+      title: "User Management",
+      body: "The Users tab shows every registered account. You can change roles, set credit limits, delete accounts, and send direct messages.",
+      icon: "👥",
+      action: () => setTab("users"),
+    },
+    {
+      title: "Loan Proposals",
+      body: "The Proposals tab lists all farmer loan applications. Review crop plans, loan amounts, and approve or reject with a single tap.",
+      icon: "🌱",
+      action: () => setTab("proposals"),
+    },
+    {
+      title: "Transactions",
+      body: "The Transactions tab (under More ···) shows every wallet event — deposits, withdrawals, investments, and platform fees. Filter by type.",
+      icon: "💳",
+      action: () => { setTab("transactions"); setMoreSheetOpen(false); },
+    },
+    {
+      title: "Farm Registry",
+      body: "The Farms tab lists all active farm listings. You can trigger a harvest payout for any farm directly from here.",
+      icon: "🚜",
+      action: () => { setTab("farms"); setMoreSheetOpen(false); },
+    },
+    {
+      title: "Dividend Payouts",
+      body: "The Payouts tab shows all harvest dividends that have been distributed to investors, with a running total of platform revenue.",
+      icon: "💰",
+      action: () => { setTab("payouts"); setMoreSheetOpen(false); },
+    },
+    {
+      title: "Sub-Accounts",
+      body: "The Sub Accounts tab lets you create viewer accounts for finance staff. Viewers can see all data and export CSVs but cannot make changes.",
+      icon: "🔑",
+      action: () => { setTab("subaccounts"); setMoreSheetOpen(false); },
+    },
+    {
+      title: "Platform Settings",
+      body: "The Settings tab lets you adjust platform fees, minimum investment amounts, and broadcast push notifications to all users.",
+      icon: "⚙️",
+      action: () => { setTab("settings"); setMoreSheetOpen(false); },
+    },
+    {
+      title: "You're all set! ✅",
+      body: "That's the full admin dashboard. Use the bottom nav for quick access to Overview, Users, KYC, and Activity. Tap More ··· for the rest.",
+      icon: "🎉",
+      action: null,
+    },
+  ];
+
+  const tourNext = useCallback(() => {
+    const step = TOUR_STEPS[tourStep + 1];
+    if (step?.action) step.action();
+    if (tourStep + 1 >= TOUR_STEPS.length) { setTourActive(false); setTourStep(0); }
+    else setTourStep(s => s + 1);
+  }, [tourStep]);
+
+  const tourPrev = useCallback(() => {
+    const step = TOUR_STEPS[tourStep - 1];
+    if (step?.action) step.action();
+    setTourStep(s => Math.max(0, s - 1));
+  }, [tourStep]);
 
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
@@ -844,6 +931,10 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => { setTourStep(0); setTourActive(true); }}
+              className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" title="Admin Tour">
+              <HelpCircle size={14} className="text-white" />
+            </button>
             <button onClick={() => { fetchStats(); if (tab === "users") fetchUsers(); if (tab === "kyc") fetchKyc(); if (tab === "transactions") fetchTransactions(); }}
               className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
               <RefreshCw size={14} className={`text-white ${loading ? "animate-spin" : ""}`} />
@@ -2991,6 +3082,79 @@ export default function AdminDashboard() {
                     {viewingDoc.status === "approved" ? "✓ Approved" : viewingDoc.status === "rejected" ? "✗ Rejected" : "⏳ Pending"}
                   </span>
                 )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── ADMIN TOUR OVERLAY ── */}
+      {tourActive && (() => {
+        const step = TOUR_STEPS[tourStep]!;
+        const isLast = tourStep === TOUR_STEPS.length - 1;
+        const isFirst = tourStep === 0;
+        return (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center">
+            {/* Dimmed backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setTourActive(false)} />
+
+            {/* Tour card */}
+            <div className="relative w-full max-w-[430px] pb-6 px-4" onClick={e => e.stopPropagation()}>
+              {/* Progress dots */}
+              <div className="flex justify-center gap-1.5 mb-3">
+                {TOUR_STEPS.map((_, i) => (
+                  <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${
+                    i === tourStep ? "w-6 bg-white" : i < tourStep ? "w-1.5 bg-white/60" : "w-1.5 bg-white/25"
+                  }`} />
+                ))}
+              </div>
+
+              <div className="bg-white rounded-3xl px-5 pt-5 pb-6 shadow-2xl">
+                {/* Step count + skip */}
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Step {tourStep + 1} of {TOUR_STEPS.length}
+                  </span>
+                  <button onClick={() => { setTourActive(false); setTourStep(0); }}
+                    className="text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                    <X size={10} /> Skip tour
+                  </button>
+                </div>
+
+                {/* Icon + title */}
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-2xl flex-shrink-0">
+                    {step.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-foreground font-bold text-base leading-snug">{step.title}</h3>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <p className="text-muted-foreground text-sm leading-relaxed mb-5">{step.body}</p>
+
+                {/* Navigation buttons */}
+                <div className="flex gap-3">
+                  {!isFirst && (
+                    <button onClick={tourPrev}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl border border-gray-200 bg-gray-50 text-foreground font-semibold text-sm active:scale-95 transition-all">
+                      <ArrowLeft size={14} /> Back
+                    </button>
+                  )}
+                  <button onClick={tourNext}
+                    className={`flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm active:scale-95 transition-all ${
+                      isFirst ? "w-full bg-indigo-600 text-white" : "flex-1 bg-indigo-600 text-white"
+                    }`}>
+                    {isLast ? (
+                      <><CheckCircle2 size={14} /> Done</>
+                    ) : isFirst ? (
+                      <><Play size={12} /> Start Tour <ArrowRight size={14} /></>
+                    ) : (
+                      <>Next <ArrowRight size={14} /></>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
