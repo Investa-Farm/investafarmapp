@@ -187,12 +187,13 @@ router.post("/admin/create-sub-admin", async (req, res): Promise<void> => {
   const appUrl = process.env.APP_URL ?? "https://app.investafarm.com";
   const loginUrl = `${appUrl}/admin`;
   const permissions = [
-    "Platform overview — farmers, investors, funding stats",
-    "View all farmer accounts and financing details",
-    "View all investor accounts and portfolios",
-    "View all transactions and loan records",
-    "Export data to CSV (farmers, investors, transactions, loans)",
-    "View farm registry and funding progress",
+    "Live platform overview — AUM, total funded, active financing & investor count",
+    "120,000+ farmer network — view farm profiles, loan status & crop types",
+    "5,000+ investor accounts — portfolio sizes, investment history & activity",
+    "Transaction ledger — all deposits, investments & harvest payouts (~$6M USD)",
+    "Farm registry — individual farm funding progress, share prices & DCF valuations",
+    "KYC pipeline — farmer verification queue and approval status",
+    "Export all data to CSV for your own analysis and reporting",
   ];
   sendSubAdminWelcomeEmail(email, name, email, password, loginUrl, permissions).catch(err =>
     console.error("[EMAIL] Sub-admin welcome failed:", err)

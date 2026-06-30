@@ -2641,8 +2641,8 @@ export default function AdminDashboard() {
                     <Users size={20} className="text-white" />
                   </div>
                   <div>
-                    <p className="text-white font-bold text-base">Sub Accounts</p>
-                    <p className="text-blue-200 text-[10px]">Viewer-only access — read + export, no edits</p>
+                    <p className="text-white font-bold text-base">VC & Investor Access</p>
+                    <p className="text-blue-200 text-[10px]">Read-only viewer accounts · login credentials sent by email</p>
                   </div>
                 </div>
                 {isMasterAdmin && (
@@ -2654,17 +2654,29 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Viewer permissions info */}
+            {/* Email notification notice */}
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex gap-3">
+              <Send size={15} className="text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-indigo-800 font-semibold text-xs mb-0.5">Automatic email notification</p>
+                <p className="text-indigo-600 text-[10px] leading-relaxed">
+                  When you add a VC or investor, they receive an email instantly with their login credentials, platform stats (120K farmers · 5K investors · $6M funded), and a direct link to the dashboard.
+                </p>
+              </div>
+            </div>
+
+            {/* What they can see */}
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex gap-3">
               <Eye size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-blue-800 font-semibold text-xs mb-1">Viewer access includes:</p>
                 <ul className="space-y-0.5">
                   {[
-                    "Platform overview & all stats",
-                    "View farmer, investor & transaction records",
-                    "Export data to CSV (all categories)",
-                    "View farm registry & financing",
+                    "Live AUM, total funded & active financing stats",
+                    "120K+ farmer network & loan pipeline",
+                    "5K+ investor portfolios & transaction history",
+                    "Farm registry with DCF valuations",
+                    "Export all data to CSV",
                   ].map(p => (
                     <li key={p} className="text-blue-700 text-[10px] flex items-center gap-1.5">
                       <CheckCircle2 size={9} /> {p}
@@ -2680,12 +2692,12 @@ export default function AdminDashboard() {
             ) : subAdmins.length === 0 ? (
               <div className="text-center py-12">
                 <Users size={32} className="text-muted-foreground mx-auto mb-3" />
-                <p className="text-foreground font-semibold text-sm">No viewer accounts yet</p>
-                <p className="text-muted-foreground text-xs mt-1">Create a sub-account to grant read-only access</p>
+                <p className="text-foreground font-semibold text-sm">No VC accounts yet</p>
+                <p className="text-muted-foreground text-xs mt-1">Add a VC or investor — they'll get login details by email immediately</p>
                 {isMasterAdmin && (
                   <button onClick={() => setAddSubAdminOpen(true)}
                     className="mt-4 bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 mx-auto active:scale-95">
-                    <UserPlus size={13} /> Create First Viewer
+                    <UserPlus size={13} /> Add First VC
                   </button>
                 )}
               </div>
@@ -2701,7 +2713,7 @@ export default function AdminDashboard() {
                       <p className="text-muted-foreground text-[10px] truncate">{sa.email}</p>
                       <p className="text-muted-foreground text-[10px]">Added {new Date(sa.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</p>
                     </div>
-                    <span className="text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full flex-shrink-0">VIEWER</span>
+                    <span className="text-[9px] font-bold bg-violet-50 text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full flex-shrink-0">VC VIEWER</span>
                     {isMasterAdmin && (
                       <button onClick={() => deleteSubAdmin(sa.id, sa.name)} disabled={deleteSubAdminLoading === sa.id}
                         className="w-7 h-7 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 active:scale-95 disabled:opacity-50">
@@ -2727,9 +2739,9 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-foreground font-bold text-sm flex items-center gap-2">
-                  <UserPlus size={15} className="text-blue-600" /> Add Viewer Sub-Account
+                  <UserPlus size={15} className="text-blue-600" /> Add VC / Investor Access
                 </p>
-                <p className="text-muted-foreground text-xs mt-0.5">They'll receive login credentials by email</p>
+                <p className="text-muted-foreground text-xs mt-0.5">Login credentials + platform data are sent by email instantly</p>
               </div>
               <button onClick={() => setAddSubAdminOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                 <X size={14} />

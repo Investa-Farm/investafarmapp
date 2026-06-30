@@ -189,84 +189,119 @@ export async function sendSubAdminWelcomeEmail(
 ): Promise<void> {
   const transport = createTransport();
   if (!transport) {
-    console.log(`[EMAIL] Sub-admin welcome for ${to} (no email provider)`);
+    console.log(`[EMAIL] VC/sub-admin welcome for ${to} (no email provider)`);
     return;
   }
 
   const permissionRows = permissions.map(p => `
     <tr>
-      <td style="padding:6px 0;color:#374151;font-size:13px;">
-        <span style="color:#16a34a;font-weight:700;">✓</span>&nbsp; ${p}
+      <td style="padding:7px 0;border-bottom:1px solid #e5f3ff;">
+        <table cellpadding="0" cellspacing="0" width="100%"><tr>
+          <td width="22" style="vertical-align:top;padding-top:1px;">
+            <div style="width:18px;height:18px;background:#dcfce7;border-radius:50%;text-align:center;line-height:18px;font-size:11px;">✓</div>
+          </td>
+          <td style="color:#1e3a5f;font-size:13px;line-height:1.5;padding-left:8px;">${p}</td>
+        </tr></table>
       </td>
     </tr>`).join("");
 
   const content = `
     <tr>
       <td style="padding:0;">
-        <div style="background:linear-gradient(160deg,#1e3a5f 0%,#1d4ed8 100%);padding:32px 40px;text-align:center;">
-          <p style="font-size:44px;margin:0 0 8px 0;">🛡️</p>
-          <h1 style="color:#ffffff;font-size:24px;font-weight:900;margin:0 0 6px 0;">Welcome to Investa Admin</h1>
-          <p style="color:rgba(255,255,255,0.8);font-size:13px;margin:0;">Your viewer account has been created</p>
+        <div style="background:linear-gradient(150deg,#052e16 0%,#14532d 55%,#166534 100%);padding:40px 40px 32px;text-align:center;">
+          ${LOGO_SVG}
+          <div style="display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:100px;padding:5px 16px;margin:16px 0 8px;">
+            <span style="color:rgba(255,255,255,0.90);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Investor Data Access</span>
+          </div>
+          <h1 style="color:#ffffff;font-size:26px;font-weight:900;margin:0 0 8px 0;letter-spacing:-0.5px;">You're in, ${name.split(" ")[0]}.</h1>
+          <p style="color:rgba(255,255,255,0.75);font-size:14px;margin:0;line-height:1.6;">
+            Investa Farm has granted you read access to our<br/>live investment platform data.
+          </p>
         </div>
       </td>
     </tr>
-    <tr>
-      <td style="padding:36px 40px;">
-        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
-          Hi <strong>${name}</strong>,<br><br>
-          You've been granted access to the <strong>Investa Farm Admin Portal</strong> as a <strong>Viewer</strong>.
-          You can monitor platform activity, review financing data, and export reports.
-        </p>
 
-        <!-- Login credentials -->
-        <div style="background:#f0f9ff;border:2px solid #bae6fd;border-radius:16px;padding:24px;margin:0 0 24px 0;">
-          <p style="color:#0369a1;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 16px 0;">Your Login Credentials</p>
+    <tr>
+      <td style="padding:0 40px;">
+        <!-- Platform snapshot bar -->
+        <div style="background:#f0fdf4;border-left:4px solid #16a34a;border-radius:0 12px 12px 0;padding:14px 18px;margin:28px 0;">
+          <p style="color:#14532d;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 10px 0;">Platform at a glance</p>
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              <td style="color:#6b7280;font-size:13px;padding:6px 0;width:100px;">Portal URL</td>
-              <td style="font-size:13px;font-weight:700;text-align:right;">
-                <a href="${loginUrl}" style="color:#1d4ed8;text-decoration:none;">${loginUrl}</a>
+              <td style="text-align:center;padding:4px 0;">
+                <p style="color:#15803d;font-size:20px;font-weight:900;margin:0;">120K+</p>
+                <p style="color:#6b7280;font-size:10px;font-weight:600;margin:2px 0 0;text-transform:uppercase;letter-spacing:1px;">Farmers</p>
               </td>
-            </tr>
-            <tr>
-              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Email</td>
-              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;font-family:monospace;">${email}</td>
-            </tr>
-            <tr>
-              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Password</td>
-              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;font-family:monospace;">${password}</td>
-            </tr>
-            <tr>
-              <td style="color:#6b7280;font-size:13px;padding:6px 0;">Role</td>
-              <td style="text-align:right;">
-                <span style="background:#dbeafe;color:#1e40af;font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;">Viewer</span>
+              <td style="text-align:center;padding:4px 0;border-left:1px solid #bbf7d0;border-right:1px solid #bbf7d0;">
+                <p style="color:#15803d;font-size:20px;font-weight:900;margin:0;">5K+</p>
+                <p style="color:#6b7280;font-size:10px;font-weight:600;margin:2px 0 0;text-transform:uppercase;letter-spacing:1px;">Investors</p>
+              </td>
+              <td style="text-align:center;padding:4px 0;">
+                <p style="color:#15803d;font-size:20px;font-weight:900;margin:0;">$6M+</p>
+                <p style="color:#6b7280;font-size:10px;font-weight:600;margin:2px 0 0;text-transform:uppercase;letter-spacing:1px;">Funded</p>
               </td>
             </tr>
           </table>
         </div>
 
-        <!-- What you can access -->
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:20px;margin:0 0 24px 0;">
-          <p style="color:#166534;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 12px 0;">What you can access</p>
+        <p style="color:#374151;font-size:15px;line-height:1.75;margin:0 0 24px 0;">
+          Hi <strong>${name}</strong>,<br><br>
+          The Investa Farm team has set up a <strong>Viewer account</strong> on our admin dashboard specifically for you.
+          You can now monitor live farm financing, investor activity, and platform metrics — all in one place, in real time.
+        </p>
+
+        <!-- Login credentials box -->
+        <div style="background:#f8faff;border:2px solid #c7d7fd;border-radius:16px;padding:24px;margin:0 0 24px 0;">
+          <p style="color:#3730a3;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 16px 0;">🔐 Your Access Credentials</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr style="border-bottom:1px solid #e0e7ff;">
+              <td style="color:#6b7280;font-size:12px;padding:8px 0;width:110px;font-weight:600;">Portal URL</td>
+              <td style="font-size:13px;font-weight:700;text-align:right;padding:8px 0;">
+                <a href="${loginUrl}" style="color:#4f46e5;text-decoration:none;">${loginUrl}</a>
+              </td>
+            </tr>
+            <tr style="border-bottom:1px solid #e0e7ff;">
+              <td style="color:#6b7280;font-size:12px;padding:8px 0;font-weight:600;">Email</td>
+              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;font-family:monospace;padding:8px 0;">${email}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e0e7ff;">
+              <td style="color:#6b7280;font-size:12px;padding:8px 0;font-weight:600;">Password</td>
+              <td style="color:#111827;font-size:13px;font-weight:700;text-align:right;font-family:monospace;padding:8px 0;">${password}</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;font-size:12px;padding:8px 0;font-weight:600;">Access Level</td>
+              <td style="text-align:right;padding:8px 0;">
+                <span style="background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:800;padding:4px 12px;border-radius:100px;letter-spacing:0.5px;">INVESTOR VIEWER</span>
+              </td>
+            </tr>
+          </table>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-top:16px;">
+            <p style="color:#92400e;font-size:12px;margin:0;line-height:1.5;">
+              ⚠️ We recommend changing your password on first login. Keep these credentials private — this account has read access to confidential investment data.
+            </p>
+          </div>
+        </div>
+
+        <!-- What you can see -->
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:20px 24px;margin:0 0 28px 0;">
+          <p style="color:#14532d;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 14px 0;">📊 What you can see on the dashboard</p>
           <table width="100%" cellpadding="0" cellspacing="0">
             ${permissionRows}
           </table>
         </div>
 
-        <!-- Security notice -->
-        <div style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:16px;margin:0 0 24px 0;">
-          <p style="color:#92400e;font-size:13px;margin:0;">
-            🔒 <strong>Security:</strong> Please change your password after first login. 
-            Keep your credentials confidential — this account has read access to sensitive platform data.
-          </p>
-        </div>
-
-        <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+        <!-- CTA -->
+        <table cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 28px 0;">
           <tr>
-            <td align="center" style="background:#1d4ed8;border-radius:12px;">
-              <a href="${loginUrl}" style="display:inline-block;color:#ffffff;font-size:15px;font-weight:800;text-decoration:none;padding:14px 40px;border-radius:12px;">
-                🔐 Log In to Admin Portal
+            <td align="center">
+              <a href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#052e16,#16a34a);color:#ffffff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 48px;border-radius:14px;letter-spacing:-0.3px;">
+                Open Investa Farm Dashboard →
               </a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding-top:10px;">
+              <p style="color:#9ca3af;font-size:11px;margin:0;">Questions? Reply to this email — we're happy to walk you through the dashboard.</p>
             </td>
           </tr>
         </table>
@@ -274,10 +309,10 @@ export async function sendSubAdminWelcomeEmail(
     </tr>`;
 
   await transport.sendMail({
-    from: from("Investa Farm Admin"),
+    from: from("Investa Farm"),
     to,
-    subject: `🛡️ Your Investa Farm Admin Access — ${name}`,
-    html: emailWrapper(content, `You've been granted viewer access to the Investa Farm Admin Portal.`),
+    subject: `You now have access to Investa Farm's investor dashboard`,
+    html: emailWrapper(content, `Investa Farm has granted you read access to live investment platform data — 120K+ farmers, 5K+ investors, $6M+ funded.`),
   });
 }
 
