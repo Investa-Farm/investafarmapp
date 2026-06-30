@@ -190,10 +190,14 @@ async function runPriceSimulation(): Promise<void> {
       // Use the last market price as the baseline; fall back to P_execution on first run
       // (avoids a misleading -80% drop when comparing fair value to face value on day 1)
       const prevPrice = Number(farm.currentPrice) || P_execution;
-      const changePercent = ((P_execution - prevPrice) / Math.max(prevPrice, 0.01)) * 100;
+      const rawChange = ((P_execution - prevPrice) / Math.max(prevPrice, 0.01)) * 100;
+      // Cap per-tick movement at ±10% to prevent extreme jumps from DCF vs face-value divergence.
+      // Apply the cap to BOTH the stored price AND the reported changePercent so they stay in sync.
+      const changePercent = Math.max(-10, Math.min(10, rawChange));
+      const cappedPrice = Math.max(1, prevPrice * (1 + changePercent / 100));
 
       await db.update(farmsTable)
-        .set({ currentPrice: P_execution.toFixed(2), changePercent: changePercent.toFixed(4) } as any)
+        .set({ currentPrice: cappedPrice.toFixed(2), changePercent: changePercent.toFixed(4) })
         .where(eq(farmsTable.id, farm.id))
         .catch(() => {});
     }

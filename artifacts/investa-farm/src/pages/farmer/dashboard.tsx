@@ -242,7 +242,7 @@ export default function FarmerDashboard() {
                   </div>
                 )}
               </div>
-              <Link href="/wallet">
+              <Link href="/farmer/wallet">
                 <button className="text-green-300 text-[10px] font-bold flex items-center gap-0.5">
                   Manage <ArrowUpRight size={11} />
                 </button>

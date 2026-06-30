@@ -525,10 +525,28 @@ export default function Login() {
           </motion.div>
         )}
 
-        <div className="mt-4 bg-primary/5 border border-primary/20 rounded-xl p-4">
-          <p className="text-muted-foreground text-xs text-center leading-relaxed">
-            Demo: <strong className="text-foreground">john.farmer@investafarm.com</strong> (farmer) or <strong className="text-foreground">david.investor@investafarm.com</strong> (investor) — password <strong className="text-foreground">password123</strong>
-          </p>
+        <div className="mt-4 bg-primary/5 border border-primary/20 rounded-xl p-3">
+          <p className="text-muted-foreground text-[11px] font-semibold text-center mb-2">🔑 Demo Accounts — password: <strong className="text-foreground font-bold">password123</strong></p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {[
+              { label: "Farmer", email: "john.farmer@investafarm.com" },
+              { label: "Investor", email: "david.investor@investafarm.com" },
+              { label: "Demo Farmer", email: "demo.farmer@investafarm.com" },
+              { label: "Demo Investor", email: "demo.investor@investafarm.com" },
+              { label: "Sales Agent", email: "demo.agent@investafarm.com" },
+              { label: "Cooperative", email: "demo.coop@investafarm.com" },
+            ].map(({ label, email }) => (
+              <button
+                key={email}
+                type="button"
+                onClick={() => { setEmail(email); setPassword("password123"); }}
+                className="text-left bg-white border border-primary/20 rounded-lg px-2 py-1.5 active:scale-95 transition-all"
+              >
+                <p className="text-[10px] font-semibold text-primary">{label}</p>
+                <p className="text-[9px] text-muted-foreground truncate">{email}</p>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

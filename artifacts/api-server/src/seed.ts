@@ -286,6 +286,19 @@ async function seedDemoInvestments(userIds: Record<string, number>, log: (msg: s
 async function seedFarmsAndListings(userIds: Record<string, number>, log: (msg: string) => void) {
   const existingFarms = await db.select().from(farmsTable).limit(1);
   if (existingFarms.length > 0) {
+    // Reset changePercent and currentPrice to seed values on every restart
+    // (prevents scheduler from leaving stale extreme values between restarts)
+    // Match by both name AND known farmer IDs to avoid touching non-demo farms.
+    const demoFarmerIds = Object.values(userIds).filter(Boolean);
+    const allFarms = await db.select({ id: farmsTable.id, name: farmsTable.name, farmerId: farmsTable.farmerId }).from(farmsTable);
+    for (const farm of DEMO_FARMS) {
+      const match = allFarms.find(f => f.name === farm.name && demoFarmerIds.includes(f.farmerId));
+      if (!match) continue;
+      await db.update(farmsTable)
+        .set({ changePercent: farm.changePercent, currentPrice: farm.currentPrice })
+        .where(eq(farmsTable.id, match.id))
+        .catch(() => {});
+    }
     await seedSecondaryListings(userIds, log);
     return;
   }
