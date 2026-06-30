@@ -2,7 +2,7 @@ import cron from "node-cron";
 import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable, orderBookTable, watchlistTable, roiProjectionsTable, platformRevenueTable } from "@workspace/db";
 import { eq, inArray, lt, and, lte, asc } from "drizzle-orm";
 import { creditWallet, debitWallet, ensureWallet } from "./lib/walletOps";
-import { sendOpportunityDigest, sendPriceAlertEmail, sendVerificationReminderEmail } from "./lib/email";
+import { sendOpportunityDigest } from "./lib/email";
 import { notifyMany, notifyUser } from "./lib/push";
 import { getRainfallData, getKenyaCoords, checkRainfallAlerts } from "./lib/rainfall";
 import { computeROI, type HoldingROIInput } from "./lib/roi";
@@ -43,9 +43,11 @@ export function startScheduler(): void {
   cron.schedule("*/5 * * * *", () => runWatchlistPriceAlerts(), { timezone: "Africa/Nairobi" });
   cron.schedule("*/2 * * * *", () => runOrderMatching(), { timezone: "Africa/Nairobi" });
 
+  // Monthly marketing digest — 1st of the month at 08:00 EAT only
+  cron.schedule("0 8 1 * *", () => runOpportunityDigest("monthly"), { timezone: "Africa/Nairobi" });
+  console.log("[scheduler] Monthly digest: 1st of each month at 08:00 EAT");
+
   // Daily jobs fire at randomised times within a sensible window
-  scheduleDailyRandom("Weekly digest (Mon)",   7, 10, () => runOpportunityDigest("morning"));
-  scheduleDailyRandom("Weekly digest (Fri)",  16, 20, () => runOpportunityDigest("evening"));
   scheduleDailyRandom("Verification reminders", 8, 11, runVerificationReminders);
   scheduleDailyRandom("Dividend payouts",       1,  4, runDividendPayouts);
   scheduleDailyRandom("Rainfall alerts",        5,  8, runRainfallAlerts);
@@ -83,7 +85,14 @@ async function runVerificationReminders(): Promise<void> {
     for (const user of allUnverified) {
       if (!user.email || !user.name) continue;
       const daysSince = (Date.now() - user.createdAt.getTime()) / 86_400_000;
-      sendVerificationReminderEmail(user.email, user.name, daysSince).catch(() => {});
+      // Push notification only — email is limited to monthly digest
+      notifyUser(
+        user.id,
+        "general",
+        "⚠️ Verify your email",
+        `Your account has been unverified for ${Math.round(daysSince)} days. Please check your inbox to activate your account.`,
+        "/verify-otp"
+      ).catch(() => {});
       sent++;
     }
     if (sent > 0) console.log(`[scheduler] Verification reminders queued for ${sent} users`);
@@ -237,11 +246,7 @@ async function runPriceAlertCheck(): Promise<void> {
             `/market/${farm.id}`
           ).catch(() => {});
 
-          const investors = await db.select().from(usersTable).where(inArray(usersTable.id, investorIds));
-          for (const investor of investors) {
-            if (!investor.email || !investor.emailVerified) continue;
-            sendPriceAlertEmail(investor.email, investor.name, (farm as any).name, (farm as any).cropType, prev.price, currentPrice, changePct).catch(() => {});
-          }
+          // Price alerts delivered via push notification only (email limited to monthly digest)
         }
         priceHistory.set(farm.id, { price: currentPrice, lastAlertedAt: now });
       } else {

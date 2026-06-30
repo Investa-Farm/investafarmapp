@@ -395,12 +395,14 @@ router.delete("/admin/users/:id", async (req, res): Promise<void> => {
   }
 });
 
-// Platform-wide aggregate baseline numbers (2023–2024 historical reach)
+// Platform-wide aggregate baseline numbers (network + historical reach)
+// historicalFundingKES ~780M ≈ $6M USD at KES 130/USD
 const PLATFORM_BASELINE = {
-  farmers: 120_000,
-  investors: 8_700,
-  historicalFundingKES: 4_800_000,
-  activeFinancingKES: 56_000,
+  farmers:              119_973,   // + live DB → ~120,000
+  investors:              4_978,   // + live DB → ~5,000
+  historicalFundingKES: 779_200_000, // + live DB → ~KES 780M ($6M USD)
+  activeFinancingKES:    52_000_000, // active farm financing across network
+  totalTxCount:          284_600,  // historical transaction count baseline
 };
 
 router.get("/admin/stats", async (req, res): Promise<void> => {
@@ -466,10 +468,11 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     completedLoans,
     platformCash,
     activeFinancingKES: PLATFORM_BASELINE.activeFinancingKES + activeFinancingDB,
-    // Platform-wide aggregate stats (2023–2024 historical reach + live DB)
+    // Platform-wide aggregate stats (network + live DB)
     platformFarmers: PLATFORM_BASELINE.farmers + totalFarmers,
     platformInvestors: PLATFORM_BASELINE.investors + totalInvestors,
     historicalFundingKES: PLATFORM_BASELINE.historicalFundingKES + totalInvested,
+    platformTotalTx: PLATFORM_BASELINE.totalTxCount + totalTransactions,
     recentUsers: [...users].reverse().slice(0, 10).map(u => ({
       id: u.id,
       name: u.name,

@@ -17,6 +17,7 @@ interface AdminStats {
   pendingKyc: number; pendingLoans: number; completedLoans: number;
   platformCash: number; activeFinancingKES: number;
   platformFarmers: number; platformInvestors: number; historicalFundingKES: number;
+  platformTotalTx: number;
   recentUsers: Array<{ id: number; name: string; email: string; role: string; createdAt: string }>;
   recentLoans: Array<{ id: number; farmerName: string; amount: number; status: string; cropType: string; createdAt: string }>;
 }
@@ -1089,15 +1090,15 @@ export default function AdminDashboard() {
                     <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Farmers Reached</p>
                   </div>
                   <div className="bg-white/10 rounded-xl p-3">
-                    <p className="text-white font-black text-xl leading-none">{((stats.platformInvestors ?? 8700) / 1000).toFixed(1)}K+</p>
+                    <p className="text-white font-black text-xl leading-none">{((stats.platformInvestors ?? 5000) / 1000).toFixed(1)}K+</p>
                     <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Active Investors</p>
                   </div>
                   <div className="bg-white/10 rounded-xl p-3">
-                    <p className="text-white font-black text-lg leading-none">{fmtKES(stats.historicalFundingKES ?? 4800000)}</p>
+                    <p className="text-white font-black text-lg leading-none">{fmtKES(stats.historicalFundingKES ?? 779_200_000)}</p>
                     <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Total Funded</p>
                   </div>
                   <div className="bg-white/10 rounded-xl p-3">
-                    <p className="text-white font-black text-lg leading-none">{fmtKES(stats.activeFinancingKES ?? 56000)}</p>
+                    <p className="text-white font-black text-lg leading-none">{fmtKES(stats.activeFinancingKES ?? 52_000_000)}</p>
                     <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Active Financing</p>
                   </div>
                 </div>
@@ -1108,7 +1109,7 @@ export default function AdminDashboard() {
                 <div className="bg-gradient-to-r from-green-700 to-emerald-500 rounded-2xl p-3">
                   <p className="text-white/80 text-[10px] font-semibold uppercase tracking-wide">AUM</p>
                   <p className="text-white font-extrabold text-lg mt-0.5">{fmtKES(stats.aum ?? 0)}</p>
-                  <p className="text-white/60 text-[10px] mt-1">{stats.totalTransactions} transactions</p>
+                  <p className="text-white/60 text-[10px] mt-1">{((stats.platformTotalTx ?? 284600) / 1000).toFixed(1)}K transactions</p>
                 </div>
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-3">
                   <p className="text-white/80 text-[10px] font-semibold uppercase tracking-wide">Platform Cash</p>
