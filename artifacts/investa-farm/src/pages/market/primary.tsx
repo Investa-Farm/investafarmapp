@@ -313,12 +313,52 @@ export default function PrimaryMarket() {
             ))
           : filteredListings.length === 0
             ? (
-              <div className="text-center py-16">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 bg-primary/5 border border-primary/10">
-                  <TrendingUp size={24} className="text-primary/40" />
-                </div>
-                <p className="text-muted-foreground text-sm font-semibold">No listings found</p>
-                <button onClick={() => { setActiveCategory("all"); setSearch(""); }} className="text-primary text-xs mt-2 font-bold">Clear filters</button>
+              <div className="py-10 px-4">
+                {search || activeCategory !== "all" ? (
+                  /* Filter empty state */
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 bg-amber-50 border border-amber-100">
+                      <Search size={24} className="text-amber-400" />
+                    </div>
+                    <p className="text-foreground font-bold text-sm">No matches found</p>
+                    <p className="text-muted-foreground text-xs mt-1 mb-3">Try a different crop type or category</p>
+                    <button onClick={() => { setActiveCategory("all"); setSearch(""); }}
+                      className="bg-primary text-white text-xs font-bold px-5 py-2.5 rounded-xl active:scale-95 transition-transform">
+                      Clear filters
+                    </button>
+                  </div>
+                ) : (
+                  /* No listings at all — illustrated placeholder */
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-4 text-center">Investment Opportunities</p>
+                    {[
+                      { crop: "avocado", name: "Avocado Export Farm", location: "Murang'a", roi: "+22%", risk: "Export", gradient: "linear-gradient(135deg,#78350f,#b45309,#fbbf24)" },
+                      { crop: "maize", name: "Rift Valley Maize", location: "Nakuru", roi: "+14%", risk: "Low Risk", gradient: "linear-gradient(135deg,#052e16,#14532d,#16a34a)" },
+                      { crop: "tea", name: "Kericho Tea Estate", location: "Kericho", roi: "+18%", risk: "Stable", gradient: "linear-gradient(135deg,#1e3a5f,#1d4ed8,#3b82f6)" },
+                    ].map((farm, i) => (
+                      <div key={i} className="rounded-xl overflow-hidden relative h-24 cursor-pointer active:scale-[0.98] transition-transform shadow-sm"
+                        style={{ background: farm.gradient, opacity: 0.55 }}>
+                        <img src={getCropImage(farm.crop)} alt={farm.name}
+                          className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-luminosity" />
+                        <div className="relative h-full flex items-center justify-between px-4">
+                          <div>
+                            <p className="text-white font-extrabold text-sm">{farm.name}</p>
+                            <p className="text-white/60 text-[10px] mt-0.5">📍 {farm.location}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white font-black text-xl">{farm.roi}</p>
+                            <span className="text-[9px] font-bold text-white/70 bg-white/15 px-1.5 py-0.5 rounded-full">{farm.risk}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="text-center pt-2">
+                      <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse mx-auto mb-2" />
+                      <p className="text-muted-foreground text-xs font-medium">New listings are added regularly</p>
+                      <p className="text-muted-foreground/60 text-[10px] mt-0.5">Check back soon or enable price alerts to be notified</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )
             : (filteredListings as Listing[]).map((listing, idx) => {

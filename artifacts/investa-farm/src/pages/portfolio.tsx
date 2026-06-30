@@ -29,6 +29,8 @@ import { ReinvestmentSettings } from "@/components/reinvestment-settings";
 import { useCurrency } from "@/lib/currency";
 import { PortfolioAiInsight } from "@/components/portfolio-ai-insight";
 import { AiSectionBot } from "@/components/ai-section-bot";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { PullToRefreshIndicator } from "@/components/pull-to-refresh-indicator";
 
 function useCountUp(target: number, duration = 900) {
   const [current, setCurrent] = useState(0);
@@ -175,6 +177,30 @@ export default function Portfolio() {
     staleTime: 300_000,
   });
 
+  const { data: walletData } = useQuery<{ balance: string }>({
+    queryKey: ["wallet"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return { balance: "0" };
+      return r.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: kycDocs = [] } = useQuery<any[]>({
+    queryKey: ["kyc-docs"],
+    queryFn: async () => {
+      const r = await fetch("/api/kyc/documents", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
+
+  const walletFunded = parseFloat(walletData?.balance ?? "0") > 0;
+  const kycVerified = kycDocs.some((d: any) => d.status === "approved");
+  const hasInvestments = (summary?.totalInvested ?? 0) > 0;
+
   const [acctCopied, setAcctCopied] = useState(false);
   const handleCopyAcct = async () => {
     if (!stellarAcct?.accountNumber) return;
@@ -313,6 +339,18 @@ export default function Portfolio() {
   }
 
   const totalGain = summary ? summary.totalValue - summary.totalInvested : 0;
+
+  const qc2 = useQueryClient();
+  const { containerRef: holdingsPtrRef, onTouchStart: hTouchStart, onTouchMove: hTouchMove, onTouchEnd: hTouchEnd, isPulling: hIsPulling, isRefreshing: hIsRefreshing, pullProgress: hPullProgress } =
+    usePullToRefresh({
+      onRefresh: async () => {
+        await Promise.all([
+          qc2.invalidateQueries({ queryKey: ["portfolio"] }),
+          qc2.invalidateQueries({ queryKey: ["portfolio-summary"] }),
+          qc2.invalidateQueries({ queryKey: ["portfolio-roi"] }),
+        ]);
+      },
+    });
 
   return (
     <div className="app-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", background: "#f0fdf4" }} data-testid="portfolio-page">
@@ -461,6 +499,62 @@ export default function Portfolio() {
                   initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
                   transition={{ duration: 0.2 }}
                   className="absolute inset-0 px-4 pb-4 overflow-y-auto flex flex-col gap-3">
+
+          {/* Onboarding progress tracker — visible only for new users */}
+          {!hasInvestments && (
+            <div className="rounded-2xl overflow-hidden border border-green-200 shadow-sm"
+              style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)" }}>
+              <div className="px-4 pt-3.5 pb-1 flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-green-600 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-[11px] font-black">🌱</span>
+                </div>
+                <p className="text-green-800 font-bold text-sm">Getting Started</p>
+                <span className="ml-auto text-[10px] font-bold text-green-600">
+                  {[kycVerified, walletFunded, hasInvestments].filter(Boolean).length}/3 complete
+                </span>
+              </div>
+              <div className="px-4 py-3 space-y-2.5">
+                {[
+                  {
+                    done: kycVerified, num: 1, title: "Verify your identity",
+                    sub: "Upload ID + selfie · takes 2 min",
+                    action: () => setLocation("/profile"),
+                    cta: "Complete KYC →",
+                  },
+                  {
+                    done: walletFunded, num: 2, title: "Fund your wallet",
+                    sub: "Deposit via M-Pesa · minimum KES 100",
+                    action: () => setLocation("/wallet"),
+                    cta: "Add Funds →",
+                  },
+                  {
+                    done: hasInvestments, num: 3, title: "Make your first investment",
+                    sub: "Browse farms · start from KES 500",
+                    action: () => setLocation("/market/primary"),
+                    cta: "Browse Farms →",
+                  },
+                ].map(({ done, num, title, sub, action, cta }) => (
+                  <button key={num} onClick={done ? undefined : action}
+                    className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all active:scale-[0.98] ${done ? "bg-green-600/10 border border-green-300/40" : "bg-white/70 border border-green-200 shadow-sm"}`}>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-black ${done ? "bg-green-600 text-white" : "bg-white border-2 border-green-300 text-green-600"}`}>
+                      {done ? "✓" : num}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[12px] font-bold leading-tight ${done ? "text-green-700 line-through decoration-green-400" : "text-gray-800"}`}>{title}</p>
+                      {!done && <p className="text-[10px] text-gray-500 mt-0.5">{sub}</p>}
+                    </div>
+                    {!done && <span className="text-[10px] font-bold text-green-700 flex-shrink-0">{cta}</span>}
+                  </button>
+                ))}
+              </div>
+              <div className="px-4 pb-3">
+                <div className="h-1.5 rounded-full bg-green-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-700"
+                    style={{ width: `${([kycVerified, walletFunded, hasInvestments].filter(Boolean).length / 3) * 100}%` }} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Performance Chart */}
           <div className="bg-white border border-border rounded-2xl overflow-hidden flex flex-col shadow-sm" style={{ minHeight: 240 }}>
@@ -700,7 +794,13 @@ export default function Portfolio() {
 
       {/* ══ HOLDINGS TAB ══ */}
       {activeTab === "holdings" && (
-        <div className="flex-1 overflow-y-auto flex flex-col gap-3 px-4 pb-24">
+        <div
+          ref={holdingsPtrRef}
+          onTouchStart={hTouchStart}
+          onTouchMove={hTouchMove}
+          onTouchEnd={hTouchEnd}
+          className="flex-1 overflow-y-auto flex flex-col gap-3 px-4 pb-24">
+          <PullToRefreshIndicator isPulling={hIsPulling} isRefreshing={hIsRefreshing} pullProgress={hPullProgress} />
 
           {/* AI insight strip */}
           {holdingsList.length > 0 && summary && (
@@ -858,6 +958,28 @@ export default function Portfolio() {
                               <p className="text-muted-foreground text-[9px] mt-0.5 font-medium">{label}</p>
                             </div>
                           ))}
+                        </div>
+
+                        {/* P&L trend chart */}
+                        <div className="px-3.5 pt-2.5 pb-1.5 border-b border-border/40 flex items-center gap-3"
+                          style={{ background: isUp ? "linear-gradient(to right, #f0fdf4 0%, #fafafa 100%)" : "linear-gradient(to right, #fef2f2 0%, #fafafa 100%)" }}>
+                          <div className="flex-shrink-0">
+                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">7-day trend</p>
+                            <p className={`text-[11px] font-extrabold leading-none ${isUp ? "text-green-600" : "text-red-500"}`}>
+                              {isUp ? "+" : ""}{(h.gainLossPercent ?? 0).toFixed(2)}%
+                            </p>
+                          </div>
+                          <div className="flex-1 overflow-hidden">
+                            <Sparkline
+                              data={generateSparkData(h.farmId * 7 + h.quantity, 20, (h.gainLossPercent ?? 0) / 100)}
+                              width={200} height={32} positive={isUp}
+                            />
+                          </div>
+                          <div className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center ${isUp ? "bg-green-100" : "bg-red-100"}`}>
+                            {isUp
+                              ? <ArrowUpRight size={14} className="text-green-600" />
+                              : <ArrowDownRight size={14} className="text-red-500" />}
+                          </div>
                         </div>
 
                         {/* ROI projections + actions */}

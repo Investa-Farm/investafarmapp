@@ -61,6 +61,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const [mpesaConfigured, setMpesaConfigured] = useState(true);
   const [mpesaMessage, setMpesaMessage] = useState<string>("");
   const mpesaPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [mpesaCountdown, setMpesaCountdown] = useState(120);
+  const mpesaCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Stripe card state
   const [stripeStep, setStripeStep] = useState<"idle" | "loading" | "form" | "confirming">("idle");
@@ -85,6 +87,21 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    if (mpesaStep === "polling") {
+      setMpesaCountdown(120);
+      mpesaCountdownRef.current = setInterval(() => {
+        setMpesaCountdown(prev => {
+          if (prev <= 1) { clearInterval(mpesaCountdownRef.current!); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (mpesaCountdownRef.current) { clearInterval(mpesaCountdownRef.current); mpesaCountdownRef.current = null; }
+    }
+    return () => { if (mpesaCountdownRef.current) clearInterval(mpesaCountdownRef.current); };
+  }, [mpesaStep]);
+
+  useEffect(() => {
     if (tab === "usdc" && !circleInfo && token) {
       fetch("/api/wallet/circle/info", { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
@@ -101,6 +118,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setAmount("");
     setMpesaPhone(""); setMpesaStep("idle"); setMpesaCheckoutId(null); setMpesaError(null); setMpesaMessage("");
     if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
+    if (mpesaCountdownRef.current) { clearInterval(mpesaCountdownRef.current); mpesaCountdownRef.current = null; }
+    setMpesaCountdown(120);
     setStripeStep("idle"); setStripeIntentId(null); setStripeClientSecret(null); setCardError(null);
     stripeInstanceRef.current = null; stripeElementsRef.current = null;
     setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false); setWalletModalOpen(false);
@@ -538,7 +557,28 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                   )}
 
                   {(mpesaStep === "sending" || mpesaStep === "polling") && (
-                    <div className="py-8 flex flex-col items-center gap-4 text-center">
+                    <div className="py-6 flex flex-col items-center gap-4 text-center">
+
+                      {/* Step indicator */}
+                      <div className="w-full flex items-center gap-0">
+                        {[
+                          { label: "Sending", icon: "📤", done: mpesaStep === "polling", active: mpesaStep === "sending" },
+                          { label: "Enter PIN", icon: "📱", done: false, active: mpesaStep === "polling" },
+                          { label: "Confirmed", icon: "✅", done: false, active: false },
+                        ].map((step, i) => (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base transition-all ${step.done ? "bg-green-600" : step.active ? "bg-primary animate-pulse" : "bg-muted"}`}>
+                              {step.done ? <span className="text-white text-sm">✓</span> : <span className={step.active ? "" : "opacity-40"}>{step.icon}</span>}
+                            </div>
+                            <p className={`text-[9px] font-bold ${step.active ? "text-primary" : step.done ? "text-green-600" : "text-muted-foreground"}`}>{step.label}</p>
+                            {i < 2 && (
+                              <div className="absolute" style={{ display: "none" }} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Animated icon */}
                       <div className="relative">
                         <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
                           <Loader2 size={32} className="animate-spin text-green-600" />
@@ -547,13 +587,12 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                           <span className="text-white text-xs">📱</span>
                         </div>
                       </div>
+
                       {mpesaStep === "sending" ? (
-                        <>
-                          <div>
-                            <p className="text-foreground font-bold text-base">Sending STK push…</p>
-                            <p className="text-muted-foreground text-sm mt-1">Initiating payment request to {mpesaCode}{mpesaPhone}</p>
-                          </div>
-                        </>
+                        <div>
+                          <p className="text-foreground font-bold text-base">Sending STK push…</p>
+                          <p className="text-muted-foreground text-sm mt-1">Initiating payment request to {mpesaCode}{mpesaPhone}</p>
+                        </div>
                       ) : (
                         <>
                           <div>
@@ -562,6 +601,19 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                               {mpesaMessage || `Enter your M-Pesa PIN to confirm ${formatKES(amt)}`}
                             </p>
                           </div>
+
+                          {/* Countdown timer */}
+                          <div className="flex flex-col items-center gap-1">
+                            <div className={`text-3xl font-black tabular-nums ${mpesaCountdown <= 30 ? "text-red-500" : "text-green-600"}`}>
+                              {String(Math.floor(mpesaCountdown / 60)).padStart(2, "0")}:{String(mpesaCountdown % 60).padStart(2, "0")}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">Time remaining to complete payment</p>
+                            <div className="w-48 h-1.5 rounded-full bg-muted overflow-hidden mt-1">
+                              <div className={`h-full rounded-full transition-all duration-1000 ${mpesaCountdown <= 30 ? "bg-red-500" : "bg-green-500"}`}
+                                style={{ width: `${(mpesaCountdown / 120) * 100}%` }} />
+                            </div>
+                          </div>
+
                           {!mpesaConfigured && (
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 w-full">
                               <p className="text-amber-700 text-xs font-medium">Demo mode — crediting automatically…</p>
@@ -581,7 +633,29 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                               <span className="font-bold text-green-600">Safaricom M-Pesa</span>
                             </div>
                           </div>
-                          <p className="text-muted-foreground text-xs">Waiting for PIN confirmation…</p>
+
+                          {/* "Already paid?" manual check */}
+                          <button
+                            onClick={async () => {
+                              if (!mpesaCheckoutId) return;
+                              try {
+                                const r = await fetch(`/api/wallet/mpesa/status/${mpesaCheckoutId}`, {
+                                  headers: { Authorization: `Bearer ${token}` }
+                                });
+                                const d = await r.json();
+                                if (d.status === "completed") {
+                                  if (mpesaPollRef.current) clearInterval(mpesaPollRef.current);
+                                  qc.invalidateQueries({ queryKey: ["wallet"] });
+                                  setMpesaStep("done");
+                                  setSuccess(true);
+                                }
+                              } catch { /* silent */ }
+                            }}
+                            className="w-full py-2.5 rounded-xl border-2 border-green-300 text-green-700 text-sm font-bold active:scale-95 transition-all bg-green-50"
+                          >
+                            Already paid? Check status →
+                          </button>
+
                           <button
                             onClick={() => {
                               if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
