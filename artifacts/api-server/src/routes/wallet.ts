@@ -571,6 +571,22 @@ router.post("/wallet/daraja/callback", async (req, res): Promise<void> => {
   res.json({ ResultCode: 0, ResultDesc: "OK" });
 });
 
+// POST /wallet/daraja/expired — push notification when frontend M-Pesa countdown hits 0
+router.post("/wallet/daraja/expired", async (req, res): Promise<void> => {
+  try {
+    const user = await getCurrentUser(req);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const amount = Number(req.body.amount) || 0;
+    const body = amount > 0
+      ? `Your KES ${amount.toLocaleString("en-KE")} payment timed out — no funds were charged. Tap to retry.`
+      : "Your M-Pesa payment request expired. No funds were charged. Tap to retry.";
+    notifyUser(user.id, "payment_expired", "⏰ M-Pesa Payment Expired", body, "/wallet").catch(() => {});
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to send expiry notification" });
+  }
+});
+
 // ─── STRIPE M-PESA ROUTES ────────────────────────────────────────────────────
 
 // POST /wallet/stripe/mpesa — initiate M-Pesa STK push via Stripe

@@ -6,12 +6,12 @@
  *   Card   — Stripe Payment Element → in-page card form → confirm
  *   USDC   — Circle USDC on-chain deposit address + manual confirm
  */
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, CreditCard, Coins, Loader2, CheckCircle2,
+  X, CreditCard, Loader2, CheckCircle2,
   Copy, Check, AlertCircle, Wallet, Smartphone,
-  Shield, Lock, Zap,
+  Shield, Lock, Zap, RefreshCw, Clock,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getToken, getStoredUser, formatKES } from "@/lib/auth";
@@ -55,7 +55,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   // M-Pesa (Daraja) state
   const [mpesaPhone, setMpesaPhone] = useState("");
   const [mpesaCode, setMpesaCode] = useState("+254");
-  const [mpesaStep, setMpesaStep] = useState<"idle" | "sending" | "polling" | "done">("idle");
+  const [mpesaStep, setMpesaStep] = useState<"idle" | "sending" | "polling" | "expired" | "done">("idle");
   const [mpesaCheckoutId, setMpesaCheckoutId] = useState<string | null>(null);
   const [mpesaError, setMpesaError] = useState<string | null>(null);
   const [mpesaConfigured, setMpesaConfigured] = useState(true);
@@ -63,6 +63,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const mpesaPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [mpesaCountdown, setMpesaCountdown] = useState(120);
   const mpesaCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mpesaAmountRef = useRef<number>(0);
+  const mpesaSucceededRef = useRef(false);
 
   // Stripe card state
   const [stripeStep, setStripeStep] = useState<"idle" | "loading" | "form" | "confirming">("idle");
@@ -91,7 +93,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       setMpesaCountdown(120);
       mpesaCountdownRef.current = setInterval(() => {
         setMpesaCountdown(prev => {
-          if (prev <= 1) { clearInterval(mpesaCountdownRef.current!); return 0; }
+          if (prev <= 1) { clearInterval(mpesaCountdownRef.current!); mpesaCountdownRef.current = null; return 0; }
           return prev - 1;
         });
       }, 1000);
@@ -100,6 +102,20 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     }
     return () => { if (mpesaCountdownRef.current) clearInterval(mpesaCountdownRef.current); };
   }, [mpesaStep]);
+
+  // When countdown hits 0 while still polling → expire + send push notification
+  // Guard: mpesaSucceededRef prevents false expiry if payment confirmed just before timeout
+  useEffect(() => {
+    if (mpesaCountdown === 0 && mpesaStep === "polling" && !mpesaSucceededRef.current) {
+      if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
+      setMpesaStep("expired");
+      fetch("/api/wallet/daraja/expired", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount: mpesaAmountRef.current }),
+      }).catch(() => {});
+    }
+  }, [mpesaCountdown, mpesaStep, token]);
 
   useEffect(() => {
     if (tab === "usdc" && !circleInfo && token) {
@@ -117,12 +133,24 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   function resetAll() {
     setAmount("");
     setMpesaPhone(""); setMpesaStep("idle"); setMpesaCheckoutId(null); setMpesaError(null); setMpesaMessage("");
+    mpesaAmountRef.current = 0;
+    mpesaSucceededRef.current = false;
     if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
     if (mpesaCountdownRef.current) { clearInterval(mpesaCountdownRef.current); mpesaCountdownRef.current = null; }
     setMpesaCountdown(120);
     setStripeStep("idle"); setStripeIntentId(null); setStripeClientSecret(null); setCardError(null);
     stripeInstanceRef.current = null; stripeElementsRef.current = null;
     setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false); setWalletModalOpen(false);
+  }
+
+  // Retry from expired state — keeps phone + amount pre-filled
+  function handleRetry() {
+    if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
+    if (mpesaCountdownRef.current) { clearInterval(mpesaCountdownRef.current); mpesaCountdownRef.current = null; }
+    setMpesaStep("idle");
+    setMpesaError(null);
+    setMpesaCheckoutId(null);
+    setMpesaCountdown(120);
   }
 
   // ─── M-PESA via Daraja ──────────────────────────────────────────────────────
@@ -138,6 +166,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     }
 
     const fullPhone = mpesaCode + local;
+    mpesaAmountRef.current = amt;
     setMpesaStep("sending");
     setMpesaError(null);
 
@@ -166,14 +195,13 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
         return;
       }
 
-      // Poll every 4 s for up to 2 min
+      // Poll every 4 s for up to 2 min (countdown useEffect drives expiry)
       let polls = 0;
       mpesaPollRef.current = setInterval(async () => {
         polls++;
         if (polls > 30) {
           clearInterval(mpesaPollRef.current!); mpesaPollRef.current = null;
-          setMpesaError("Payment timed out. Check your M-Pesa messages and try again.");
-          setMpesaStep("idle"); return;
+          return; // Countdown useEffect handles expired state
         }
         try {
           const sr = await fetch(`/api/wallet/daraja/status/${d.checkoutRequestId}?amount=${amt}`, {
@@ -197,6 +225,10 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   }
 
   function handleSuccess(amt: number) {
+    // Mark succeeded immediately so the expiry effect can't fire a false "expired" notification
+    mpesaSucceededRef.current = true;
+    if (mpesaCountdownRef.current) { clearInterval(mpesaCountdownRef.current); mpesaCountdownRef.current = null; }
+    setMpesaStep("done");
     qc.invalidateQueries({ queryKey: ["wallet"] });
     setSuccess(true);
     onSuccess(amt);
@@ -557,117 +589,211 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                   )}
 
                   {(mpesaStep === "sending" || mpesaStep === "polling") && (
-                    <div className="py-6 flex flex-col items-center gap-4 text-center">
+                    <div className="py-4 flex flex-col items-center gap-5 text-center">
 
-                      {/* Step indicator */}
-                      <div className="w-full flex items-center gap-0">
+                      {/* Step indicator with real connector lines */}
+                      <div className="w-full flex items-center px-2">
                         {[
                           { label: "Sending", icon: "📤", done: mpesaStep === "polling", active: mpesaStep === "sending" },
                           { label: "Enter PIN", icon: "📱", done: false, active: mpesaStep === "polling" },
                           { label: "Confirmed", icon: "✅", done: false, active: false },
                         ].map((step, i) => (
-                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base transition-all ${step.done ? "bg-green-600" : step.active ? "bg-primary animate-pulse" : "bg-muted"}`}>
-                              {step.done ? <span className="text-white text-sm">✓</span> : <span className={step.active ? "" : "opacity-40"}>{step.icon}</span>}
+                          <Fragment key={i}>
+                            <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm border-2 transition-all duration-300 ${
+                                step.done
+                                  ? "bg-green-600 border-green-600 shadow-md shadow-green-600/25"
+                                  : step.active
+                                    ? "bg-primary/10 border-primary"
+                                    : "bg-muted border-border"
+                              }`}>
+                                {step.done
+                                  ? <span className="text-white font-bold text-sm">✓</span>
+                                  : step.active
+                                    ? <span className="animate-pulse">{step.icon}</span>
+                                    : <span className="opacity-35">{step.icon}</span>}
+                              </div>
+                              <p className={`text-[9px] font-bold tracking-wide ${step.active ? "text-primary" : step.done ? "text-green-600" : "text-muted-foreground/50"}`}>{step.label}</p>
                             </div>
-                            <p className={`text-[9px] font-bold ${step.active ? "text-primary" : step.done ? "text-green-600" : "text-muted-foreground"}`}>{step.label}</p>
                             {i < 2 && (
-                              <div className="absolute" style={{ display: "none" }} />
+                              <div className={`flex-1 h-0.5 mx-2 mb-4 rounded-full transition-all duration-500 ${step.done ? "bg-green-400" : "bg-border"}`} />
                             )}
-                          </div>
+                          </Fragment>
                         ))}
                       </div>
 
-                      {/* Animated icon */}
-                      <div className="relative">
-                        <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
-                          <Loader2 size={32} className="animate-spin text-green-600" />
-                        </div>
-                        <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-green-600 flex items-center justify-center">
-                          <span className="text-white text-xs">📱</span>
-                        </div>
-                      </div>
-
                       {mpesaStep === "sending" ? (
-                        <div>
-                          <p className="text-foreground font-bold text-base">Sending STK push…</p>
-                          <p className="text-muted-foreground text-sm mt-1">Initiating payment request to {mpesaCode}{mpesaPhone}</p>
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Loader2 size={28} className="animate-spin text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-foreground font-bold text-base">Sending STK push…</p>
+                            <p className="text-muted-foreground text-sm mt-0.5">Contacting Safaricom for {mpesaCode}{mpesaPhone}</p>
+                          </div>
                         </div>
                       ) : (
                         <>
-                          <div>
+                          {/* Circular countdown ring */}
+                          <div className="relative w-32 h-32">
+                            <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                              <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted))" strokeWidth="7" />
+                              <circle
+                                cx="50" cy="50" r="42" fill="none"
+                                stroke={mpesaCountdown <= 20 ? "#ef4444" : mpesaCountdown <= 60 ? "#f59e0b" : "#16a34a"}
+                                strokeWidth="7"
+                                strokeLinecap="round"
+                                strokeDasharray={`${2 * Math.PI * 42}`}
+                                strokeDashoffset={`${2 * Math.PI * 42 * (1 - mpesaCountdown / 120)}`}
+                                style={{ transition: "stroke-dashoffset 1s linear, stroke 0.5s ease" }}
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className={`text-2xl font-black tabular-nums transition-colors ${
+                                mpesaCountdown <= 20 ? "text-red-500 animate-pulse" : mpesaCountdown <= 60 ? "text-amber-500" : "text-green-600"
+                              }`}>
+                                {String(Math.floor(mpesaCountdown / 60)).padStart(2, "0")}:{String(mpesaCountdown % 60).padStart(2, "0")}
+                              </span>
+                              <span className="text-[9px] text-muted-foreground font-medium">remaining</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
                             <p className="text-foreground font-bold text-base">Check your phone 📱</p>
-                            <p className="text-muted-foreground text-sm mt-1">
-                              {mpesaMessage || `Enter your M-Pesa PIN to confirm ${formatKES(amt)}`}
+                            <p className="text-muted-foreground text-sm leading-relaxed">
+                              {mpesaMessage || `Enter your M-Pesa PIN to confirm ${formatKES(mpesaAmountRef.current || amt)}`}
                             </p>
                           </div>
 
-                          {/* Countdown timer */}
-                          <div className="flex flex-col items-center gap-1">
-                            <div className={`text-3xl font-black tabular-nums ${mpesaCountdown <= 30 ? "text-red-500" : "text-green-600"}`}>
-                              {String(Math.floor(mpesaCountdown / 60)).padStart(2, "0")}:{String(mpesaCountdown % 60).padStart(2, "0")}
-                            </div>
-                            <p className="text-[10px] text-muted-foreground">Time remaining to complete payment</p>
-                            <div className="w-48 h-1.5 rounded-full bg-muted overflow-hidden mt-1">
-                              <div className={`h-full rounded-full transition-all duration-1000 ${mpesaCountdown <= 30 ? "bg-red-500" : "bg-green-500"}`}
-                                style={{ width: `${(mpesaCountdown / 120) * 100}%` }} />
-                            </div>
-                          </div>
+                          {/* Urgency hint when critically low */}
+                          <AnimatePresence>
+                            {mpesaCountdown > 0 && mpesaCountdown <= 30 && (
+                              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                                className="bg-red-50 border border-red-200 rounded-xl p-2.5 w-full flex items-center gap-2">
+                                <Clock size={13} className="text-red-500 flex-shrink-0" />
+                                <p className="text-red-700 text-[11px] font-semibold">Hurry! Check your phone — request expires soon</p>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
 
                           {!mpesaConfigured && (
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 w-full">
                               <p className="text-amber-700 text-xs font-medium">Demo mode — crediting automatically…</p>
                             </div>
                           )}
-                          <div className="bg-muted rounded-2xl p-4 w-full space-y-2">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Amount</span>
-                              <span className="font-bold text-foreground">{formatKES(amt)}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Number</span>
-                              <span className="font-bold text-foreground">{mpesaCode}{mpesaPhone}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Provider</span>
-                              <span className="font-bold text-green-600">Safaricom M-Pesa</span>
-                            </div>
+
+                          <div className="bg-muted/60 rounded-2xl p-3.5 w-full space-y-2">
+                            {[
+                              { label: "Amount", val: formatKES(mpesaAmountRef.current || amt), green: false },
+                              { label: "Number", val: `${mpesaCode}${mpesaPhone}`, green: false },
+                              { label: "Provider", val: "Safaricom M-Pesa", green: true },
+                            ].map(({ label, val, green }) => (
+                              <div key={label} className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">{label}</span>
+                                <span className={`font-bold ${green ? "text-green-600" : "text-foreground"}`}>{val}</span>
+                              </div>
+                            ))}
                           </div>
 
-                          {/* "Already paid?" manual check */}
-                          <button
-                            onClick={async () => {
-                              if (!mpesaCheckoutId) return;
-                              try {
-                                const r = await fetch(`/api/wallet/mpesa/status/${mpesaCheckoutId}`, {
-                                  headers: { Authorization: `Bearer ${token}` }
-                                });
-                                const d = await r.json();
-                                if (d.status === "completed") {
-                                  if (mpesaPollRef.current) clearInterval(mpesaPollRef.current);
-                                  qc.invalidateQueries({ queryKey: ["wallet"] });
-                                  setMpesaStep("done");
-                                  setSuccess(true);
-                                }
-                              } catch { /* silent */ }
-                            }}
-                            className="w-full py-2.5 rounded-xl border-2 border-green-300 text-green-700 text-sm font-bold active:scale-95 transition-all bg-green-50"
-                          >
-                            Already paid? Check status →
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
-                              setMpesaStep("idle"); setMpesaError(null);
-                            }}
-                            className="text-xs text-muted-foreground underline underline-offset-2"
-                          >
-                            Cancel
-                          </button>
+                          <div className="w-full space-y-2.5">
+                            <button
+                              onClick={async () => {
+                                if (!mpesaCheckoutId) return;
+                                try {
+                                  const r = await fetch(`/api/wallet/daraja/status/${mpesaCheckoutId}?amount=${mpesaAmountRef.current || amt}`, {
+                                    headers: { Authorization: `Bearer ${token}` }
+                                  });
+                                  const d = await r.json();
+                                  if (d.paid) {
+                                    if (mpesaPollRef.current) clearInterval(mpesaPollRef.current);
+                                    handleSuccess(mpesaAmountRef.current || amt);
+                                  }
+                                } catch { /* silent */ }
+                              }}
+                              className="w-full py-3 rounded-2xl border-2 border-green-300 text-green-700 text-sm font-bold active:scale-95 transition-all bg-green-50">
+                              I already completed the payment →
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (mpesaPollRef.current) { clearInterval(mpesaPollRef.current); mpesaPollRef.current = null; }
+                                setMpesaStep("idle"); setMpesaError(null);
+                              }}
+                              className="text-xs text-muted-foreground underline underline-offset-2 w-full text-center">
+                              Cancel and start over
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>
+                  )}
+
+                  {/* ─── EXPIRED STATE ─────────────────────────────────── */}
+                  {mpesaStep === "expired" && (
+                    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                      className="py-4 flex flex-col items-center gap-4 text-center">
+
+                      {/* Expired icon */}
+                      <div className="relative">
+                        <div className="w-20 h-20 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center">
+                          <Clock size={32} className="text-red-400" />
+                        </div>
+                        <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-red-500 border-2 border-background flex items-center justify-center">
+                          <span className="text-white text-xs font-black">!</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-foreground font-bold text-lg">Payment Expired</p>
+                        <p className="text-muted-foreground text-sm mt-1 leading-relaxed">
+                          Your {formatKES(mpesaAmountRef.current)} M-Pesa request wasn't approved within 2 minutes
+                        </p>
+                      </div>
+
+                      <div className="bg-muted/60 rounded-2xl p-4 w-full text-left space-y-3">
+                        {[
+                          { icon: "💸", text: "No funds were deducted from your M-Pesa" },
+                          { icon: "🔔", text: "We've sent you a notification to remind you" },
+                          { icon: "🔁", text: "Tap retry — your number is already saved" },
+                        ].map(({ icon, text }) => (
+                          <div key={text} className="flex items-center gap-2.5">
+                            <span className="text-base flex-shrink-0">{icon}</span>
+                            <p className="text-sm text-foreground/80">{text}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Primary retry CTA */}
+                      <button onClick={handleRetry}
+                        className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2.5 active:scale-95 transition-all shadow-lg shadow-green-600/20">
+                        <RefreshCw size={16} />
+                        Retry — Send {formatKES(mpesaAmountRef.current)} Again
+                      </button>
+
+                      {/* Check if it secretly went through */}
+                      <button
+                        onClick={async () => {
+                          if (!mpesaCheckoutId) { handleRetry(); return; }
+                          try {
+                            const r = await fetch(`/api/wallet/daraja/status/${mpesaCheckoutId}?amount=${mpesaAmountRef.current}`, {
+                              headers: { Authorization: `Bearer ${token}` }
+                            });
+                            const d = await r.json();
+                            if (d.paid) {
+                              handleSuccess(mpesaAmountRef.current);
+                            } else {
+                              handleRetry();
+                            }
+                          } catch { handleRetry(); }
+                        }}
+                        className="w-full py-3.5 rounded-2xl border-2 border-border text-foreground text-sm font-semibold active:scale-95 transition-all bg-muted/40">
+                        I completed the payment — verify
+                      </button>
+
+                      <button onClick={() => { setMpesaStep("idle"); setMpesaError(null); setAmount(""); }}
+                        className="text-xs text-muted-foreground underline underline-offset-2">
+                        Start fresh with a different amount
+                      </button>
+                    </motion.div>
                   )}
                 </div>
               )}
