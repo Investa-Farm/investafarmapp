@@ -757,7 +757,7 @@ export default function MarketHome() {
         <div className="flex bg-muted rounded-2xl p-1 gap-1">
           {(["market", "news", "watchlist"] as const).map(s => (
             <button key={s} onClick={() => setActiveSectionPersist(s)}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold capitalize transition-all ${activeSection === s ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>
+              className={`flex-1 py-2 rounded-xl text-xs font-semibold capitalize transition-all ${activeSection === s ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
               {s === "watchlist" ? "Watchlist" : s === "news" ? "📰 News" : "📊 Market"}
             </button>
           ))}

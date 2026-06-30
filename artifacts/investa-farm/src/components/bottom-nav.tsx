@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BarChart2, Briefcase, Activity, User, Home, Handshake, Package, ClipboardList, ShoppingBasket } from "lucide-react";
+import { BarChart2, Briefcase, Activity, User, Home, Handshake, Package, ClipboardList, Users, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
 
@@ -23,6 +23,18 @@ const agribusinessNav: NavItem[] = [
   { label: "Orders",    path: "/agribusiness/orders",  icon: Package   },
   { label: "Network",   path: "/agribusiness/network", icon: Handshake },
   { label: "Profile",   path: "/agribusiness/profile", icon: User      },
+];
+
+const salesAgentNav: NavItem[] = [
+  { label: "Home",    path: "/sales-agent/dashboard", icon: Home   },
+  { label: "Network", path: "/agribusiness/network",  icon: Users  },
+  { label: "Profile", path: "/agribusiness/profile",  icon: User   },
+];
+
+const offtakerNav: NavItem[] = [
+  { label: "Home",   path: "/offtaker/dashboard",    icon: Home        },
+  { label: "Orders", path: "/agribusiness/orders",   icon: ShoppingCart },
+  { label: "Profile", path: "/agribusiness/profile", icon: User         },
 ];
 
 function useUnreadCount() {
@@ -50,21 +62,27 @@ function useUnreadCount() {
   return count;
 }
 
-export function BottomNav({ role }: { role: "farmer" | "investor" | "agribusiness" }) {
+export function BottomNav({ role }: { role: "farmer" | "investor" | "agribusiness" | "sales_agent" | "offtaker" }) {
   const [location] = useLocation();
   const unread = useUnreadCount();
 
-  const items = role === "farmer" ? farmerNav : role === "agribusiness" ? agribusinessNav : investorNav;
+  const items =
+    role === "farmer"       ? farmerNav :
+    role === "agribusiness" ? agribusinessNav :
+    role === "sales_agent"  ? salesAgentNav :
+    role === "offtaker"     ? offtakerNav :
+    investorNav;
 
   return (
     <nav
       data-testid="bottom-nav"
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-border z-50 px-1 pb-safe"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-background border-t border-border z-50 px-1 pb-safe"
     >
       <div className="flex items-center justify-around py-1.5">
         {items.map(({ label, path, icon: Icon, badge }) => {
-          const isActive = role === "farmer"
-            ? (path === "/farmer" ? location === "/farmer" : location.startsWith(path))
+          const isHome = path === "/farmer" || path === "/sales-agent/dashboard" || path === "/offtaker/dashboard";
+          const isActive = isHome
+            ? location === path
             : location === path || (
                 path !== "/agribusiness" && path !== "/" &&
                 location.startsWith(path)
@@ -73,6 +91,7 @@ export function BottomNav({ role }: { role: "farmer" | "investor" | "agribusines
           return (
             <Link key={path} href={path}>
               <button
+                aria-label={label}
                 data-testid={`nav-${label.toLowerCase().replace(/ /g, "-")}`}
                 data-tour={label === "Portfolio" ? "nav-portfolio" : undefined}
                 className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all relative ${isActive ? "text-primary" : "text-muted-foreground"}`}

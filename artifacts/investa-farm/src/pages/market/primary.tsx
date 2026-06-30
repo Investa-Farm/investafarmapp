@@ -207,7 +207,7 @@ export default function PrimaryMarket() {
   return (
     <div
       ref={containerRef}
-      className="min-h-dvh w-full max-w-[430px] mx-auto flex flex-col pb-20 bg-background"
+      className="min-h-dvh w-full max-w-[430px] mx-auto flex flex-col pb-24 bg-background"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}

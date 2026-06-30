@@ -329,7 +329,7 @@ export default function FarmerKyc() {
       <div className="app-shell pb-20 page-enter">
         <div className="hero-header pt-12 pb-5 px-5">
           <div className="flex items-center gap-3 mb-2">
-            <button onClick={() => setLocation("/farmer")}
+            <button onClick={() => setLocation("/farmer")} aria-label="Back to dashboard"
               className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center border border-white/30">
               <ArrowLeft size={16} className="text-white" />
             </button>
@@ -387,7 +387,7 @@ export default function FarmerKyc() {
 
       <div className="hero-header pt-12 pb-5 px-5">
         <div className="flex items-center gap-3 mb-2">
-          <button onClick={() => setLocation("/farmer")}
+          <button onClick={() => setLocation("/farmer")} aria-label="Back to dashboard"
             className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center border border-white/30">
             <ArrowLeft size={16} className="text-white" />
           </button>
@@ -508,6 +508,7 @@ export default function FarmerKyc() {
                         <button
                           onClick={() => setViewingDoc(doc)}
                           className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center active:scale-90 transition-transform"
+                          aria-label="View document"
                           title="View document"
                         >
                           <Eye size={14} className="text-primary" />
@@ -515,7 +516,7 @@ export default function FarmerKyc() {
                         {statusIcon(doc.status)}
                         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${statusClass(doc.status)}`}>{doc.status}</span>
                         {doc.status !== "approved" && (
-                          <button onClick={() => remove.mutate(doc.id)}
+                          <button onClick={() => remove.mutate(doc.id)} aria-label="Delete document"
                             className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center active:scale-90 transition-transform">
                             <Trash2 size={13} className="text-red-500" />
                           </button>

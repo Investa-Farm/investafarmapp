@@ -45,7 +45,7 @@ export default function InvestorWallet() {
   const [txFilter, setTxFilter] = useState<"all" | "deposit" | "withdrawal" | "investment" | "fee">("all");
   const { currency, setCurrency, formatAmount } = useCurrency();
 
-  const { data: stellarAcct } = useQuery<{ accountNumber: string } | null>({
+  const { data: stellarAcct, isError: stellarError, isSuccess: stellarLoaded } = useQuery<{ accountNumber: string } | null>({
     queryKey: ["stellar-account"],
     queryFn: async () => {
       const r = await fetch("/api/stellar/account", { headers: { Authorization: `Bearer ${token}` } });
@@ -53,6 +53,7 @@ export default function InvestorWallet() {
       return r.json();
     },
     staleTime: 300_000,
+    retry: false,
   });
 
   const { data: escrowData } = useQuery<{ heldTotal: number; releasedTotal: number; escrows: Array<{ id: number; farmId: number | null; amount: string; status: string; description: string | null; releaseAt: string | null; createdAt: string }> }>({
@@ -249,14 +250,18 @@ export default function InvestorWallet() {
               {stellarAcct?.accountNumber ? (
                 <>
                   <p className="text-white font-mono text-xs tracking-wider truncate flex-1">{stellarAcct.accountNumber}</p>
-                  <button onClick={handleCopyStellar}
+                  <button onClick={handleCopyStellar} aria-label="Copy account number"
                     className="flex-shrink-0 flex items-center gap-1.5 bg-white/10 border border-white/10 rounded-xl px-2.5 py-1.5 transition-all active:scale-95">
                     {stellarCopied ? <Check size={11} className="text-green-400" /> : <Copy size={11} className="text-white/70" />}
                     <span className="text-white/70 text-[10px] font-semibold">{stellarCopied ? "Copied!" : "Copy"}</span>
                   </button>
                 </>
+              ) : stellarError ? (
+                <p className="text-red-400/70 text-xs font-mono tracking-wider">Unable to load account</p>
+              ) : stellarLoaded ? (
+                <p className="text-white/30 text-xs font-mono tracking-wider">No account yet</p>
               ) : (
-                <p className="text-white/30 text-xs font-mono tracking-wider">Loading account…</p>
+                <p className="text-white/30 text-xs font-mono tracking-wider animate-pulse">Loading account…</p>
               )}
             </div>
             <p className="text-white/25 text-[9px] mt-1.5">Secure · Stellar blockchain · Custodial</p>
