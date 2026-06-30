@@ -108,6 +108,13 @@ export default function AdminDashboard() {
   const [reviews, setReviews] = useState<{ reviews: any[]; avgRating: number; total: number; distribution: { rating: number; count: number }[] } | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
+  // Real-time activity feed (Overview tab)
+  const [feedEvents, setFeedEvents] = useState<Array<{
+    id: string; type: string; title: string; subtitle: string;
+    amountKES?: number; status?: string; ts: string;
+  }>>([]);
+  const [feedLoading, setFeedLoading] = useState(false);
+
   // Messages
   const [messages, setMessages] = useState<any[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -280,7 +287,15 @@ export default function AdminDashboard() {
       setIsMasterAdmin(true);
     }
     fetchStats();
+    fetchFeedEvents();
   }, []);
+
+  // Auto-refresh activity feed every 30s
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(fetchFeedEvents, 30_000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   useEffect(() => {
     if (tab === "users") fetchUsers();
@@ -366,6 +381,14 @@ export default function AdminDashboard() {
       const r = await fetch("/api/admin/notifications-bell", { headers: { Authorization: `Bearer ${token}` } });
       if (r.ok) setBellData(await r.json());
     } catch { /* silent */ }
+  };
+
+  const fetchFeedEvents = async () => {
+    setFeedLoading(true);
+    try {
+      const r = await fetch("/api/admin/activity-feed", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setFeedEvents(await r.json());
+    } catch { /* silent */ } finally { setFeedLoading(false); }
   };
 
   // Poll notification bell every 30 seconds
@@ -1144,12 +1167,12 @@ export default function AdminDashboard() {
               {/* CSV Export Quick Access */}
               <div>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Quick Exports</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["farmers", "investors", "transactions", "loans"] as const).map(type => (
+                <div className="grid grid-cols-3 gap-2">
+                  {(["farmers", "investors", "transactions", "loans", "farms", "kyc"] as const).map(type => (
                     <button key={type} onClick={() => exportData(type)} disabled={exportLoading === type}
-                      className="bg-card border border-border rounded-xl p-3 flex items-center gap-2 active:scale-95 transition-transform disabled:opacity-60">
-                      <Download size={14} className="text-green-600 flex-shrink-0" />
-                      <span className="text-xs font-semibold text-foreground capitalize">{exportLoading === type ? "Exporting…" : type}</span>
+                      className="bg-card border border-border rounded-xl p-2.5 flex items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-60">
+                      <Download size={12} className="text-green-600 flex-shrink-0" />
+                      <span className="text-[10px] font-semibold text-foreground capitalize">{exportLoading === type ? "…" : type}</span>
                     </button>
                   ))}
                 </div>
@@ -1199,6 +1222,70 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Real-time Activity Feed */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Live Activity Feed</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span className="text-[9px] text-muted-foreground">auto-refresh 30s</span>
+                    <button onClick={fetchFeedEvents} disabled={feedLoading}
+                      className="text-[9px] text-primary underline disabled:opacity-50">refresh</button>
+                  </div>
+                </div>
+                <div className="bg-card rounded-2xl border border-border overflow-hidden">
+                  {feedLoading && feedEvents.length === 0 ? (
+                    <div className="py-6 flex justify-center">
+                      <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    </div>
+                  ) : feedEvents.length === 0 ? (
+                    <p className="text-center text-muted-foreground text-sm py-6">No recent activity</p>
+                  ) : feedEvents.map((ev, i) => {
+                    const typeConfig: Record<string, { icon: string; color: string; bg: string }> = {
+                      registration: { icon: "👤", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/40" },
+                      kyc:          { icon: "📋", color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/40" },
+                      investment:   { icon: "🌱", color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/40" },
+                      deposit:      { icon: "💰", color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
+                      withdrawal:   { icon: "🏦", color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950/40" },
+                    };
+                    const cfg = typeConfig[ev.type] ?? { icon: "⚡", color: "text-primary", bg: "bg-primary/5" };
+                    const elapsed = (() => {
+                      const sec = Math.floor((Date.now() - new Date(ev.ts).getTime()) / 1000);
+                      if (sec < 60) return `${sec}s ago`;
+                      if (sec < 3600) return `${Math.floor(sec/60)}m ago`;
+                      if (sec < 86400) return `${Math.floor(sec/3600)}h ago`;
+                      return `${Math.floor(sec/86400)}d ago`;
+                    })();
+                    return (
+                      <div key={ev.id} className={`flex items-center gap-3 px-3 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}>
+                        <div className={`w-7 h-7 rounded-lg ${cfg.bg} flex items-center justify-center flex-shrink-0 text-sm`}>
+                          {cfg.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-semibold truncate ${cfg.color}`}>{ev.title}</p>
+                          <p className="text-muted-foreground text-[10px] truncate">{ev.subtitle}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          {ev.amountKES != null && (
+                            <p className="text-xs font-bold text-foreground">KES {ev.amountKES.toLocaleString()}</p>
+                          )}
+                          {ev.status && (
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
+                              ev.status === "approved" ? "bg-green-100 text-green-700" :
+                              ev.status === "rejected" ? "bg-red-100 text-red-700" :
+                              "bg-amber-100 text-amber-700"}`}>{ev.status}</span>
+                          )}
+                          <p className="text-[9px] text-muted-foreground mt-0.5">{elapsed}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </>

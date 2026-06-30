@@ -310,11 +310,134 @@ router.get("/admin/export/:type", async (req, res): Promise<void> => {
       res.setHeader("Content-Type", "text/csv");
       res.setHeader("Content-Disposition", `attachment; filename="investa-loans-${new Date().toISOString().split("T")[0]}.csv"`);
       res.send(csv);
+    } else if (type === "farms") {
+      const farms = await db.select({ farm: farmsTable, user: usersTable })
+        .from(farmsTable)
+        .leftJoin(usersTable, eq(usersTable.id, farmsTable.farmerId))
+        .orderBy(desc(farmsTable.createdAt));
+      const rows = farms.map(r => ({
+        id: r.farm.id,
+        farmName: r.farm.name,
+        farmerName: r.user?.name ?? "",
+        farmerEmail: r.user?.email ?? "",
+        cropType: r.farm.cropType ?? "",
+        location: r.farm.location ?? "",
+        loanAmountKES: Number(r.farm.loanAmount),
+        totalShares: r.farm.totalShares,
+        sharesAvailable: r.farm.sharesAvailable,
+        sharePriceKES: Number(r.farm.sharePrice),
+        changePercent: Number(r.farm.changePercent ?? 0),
+        status: r.farm.status ?? "",
+        tradeCount: r.farm.tradeCount ?? 0,
+        createdAt: r.farm.createdAt?.toISOString().split("T")[0] ?? "",
+      }));
+      const csv = toCSV(rows, ["id","farmName","farmerName","farmerEmail","cropType","location","loanAmountKES","totalShares","sharesAvailable","sharePriceKES","changePercent","status","tradeCount","createdAt"]);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="investa-farms-${new Date().toISOString().split("T")[0]}.csv"`);
+      res.send(csv);
+    } else if (type === "kyc") {
+      const docs = await db.select({ doc: kycDocumentsTable, user: usersTable })
+        .from(kycDocumentsTable)
+        .leftJoin(usersTable, eq(usersTable.id, kycDocumentsTable.userId))
+        .orderBy(desc(kycDocumentsTable.createdAt));
+      const rows = docs.map(r => ({
+        id: r.doc.id, userId: r.doc.userId,
+        userName: r.user?.name ?? "", userEmail: r.user?.email ?? "",
+        docType: r.doc.docType, status: r.doc.status,
+        submittedAt: r.doc.createdAt?.toISOString().split("T")[0] ?? "",
+        reviewedAt: r.doc.reviewedAt?.toISOString().split("T")[0] ?? "",
+      }));
+      const csv = toCSV(rows, ["id","userId","userName","userEmail","docType","status","submittedAt","reviewedAt"]);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="investa-kyc-${new Date().toISOString().split("T")[0]}.csv"`);
+      res.send(csv);
     } else {
-      res.status(400).json({ error: "Invalid export type. Use: farmers, investors, transactions, loans" });
+      res.status(400).json({ error: "Invalid export type. Use: farmers, investors, transactions, loans, farms, kyc" });
     }
   } catch (err) {
     res.status(500).json({ error: "Export failed: " + String(err) });
+  }
+});
+
+// ── Real-time activity feed ────────────────────────────────────────────────────
+// Returns the last 20 platform events merged across key tables
+router.get("/admin/activity-feed", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res, true);
+  if (!ok) return;
+
+  try {
+    const [recentUsers, recentKyc, recentInvestments, recentTxs] = await Promise.all([
+      // New registrations
+      db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, createdAt: usersTable.createdAt })
+        .from(usersTable)
+        .orderBy(desc(usersTable.createdAt))
+        .limit(10),
+      // KYC submissions
+      db.select({ id: kycDocumentsTable.id, userId: kycDocumentsTable.userId, docType: kycDocumentsTable.docType, status: kycDocumentsTable.status, createdAt: kycDocumentsTable.createdAt, userName: usersTable.name, userEmail: usersTable.email })
+        .from(kycDocumentsTable)
+        .leftJoin(usersTable, eq(usersTable.id, kycDocumentsTable.userId))
+        .orderBy(desc(kycDocumentsTable.createdAt))
+        .limit(10),
+      // Investments made
+      db.select({ id: investmentsTable.id, investorId: investmentsTable.investorId, farmId: investmentsTable.farmId, quantity: investmentsTable.quantity, purchasePrice: investmentsTable.purchasePrice, createdAt: investmentsTable.createdAt, investorName: usersTable.name, farmName: farmsTable.name })
+        .from(investmentsTable)
+        .leftJoin(usersTable, eq(usersTable.id, investmentsTable.investorId))
+        .leftJoin(farmsTable, eq(farmsTable.id, investmentsTable.farmId))
+        .orderBy(desc(investmentsTable.createdAt))
+        .limit(10),
+      // Wallet transactions (deposits/withdrawals)
+      db.select({ id: walletTransactionsTable.id, userId: walletTransactionsTable.userId, type: walletTransactionsTable.type, amount: walletTransactionsTable.amount, status: walletTransactionsTable.status, createdAt: walletTransactionsTable.createdAt, userName: usersTable.name })
+        .from(walletTransactionsTable)
+        .leftJoin(usersTable, eq(usersTable.id, walletTransactionsTable.userId))
+        .where(eq(walletTransactionsTable.status, "completed"))
+        .orderBy(desc(walletTransactionsTable.createdAt))
+        .limit(10),
+    ]);
+
+    type FeedEvent = {
+      id: string; type: string; title: string; subtitle: string;
+      amountKES?: number; status?: string; ts: string;
+    };
+
+    const events: FeedEvent[] = [
+      ...recentUsers.map(u => ({
+        id: `reg-${u.id}`,
+        type: "registration",
+        title: `New ${u.role} registered`,
+        subtitle: `${u.name} · ${u.email}`,
+        ts: u.createdAt?.toISOString() ?? new Date().toISOString(),
+      })),
+      ...recentKyc.map(k => ({
+        id: `kyc-${k.id}`,
+        type: "kyc",
+        title: `KYC ${k.status === "approved" ? "approved" : k.status === "rejected" ? "rejected" : "submitted"}`,
+        subtitle: `${k.userName ?? "Unknown"} · ${k.docType}`,
+        status: k.status,
+        ts: k.createdAt?.toISOString() ?? new Date().toISOString(),
+      })),
+      ...recentInvestments.map(inv => ({
+        id: `inv-${inv.id}`,
+        type: "investment",
+        title: `Investment in ${inv.farmName ?? "farm"}`,
+        subtitle: `${inv.investorName ?? "Investor"} · ${inv.quantity} shares`,
+        amountKES: Math.round(inv.quantity * Number(inv.purchasePrice)),
+        ts: inv.createdAt?.toISOString() ?? new Date().toISOString(),
+      })),
+      ...recentTxs.map(tx => ({
+        id: `tx-${tx.id}`,
+        type: tx.type === "deposit" ? "deposit" : "withdrawal",
+        title: `${tx.type === "deposit" ? "Deposit received" : tx.type === "withdrawal" ? "Withdrawal processed" : tx.type}`,
+        subtitle: `${tx.userName ?? "User"}`,
+        amountKES: Math.round(Number(tx.amount)),
+        ts: tx.createdAt?.toISOString() ?? new Date().toISOString(),
+      })),
+    ];
+
+    // Sort by newest first and return top 20
+    events.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+    res.json(events.slice(0, 20));
+  } catch (err) {
+    res.status(500).json({ error: "Activity feed failed: " + String(err) });
   }
 });
 

@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDemoUsers } from "./seed";
+import { runBulkSeed } from "./bulkSeed";
 import { startScheduler } from "./scheduler";
 import { initVapid } from "./lib/push";
 import { testSmtpConnection } from "./lib/email";
@@ -58,6 +59,13 @@ const server = app.listen(port, async () => {
   }
 
   startScheduler();
+
+  // Large-scale synthetic seed runs entirely in the background — never blocks startup
+  setTimeout(() => {
+    runBulkSeed((msg) => logger.info(msg)).catch(err =>
+      logger.warn({ err: (err as Error).message }, "[bulk] Background seed error (non-fatal)")
+    );
+  }, 8_000); // 8-second delay so the server handles first requests before bulk work starts
 });
 
 server.on("error", (err) => {
