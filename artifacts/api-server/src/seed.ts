@@ -5,15 +5,15 @@ import { eq, and, count } from "drizzle-orm";
 // ── Realistic Kenyan demo accounts ──────────────────────────────────────────
 
 const DEMO_USERS = [
-  // Core accounts
-  { email: "john.farmer@investafarm.com",       password: "password123", name: "John Kamau",             role: "farmer"       as const },
-  { email: "david.investor@investafarm.com",    password: "password123", name: "David Mwangi",           role: "investor"     as const },
+  // Core accounts — gmail style (no @investafarm.com except admin)
+  { email: "john.kamau.farm@gmail.com",         password: "password123", name: "John Kamau",             role: "farmer"       as const },
+  { email: "david.mwangi.inv@gmail.com",        password: "password123", name: "David Mwangi",           role: "investor"     as const },
   { email: "admin@investafarm.com",             password: "admin2024!",  name: "Platform Admin",         role: "admin"        as const },
-  { email: "grace.farmer@investafarm.com",      password: "password123", name: "Grace Wanjiku",          role: "farmer"       as const },
-  { email: "peter.farmer@investafarm.com",      password: "password123", name: "Peter Otieno",           role: "farmer"       as const },
-  { email: "demo.coop@investafarm.com",         password: "password123", name: "Mwea Farmers Coop",      role: "cooperative"  as const },
-  { email: "demo.agent@investafarm.com",        password: "password123", name: "Samuel Njoroge",         role: "agribusiness" as const },
-  { email: "demo.offtaker@investafarm.com",     password: "password123", name: "Rift Valley Buyers Ltd", role: "agribusiness" as const },
+  { email: "grace.wanjiku.ke@gmail.com",        password: "password123", name: "Grace Wanjiku",          role: "farmer"       as const },
+  { email: "peter.otieno.farm@gmail.com",       password: "password123", name: "Peter Otieno",           role: "farmer"       as const },
+  { email: "mwea.coop.ke@gmail.com",            password: "password123", name: "Mwea Farmers Coop",      role: "cooperative"  as const },
+  { email: "samuel.njoroge.ke@gmail.com",       password: "password123", name: "Samuel Njoroge",         role: "agribusiness" as const },
+  { email: "rift.valley.buyers@gmail.com",      password: "password123", name: "Rift Valley Buyers Ltd", role: "agribusiness" as const },
   // Extra farmers — real Kenyan names / realistic emails
   { email: "mary.akinyi254@gmail.com",          password: "password123", name: "Mary Akinyi",            role: "farmer"       as const },
   { email: "jmwangi.farm@gmail.com",            password: "password123", name: "James Mwangi",           role: "farmer"       as const },
@@ -35,99 +35,99 @@ const DEMO_USERS = [
   { email: "hassanomar.ke@yahoo.com",           password: "password123", name: "Hassan Omar",            role: "investor"     as const },
   { email: "irene.wambui254@gmail.com",         password: "password123", name: "Irene Wambui",           role: "investor"     as const },
   // Pre-seeded viewer sub-accounts (read-only admin access)
-  { email: "finance.team@investafarm.com",      password: "viewer2024!", name: "Finance Team",           role: "viewer"       as const },
-  { email: "james.viewer@investafarm.com",      password: "viewer2024!", name: "James Kariuki",          role: "viewer"       as const },
+  { email: "finance.investa.team@gmail.com",    password: "viewer2024!", name: "Finance Team",           role: "viewer"       as const },
+  { email: "james.kariuki.ke@gmail.com",        password: "viewer2024!", name: "James Kariuki",          role: "viewer"       as const },
 ];
 
 // All farms — each has a farmerEmail mapping
 const DEMO_FARMS = [
   {
-    name: "Kamau Coffee Estate",        cropType: "Coffee",    farmerEmail: "john.farmer@investafarm.com",
+    name: "Kamau Coffee Estate",        cropType: "Coffee",    farmerEmail: "john.kamau.farm@gmail.com",
     location: "Kiambu, Central Kenya",  loanAmount: "850000",  totalShares: 8500, sharePrice: "100",
     sharesAvailable: 3200, changePercent: "8.24",  tradeCount: 142, currentPrice: "108", status: "active" as const,
     description: "Premium arabica coffee farm on the slopes of the Aberdare ranges. Award-winning single-origin beans exported to Europe.",
   },
   {
-    name: "Rift Valley Maize Farms",    cropType: "Maize",     farmerEmail: "john.farmer@investafarm.com",
+    name: "Rift Valley Maize Farms",    cropType: "Maize",     farmerEmail: "john.kamau.farm@gmail.com",
     location: "Nakuru, Rift Valley",    loanAmount: "1200000", totalShares: 12000, sharePrice: "100",
     sharesAvailable: 4800, changePercent: "3.15",  tradeCount: 89,  currentPrice: "103", status: "active" as const,
     description: "Large-scale hybrid maize production serving Nakuru county markets. 3rd generation family farm with modern irrigation.",
   },
   {
-    name: "Kirinyaga Tea Cooperative",  cropType: "Tea",       farmerEmail: "grace.farmer@investafarm.com",
+    name: "Kirinyaga Tea Cooperative",  cropType: "Tea",       farmerEmail: "grace.wanjiku.ke@gmail.com",
     location: "Kirinyaga, Mt. Kenya Region", loanAmount: "2100000", totalShares: 21000, sharePrice: "100",
     sharesAvailable: 7500, changePercent: "12.60", tradeCount: 215, currentPrice: "113", status: "active" as const,
     description: "High-altitude KTDA-affiliated tea farm at 2,100m. Purple tea and green tea varieties fetching premium export prices.",
   },
   {
-    name: "Laikipia Avocado Orchards",  cropType: "Avocado",   farmerEmail: "grace.farmer@investafarm.com",
+    name: "Laikipia Avocado Orchards",  cropType: "Avocado",   farmerEmail: "grace.wanjiku.ke@gmail.com",
     location: "Laikipia, Central Rift", loanAmount: "650000",  totalShares: 6500, sharePrice: "100",
     sharesAvailable: 2800, changePercent: "6.80",  tradeCount: 77,  currentPrice: "107", status: "active" as const,
     description: "Hass avocado orchard supplying EU export markets via Flamingo Horticulture. GlobalGAP certified.",
   },
   {
-    name: "Meru Macadamia Plantation",  cropType: "Macadamia", farmerEmail: "peter.farmer@investafarm.com",
+    name: "Meru Macadamia Plantation",  cropType: "Macadamia", farmerEmail: "peter.otieno.farm@gmail.com",
     location: "Meru, Eastern Kenya",    loanAmount: "980000",  totalShares: 9800, sharePrice: "100",
     sharesAvailable: 5500, changePercent: "15.40", tradeCount: 166, currentPrice: "115", status: "active" as const,
     description: "Macadamia nut farm with processing unit. Premium grade nuts exported to Asia and Middle East markets.",
   },
   {
-    name: "Wanjiku Fresh Tomatoes",     cropType: "Tomatoes",  farmerEmail: "john.farmer@investafarm.com",
+    name: "Wanjiku Fresh Tomatoes",     cropType: "Tomatoes",  farmerEmail: "john.kamau.farm@gmail.com",
     location: "Thika, Kiambu County",   loanAmount: "420000",  totalShares: 4200, sharePrice: "100",
     sharesAvailable: 1900, changePercent: "-2.10", tradeCount: 53,  currentPrice: "98",  status: "active" as const,
     description: "Greenhouse tomato farm supplying Nairobi supermarket chains. Drip irrigation system with solar pumping.",
   },
   {
-    name: "Otieno Rice Fields",         cropType: "Rice",      farmerEmail: "peter.farmer@investafarm.com",
+    name: "Otieno Rice Fields",         cropType: "Rice",      farmerEmail: "peter.otieno.farm@gmail.com",
     location: "Ahero, Kisumu County",   loanAmount: "750000",  totalShares: 7500, sharePrice: "100",
     sharesAvailable: 3100, changePercent: "4.50",  tradeCount: 94,  currentPrice: "105", status: "active" as const,
     description: "Irrigated paddy rice in the Ahero Irrigation Scheme. Supplying Kisumu and Nairobi supermarkets.",
   },
   {
-    name: "Narok Sunflower Collective", cropType: "Sorghum",   farmerEmail: "grace.farmer@investafarm.com",
+    name: "Narok Sunflower Collective", cropType: "Sorghum",   farmerEmail: "grace.wanjiku.ke@gmail.com",
     location: "Narok, Rift Valley",     loanAmount: "540000",  totalShares: 5400, sharePrice: "100",
     sharesAvailable: 2200, changePercent: "7.30",  tradeCount: 61,  currentPrice: "107", status: "active" as const,
     description: "Drought-resistant sorghum and sunflower intercropping. Selling to local millers and biofuel processors.",
   },
   // New farms for new farmers
   {
-    name: "Akinyi Dairy & Kale Farm",   cropType: "Kale",      farmerEmail: "mary.akinyi@investafarm.com",
+    name: "Akinyi Dairy & Kale Farm",   cropType: "Kale",      farmerEmail: "mary.akinyi254@gmail.com",
     location: "Kisumu, Nyanza",          loanAmount: "380000",  totalShares: 3800, sharePrice: "100",
     sharesAvailable: 1500, changePercent: "5.20",  tradeCount: 44,  currentPrice: "105", status: "active" as const,
     description: "Mixed kale and small-scale dairy supplying Kisumu fresh markets. Solar-powered borehole irrigation.",
   },
   {
-    name: "Mwangi Wheat Estate",        cropType: "Wheat",     farmerEmail: "james.mwangi@investafarm.com",
+    name: "Mwangi Wheat Estate",        cropType: "Wheat",     farmerEmail: "jmwangi.farm@gmail.com",
     location: "Nakuru, Central Rift",   loanAmount: "920000",  totalShares: 9200, sharePrice: "100",
     sharesAvailable: 4100, changePercent: "2.80",  tradeCount: 67,  currentPrice: "103", status: "active" as const,
     description: "Certified wheat farm supplying Unga Ltd flour mills. KALRO improved-variety seeds. Fully mechanised harvesting.",
   },
   {
-    name: "Hassan Coastal Cassava",     cropType: "Cassava",   farmerEmail: "fatuma.hassan@investafarm.com",
+    name: "Hassan Coastal Cassava",     cropType: "Cassava",   farmerEmail: "fatuma.hassan.ke@gmail.com",
     location: "Kilifi, Coast Kenya",    loanAmount: "290000",  totalShares: 2900, sharePrice: "100",
     sharesAvailable: 1200, changePercent: "9.10",  tradeCount: 38,  currentPrice: "109", status: "active" as const,
     description: "Drought-resilient cassava farm supplying starch processors and local food manufacturers on the Kenya coast.",
   },
   {
-    name: "Chebet Highlands Coffee",    cropType: "Coffee",    farmerEmail: "lucy.chebet@investafarm.com",
+    name: "Chebet Highlands Coffee",    cropType: "Coffee",    farmerEmail: "lucy.chebet01@yahoo.com",
     location: "Uasin Gishu, Rift Valley", loanAmount: "470000", totalShares: 4700, sharePrice: "100",
     sharesAvailable: 2100, changePercent: "11.30", tradeCount: 58,  currentPrice: "111", status: "active" as const,
     description: "High-altitude arabica coffee intercropping in the Uasin Gishu highlands. Premium export contracts secured.",
   },
   {
-    name: "Omondi Homa Bay Fish Farm",  cropType: "Dairy",     farmerEmail: "daniel.omondi@investafarm.com",
+    name: "Omondi Homa Bay Fish Farm",  cropType: "Dairy",     farmerEmail: "danielomondi.ke@gmail.com",
     location: "Homa Bay, Nyanza",       loanAmount: "620000",  totalShares: 6200, sharePrice: "100",
     sharesAvailable: 2800, changePercent: "6.40",  tradeCount: 72,  currentPrice: "106", status: "active" as const,
     description: "Cage fish farming in Lake Victoria. Tilapia and Nile perch. Supplying premium hotels and export processors.",
   },
   {
-    name: "Wanjiru Banana Plantation",  cropType: "Maize",     farmerEmail: "sarah.wanjiru@investafarm.com",
+    name: "Wanjiru Banana Plantation",  cropType: "Maize",     farmerEmail: "sarah.wanjiru.ke@gmail.com",
     location: "Meru, Mt. Kenya Region", loanAmount: "340000",  totalShares: 3400, sharePrice: "100",
     sharesAvailable: 1400, changePercent: "8.70",  tradeCount: 51,  currentPrice: "109", status: "active" as const,
     description: "Cavendish banana plantation integrated with maize intercropping. Export-grade bunches to Middle East supermarkets.",
   },
   {
-    name: "Kipkemoi Tea & Flowers",     cropType: "Tea",       farmerEmail: "moses.kipkemoi@investafarm.com",
+    name: "Kipkemoi Tea & Flowers",     cropType: "Tea",       farmerEmail: "mkipkemoi.tea@gmail.com",
     location: "Kericho, Rift Valley",   loanAmount: "780000",  totalShares: 7800, sharePrice: "100",
     sharesAvailable: 3500, changePercent: "13.20", tradeCount: 95,  currentPrice: "113", status: "active" as const,
     description: "CTC black tea with intercropped cut flowers for export to Netherlands and Japan. KTDA factory certified.",
@@ -136,30 +136,30 @@ const DEMO_FARMS = [
 
 // Wallet balances for all users
 const WALLET_BALANCES: Record<string, number> = {
-  "david.investor@investafarm.com":     150000,
-  "john.farmer@investafarm.com":         25000,
-  "grace.farmer@investafarm.com":        20000,
-  "peter.farmer@investafarm.com":        18000,
-  "demo.agent@investafarm.com":          50000,
-  "demo.offtaker@investafarm.com":       80000,
-  "alice.njeri@investafarm.com":        220000,
-  "robert.kipchoge@investafarm.com":    185000,
-  "amina.mohamed@investafarm.com":      310000,
-  "brian.odhiambo@investafarm.com":      95000,
-  "catherine.wairimu@investafarm.com":  275000,
-  "dennis.kamau@investafarm.com":       140000,
-  "esther.mutua@investafarm.com":        78000,
-  "francis.kariuki@investafarm.com":    430000,
-  "gloria.achieng@investafarm.com":     160000,
-  "hassan.omar@investafarm.com":        520000,
-  "irene.wambui@investafarm.com":       105000,
-  "mary.akinyi@investafarm.com":         32000,
-  "james.mwangi@investafarm.com":        45000,
-  "fatuma.hassan@investafarm.com":       28000,
-  "lucy.chebet@investafarm.com":         38000,
-  "daniel.omondi@investafarm.com":       22000,
-  "sarah.wanjiru@investafarm.com":       31000,
-  "moses.kipkemoi@investafarm.com":      41000,
+  "david.mwangi.inv@gmail.com":         150000,
+  "john.kamau.farm@gmail.com":           25000,
+  "grace.wanjiku.ke@gmail.com":          20000,
+  "peter.otieno.farm@gmail.com":         18000,
+  "samuel.njoroge.ke@gmail.com":         50000,
+  "rift.valley.buyers@gmail.com":        80000,
+  "alice.njeri.inv@gmail.com":          220000,
+  "robert.kipchoge@gmail.com":          185000,
+  "amina.m.invest@gmail.com":           310000,
+  "briano.odhiambo@gmail.com":           95000,
+  "cwairimu.invest@outlook.com":        275000,
+  "denniskamau.ke@gmail.com":           140000,
+  "esther.mutua.ke@gmail.com":           78000,
+  "f.kariuki.invest@gmail.com":         430000,
+  "gloriaach254@gmail.com":             160000,
+  "hassanomar.ke@yahoo.com":            520000,
+  "irene.wambui254@gmail.com":          105000,
+  "mary.akinyi254@gmail.com":            32000,
+  "jmwangi.farm@gmail.com":             45000,
+  "fatuma.hassan.ke@gmail.com":          28000,
+  "lucy.chebet01@yahoo.com":             38000,
+  "danielomondi.ke@gmail.com":           22000,
+  "sarah.wanjiru.ke@gmail.com":          31000,
+  "mkipkemoi.tea@gmail.com":             41000,
 };
 
 // Per-investor investment allocations
@@ -168,7 +168,7 @@ const INVESTOR_INVESTMENTS: Array<{
   investments: Array<{ farmIdx: number; shares: number; exitType: string }>;
 }> = [
   {
-    email: "david.investor@investafarm.com",
+    email: "david.mwangi.inv@gmail.com",
     investments: [
       { farmIdx: 0, shares: 500, exitType: "full_season" },
       { farmIdx: 1, shares: 800, exitType: "full_season" },
@@ -178,7 +178,7 @@ const INVESTOR_INVESTMENTS: Array<{
     ],
   },
   {
-    email: "alice.njeri@investafarm.com",
+    email: "alice.njeri.inv@gmail.com",
     investments: [
       { farmIdx: 0, shares: 400, exitType: "full_season" },
       { farmIdx: 2, shares: 700, exitType: "full_season" },
@@ -186,7 +186,7 @@ const INVESTOR_INVESTMENTS: Array<{
     ],
   },
   {
-    email: "robert.kipchoge@investafarm.com",
+    email: "robert.kipchoge@gmail.com",
     investments: [
       { farmIdx: 1, shares: 600, exitType: "full_season" },
       { farmIdx: 3, shares: 350, exitType: "mid_season"  },
@@ -194,7 +194,7 @@ const INVESTOR_INVESTMENTS: Array<{
     ],
   },
   {
-    email: "amina.mohamed@investafarm.com",
+    email: "amina.m.invest@gmail.com",
     investments: [
       { farmIdx: 2, shares: 1000, exitType: "full_season" },
       { farmIdx: 4, shares:  400, exitType: "full_season" },
@@ -202,14 +202,14 @@ const INVESTOR_INVESTMENTS: Array<{
     ],
   },
   {
-    email: "brian.odhiambo@investafarm.com",
+    email: "briano.odhiambo@gmail.com",
     investments: [
       { farmIdx: 0, shares: 250, exitType: "mid_season"  },
       { farmIdx: 5, shares: 300, exitType: "full_season" },
     ],
   },
   {
-    email: "catherine.wairimu@investafarm.com",
+    email: "cwairimu.invest@outlook.com",
     investments: [
       { farmIdx: 1, shares: 800, exitType: "full_season" },
       { farmIdx: 3, shares: 500, exitType: "full_season" },
@@ -217,21 +217,21 @@ const INVESTOR_INVESTMENTS: Array<{
     ],
   },
   {
-    email: "dennis.kamau@investafarm.com",
+    email: "denniskamau.ke@gmail.com",
     investments: [
       { farmIdx: 2, shares: 600, exitType: "full_season" },
       { farmIdx: 4, shares: 200, exitType: "mid_season"  },
     ],
   },
   {
-    email: "esther.mutua@investafarm.com",
+    email: "esther.mutua.ke@gmail.com",
     investments: [
       { farmIdx: 0, shares: 150, exitType: "mid_season"  },
       { farmIdx: 7, shares: 200, exitType: "full_season" },
     ],
   },
   {
-    email: "francis.kariuki@investafarm.com",
+    email: "f.kariuki.invest@gmail.com",
     investments: [
       { farmIdx: 1, shares: 1200, exitType: "full_season" },
       { farmIdx: 2, shares:  500, exitType: "full_season" },
@@ -240,14 +240,14 @@ const INVESTOR_INVESTMENTS: Array<{
     ],
   },
   {
-    email: "gloria.achieng@investafarm.com",
+    email: "gloriaach254@gmail.com",
     investments: [
       { farmIdx: 3, shares: 500, exitType: "full_season" },
       { farmIdx: 6, shares: 300, exitType: "mid_season"  },
     ],
   },
   {
-    email: "hassan.omar@investafarm.com",
+    email: "hassanomar.ke@yahoo.com",
     investments: [
       { farmIdx: 0, shares:  800, exitType: "full_season" },
       { farmIdx: 2, shares:  600, exitType: "full_season" },
@@ -256,7 +256,7 @@ const INVESTOR_INVESTMENTS: Array<{
     ],
   },
   {
-    email: "irene.wambui@investafarm.com",
+    email: "irene.wambui254@gmail.com",
     investments: [
       { farmIdx: 1, shares: 400, exitType: "mid_season"  },
       { farmIdx: 5, shares: 200, exitType: "full_season" },
@@ -519,7 +519,7 @@ async function seedSecondaryListings(userIds: Record<string, number>, log: (msg:
     .where(and(eq(marketListingsTable.listingType, "secondary"), eq(marketListingsTable.isActive, 1)));
   if (existing.length > 0) return;
 
-  const investorId = userIds["david.investor@investafarm.com"];
+  const investorId = userIds["david.mwangi.inv@gmail.com"];
   if (!investorId) return;
 
   const farms = await db.select().from(farmsTable).limit(8);

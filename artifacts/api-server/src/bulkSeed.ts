@@ -2,7 +2,7 @@
  * Large-scale synthetic data generator.
  * Runs as a background job after server starts — never blocks startup.
  *
- * Targets: ~120 K farmers · ~8.7 K investors · ~50 K farms · KYC approved for all farmers
+ * Targets: ~250 K farmers · ~15 K investors · ~120 K farms · KYC approved for all farmers
  *
  * Key performance tricks:
  *  - Pre-compute ONE bcrypt hash (all synthetic users share it → only ~100 ms)
@@ -12,7 +12,7 @@
 
 import bcrypt from "bcrypt";
 import { db, usersTable, farmsTable, kycDocumentsTable, walletsTable, walletTransactionsTable } from "@workspace/db";
-import { eq, like, count } from "drizzle-orm";
+import { eq, like, count, sql } from "drizzle-orm";
 
 // ── Name dictionaries ─────────────────────────────────────────────────────────
 
@@ -117,9 +117,9 @@ async function batchInsert<T extends Record<string, any>>(
 
 // ── Main entry point ─────────────────────────────────────────────────────────
 
-const FARMER_TARGET   = 119_973; // + existing ~27 → ~120 K
-const INVESTOR_TARGET =   4_978; // + existing ~22 → ~5 K
-const FARMS_TARGET    =  50_000;
+const FARMER_TARGET   = 249_973; // + existing ~27 → ~250 K
+const INVESTOR_TARGET =  14_978; // + existing ~22 → ~15 K
+const FARMS_TARGET    = 120_000;
 
 let isRunning = false;
 
@@ -258,6 +258,53 @@ export async function runBulkSeed(log: (msg: string) => void = console.log): Pro
     if (walletTxRows.length > 0) {
       await db.insert(walletTransactionsTable).values(walletTxRows).onConflictDoNothing();
     }
+
+    // ── 4b. Extra synthetic transactions for investors (return, fee, investment) ──
+    log("[bulk] Adding extra transactions for synthetic investors…");
+    const TX_TYPES = ["deposit", "return", "fee", "withdrawal", "investment"] as const;
+    const TX_DESCS: Record<string, string[]> = {
+      deposit:    ["M-Pesa deposit via Safaricom", "Bank transfer — Equity Bank", "Airtel Money deposit", "Card deposit — Visa"],
+      return:     ["Mid-season dividend payout", "Full-season harvest return", "Secondary market sale proceeds"],
+      fee:        ["Platform fee — primary purchase", "Secondary trade commission", "Withdrawal processing fee"],
+      withdrawal: ["Withdrawal to M-Pesa", "Bank withdrawal — Equity Bank", "M-Pesa cash-out"],
+      investment: ["Share purchase — primary market", "Share purchase — secondary market", "Portfolio reinvestment"],
+    };
+    const TX_AMOUNTS: Record<string, number[]> = {
+      deposit:    [15000, 30000, 50000, 100000, 200000],
+      return:     [4500, 8700, 14200, 22000],
+      fee:        [225, 450, 750, 1200],
+      withdrawal: [5000, 12000, 25000],
+      investment: [10000, 25000, 50000, 100000],
+    };
+    const extraTxBatch: any[] = [];
+    const investorWallets = await db.select({ id: walletsTable.id, userId: walletsTable.userId, balance: walletsTable.balance })
+      .from(walletsTable)
+      .where(sql`user_id = ANY(ARRAY[${sql.raw(insertedInvestorIds.slice(0, 5000).join(",") || "0")}]::int[])`);
+    for (const w of investorWallets) {
+      const txCount = 3 + (w.userId % 5);
+      for (let t = 0; t < txCount; t++) {
+        const txType = TX_TYPES[(w.userId + t) % TX_TYPES.length]!;
+        const descs = TX_DESCS[txType]!;
+        const amts  = TX_AMOUNTS[txType]!;
+        const description = descs[(w.userId + t) % descs.length]!;
+        const amount      = amts[(w.userId + t) % amts.length]!;
+        const daysAgo = (txCount - t) * 10 + (w.userId % 7);
+        const createdAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+        extraTxBatch.push({
+          walletId: w.id, userId: w.userId, type: txType, amount: String(amount),
+          balanceAfter: w.balance, description, reference: `BULK-TX-${w.userId}-${t}`,
+          status: "completed", createdAt,
+        });
+        if (extraTxBatch.length >= 1000) {
+          await db.insert(walletTransactionsTable).values(extraTxBatch).onConflictDoNothing();
+          extraTxBatch.length = 0;
+        }
+      }
+    }
+    if (extraTxBatch.length > 0) {
+      await db.insert(walletTransactionsTable).values(extraTxBatch).onConflictDoNothing();
+    }
+    log("[bulk] Extra transactions done");
     log("[bulk] Wallets done");
 
     // ── 5. Synthetic Farms ─────────────────────────────────────────────────

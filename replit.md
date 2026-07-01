@@ -53,7 +53,7 @@ A farm investment PWA where farmers raise capital by listing farm shares (like a
 - **Farmers**: List farms for investment, track funding progress, post field updates, view earnings
 - **Investors**: Browse live market with sparklines + price ticker, buy shares (primary/secondary), manage portfolio, request exit (Wide Season 30-60d or Full Season ~6mo), view transaction history
 - **Agribusinesses / Sales Agents / Offtakers**: Separate KYC flow with business registration, ID, selfie, and financial statements
-- **Demo accounts**: `john.farmer@investafarm.com` / `password123` (farmer), `david.investor@investafarm.com` / `password123` (investor)
+- **Demo accounts**: `john.kamau.farm@gmail.com` / `password123` (farmer), `david.mwangi.inv@gmail.com` / `password123` (investor)
 
 ## Investment Math
 

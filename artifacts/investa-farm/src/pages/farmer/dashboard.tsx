@@ -144,9 +144,17 @@ export default function FarmerDashboard() {
 
       {/* Hero header with crop slideshow background */}
       <div className="relative overflow-hidden" style={{ minHeight: 240 }}>
-        {heroSlides.map((img, i) => (
-          <img key={i} src={img} alt="Farm" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000" style={{ opacity: heroIdx % heroSlides.length === i ? 1 : 0 }} />
-        ))}
+        {heroSlides.map((img, i) => {
+          const current = heroIdx % heroSlides.length;
+          const next = (heroIdx + 1) % heroSlides.length;
+          if (i !== current && i !== next) return null;
+          return (
+            <img key={i} src={img} alt="Farm"
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+              style={{ opacity: current === i ? 1 : 0 }}
+              loading={i === 0 ? "eager" : "lazy"} />
+          );
+        })}
         <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.10) 60%, transparent 100%)" }} />
 
         {/* Top bar */}
@@ -342,7 +350,7 @@ export default function FarmerDashboard() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
-                  <img src={getCropImage(currentFarm.cropType)} alt="" className="w-full h-full object-cover" />
+                  <img src={getCropImage(currentFarm.cropType)} alt="" className="w-full h-full object-cover" loading="lazy" />
                 </div>
                 <div>
                   <p className="text-foreground font-bold text-sm">{currentFarm.cropType}</p>
@@ -360,6 +368,28 @@ export default function FarmerDashboard() {
             <p className="text-muted-foreground text-[10px] mt-1.5 flex items-center gap-1">
               <TrendingUp size={10} className="text-primary" /> Tap to manage your listing
             </p>
+          </button>
+        )}
+
+        {/* Repay Loan — quick access card shown when farmer has active loans */}
+        {loans.length > 0 && (
+          <button
+            onClick={() => setLocation("/farmer/loan-apply")}
+            className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                  <DollarSign size={18} className="text-amber-700" />
+                </div>
+                <div>
+                  <p className="text-amber-900 font-bold text-sm">Repay Your Loan</p>
+                  <p className="text-amber-700 text-[11px]">
+                    {loans.filter((l: any) => ["approved","disbursed","submitted","under_review"].includes(l.status)).length} active loan{loans.filter((l: any) => ["approved","disbursed","submitted","under_review"].includes(l.status)).length !== 1 ? "s" : ""} · tap to make a repayment
+                  </p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-amber-500" />
+            </div>
           </button>
         )}
 

@@ -67,14 +67,21 @@ router.post("/admin/login", async (req, res): Promise<void> => {
   }
 
   // 2. Individual admin user check (email + bcrypt password) → full master access
+  // Also handles viewer/sub-admin accounts so they can log in from the same page
   if (email && password) {
     const bcrypt = await import("bcrypt");
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-    if (user && user.role === "admin") {
+    if (user) {
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (valid) {
-        res.json({ ok: true, token: signAdminToken("master"), name: user.name, isMaster: true });
-        return;
+        if (user.role === "admin") {
+          res.json({ ok: true, token: signAdminToken("master"), name: user.name, isMaster: true });
+          return;
+        }
+        if ((user.role as string) === "viewer") {
+          res.json({ ok: true, token: signAdminToken("viewer"), name: user.name, isViewer: true });
+          return;
+        }
       }
     }
   }
