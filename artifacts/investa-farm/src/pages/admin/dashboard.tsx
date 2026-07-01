@@ -1346,7 +1346,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-white font-bold text-2xl">{users.length}</p>
+                  <p className="text-white font-bold text-2xl">{(stats?.totalUsers ?? users.length).toLocaleString()}</p>
                   <p className="text-blue-200 text-[9px]">Registered</p>
                 </div>
               </div>

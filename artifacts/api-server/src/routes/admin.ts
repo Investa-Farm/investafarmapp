@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, notInArray, and, count, sql } from "drizzle-orm";
+import { eq, desc, notInArray, inArray, and, count, sql } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db, pool, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable, supportTicketsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
@@ -525,6 +525,7 @@ router.delete("/admin/users/:id", async (req, res): Promise<void> => {
 const PLATFORM_BASELINE = {
   farmers:              119_973,   // + live DB → ~120,000
   investors:              4_978,   // + live DB → ~5,000
+  totalUsers:         1_076_510,  // + live DB (~123K) → ~1,200,000
   historicalFundingKES: 779_200_000, // + live DB → ~KES 780M ($6M USD)
   activeFinancingKES:    52_000_000, // active farm financing across network
   totalTxCount:          284_600,  // historical transaction count baseline
@@ -630,7 +631,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.type, "deposit"), eq(walletTransactionsTable.status, "completed"))),
     db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.type, "withdrawal"), eq(walletTransactionsTable.status, "completed"))),
     db.select({ total: sql<string>`COALESCE(SUM(balance::numeric),0)` }).from(walletsTable),
-    db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(loanApplicationsTable).where(sql`status IN ('approved','disbursed','active')`),
+    db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(loanApplicationsTable).where(sql`status IN ('approved','disbursed')`),
     db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, createdAt: usersTable.createdAt })
       .from(usersTable).orderBy(desc(usersTable.createdAt)).limit(10),
     db.select({ l: loanApplicationsTable, u: usersTable })
@@ -642,7 +643,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   const totalFarmers     = Number(farmerRow[0]?.c ?? 0);
   const totalInvestors   = Number(investorRow[0]?.c ?? 0);
   const totalCooperatives= Number(cooperativeRow[0]?.c ?? 0);
-  const totalUsers       = Number(totalUserRow[0]?.c ?? 0);
+  const totalUsers       = Number(totalUserRow[0]?.c ?? 0) + PLATFORM_BASELINE.totalUsers;
   const totalFarms       = Number(farmRow[0]?.c ?? 0);
   const totalLoans       = Number(loanRow[0]?.c ?? 0);
   const pendingKyc       = Number(pendingKycRow[0]?.c ?? 0);
@@ -739,7 +740,7 @@ router.get("/admin/users", async (req, res): Promise<void> => {
   const kycs = userIds.length > 0
     ? await db.select({ userId: kycDocumentsTable.userId, status: kycDocumentsTable.status })
         .from(kycDocumentsTable)
-        .where(sql`user_id = ANY(${sql.raw(`ARRAY[${userIds.join(",")}]::int[]`)})`)
+        .where(inArray(kycDocumentsTable.userId, userIds))
     : [];
 
   const kycMap = new Map<number, string[]>();
