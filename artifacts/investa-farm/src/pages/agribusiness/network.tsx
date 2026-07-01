@@ -29,11 +29,11 @@ export default function AgribusinessNetwork() {
   const [filter, setFilter] = useState<"all" | "kyc_done" | "pending" | "new">("all");
   const agribizType = (user as any)?.agribizType ?? localStorage.getItem("investa_agribiz_type") ?? "farmer_connector";
   const NET_BRAND: Record<string, { gradient: string; title: string; subtitle: string }> = {
-    sales_agent:      { gradient: "linear-gradient(135deg,#451a03 0%,#92400e 60%,#f59e0b 100%)", title: "Farmer Prospects",    subtitle: "Farmers you've onboarded & connected"   },
-    offtaker:         { gradient: "linear-gradient(135deg,#2e1065 0%,#4c1d95 60%,#7c3aed 100%)", title: "Supply Network",      subtitle: "Farmers available to supply your produce" },
-    input_supplier:   { gradient: "linear-gradient(135deg,#431407 0%,#9a3412 60%,#ea580c 100%)", title: "Customer Farmers",    subtitle: "Farmers purchasing your inputs"           },
-    farmer_connector: { gradient: "linear-gradient(135deg,#052e16 0%,#14532d 40%,#16a34a 100%)", title: "My Farmer Network",   subtitle: "Farmers you've onboarded to Investa Farm" },
-    cooperative:      { gradient: "linear-gradient(135deg,#052e16 0%,#14532d 40%,#16a34a 100%)", title: "Co-operative Members", subtitle: "Registered member farmers"               },
+    sales_agent:      { gradient: "linear-gradient(160deg,#052e16 0%,#14532d 35%,#16a34a 100%)", title: "Farmer Prospects",     subtitle: "Farmers you've onboarded & connected"    },
+    offtaker:         { gradient: "linear-gradient(160deg,#052e16 0%,#14532d 35%,#16a34a 100%)", title: "Supply Network",       subtitle: "Farmers available to supply your produce" },
+    input_supplier:   { gradient: "linear-gradient(160deg,#052e16 0%,#14532d 35%,#16a34a 100%)", title: "Customer Farmers",     subtitle: "Farmers purchasing your inputs"           },
+    farmer_connector: { gradient: "linear-gradient(160deg,#052e16 0%,#14532d 35%,#16a34a 100%)", title: "My Farmer Network",    subtitle: "Farmers you've onboarded to Investa Farm" },
+    cooperative:      { gradient: "linear-gradient(160deg,#052e16 0%,#14532d 35%,#16a34a 100%)", title: "Co-operative Members", subtitle: "Registered member farmers"                },
   };
   const netBrand = NET_BRAND[agribizType] ?? NET_BRAND.farmer_connector!;
 

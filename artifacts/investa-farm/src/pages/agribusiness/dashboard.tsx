@@ -111,11 +111,11 @@ export default function AgribusinessDashboard() {
   });
 
   return (
-    <div className="app-shell pb-10 page-enter">
+    <div className="app-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }}>
       {/* Header */}
-      <div className="relative overflow-hidden" style={{ minHeight: 200 }}>
-        <div className={`absolute inset-0 ${isInputSupplier ? "bg-gradient-to-br from-amber-800 via-orange-700 to-amber-600" : ""}`}
-          style={isInputSupplier ? {} : { background: "linear-gradient(135deg, #052e16 0%, #14532d 40%, #16a34a 80%, #22c55e 100%)" }} />
+      <div className="relative overflow-hidden flex-shrink-0" style={{ minHeight: 190 }}>
+        <div className="absolute inset-0"
+          style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 35%, #16a34a 100%)" }} />
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='white' fill-opacity='1' fill-rule='evenodd'%3E%3Ccircle cx='20' cy='20' r='2'/%3E%3C/g%3E%3C/svg%3E\")" }} />
         <div className="relative z-10 pt-12 px-5">
           <div className="flex items-center justify-between">
@@ -137,8 +137,8 @@ export default function AgribusinessDashboard() {
           </div>
           <div className="mt-4 mb-4">
             <div className="flex items-center gap-2 mb-1">
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isInputSupplier ? "bg-orange-500 text-white" : "bg-emerald-500 text-white"}`}>
-                {isInputSupplier ? "Input Supplier" : "Farmer Connector"}
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/20 text-white border border-white/20">
+                {isInputSupplier ? "🏪 Input Supplier" : "🤝 Farmer Connector"}
               </span>
             </div>
             <h1 className="text-white text-2xl font-bold">Welcome, {user?.name?.split(" ")[0] ?? "Partner"} 👋</h1>
@@ -149,32 +149,7 @@ export default function AgribusinessDashboard() {
         </div>
       </div>
 
-      {/* Nav tabs */}
-      <div className="px-4 pt-3 pb-2 flex gap-2 overflow-x-auto border-b border-border sticky top-0 bg-background z-10">
-        {(isInputSupplier
-          ? [["home","Home"],["catalogue","Catalogue"],["commissions","Earnings"]] as const
-          : [["home","Home"],["referral","Referral"],["commissions","Commissions"]] as const
-        ).map(([id, label]) => (
-          <button key={id} onClick={() => setActiveSection(id as any)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeSection === id ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>
-            {label}
-          </button>
-        ))}
-        {!isInputSupplier && (
-          <Link href="/agribusiness/network">
-            <button className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all bg-muted text-muted-foreground">
-              Network
-            </button>
-          </Link>
-        )}
-        <Link href="/agribusiness/profile">
-          <button className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all bg-muted text-muted-foreground">
-            Profile
-          </button>
-        </Link>
-      </div>
-
-      <div className="px-5 pt-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pt-4 pb-4 space-y-4">
 
         {/* ── HOME SECTION ── */}
         {activeSection === "home" && (
@@ -205,11 +180,11 @@ export default function AgribusinessDashboard() {
             <div className="grid grid-cols-2 gap-3">
               {isInputSupplier ? (
                 <>
-                  <div className="rounded-2xl bg-orange-500/10 border border-orange-400/20 p-3.5 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-14 h-14 bg-orange-400/20 rounded-full -mr-4 -mt-4" />
-                    <p className="text-orange-500 text-[10px] font-semibold uppercase tracking-wider">Pending Orders</p>
+                  <div className="rounded-2xl bg-[#16a34a]/10 border border-[#16a34a]/20 p-3.5 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-14 h-14 bg-[#16a34a]/20 rounded-full -mr-4 -mt-4" />
+                    <p className="text-[#16a34a] text-[10px] font-semibold uppercase tracking-wider">Pending Orders</p>
                     <p className="text-foreground font-extrabold text-3xl mt-1 leading-none">{agribizStats ? String(agribizStats.pendingOrders) : "—"}</p>
-                    <p className="text-orange-500 text-[10px] font-medium mt-1">{agribizStats?.pendingOrders === 0 ? "✓ All up to date" : "Awaiting fulfilment"}</p>
+                    <p className="text-[#16a34a] text-[10px] font-medium mt-1">{agribizStats?.pendingOrders === 0 ? "✓ All up to date" : "Awaiting fulfilment"}</p>
                   </div>
                   <div className="rounded-2xl bg-[#16a34a]/10 border border-[#16a34a]/20 p-3.5 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-14 h-14 bg-[#16a34a]/20 rounded-full -mr-4 -mt-4" />
@@ -264,8 +239,8 @@ export default function AgribusinessDashboard() {
               {isInputSupplier ? (
                 <>
                   <Link href="/agribusiness/orders">
-                    <div className="flex items-center gap-3 bg-orange-500/10 border border-orange-400/20 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-sm">
-                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center flex-shrink-0">
+                    <div className="flex items-center gap-3 bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-sm">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#16a34a] to-[#052e16] flex items-center justify-center flex-shrink-0">
                         <Package size={20} className="text-white" />
                       </div>
                       <div className="flex-1">
@@ -340,7 +315,7 @@ export default function AgribusinessDashboard() {
             </div>
 
             {/* How it works */}
-            <div className={`rounded-2xl p-4 border ${isInputSupplier ? "bg-orange-500/10 border-orange-400/20" : "bg-[#16a34a]/10 border-[#16a34a]/20"}`}>
+            <div className="rounded-2xl p-4 border bg-[#16a34a]/10 border-[#16a34a]/20">
               <p className="font-semibold text-sm mb-2 text-foreground">
                 {isInputSupplier ? "📦 How Input Vouchers Work" : "🤝 How Farmer Connecting Works"}
               </p>
@@ -428,7 +403,7 @@ export default function AgribusinessDashboard() {
               <div className="space-y-2">
                 {products.map(p => (
                   <div key={p.id} className="bg-card border border-border rounded-2xl p-3.5 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0 text-lg">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 text-lg">
                       {p.category === "Seeds" ? "🌱" : p.category === "Fertilizer" ? "💧" : p.category === "Pesticides" ? "🧪" : p.category === "Tools" ? "🔧" : "📦"}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -444,7 +419,7 @@ export default function AgribusinessDashboard() {
               </div>
             )}
 
-            <div className="bg-orange-500/10 border border-orange-400/20 rounded-2xl p-4 text-xs text-orange-500">
+            <div className="bg-[#16a34a]/10 border border-[#16a34a]/20 rounded-2xl p-4 text-xs text-[#16a34a]">
               <p className="font-semibold mb-1">💡 Pricing tips</p>
               <p>Competitive pricing helps farmers choose you. Farmers search by county so ensure your location is set correctly. Voucher payments are guaranteed — no bad debt.</p>
             </div>
@@ -547,7 +522,7 @@ export default function AgribusinessDashboard() {
         {activeSection === "commissions" && (
           <>
             <div className="grid grid-cols-2 gap-3 mb-2">
-              <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-3.5 text-white">
+              <div className="rounded-2xl p-3.5 text-white" style={{ background: "linear-gradient(135deg, #052e16 0%, #16a34a 100%)" }}>
                 <p className="text-white/80 text-xs">Total Earned</p>
                 <p className="text-white font-bold text-xl mt-0.5">{formatKES(agribizStats?.commissionEarned ?? 0)}</p>
               </div>
@@ -570,7 +545,7 @@ export default function AgribusinessDashboard() {
               ) : (
                 <div className="space-y-2">
                   {commissions.map((c: any) => (
-                    <div key={c.id} className="flex items-center gap-3 bg-amber-500/10 rounded-xl p-3">
+                    <div key={c.id} className="flex items-center gap-3 bg-[#16a34a]/10 rounded-xl p-3">
                       <span className="text-lg flex-shrink-0">💰</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-foreground text-xs font-semibold truncate">{c.description ?? "Commission earned"}</p>
@@ -590,39 +565,60 @@ export default function AgribusinessDashboard() {
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <AppTour role="agribusiness" />
 
-      {/* Sales Agent / Farmer Connector footer nav */}
-      {(isSalesAgent || agribizType === "farmer_connector") && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border flex items-center justify-around px-2 pb-safe"
-          style={{ paddingBottom: "env(safe-area-inset-bottom, 12px)", paddingTop: 8 }}>
+      {/* ── BOTTOM NAV — all agribusiness sub-types ── */}
+      <nav className="flex-shrink-0 bg-background border-t border-border"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0)" }}>
+        <div className="flex justify-around max-w-[430px] mx-auto">
           <button onClick={() => setActiveSection("home")}
-            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "home" ? "text-primary" : "text-muted-foreground"}`}>
-            <Home size={20} />
+            className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${activeSection === "home" ? "text-primary" : "text-muted-foreground"}`}>
+            <Home size={20} strokeWidth={activeSection === "home" ? 2.5 : 1.8} />
             <span className="text-[10px] font-semibold">Home</span>
           </button>
-          <button onClick={() => setActiveSection("referral")}
-            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "referral" ? "text-primary" : "text-muted-foreground"}`}>
-            <Share2 size={20} />
-            <span className="text-[10px] font-semibold">Refer</span>
-          </button>
+
+          {isInputSupplier ? (
+            <>
+              <Link href="/agribusiness/orders">
+                <button className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-muted-foreground">
+                  <Package size={20} strokeWidth={1.8} />
+                  <span className="text-[10px] font-semibold">Orders</span>
+                </button>
+              </Link>
+              <button onClick={() => setActiveSection("catalogue")}
+                className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${activeSection === "catalogue" ? "text-primary" : "text-muted-foreground"}`}>
+                <Briefcase size={20} strokeWidth={activeSection === "catalogue" ? 2.5 : 1.8} />
+                <span className="text-[10px] font-semibold">Catalogue</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setActiveSection("referral")}
+                className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${activeSection === "referral" ? "text-primary" : "text-muted-foreground"}`}>
+                <Share2 size={20} strokeWidth={activeSection === "referral" ? 2.5 : 1.8} />
+                <span className="text-[10px] font-semibold">Refer</span>
+              </button>
+              <Link href="/agribusiness/network">
+                <button className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-muted-foreground">
+                  <Users size={20} strokeWidth={1.8} />
+                  <span className="text-[10px] font-semibold">Network</span>
+                </button>
+              </Link>
+            </>
+          )}
+
           <button onClick={() => setActiveSection("commissions")}
-            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all ${activeSection === "commissions" ? "text-primary" : "text-muted-foreground"}`}>
-            <DollarSign size={20} />
+            className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${activeSection === "commissions" ? "text-primary" : "text-muted-foreground"}`}>
+            <TrendingUp size={20} strokeWidth={activeSection === "commissions" ? 2.5 : 1.8} />
             <span className="text-[10px] font-semibold">Earnings</span>
           </button>
-          <Link href="/agribusiness/network">
-            <button className="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all text-muted-foreground">
-              <Users size={20} />
-              <span className="text-[10px] font-semibold">Network</span>
-            </button>
-          </Link>
+
           <Link href="/agribusiness/profile">
-            <button className="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all text-muted-foreground">
-              <UserCircle size={20} />
+            <button className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-muted-foreground">
+              <UserCircle size={20} strokeWidth={1.8} />
               <span className="text-[10px] font-semibold">Profile</span>
             </button>
           </Link>
         </div>
-      )}
+      </nav>
     </div>
   );
 }

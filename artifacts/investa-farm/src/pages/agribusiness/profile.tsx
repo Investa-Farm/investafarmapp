@@ -17,11 +17,11 @@ export default function AgribusinessProfile() {
   const agribizType = (user as any)?.agribizType ?? localStorage.getItem("investa_agribiz_type") ?? "farmer_connector";
   const isInputSupplier = agribizType === "input_supplier";
   const BRAND_CONFIGS = {
-    sales_agent:      { gradient: "linear-gradient(135deg,#451a03 0%,#92400e 60%,#f59e0b 100%)", badge: "bg-amber-500 text-white",   label: "Sales Agent",      backPath: "/sales-agent/dashboard"  },
-    offtaker:         { gradient: "linear-gradient(135deg,#2e1065 0%,#4c1d95 60%,#7c3aed 100%)", badge: "bg-violet-500 text-white",  label: "Offtaker",         backPath: "/offtaker/dashboard"     },
-    input_supplier:   { gradient: "linear-gradient(135deg,#431407 0%,#9a3412 60%,#ea580c 100%)", badge: "bg-orange-500 text-white",  label: "Input Supplier",   backPath: "/agribusiness"           },
-    farmer_connector: { gradient: "linear-gradient(135deg,#052e16 0%,#14532d 40%,#16a34a 100%)", badge: "bg-emerald-500 text-white", label: "Farmer Connector", backPath: "/agribusiness"           },
-    cooperative:      { gradient: "linear-gradient(135deg,#052e16 0%,#14532d 40%,#16a34a 100%)", badge: "bg-emerald-500 text-white", label: "Co-operative",     backPath: "/cooperative/dashboard"  },
+    sales_agent:      { gradient: "linear-gradient(160deg,#052e16 0%,#14532d 35%,#16a34a 100%)", badge: "bg-emerald-600 text-white",  label: "Sales Agent",      backPath: "/sales-agent/dashboard"  },
+    offtaker:         { gradient: "linear-gradient(160deg,#052e16 0%,#14532d 35%,#16a34a 100%)", badge: "bg-emerald-600 text-white",  label: "Offtaker",         backPath: "/offtaker/dashboard"     },
+    input_supplier:   { gradient: "linear-gradient(160deg,#052e16 0%,#14532d 35%,#16a34a 100%)", badge: "bg-emerald-600 text-white",  label: "Input Supplier",   backPath: "/agribusiness"           },
+    farmer_connector: { gradient: "linear-gradient(160deg,#052e16 0%,#14532d 35%,#16a34a 100%)", badge: "bg-emerald-600 text-white",  label: "Farmer Connector", backPath: "/agribusiness"           },
+    cooperative:      { gradient: "linear-gradient(160deg,#052e16 0%,#14532d 35%,#16a34a 100%)", badge: "bg-emerald-600 text-white",  label: "Co-operative",     backPath: "/cooperative/dashboard"  },
   };
   const brand = BRAND_CONFIGS[agribizType as keyof typeof BRAND_CONFIGS] ?? BRAND_CONFIGS.farmer_connector;
 
@@ -277,7 +277,7 @@ export default function AgribusinessProfile() {
             <div>
               <label className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Partner Type</label>
               <p className="mt-1">
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isInputSupplier ? "bg-orange-100 text-orange-800" : "bg-emerald-100 text-emerald-800"}`}>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
                   {isInputSupplier ? "Input Supplier" : "Farmer Connector"}
                 </span>
               </p>
