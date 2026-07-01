@@ -3,7 +3,7 @@ import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, getStoredUser, storeUser, getToken, formatKES } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon } from "lucide-react";
+import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon, Leaf } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { WalletModal } from "@/components/wallet-modal";
@@ -109,6 +109,7 @@ export default function FarmerProfile() {
     {
       title: "Farm",
       items: [
+        { icon: Leaf, label: "View Crop Details", sublabel: "Active farm & growth stage", action: () => setLocation("/farmer/farm-profile") },
         { icon: TrendingUp, label: "Funding History", sublabel: "View all funding applications", action: () => setLocation("/farmer/loans") },
         { icon: Users, label: "Farmer Group", sublabel: "Manage cooperative members", action: () => setLocation("/farmer/group") },
         { icon: Star, label: "My Farms", sublabel: "Listed farms and performance", action: () => setLocation("/farmer/market") },
@@ -175,11 +176,17 @@ export default function FarmerProfile() {
           </div>
         </div>
 
-        {/* Wallet button — opens popup */}
-        <button onClick={() => setWalletOpen(true)}
-          className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/15 text-white text-sm font-bold border border-white/20 active:scale-95 transition-transform">
-          <Wallet size={14} /> Open Wallet
-        </button>
+        {/* Two CTA buttons */}
+        <div className="mt-4 grid grid-cols-2 gap-2.5">
+          <button onClick={() => setLocation("/farmer/farm-profile")}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/15 text-white text-xs font-bold border border-white/20 active:scale-95 transition-transform">
+            <Leaf size={13} /> View Crop Details
+          </button>
+          <button onClick={() => setWalletOpen(true)}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/15 text-white text-xs font-bold border border-white/20 active:scale-95 transition-transform">
+            <Wallet size={13} /> Manage Wallet
+          </button>
+        </div>
       </div>
 
       <div className="px-4 pt-4 space-y-4">

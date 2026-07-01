@@ -3,12 +3,13 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
-import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Moon, Wallet, ArrowUpRight, FileText, BarChart2, Globe2 } from "lucide-react";
+import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, ArrowUpRight, Globe2 } from "lucide-react";
 import { useCurrency, CURRENCIES, type CurrencyCode } from "@/lib/currency";
 import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
+import { WalletModal } from "@/components/wallet-modal";
 import { useLocation, Link } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
-import { FARMER_HERO_IMAGE } from "@/lib/crops";
+import newHeroImg from "@assets/IMG_8896_1782888668963.png";
 import { KycModal } from "@/components/kyc-modal";
 import { LoanModal } from "@/components/loan-modal";
 import { NotificationPrompt } from "@/components/notification-prompt";
@@ -32,6 +33,7 @@ export default function FarmerDashboard() {
   const [, setLocation] = useLocation();
   const [kycOpen, setKycOpen] = useState(false);
   const [loanOpen, setLoanOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [harvestOpen, setHarvestOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
@@ -116,7 +118,7 @@ export default function FarmerDashboard() {
 
       {/* Hero header with farm background */}
       <div className="relative overflow-hidden" style={{ minHeight: 240 }}>
-        <img src={FARMER_HERO_IMAGE} alt="Farm" className="absolute inset-0 w-full h-full object-cover" />
+        <img src={newHeroImg} alt="Farm" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.10) 60%, transparent 100%)" }} />
 
         {/* Top bar */}
@@ -182,9 +184,9 @@ export default function FarmerDashboard() {
                 </div>
               </div>
               <button
-                onClick={() => setLocation("/farmer/farm-profile")}
+                onClick={() => setWalletOpen(true)}
                 className="mt-3 w-full flex items-center justify-center gap-2 py-2 border border-white/20 rounded-xl text-white/80 text-xs font-medium active:scale-95 transition-transform">
-                View crop details <ChevronRight size={13} />
+                <Wallet size={13} /> Wallet <ChevronRight size={13} />
               </button>
             </div>
           </div>
@@ -249,7 +251,7 @@ export default function FarmerDashboard() {
               </Link>
             </div>
           </div>
-          <p className="text-white font-bold text-2xl">{formatAmount(walletBalance)}</p>
+          <p className="text-white font-bold text-3xl tracking-tight">{formatAmount(walletBalance)}</p>
           {currency.code !== "KES" && (
             <p className="text-white/40 text-[10px] mt-0.5">
               ≈ {formatKES(walletBalance)} · Available balance
@@ -258,48 +260,39 @@ export default function FarmerDashboard() {
           {currency.code === "KES" && (
             <p className="text-white/50 text-[10px] mt-0.5">Available balance</p>
           )}
-          <div className="grid grid-cols-3 gap-2 mt-3">
-            {[
-              { icon: DollarSign, label: "Apply Loan", action: () => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); } },
-              { icon: FileText, label: "KYC Docs", action: () => setKycOpen(true) },
-              { icon: BarChart2, label: "Market", action: () => setLocation("/market") },
-            ].map(({ icon: Icon, label, action }) => (
-              <button key={label} onClick={action}
-                className="flex flex-col items-center gap-1 py-2 bg-white/10 rounded-xl active:bg-white/20 transition-colors">
-                <Icon size={14} className="text-green-300" />
-                <span className="text-white/80 text-[9px] font-semibold">{label}</span>
-              </button>
-            ))}
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <button onClick={() => setWalletOpen(true)}
+              className="flex items-center justify-center gap-2 py-2.5 bg-white/15 border border-white/20 rounded-xl active:bg-white/25 transition-colors">
+              <Wallet size={13} className="text-green-300" />
+              <span className="text-white text-xs font-semibold">Open Wallet</span>
+            </button>
+            <button onClick={() => setLocation("/farmer/wallet")}
+              className="flex items-center justify-center gap-2 py-2.5 bg-white/15 border border-white/20 rounded-xl active:bg-white/25 transition-colors">
+              <ArrowUpRight size={13} className="text-green-300" />
+              <span className="text-white text-xs font-semibold">Withdraw</span>
+            </button>
           </div>
         </div>
 
-        {/* Apply for Funding / View My Listing CTA */}
-        <button
-          onClick={() => {
-            if (currentFarm) { setLocation("/farmer/operations"); }
-            else if (kycApproved >= 1) { setLoanOpen(true); }
-            else { setKycOpen(true); }
-          }}
-          className="w-full bg-gradient-to-r from-primary to-green-500 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-md shadow-primary/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                {currentFarm ? <TrendingUp size={22} className="text-white" /> : <DollarSign size={22} className="text-white" />}
+        {/* View My Listing CTA — only when there is a current farm */}
+        {currentFarm && (
+          <button
+            onClick={() => setLocation("/farmer/operations")}
+            className="w-full bg-gradient-to-r from-primary to-green-500 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-md shadow-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <TrendingUp size={22} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-bold text-base">View My Listing</p>
+                  <p className="text-white/75 text-xs mt-0.5">{currentFarm.cropType} · {currentFarm.fundingPercent ?? 0}% funded</p>
+                </div>
               </div>
-              <div>
-                <p className="text-white font-bold text-base">
-                  {currentFarm ? "View My Listing" : "Apply for Funding"}
-                </p>
-                <p className="text-white/75 text-xs mt-0.5">
-                  {currentFarm
-                    ? `${currentFarm.cropType} · ${currentFarm.fundingPercent ?? 0}% funded`
-                    : "List your farm shares on the investor market"}
-                </p>
-              </div>
+              <ChevronRight size={18} className="text-white/70" />
             </div>
-            <ChevronRight size={18} className="text-white/70" />
-          </div>
-        </button>
+          </button>
+        )}
 
         {/* Crop Timeline — only show when there's a real active stage */}
         {currentFarm && (
@@ -410,6 +403,7 @@ export default function FarmerDashboard() {
       <BottomNav role="farmer" />
       <KycModal open={kycOpen} onClose={() => setKycOpen(false)} onVerified={() => { setKycOpen(false); setLoanOpen(true); }} />
       <LoanModal open={loanOpen} onClose={() => setLoanOpen(false)} />
+      <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
       <HarvestPaymentModal open={harvestOpen} onClose={() => setHarvestOpen(false)} />
       <NotificationPrompt storageKey="farmer_notif_v1" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />

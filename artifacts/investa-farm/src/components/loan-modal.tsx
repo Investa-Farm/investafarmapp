@@ -162,13 +162,13 @@ export function LoanModal({ open, onClose }: LoanModalProps) {
     <>
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+            <motion.div initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.94 }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="relative w-full max-w-[430px] bg-white rounded-t-3xl shadow-2xl flex flex-col"
-              style={{ maxHeight: "93vh" }}>
+              className="relative w-full max-w-[430px] bg-white rounded-3xl shadow-2xl flex flex-col"
+              style={{ maxHeight: "92vh" }}>
 
               {/* Header */}
               <div className="hero-header rounded-t-3xl px-5 pt-5 pb-4 flex-shrink-0">
