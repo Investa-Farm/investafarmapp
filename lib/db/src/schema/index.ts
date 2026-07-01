@@ -33,3 +33,5 @@ export * from "./audit_logs";
 export * from "./app_reviews";
 export * from "./admin_messages";
 export * from "./support_tickets";
+export * from "./crop_bets";
+export * from "./syndicates";

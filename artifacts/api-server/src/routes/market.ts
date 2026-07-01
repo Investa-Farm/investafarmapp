@@ -733,4 +733,63 @@ router.delete("/market/listings/:id", async (req, res): Promise<void> => {
   res.json({ success: true });
 });
 
+router.get("/market/map-data", async (_req, res): Promise<void> => {
+  try {
+    const farms = await db
+      .select({
+        id: farmsTable.id,
+        name: farmsTable.name,
+        cropType: farmsTable.cropType,
+        location: farmsTable.location,
+        latitude: farmsTable.latitude,
+        longitude: farmsTable.longitude,
+        riskScore: farmsTable.riskScore,
+        imageUrl: farmsTable.imageUrl,
+        status: farmsTable.status,
+        currentPrice: farmsTable.currentPrice,
+        changePercent: farmsTable.changePercent,
+        sharePrice: farmsTable.sharePrice,
+        sharesAvailable: farmsTable.sharesAvailable,
+        totalShares: farmsTable.totalShares,
+      })
+      .from(farmsTable)
+      .where(eq(farmsTable.status, "active"));
+
+    const investmentRows = await db
+      .select({ farmId: investmentsTable.farmId, investorId: investmentsTable.investorId })
+      .from(investmentsTable);
+    const investorsByFarm: Record<number, number[]> = {};
+    for (const r of investmentRows) {
+      if (!investorsByFarm[r.farmId]) investorsByFarm[r.farmId] = [];
+      investorsByFarm[r.farmId]!.push(r.investorId);
+    }
+
+    res.json(farms.map(f => {
+      const riskScore = Number(f.riskScore ?? 5);
+      const ndviScore = Math.max(0.05, Math.min(0.95, 1 - (riskScore / 10)));
+      return {
+        id: f.id,
+        name: f.name,
+        cropType: f.cropType,
+        location: f.location,
+        latitude: f.latitude ? Number(f.latitude) : null,
+        longitude: f.longitude ? Number(f.longitude) : null,
+        riskScore,
+        ndviScore: Math.round(ndviScore * 100) / 100,
+        ndviClass: ndviScore >= 0.7 ? "healthy" : ndviScore >= 0.4 ? "moderate" : "stressed",
+        imageUrl: f.imageUrl ?? FARM_IMAGES[f.id % FARM_IMAGES.length],
+        status: f.status,
+        currentPrice: Number(f.currentPrice),
+        changePercent: Number(f.changePercent),
+        sharePrice: Number(f.sharePrice),
+        sharesAvailable: f.sharesAvailable,
+        totalShares: f.totalShares,
+        investorIds: investorsByFarm[f.id] ?? [],
+      };
+    }));
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch map data" });
+  }
+});
+
 export default router;

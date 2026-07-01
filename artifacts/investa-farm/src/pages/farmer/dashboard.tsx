@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
-import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, ArrowUpRight, Globe2 } from "lucide-react";
+import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, ArrowUpRight, Globe2, ShoppingBag, Users2, Package } from "lucide-react";
 import { useCurrency, CURRENCIES, type CurrencyCode } from "@/lib/currency";
 import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
 import { WalletModal } from "@/components/wallet-modal";
@@ -392,6 +392,47 @@ export default function FarmerDashboard() {
             </div>
           </button>
         )}
+
+        {/* Agribusiness Voucher — shown when farmer has a disbursed loan */}
+        {loans.some((l: any) => l.status === "disbursed") && (
+          <button
+            onClick={() => setLocation("/farmer/vouchers")}
+            className="w-full bg-green-50 border border-green-300 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                  <Package size={18} className="text-green-700" />
+                </div>
+                <div>
+                  <p className="text-green-900 font-bold text-sm">Order Agri-Inputs</p>
+                  <p className="text-green-700 text-[11px]">Seeds, fertilizer &amp; tools — delivered to your farm</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-bold bg-green-500 text-white px-1.5 py-0.5 rounded-full">FUNDED</span>
+                <ChevronRight size={16} className="text-green-500" />
+              </div>
+            </div>
+          </button>
+        )}
+
+        {/* Syndicates entry */}
+        <button
+          onClick={() => setLocation("/syndicates")}
+          className="w-full bg-violet-50 border border-violet-200 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+                <Users2 size={18} className="text-violet-700" />
+              </div>
+              <div>
+                <p className="text-violet-900 font-bold text-sm">Join a Syndicate</p>
+                <p className="text-violet-700 text-[11px]">Pool with investors · get larger farm funding</p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-violet-500" />
+          </div>
+        </button>
 
         {/* Crop Timeline — only show when there's a real active stage */}
         {currentFarm && (

@@ -7,7 +7,7 @@ import {
   TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck,
   Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen,
   Star, Plus, RefreshCw, Bell, CreditCard, X, Info, ChevronLeft, ChevronRight,
-  Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Briefcase,
+  Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Briefcase, Flame, Users2,
 } from "lucide-react";
 import { PortfolioWizard } from "@/components/portfolio-wizard";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
@@ -785,6 +785,26 @@ export default function Portfolio() {
               </div>
             );
           })()}
+
+          {/* Social features strip */}
+          <div className="grid grid-cols-2 gap-2.5 flex-shrink-0">
+            <button onClick={() => setLocation("/bets")}
+              className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-300/40 rounded-2xl p-3.5 text-left active:scale-[0.97] transition-all">
+              <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center mb-2">
+                <Flame size={16} className="text-orange-600" />
+              </div>
+              <p className="text-foreground font-bold text-sm leading-tight">Crop Bets</p>
+              <p className="text-muted-foreground text-[10px] mt-0.5 leading-snug">Stake KES · predict prices · win the pool</p>
+            </button>
+            <button onClick={() => setLocation("/syndicates")}
+              className="bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-300/40 rounded-2xl p-3.5 text-left active:scale-[0.97] transition-all">
+              <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center mb-2">
+                <Users2 size={16} className="text-violet-600" />
+              </div>
+              <p className="text-foreground font-bold text-sm leading-tight">Syndicates</p>
+              <p className="text-muted-foreground text-[10px] mt-0.5 leading-snug">Pool with investors · co-fund bigger farms</p>
+            </button>
+          </div>
                 </motion.div>
               )}
             </AnimatePresence>

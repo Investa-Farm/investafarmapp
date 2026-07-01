@@ -52,6 +52,7 @@ import FarmerHealth from "@/pages/farmer/health";
 import FarmerTotp from "@/pages/farmer/totp";
 import CropProposal from "@/pages/farmer/crop-proposal";
 import FarmerNotifications from "@/pages/farmer/notifications";
+import FarmerVouchers from "@/pages/farmer/vouchers";
 
 import CooperativeAuth from "@/pages/cooperative-auth";
 import CooperativeDashboard from "@/pages/cooperative/dashboard";
@@ -70,6 +71,8 @@ import WealthDashboard from "@/pages/wealth/dashboard";
 
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
+import BetsPage from "@/pages/bets/index";
+import SyndicatesPage from "@/pages/syndicates/index";
 import FaqPage from "@/pages/faq";
 import NotificationsPage from "@/pages/notifications";
 import SystemArchitecture from "@/pages/architecture";
@@ -316,6 +319,9 @@ function Router() {
       <Route path="/farmer/loans">
         <AuthGuard role="farmer"><LoanApply /></AuthGuard>
       </Route>
+      <Route path="/farmer/vouchers">
+        <AuthGuard role="farmer"><FarmerVouchers /></AuthGuard>
+      </Route>
       <Route path="/farmer/funding">
         <AuthGuard role="farmer"><CropProposal /></AuthGuard>
       </Route>
@@ -378,6 +384,19 @@ function Router() {
       </Route>
       <Route path="/agribusiness/kyc">
         <AuthGuard role="agribusiness"><AgribusinessKyc /></AuthGuard>
+      </Route>
+
+      {/* Bets — prediction market for investors */}
+      <Route path="/bets">
+        <AuthGuard role="investor"><BetsPage /></AuthGuard>
+      </Route>
+
+      {/* Syndicates — farmer groups + investor funding */}
+      <Route path="/syndicates">
+        <AuthGuard><SyndicatesPage /></AuthGuard>
+      </Route>
+      <Route path="/farmer/syndicates">
+        <AuthGuard role="farmer"><SyndicatesPage /></AuthGuard>
       </Route>
 
       {/* FAQ — accessible from profile for any logged-in user */}
