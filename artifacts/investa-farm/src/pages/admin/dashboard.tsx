@@ -177,6 +177,7 @@ export default function AdminDashboard() {
   // Tour
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+  const [moreSheetOpen, setMoreSheetOpen] = useState(false);
 
   const TOUR_STEPS = [
     {
@@ -263,6 +264,13 @@ export default function AdminDashboard() {
   // Use admin session token (from /api/admin/login) as primary auth; fall back to regular JWT
   const adminSessionToken = sessionStorage.getItem("admin_token") ?? "";
   const token = adminSessionToken || getToken();
+
+  const fetchRevenueChart = useCallback(async () => {
+    try {
+      const r = await fetch("/api/admin/revenue-chart", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) { const d = await r.json(); setRevenueChart(d.chart ?? []); }
+    } catch { /* silent */ }
+  }, [token]);
 
   useEffect(() => {
     const auth = sessionStorage.getItem("admin_auth");
@@ -393,13 +401,6 @@ export default function AdminDashboard() {
       if (r.ok) setFeedEvents(await r.json());
     } catch { /* silent */ } finally { setFeedLoading(false); }
   };
-
-  const fetchRevenueChart = useCallback(async () => {
-    try {
-      const r = await fetch("/api/admin/revenue-chart", { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) { const d = await r.json(); setRevenueChart(d.chart ?? []); }
-    } catch { /* silent */ }
-  }, [token]);
 
   // Poll notification bell every 30 seconds
   useEffect(() => {
@@ -941,8 +942,6 @@ export default function AdminDashboard() {
   ].filter(t => !t.masterOnly || isMasterAdmin || (!isViewer && !kycOnly));
   const ALL_TABS = [...PRIMARY_TABS, ...SECONDARY_TABS];
   const activeTabMeta = ALL_TABS.find(t => t.id === tab);
-
-  const [moreSheetOpen, setMoreSheetOpen] = useState(false);
 
   const goTab = (t: Tab) => { setTab(t); setMoreSheetOpen(false); };
 

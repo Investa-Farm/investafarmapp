@@ -1,5 +1,5 @@
 import { useGetFarmerDashboard, useListFarmUpdates, useGetMyFarms } from "@workspace/api-client-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
@@ -9,13 +9,18 @@ import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
 import { WalletModal } from "@/components/wallet-modal";
 import { useLocation, Link } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
-import newHeroImg from "@assets/IMG_8896_1782888668963.png";
+import heroImg1 from "@assets/IMG_8896_1782888668963.png";
+import heroImg2 from "@assets/IMG_7986_1781245283494.png";
+import heroImg3 from "@assets/IMG_7989_1781190961177.png";
+import heroImg4 from "@assets/IMG_7993_1781190961177.png";
 import { KycModal } from "@/components/kyc-modal";
 import { LoanModal } from "@/components/loan-modal";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { InlineMicBot } from "@/components/ai-assistant";
 import { AppTour } from "@/components/app-tour";
+
+const HERO_IMAGES = [heroImg1, heroImg2, heroImg3, heroImg4];
 
 type GroupInfo = { id: number; name: string; registrationNumber: string; county: string; memberCount: number; status: string } | null;
 
@@ -37,6 +42,12 @@ export default function FarmerDashboard() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [harvestOpen, setHarvestOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
+  const [heroIdx, setHeroIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setHeroIdx(i => (i + 1) % HERO_IMAGES.length), 5000);
+    return () => clearInterval(t);
+  }, []);
 
   const toggleDark = () => {
     const next = !isDark;
@@ -118,7 +129,9 @@ export default function FarmerDashboard() {
 
       {/* Hero header with farm background */}
       <div className="relative overflow-hidden" style={{ minHeight: 240 }}>
-        <img src={newHeroImg} alt="Farm" className="absolute inset-0 w-full h-full object-cover" />
+        {HERO_IMAGES.map((img, i) => (
+          <img key={i} src={img} alt="Farm" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000" style={{ opacity: heroIdx === i ? 1 : 0 }} />
+        ))}
         <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.10) 60%, transparent 100%)" }} />
 
         {/* Top bar */}
@@ -183,33 +196,13 @@ export default function FarmerDashboard() {
                   {farmHealth && <span className="inline-block bg-green-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full mt-0.5">Good</span>}
                 </div>
               </div>
-              <button
-                onClick={() => setWalletOpen(true)}
-                className="mt-3 w-full flex items-center justify-center gap-2 py-2 border border-white/20 rounded-xl text-white/80 text-xs font-medium active:scale-95 transition-transform">
-                <Wallet size={13} /> Wallet <ChevronRight size={13} />
-              </button>
             </div>
           </div>
         </div>
       </div>
 
       <div className="px-5 pt-4 space-y-4">
-        {/* Apply for Funding — hero CTA when farmer has no active farm yet */}
-        {!currentFarm && (
-          <button
-            onClick={() => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); }}
-            className="w-full bg-gradient-to-r from-primary to-green-500 rounded-2xl p-5 text-left active:scale-[0.98] transition-transform shadow-lg shadow-primary/30">
-            <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mb-1">Get Started</p>
-            <p className="text-white font-black text-xl leading-tight mb-1">Apply for Farm Funding</p>
-            <p className="text-white/75 text-xs mb-4">List your farm on the investor market and raise capital today</p>
-            <div className="flex items-center gap-2 bg-white/20 border border-white/30 rounded-xl px-4 py-2.5 w-fit">
-              <DollarSign size={15} className="text-white" />
-              <span className="text-white font-bold text-sm">Start Application →</span>
-            </div>
-          </button>
-        )}
-
-        {/* Wallet balance card */}
+        {/* Wallet balance card — always first */}
         <div className="bg-gradient-to-br from-[#052e16] to-[#166534] rounded-2xl p-4 text-white shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -273,6 +266,21 @@ export default function FarmerDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Apply for Funding — shown when farmer has no active farm */}
+        {!currentFarm && (
+          <button
+            onClick={() => { if (kycApproved >= 1) setLoanOpen(true); else setKycOpen(true); }}
+            className="w-full bg-gradient-to-r from-primary to-green-500 rounded-2xl p-5 text-left active:scale-[0.98] transition-transform shadow-lg shadow-primary/30">
+            <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mb-1">Get Started</p>
+            <p className="text-white font-black text-xl leading-tight mb-1">Apply for Farm Funding</p>
+            <p className="text-white/75 text-xs mb-4">List your farm on the investor market and raise capital today</p>
+            <div className="flex items-center gap-2 bg-white/20 border border-white/30 rounded-xl px-4 py-2.5 w-fit">
+              <DollarSign size={15} className="text-white" />
+              <span className="text-white font-bold text-sm">Start Application →</span>
+            </div>
+          </button>
+        )}
 
         {/* View My Listing CTA — only when there is a current farm */}
         {currentFarm && (

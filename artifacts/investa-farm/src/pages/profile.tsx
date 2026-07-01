@@ -466,7 +466,6 @@ export default function Profile() {
               <ChevronRight size={15} className="text-muted-foreground" />
             </button>
           ))}
-          <NotificationStatusRow className="border-t border-border" />
         </div>
 
         <button data-testid="button-logout" onClick={handleLogout}
