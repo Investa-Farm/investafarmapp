@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGetFarmerDashboard } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, isDemoAccount, getToken } from "@/lib/auth";
-import { Leaf, Droplets, Sun, CheckCircle2, Clock, Plus, X, Tag, Copy, Check, ShoppingCart, ChevronRight } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Leaf, Droplets, Sun, CheckCircle2, Clock, Plus, X, Tag, Copy, Check, ShoppingCart, ChevronRight, AlertTriangle, Search, Loader2, MapPin } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -28,6 +28,7 @@ function VoucherOrderModal({ voucher, token, onClose }: { voucher: any; token: s
   const [step, setStep] = useState<"select" | "supplier" | "confirm" | "done">("select");
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
+  const [countyFilter, setCountyFilter] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmedSupplierName, setConfirmedSupplierName] = useState<string>("");
@@ -142,6 +143,21 @@ function VoucherOrderModal({ voucher, token, onClose }: { voucher: any; token: s
           {step === "supplier" && (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground font-medium">Select a registered agro-dealer to fulfil this order:</p>
+              {/* County filter */}
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={countyFilter}
+                  onChange={e => setCountyFilter(e.target.value)}
+                  placeholder="Filter by county or name…"
+                  className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-border bg-muted/40 focus:outline-none focus:border-primary"
+                />
+                {countyFilter && (
+                  <button onClick={() => setCountyFilter("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
               {suppliersLoading ? (
                 <div className="space-y-2">
                   {[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl bg-muted animate-pulse" />)}
@@ -154,8 +170,13 @@ function VoucherOrderModal({ voucher, token, onClose }: { voucher: any; token: s
                     Share Investa Farm with your local agro-dealer and ask them to register as an input supplier.
                   </p>
                 </div>
+              ) : suppliers.filter((s: any) => !countyFilter || s.name?.toLowerCase().includes(countyFilter.toLowerCase()) || s.county?.toLowerCase().includes(countyFilter.toLowerCase())).length === 0 ? (
+                <div className="bg-muted rounded-2xl p-4 text-center">
+                  <MapPin size={16} className="text-muted-foreground mx-auto mb-1.5" />
+                  <p className="text-muted-foreground text-xs">No suppliers found for "{countyFilter}"</p>
+                </div>
               ) : (
-                suppliers.map(s => (
+                suppliers.filter((s: any) => !countyFilter || s.name?.toLowerCase().includes(countyFilter.toLowerCase()) || s.county?.toLowerCase().includes(countyFilter.toLowerCase())).map((s: any) => (
                   <button key={s.id} onClick={() => setSelectedSupplierId(s.id)}
                     className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all active:scale-[0.98] ${selectedSupplierId === s.id ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
                     <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0 text-lg">🏪</div>
@@ -372,10 +393,61 @@ const defaultTasks = [
 export default function FarmerOperations() {
   const { data: dashboard, isLoading } = useGetFarmerDashboard();
   const isDemo = isDemoAccount();
+  const token = getToken();
   const [tasks, setTasks] = useState(isDemo ? defaultTasks : []);
   const [showAdd, setShowAdd] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newNotes, setNewNotes] = useState("");
+  const [showHarvestModal, setShowHarvestModal] = useState(false);
+  const [showDisasterModal, setShowDisasterModal] = useState(false);
+  const [harvestTons, setHarvestTons] = useState("");
+  const [harvestNotes, setHarvestNotes] = useState("");
+  const [disasterType, setDisasterType] = useState("flood");
+  const [disasterNotes, setDisasterNotes] = useState("");
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
+
+  const { data: farmUpdates } = useQuery<any[]>({
+    queryKey: ["farmer-updates"],
+    queryFn: async () => {
+      const r = await fetch("/api/farmer/updates", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 60_000,
+    enabled: !!token && !isDemo,
+  });
+  const lastUpdateDate = farmUpdates?.[0]?.createdAt ? new Date(farmUpdates[0].createdAt) : null;
+  const daysSinceUpdate = lastUpdateDate ? Math.floor((Date.now() - lastUpdateDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
+  const showUpdateNudge = !isDemo && daysSinceUpdate !== null && daysSinceUpdate >= 5;
+
+  const submitHarvestReport = async () => {
+    if (!harvestTons) return;
+    setSubmittingReport(true);
+    try {
+      await fetch("/api/farmer/updates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: `Harvest Report: ${harvestTons} tons`, content: harvestNotes || `Harvest completed. Yield: ${harvestTons} metric tons.`, type: "harvest" }),
+      });
+      setReportDone(true);
+      setTimeout(() => { setShowHarvestModal(false); setReportDone(false); setHarvestTons(""); setHarvestNotes(""); }, 1800);
+    } finally { setSubmittingReport(false); }
+  };
+
+  const submitDisasterReport = async () => {
+    if (!disasterNotes) return;
+    setSubmittingReport(true);
+    try {
+      await fetch("/api/farmer/updates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: `⚠️ ${disasterType.charAt(0).toUpperCase() + disasterType.slice(1)} Alert`, content: disasterNotes, type: "disaster" }),
+      });
+      setReportDone(true);
+      setTimeout(() => { setShowDisasterModal(false); setReportDone(false); setDisasterNotes(""); }, 1800);
+    } finally { setSubmittingReport(false); }
+  };
 
   const toggleTask = (id: number) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
@@ -511,9 +583,132 @@ export default function FarmerOperations() {
           </div>
         )}
 
+        {/* Update nudge */}
+        {showUpdateNudge && (
+          <div className="bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3 flex items-center gap-3">
+            <AlertTriangle size={15} className="text-amber-500 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-amber-800 font-bold text-xs">{daysSinceUpdate} days since your last farm update</p>
+              <p className="text-amber-700 text-[11px]">Investors are watching — post an update to boost confidence.</p>
+            </div>
+            <a href="/farmer/updates" className="text-[11px] font-bold text-amber-900 bg-amber-200 px-2.5 py-1.5 rounded-xl active:scale-95 transition-transform flex-shrink-0 no-underline">Post →</a>
+          </div>
+        )}
+
+        {/* Harvest Report + Disaster Report quick actions */}
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => setShowHarvestModal(true)}
+            className="bg-green-50 border border-green-200 rounded-2xl p-3.5 flex flex-col items-center gap-1.5 active:scale-95 transition-transform text-center">
+            <span className="text-2xl">📊</span>
+            <span className="text-green-800 font-bold text-xs">Report Harvest</span>
+            <span className="text-green-600 text-[10px]">Submit yield data</span>
+          </button>
+          <button onClick={() => setShowDisasterModal(true)}
+            className="bg-red-50 border border-red-200 rounded-2xl p-3.5 flex flex-col items-center gap-1.5 active:scale-95 transition-transform text-center">
+            <span className="text-2xl">⚠️</span>
+            <span className="text-red-800 font-bold text-xs">Report Disaster</span>
+            <span className="text-red-600 text-[10px]">Flood, drought, pest</span>
+          </button>
+        </div>
+
         {/* Voucher Section */}
         <VoucherSection />
       </div>
+
+      {/* Harvest Report Modal */}
+      <AnimatePresence>
+        {showHarvestModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50">
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="w-full max-w-[430px] bg-background rounded-t-3xl p-5 pb-10">
+              <div className="flex justify-center mb-3"><div className="w-10 h-1 bg-border rounded-full" /></div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-lg">📊 Report Harvest</h3>
+                <button onClick={() => setShowHarvestModal(false)}><X size={18} className="text-muted-foreground" /></button>
+              </div>
+              {reportDone ? (
+                <div className="text-center py-8 space-y-3">
+                  <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center text-2xl mx-auto">✅</div>
+                  <p className="font-bold text-foreground">Report submitted!</p>
+                  <p className="text-muted-foreground text-sm">Investors have been notified of your harvest results.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Yield (metric tons) *</label>
+                    <input value={harvestTons} onChange={e => setHarvestTons(e.target.value)} type="number" min="0" step="0.1"
+                      placeholder="e.g. 2.4"
+                      className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Notes</label>
+                    <textarea value={harvestNotes} onChange={e => setHarvestNotes(e.target.value)} rows={3}
+                      placeholder="Quality grade, market price achieved, challenges…"
+                      className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background focus:outline-none focus:border-primary resize-none" />
+                  </div>
+                  <button onClick={submitHarvestReport} disabled={!harvestTons || submittingReport}
+                    className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl text-sm active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2">
+                    {submittingReport ? <Loader2 size={15} className="animate-spin" /> : null}
+                    {submittingReport ? "Submitting…" : "Submit Harvest Report"}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Disaster Report Modal */}
+      <AnimatePresence>
+        {showDisasterModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50">
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="w-full max-w-[430px] bg-background rounded-t-3xl p-5 pb-10">
+              <div className="flex justify-center mb-3"><div className="w-10 h-1 bg-border rounded-full" /></div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-lg">⚠️ Report Crop Issue</h3>
+                <button onClick={() => setShowDisasterModal(false)}><X size={18} className="text-muted-foreground" /></button>
+              </div>
+              {reportDone ? (
+                <div className="text-center py-8 space-y-3">
+                  <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center text-2xl mx-auto">📨</div>
+                  <p className="font-bold text-foreground">Alert sent!</p>
+                  <p className="text-muted-foreground text-sm">Admin and investors have been notified. Our team will reach out shortly.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Issue Type *</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {["flood", "drought", "pest", "disease", "fire", "other"].map(t => (
+                        <button key={t} onClick={() => setDisasterType(t)}
+                          className={`py-2 rounded-xl border text-xs font-semibold capitalize transition-all ${disasterType === t ? "border-red-500 bg-red-50 text-red-700" : "border-border text-muted-foreground"}`}>
+                          {t === "flood" ? "🌊" : t === "drought" ? "☀️" : t === "pest" ? "🐛" : t === "disease" ? "🦠" : t === "fire" ? "🔥" : "📋"} {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Describe the situation *</label>
+                    <textarea value={disasterNotes} onChange={e => setDisasterNotes(e.target.value)} rows={4}
+                      placeholder="What happened? Which crops are affected? Estimated damage…"
+                      className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background focus:outline-none focus:border-primary resize-none" />
+                  </div>
+                  <button onClick={submitDisasterReport} disabled={!disasterNotes || submittingReport}
+                    className="w-full bg-red-500 text-white font-bold py-3.5 rounded-2xl text-sm active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2">
+                    {submittingReport ? <Loader2 size={15} className="animate-spin" /> : null}
+                    {submittingReport ? "Submitting…" : "Send Alert"}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BottomNav role="farmer" />
     </div>

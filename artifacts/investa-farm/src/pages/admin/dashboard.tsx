@@ -2385,9 +2385,33 @@ export default function AdminDashboard() {
             {/* Login Audit Log */}
             {activityLoginEvents.length > 0 && (
               <div className="mt-4">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                  🔐 Login Audit Log ({activityLoginEvents.length})
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    🔐 Login Audit Log ({activityLoginEvents.length})
+                  </p>
+                  <button
+                    onClick={() => {
+                      const rows = [["User", "Email", "IP Address", "User Agent", "Date"]].concat(
+                        activityLoginEvents.map((ev: any) => [
+                          ev.userName ?? "",
+                          ev.userEmail ?? "",
+                          ev.ipAddress ?? "",
+                          (ev.userAgent ?? "").replace(/,/g, " "),
+                          ev.createdAt ? new Date(ev.createdAt).toISOString() : "",
+                        ])
+                      );
+                      const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+                      const blob = new Blob([csv], { type: "text/csv" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url; a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-lg active:scale-95 transition-transform"
+                  >
+                    ⬇ Export CSV
+                  </button>
+                </div>
                 <div className="space-y-2">
                   {activityLoginEvents.map((ev: any) => (
                     <div key={ev.id} className="bg-card border border-border rounded-2xl px-4 py-3">

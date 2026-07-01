@@ -74,6 +74,8 @@ export default function AgribusinessDashboard() {
   });
   const kycPending = kycDocs.filter((d: any) => d.status === "pending").length;
   const kycApproved = kycDocs.filter((d: any) => d.status === "approved").length;
+  const kycRejected = kycDocs.filter((d: any) => d.status === "rejected").length;
+  const kycSubmitted = kycDocs.length > 0;
 
   const { data: agribizStats, refetch: refetchStats } = useQuery<{
     pendingOrders: number; totalRedeemedKes: number; farmersConnected: number; commissionEarned: number;
@@ -110,8 +112,54 @@ export default function AgribusinessDashboard() {
     staleTime: 60_000,
   });
 
+  // KYC hard block — must upload docs before using dashboard features
+  const kycBlocked = kycDocs.length === 0;
+  const kycUnderReview = kycSubmitted && kycApproved === 0 && kycRejected === 0;
+
   return (
     <div className="app-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }}>
+      {/* KYC Hard Block Banner */}
+      {kycBlocked && (
+        <div className="fixed inset-0 z-[70] bg-black/60 flex items-end justify-center">
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            className="w-full max-w-[430px] bg-background rounded-t-3xl p-6 pb-10 shadow-2xl"
+          >
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-orange-100 border-4 border-orange-300 flex items-center justify-center text-3xl">📋</div>
+              <div>
+                <h2 className="font-extrabold text-xl text-foreground mb-1">KYC Required</h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  You need to upload your business documents before you can use the Agribusiness dashboard and receive payments.
+                </p>
+              </div>
+              <div className="w-full bg-orange-50 border border-orange-200 rounded-2xl p-3 text-left space-y-1.5">
+                {["Business Registration Certificate", "National ID (Front & Back)", "Financial Statement"].map(d => (
+                  <div key={d} className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0" />
+                    <span className="text-orange-800 text-xs">{d}</span>
+                  </div>
+                ))}
+              </div>
+              <Link href="/agribusiness/kyc"
+                className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-primary/20">
+                <ShieldCheck size={16} /> Upload Documents Now
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {kycUnderReview && (
+        <div className="mx-4 mt-2 mb-0 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">🔍</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-blue-800 font-bold text-xs">Documents Under Review</p>
+            <p className="text-blue-600 text-[11px]">Approval within 24–48 hours. You can still browse the dashboard.</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="relative overflow-hidden flex-shrink-0" style={{ minHeight: 190 }}>
         <div className="absolute inset-0"

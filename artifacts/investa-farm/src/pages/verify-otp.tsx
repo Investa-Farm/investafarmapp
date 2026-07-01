@@ -27,7 +27,15 @@ export default function VerifyOtp() {
   const [resending, setResending] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
-  const [countdown, setCountdown] = useState(60);
+  const [countdown, setCountdown] = useState<number>(() => {
+    const stored = localStorage.getItem("investa_otp_resend_ts");
+    if (stored) {
+      const elapsed = Math.floor((Date.now() - Number(stored)) / 1000);
+      const remaining = 60 - elapsed;
+      return remaining > 0 ? remaining : 0;
+    }
+    return 60;
+  });
   const [editingEmail, setEditingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState(emailParam || user?.email || "");
   const [changingEmail, setChangingEmail] = useState(false);
@@ -116,7 +124,9 @@ export default function VerifyOtp() {
 
   const handleResend = async () => {
     if (!canResend) return;
-    setResending(true); setError(""); setCountdown(60);
+    setResending(true); setError("");
+    localStorage.setItem("investa_otp_resend_ts", String(Date.now()));
+    setCountdown(60);
     try {
       await fetch("/api/auth/send-otp", {
         method: "POST",

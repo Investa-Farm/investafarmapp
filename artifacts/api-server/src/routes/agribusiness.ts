@@ -20,7 +20,18 @@ router.get("/agribusiness/stats", async (req, res): Promise<void> => {
       .reduce((sum, o) => sum + Number(o.amount), 0);
     const farmersConnected = new Set(orders.map(o => o.farmerId)).size;
 
-    res.json({ pendingOrders, totalRedeemedKes, farmersConnected, commissionEarned: 0 });
+    // Commission = 2% of total redeemed voucher value (supplier) + connector bonuses from referred loans
+    const referredLoans = await db.select()
+      .from(loanApplicationsTable)
+      .where(inArray(loanApplicationsTable.status, ["approved", "disbursed"]));
+    const farmerIds = new Set(orders.map(o => o.farmerId));
+    const connectorCommission = referredLoans
+      .filter(l => farmerIds.has(l.farmerId))
+      .reduce((sum, l) => sum + Number(l.amount) * 0.02, 0);
+    const supplierCommission = totalRedeemedKes * 0.02;
+    const commissionEarned = Math.round(connectorCommission + supplierCommission);
+
+    res.json({ pendingOrders, totalRedeemedKes, farmersConnected, commissionEarned });
   } catch (e) {
     logger.error({ err: e }, "[AGRIBUSINESS] Failed to fetch stats");
     res.status(500).json({ error: "Failed to fetch stats" });

@@ -501,6 +501,9 @@ export default function FarmerKyc() {
                       <div className="flex-1 min-w-0">
                         <p className="text-foreground text-sm font-semibold truncate">{doc.title}</p>
                         <p className="text-muted-foreground text-[10px]">{DOC_TYPES.find(d => d.value === doc.docType)?.label ?? doc.docType} · {pdf ? "PDF" : img ? "Image" : "File"}</p>
+                        {doc.status === "rejected" && doc.notes && (
+                          <p className="text-red-600 text-[10px] font-semibold mt-1">❌ Reason: {doc.notes}</p>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -523,6 +526,25 @@ export default function FarmerKyc() {
                         )}
                       </div>
                     </div>
+                    {doc.status === "rejected" && (
+                      <div className="mt-2 mx-1 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-start gap-2">
+                        <XCircle size={13} className="text-red-500 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-red-700 text-[11px] font-bold">Document Rejected</p>
+                          {doc.notes ? (
+                            <p className="text-red-600 text-[10px] mt-0.5">{doc.notes}</p>
+                          ) : (
+                            <p className="text-red-500 text-[10px] mt-0.5">Please re-upload a clearer version of this document.</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => { remove.mutate(doc.id); openPopup(doc.docType); }}
+                          className="text-[10px] font-bold text-red-700 border border-red-300 rounded-lg px-2 py-1 flex-shrink-0 active:scale-95 bg-white"
+                        >
+                          Re-upload
+                        </button>
+                      </div>
+                    )}
                   );
                 })
               )}

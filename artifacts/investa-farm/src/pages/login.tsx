@@ -131,6 +131,16 @@ export default function Login() {
         setTotpStep(true);
         return;
       }
+      if (r.status === 429) {
+        const retryMs = d.retryAfterMs ?? d.retryAfter;
+        if (retryMs) {
+          const mins = Math.ceil(retryMs / 60000);
+          setError(`Too many login attempts. Please wait ${mins} minute${mins !== 1 ? "s" : ""} before trying again.`);
+        } else {
+          setError("Too many login attempts. Please wait a few minutes before trying again.");
+        }
+        return;
+      }
       if (!r.ok) {
         setError(d.error ?? "Invalid email or password.");
         return;

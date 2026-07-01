@@ -611,8 +611,54 @@ export default function MarketHome() {
     },
   } as const;
 
+  // Resume pending investment banner
+  const [pendingInvest, setPendingInvest] = useState<{ farmName: string; farmId: number; shares: number } | null>(() => {
+    try {
+      const raw = sessionStorage.getItem("investa_pending_invest");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch { return null; }
+  });
+  const dismissPendingInvest = () => {
+    sessionStorage.removeItem("investa_pending_invest");
+    setPendingInvest(null);
+  };
+
   return (
     <div className="app-shell pb-20 page-enter" data-testid="market-home">
+      {/* Resume Pending Investment Banner */}
+      <AnimatePresence>
+        {pendingInvest && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mx-4 mt-3 bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 text-base">⏸️</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-amber-800 font-bold text-xs">Incomplete purchase</p>
+                <p className="text-amber-700 text-[11px] truncate">{pendingInvest.shares} shares · {pendingInvest.farmName}</p>
+              </div>
+              <button
+                onClick={() => {
+                  const listing = listings?.find((l: any) => l.farmId === pendingInvest.farmId || l.id === pendingInvest.farmId);
+                  if (listing) { setSelectedListing(listing as any); setInvestOpen(true); }
+                  else setLocation(`/market/${pendingInvest.farmId}`);
+                }}
+                className="text-[11px] font-bold text-amber-900 bg-amber-200 px-3 py-1.5 rounded-xl flex-shrink-0 active:scale-95 transition-transform"
+              >
+                Resume →
+              </button>
+              <button onClick={dismissPendingInvest} className="w-6 h-6 flex items-center justify-center text-amber-500 flex-shrink-0">
+                <X size={13} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Market Header */}
       <div className="relative overflow-hidden pt-12 pb-0 px-5 border-b border-border bg-background" data-tour="market-header">
         {/* Subtle dot grid decoration */}

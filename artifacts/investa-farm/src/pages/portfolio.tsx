@@ -880,6 +880,7 @@ export default function Portfolio() {
                     const isUp = h.gainLoss >= 0;
                     const isExited = h.status === "exit_requested";
                     const isHarvested = h.status === "exited";
+                    const isListed = h.status === "listed" || h.status === "selling" || h.status === "for_sale";
                     const invested = h.purchasePrice * h.quantity;
                     const midPayout = invested * 1.10;
                     const fullPayout = invested * 1.22;
@@ -925,6 +926,11 @@ export default function Portfolio() {
                           {isHarvested && (
                             <div className="absolute top-3 left-3 bg-green-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
                               🌾 Harvested
+                            </div>
+                          )}
+                          {isListed && !isExited && !isHarvested && (
+                            <div className="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                              <span>🏷️</span> Listed for Sale
                             </div>
                           )}
 
