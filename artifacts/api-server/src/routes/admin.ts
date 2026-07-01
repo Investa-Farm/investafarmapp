@@ -1064,25 +1064,101 @@ router.put("/admin/settings", async (req, res): Promise<void> => {
 router.post("/admin/broadcast", async (req, res): Promise<void> => {
   const ok = await requireAdmin(req, res);
   if (!ok) return;
-  const { title, body, type = "platform_announcement" } = req.body as { title: string; body: string; type?: string };
+  const { title, body, type = "platform_announcement", segment = "all" } = req.body as { title: string; body: string; type?: string; segment?: string };
   if (!title || !body) {
     res.status(400).json({ error: "title and body are required" });
     return;
   }
-  const allUsers = await db.select({ id: usersTable.id }).from(usersTable);
-  if (allUsers.length === 0) {
+  // Filter by segment (role) if specified
+  const VALID_ROLES = ["farmer", "investor", "cooperative", "agribusiness", "fund_manager", "admin", "viewer"];
+  let targetUsers: { id: number }[];
+  if (segment && segment !== "all" && VALID_ROLES.includes(segment)) {
+    targetUsers = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, segment as any));
+  } else {
+    targetUsers = await db.select({ id: usersTable.id }).from(usersTable);
+  }
+  if (targetUsers.length === 0) {
     res.json({ ok: true, sent: 0 });
     return;
   }
-  await db.insert(notificationsTable).values(
-    allUsers.map(u => ({
-      userId: u.id,
-      type,
-      title,
-      body,
-    }))
-  );
-  res.json({ ok: true, sent: allUsers.length });
+  // Insert in batches of 500 to avoid query size limits
+  const BATCH = 500;
+  for (let i = 0; i < targetUsers.length; i += BATCH) {
+    await db.insert(notificationsTable).values(
+      targetUsers.slice(i, i + BATCH).map(u => ({ userId: u.id, type, title, body }))
+    );
+  }
+  res.json({ ok: true, sent: targetUsers.length });
+});
+
+// GET /admin/fraud-flags — detect anomalous wallet activity (master/sub only, not viewer)
+router.get("/admin/fraud-flags", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  try {
+    const flags: { flag: string; detail: string; severity: "high" | "medium"; userEmail?: string; time?: string }[] = [];
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // 1. Large single transactions (> KES 500,000)
+    const bigTx = await db.execute(sql`
+      SELECT wt.id, wt.amount, wt.type, wt.created_at, u.email
+      FROM wallet_transactions wt
+      LEFT JOIN users u ON u.id = wt.user_id
+      WHERE ABS(wt.amount::numeric) > 500000 AND wt.status = 'completed'
+      ORDER BY wt.created_at DESC LIMIT 20
+    `);
+    for (const row of bigTx.rows as any[]) {
+      flags.push({
+        flag: "Large Transaction",
+        detail: `${row.type} of KES ${Number(row.amount).toLocaleString("en-KE")} flagged for review`,
+        severity: Number(row.amount) > 1_000_000 ? "high" : "medium",
+        userEmail: row.email ?? undefined,
+        time: row.created_at,
+      });
+    }
+
+    // 2. Multiple withdrawals by same user in 24h (> 3)
+    const rapidWithdraw = await db.execute(sql`
+      SELECT wt.user_id, u.email, COUNT(*) as cnt, SUM(ABS(wt.amount::numeric)) as total
+      FROM wallet_transactions wt
+      LEFT JOIN users u ON u.id = wt.user_id
+      WHERE wt.type = 'withdrawal' AND wt.created_at > ${since24h.toISOString()}
+      GROUP BY wt.user_id, u.email
+      HAVING COUNT(*) > 3
+      ORDER BY cnt DESC LIMIT 10
+    `);
+    for (const row of rapidWithdraw.rows as any[]) {
+      flags.push({
+        flag: "Rapid Withdrawals",
+        detail: `${row.cnt} withdrawals totalling KES ${Number(row.total).toLocaleString("en-KE")} in 24 hours`,
+        severity: Number(row.cnt) > 6 ? "high" : "medium",
+        userEmail: row.email ?? undefined,
+        time: new Date().toISOString(),
+      });
+    }
+
+    // 3. Unverified users with large wallet balance
+    const unverifiedBig = await db.execute(sql`
+      SELECT u.email, w.balance
+      FROM wallets w
+      JOIN users u ON u.id = w.user_id
+      WHERE u.email_verified = false AND w.balance::numeric > 100000
+      ORDER BY w.balance::numeric DESC LIMIT 10
+    `);
+    for (const row of unverifiedBig.rows as any[]) {
+      flags.push({
+        flag: "Unverified User — High Balance",
+        detail: `Account has KES ${Number(row.balance).toLocaleString("en-KE")} but email is not verified`,
+        severity: "medium",
+        userEmail: row.email ?? undefined,
+        time: new Date().toISOString(),
+      });
+    }
+
+    res.json(flags.slice(0, 50));
+  } catch (err) {
+    res.json([]);
+  }
 });
 
 // ─── CLEAR DATABASE (non-demo users only) ────────────────────────────────────

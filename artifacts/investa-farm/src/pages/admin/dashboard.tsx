@@ -100,8 +100,10 @@ export default function AdminDashboard() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState<PlatformSettings | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
-  const [broadcast, setBroadcast] = useState({ title: "", body: "" });
+  const [broadcast, setBroadcast] = useState({ title: "", body: "", segment: "all" });
   const [broadcastSending, setBroadcastSending] = useState(false);
+  const [fraudFlags, setFraudFlags] = useState<any[]>([]);
+  const [fraudLoading, setFraudLoading] = useState(false);
   const [clearDbLoading, setClearDbLoading] = useState(false);
   const [kycOnly, setKycOnly] = useState(false);
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
@@ -318,7 +320,7 @@ export default function AdminDashboard() {
     if (tab === "settings") fetchSettings();
     if (tab === "reviews") fetchReviews();
     if (tab === "messages") { if (users.length === 0) fetchUsers(); fetchMessages(); }
-    if (tab === "activity") fetchActivity();
+    if (tab === "activity") { fetchActivity(); fetchFraudFlags(); }
     if (tab === "support") fetchSupportTickets();
     if (tab === "subaccounts") fetchSubAdmins();
   }, [tab]);
@@ -676,18 +678,26 @@ export default function AdminDashboard() {
       const r = await fetch("/api/admin/broadcast", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(broadcast),
+        body: JSON.stringify({ title: broadcast.title, body: broadcast.body, segment: broadcast.segment }),
       });
       const data = await r.json();
       if (r.ok) {
         showToast(`📢 Sent to ${data.sent} users ✓`);
-        setBroadcast({ title: "", body: "" });
+        setBroadcast({ title: "", body: "", segment: "all" });
       } else {
         showToast(data.error ?? "Broadcast failed", "error");
       }
     } finally {
       setBroadcastSending(false);
     }
+  };
+
+  const fetchFraudFlags = async () => {
+    setFraudLoading(true);
+    try {
+      const r = await fetch("/api/admin/fraud-flags", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setFraudFlags(await r.json());
+    } finally { setFraudLoading(false); }
   };
 
   const fetchProposals = async () => {
@@ -2381,6 +2391,42 @@ export default function AdminDashboard() {
                 ))}
               </div>
             )}
+
+            {/* Fraud Flags */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  🚨 Fraud Flags {fraudFlags.length > 0 ? `(${fraudFlags.length})` : ""}
+                </p>
+                <button onClick={fetchFraudFlags} className="flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg active:scale-95">
+                  <RefreshCw size={9} className={fraudLoading ? "animate-spin" : ""} /> Refresh
+                </button>
+              </div>
+              {fraudLoading ? (
+                <div className="text-center py-4 text-muted-foreground text-xs">Scanning for anomalies…</div>
+              ) : fraudFlags.length === 0 ? (
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-3 flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
+                  <p className="text-green-800 text-xs font-medium">No anomalies detected — platform looks healthy</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {fraudFlags.map((f: any, i: number) => (
+                    <div key={i} className={`border rounded-2xl px-4 py-3 ${f.severity === "high" ? "bg-red-50 border-red-300" : "bg-amber-50 border-amber-300"}`}>
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-base flex-shrink-0">{f.severity === "high" ? "🔴" : "🟡"}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-bold text-xs ${f.severity === "high" ? "text-red-800" : "text-amber-800"}`}>{f.flag}</p>
+                          <p className={`text-[10px] mt-0.5 ${f.severity === "high" ? "text-red-600" : "text-amber-600"}`}>{f.detail}</p>
+                          {f.userEmail && <p className="text-[9px] font-mono text-muted-foreground mt-0.5">{f.userEmail}</p>}
+                        </div>
+                        <p className="text-[9px] text-muted-foreground flex-shrink-0">{f.time ? new Date(f.time).toLocaleDateString("en-KE", { day:"numeric", month:"short" }) : ""}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Login Audit Log */}
             {activityLoginEvents.length > 0 && (

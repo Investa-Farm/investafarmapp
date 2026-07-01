@@ -24,6 +24,34 @@ function getItemsForPurpose(purpose: string) {
   return AGRO_ITEMS.default;
 }
 
+// Rough lat/lng centres for Kenya counties — used only for proximity sort
+const COUNTY_COORDS: Record<string, [number, number]> = {
+  nairobi: [-1.2921, 36.8219], mombasa: [-4.0435, 39.6682], kisumu: [-0.1022, 34.7617],
+  nakuru: [-0.3031, 36.0800], eldoret: [0.5143, 35.2698], thika: [-1.0332, 37.0693],
+  machakos: [-1.5177, 37.2634], meru: [0.0467, 37.6500], nyeri: [-0.4167, 36.9500],
+  kakamega: [0.2827, 34.7519], kitale: [1.0154, 35.0062], garissa: [-0.4532, 42.0000],
+  kisii: [-0.6817, 34.7667], kericho: [-0.3696, 35.2863], bungoma: [0.5635, 34.5606],
+  embu: [-0.5300, 37.4581], turkana: [3.1130, 35.5961], mandera: [3.9366, 41.8670],
+  wajir: [1.7471, 40.0574], marsabit: [2.3284, 37.9899], isiolo: [0.3541, 37.5820],
+  laikipia: [0.3601, 36.7820], samburu: [1.0756, 37.1109], trans_nzoia: [1.0066, 34.9508],
+  west_pokot: [1.6223, 35.3476], nandi: [0.1831, 35.1014], baringo: [0.4665, 35.9618],
+  elgeyo_marakwet: [1.0285, 35.5116], narok: [-1.0817, 35.8764], kajiado: [-2.0985, 36.7820],
+  kwale: [-4.1839, 39.4532], kilifi: [-3.6305, 39.8499], tana_river: [-0.7800, 40.0600],
+  lamu: [-2.2686, 40.9020], taita_taveta: [-3.3165, 38.4832], homa_bay: [-0.5233, 34.4571],
+  migori: [-1.0634, 34.4731], siaya: [-0.0607, 34.2906], vihiga: [0.0768, 34.7235],
+  busia: [0.4605, 34.1116], bomet: [-0.7877, 35.3415], nyamira: [-0.5667, 34.9333],
+  kirinyaga: [-0.5618, 37.2976], muranga: [-0.7189, 37.1491], kiambu: [-1.0311, 36.8316],
+  nyandarua: [-0.1897, 36.3581],
+};
+
+function distKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function VoucherOrderModal({ voucher, token, onClose }: { voucher: any; token: string; onClose: () => void }) {
   const [step, setStep] = useState<"select" | "supplier" | "confirm" | "done">("select");
   const [selected, setSelected] = useState<string[]>([]);
@@ -32,7 +60,18 @@ function VoucherOrderModal({ voucher, token, onClose }: { voucher: any; token: s
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmedSupplierName, setConfirmedSupplierName] = useState<string>("");
+  const [userCoords, setUserCoords] = useState<[number, number] | null>(null);
   const { items, icon } = getItemsForPurpose(voucher.purpose);
+
+  // Request geolocation when the supplier step becomes active
+  useEffect(() => {
+    if (step === "supplier" && !userCoords && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setUserCoords([pos.coords.latitude, pos.coords.longitude]),
+        () => {} // silently ignore if denied
+      );
+    }
+  }, [step]);
 
   const { data: suppliers = [], isLoading: suppliersLoading } = useQuery<{ id: number; name: string; county: string; badge: string }[]>({
     queryKey: ["agribusiness-suppliers"],
@@ -175,24 +214,49 @@ function VoucherOrderModal({ voucher, token, onClose }: { voucher: any; token: s
                   <MapPin size={16} className="text-muted-foreground mx-auto mb-1.5" />
                   <p className="text-muted-foreground text-xs">No suppliers found for "{countyFilter}"</p>
                 </div>
-              ) : (
-                suppliers.filter((s: any) => !countyFilter || s.name?.toLowerCase().includes(countyFilter.toLowerCase()) || s.county?.toLowerCase().includes(countyFilter.toLowerCase())).map((s: any) => (
-                  <button key={s.id} onClick={() => setSelectedSupplierId(s.id)}
-                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all active:scale-[0.98] ${selectedSupplierId === s.id ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
-                    <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0 text-lg">🏪</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-foreground font-semibold text-sm truncate">{s.name}</p>
-                      <p className="text-muted-foreground text-xs">{s.county}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{s.badge}</span>
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedSupplierId === s.id ? "border-primary bg-primary" : "border-border"}`}>
-                        {selectedSupplierId === s.id && <Check size={9} className="text-white" />}
+              ) : (() => {
+                const filtered = suppliers.filter((s: any) => !countyFilter || s.name?.toLowerCase().includes(countyFilter.toLowerCase()) || s.county?.toLowerCase().includes(countyFilter.toLowerCase()));
+                // Sort by distance if user coords available, otherwise alphabetical
+                const sorted = userCoords
+                  ? [...filtered].sort((a: any, b: any) => {
+                      const getCoords = (county: string) => COUNTY_COORDS[county?.toLowerCase().replace(/\s+/g, "_")] ?? null;
+                      const ac = getCoords(a.county);
+                      const bc = getCoords(b.county);
+                      const da = ac ? distKm(userCoords[0], userCoords[1], ac[0], ac[1]) : Infinity;
+                      const db2 = bc ? distKm(userCoords[0], userCoords[1], bc[0], bc[1]) : Infinity;
+                      return da - db2;
+                    })
+                  : filtered;
+                return (
+                  <>
+                    {userCoords && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-primary bg-primary/5 px-2.5 py-1.5 rounded-lg">
+                        <MapPin size={10} /> Sorted by distance from your location
                       </div>
-                    </div>
-                  </button>
-                ))
-              )}
+                    )}
+                    {sorted.map((s: any) => {
+                      const coords = COUNTY_COORDS[s.county?.toLowerCase().replace(/\s+/g, "_")] ?? null;
+                      const dist = userCoords && coords ? distKm(userCoords[0], userCoords[1], coords[0], coords[1]) : null;
+                      return (
+                        <button key={s.id} onClick={() => setSelectedSupplierId(s.id)}
+                          className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all active:scale-[0.98] ${selectedSupplierId === s.id ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+                          <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0 text-lg">🏪</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-foreground font-semibold text-sm truncate">{s.name}</p>
+                            <p className="text-muted-foreground text-xs">{s.county}{dist !== null ? ` · ${dist < 1 ? "<1" : Math.round(dist)} km away` : ""}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{s.badge}</span>
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedSupplierId === s.id ? "border-primary bg-primary" : "border-border"}`}>
+                              {selectedSupplierId === s.id && <Check size={9} className="text-white" />}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </>
+                );
+              })()}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button onClick={() => setStep("select")}
                   className="py-3 rounded-xl border border-border text-foreground text-sm font-semibold active:scale-95 transition-transform">

@@ -27,6 +27,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="msapplication-TileImage" content="/logo.png" />
     <meta name="msapplication-TileColor" content="#052e16" />
+    <!-- Blocking dark-mode init — synchronous, before fonts/CSS to prevent flash for dark-mode users -->
+    <script>
+      (function() {
+        try {
+          var s = localStorage.getItem("investa_theme");
+          var d = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (s === "dark" || (!s && d)) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
