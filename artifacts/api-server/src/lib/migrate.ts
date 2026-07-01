@@ -54,7 +54,7 @@ export async function ensureSchema(): Promise<void> {
     logger.info("[migrate] Applying runtime schema migrations…");
 
     // ── user_role enum — add values added after initial deployment ─────────────
-    for (const v of ["cooperative", "agribusiness", "admin"]) {
+    for (const v of ["cooperative", "agribusiness", "admin", "viewer", "fund_manager"]) {
       await enumVal(client, "user_role", v);
     }
 
@@ -98,6 +98,29 @@ export async function ensureSchema(): Promise<void> {
     // ── loan_applications — newer columns ──────────────────────────────────────
     await col(client, "loan_applications", "ai_score",   "NUMERIC(5,2)");
     await col(client, "loan_applications", "ai_summary", "TEXT");
+
+    // ── performance indexes — added for 120K+ user scale ──────────────────────
+    const idx = async (name: string, ddl: string) => {
+      await sql(client, `CREATE INDEX IF NOT EXISTS ${name} ${ddl}`, `idx ${name}`);
+    };
+    await idx("idx_users_role",             "ON users (role)");
+    await idx("idx_users_email",            "ON users (email)");
+    await idx("idx_users_created_at",       "ON users (created_at DESC)");
+    await idx("idx_farms_farmer_id",        "ON farms (farmer_id)");
+    await idx("idx_farms_status",           "ON farms (status)");
+    await idx("idx_investments_investor_id","ON investments (investor_id)");
+    await idx("idx_investments_farm_id",    "ON investments (farm_id)");
+    await idx("idx_wallet_tx_user_id",      "ON wallet_transactions (user_id)");
+    await idx("idx_wallet_tx_created_at",   "ON wallet_transactions (created_at DESC)");
+    await idx("idx_wallet_tx_type",         "ON wallet_transactions (type)");
+    await idx("idx_kyc_docs_user_id",       "ON kyc_documents (user_id)");
+    await idx("idx_kyc_docs_status",        "ON kyc_documents (status)");
+    await idx("idx_loans_farmer_id",        "ON loan_applications (farmer_id)");
+    await idx("idx_loans_status",           "ON loan_applications (status)");
+    await idx("idx_market_listings_farm_id","ON market_listings (farm_id)");
+    await idx("idx_notifications_user_id",  "ON notifications (user_id)");
+    await idx("idx_platform_rev_created",   "ON platform_revenue (created_at DESC)");
+    await idx("idx_order_book_farm_id",     "ON order_book (farm_id)");
 
     logger.info("[migrate] Runtime schema migrations complete ✓");
   } catch (e) {

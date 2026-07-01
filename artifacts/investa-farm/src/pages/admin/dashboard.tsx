@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useLocation } from "wouter";
 import {
   Shield, Users, Tractor, DollarSign, TrendingUp, FileText,
@@ -109,6 +110,7 @@ export default function AdminDashboard() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // Real-time activity feed (Overview tab)
+  const [revenueChart, setRevenueChart] = useState<{ date: string; fees: number }[]>([]);
   const [feedEvents, setFeedEvents] = useState<Array<{
     id: string; type: string; title: string; subtitle: string;
     amountKES?: number; status?: string; ts: string;
@@ -288,7 +290,8 @@ export default function AdminDashboard() {
     }
     fetchStats();
     fetchFeedEvents();
-  }, []);
+    fetchRevenueChart();
+  }, [fetchRevenueChart]);
 
   // Auto-refresh activity feed every 30s
   useEffect(() => {
@@ -390,6 +393,13 @@ export default function AdminDashboard() {
       if (r.ok) setFeedEvents(await r.json());
     } catch { /* silent */ } finally { setFeedLoading(false); }
   };
+
+  const fetchRevenueChart = useCallback(async () => {
+    try {
+      const r = await fetch("/api/admin/revenue-chart", { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) { const d = await r.json(); setRevenueChart(d.chart ?? []); }
+    } catch { /* silent */ }
+  }, [token]);
 
   // Poll notification bell every 30 seconds
   useEffect(() => {
@@ -1213,6 +1223,43 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Revenue chart */}
+              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Platform Fee Income</p>
+                    <p className="text-foreground font-semibold text-sm">Last 30 days</p>
+                  </div>
+                  <button onClick={fetchRevenueChart} className="text-[10px] text-primary underline">refresh</button>
+                </div>
+                {revenueChart.length > 0 ? (
+                  <div className="px-2 pt-2 pb-1">
+                    <ResponsiveContainer width="100%" height={110}>
+                      <AreaChart data={revenueChart} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="feeGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#16a34a" stopOpacity={0.25} />
+                            <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="date" tick={{ fontSize: 8, fill: "#9ca3af" }}
+                          tickFormatter={d => { const p = d.split("-"); return `${p[2]}/${p[1]}`; }}
+                          interval={6} />
+                        <YAxis tick={{ fontSize: 8, fill: "#9ca3af" }}
+                          tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}K` : String(v)} />
+                        <Tooltip contentStyle={{ fontSize: 11, padding: "4px 8px" }}
+                          formatter={(v: number) => [`KES ${v.toLocaleString()}`, "Fees"]}
+                          labelFormatter={l => { const p = String(l).split("-"); return `${p[2]}/${p[1]}/${p[0]}`; }} />
+                        <Area type="monotone" dataKey="fees" stroke="#16a34a" strokeWidth={2}
+                          fill="url(#feeGrad)" dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground text-xs">No fee income recorded yet</div>
+                )}
               </div>
 
               {/* Real-time Activity Feed */}

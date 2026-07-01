@@ -530,9 +530,79 @@ const PLATFORM_BASELINE = {
   totalTxCount:          284_600,  // historical transaction count baseline
 };
 
+// ── In-memory stats cache (30s TTL) — prevents N×SQL aggregates on every poll ──
+let _statsCache: { data: any; expires: number } | null = null;
+let _revenueCache: { data: any; expires: number } | null = null;
+
+router.get("/admin/revenue-chart", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res, true);
+  if (!ok) return;
+
+  if (_revenueCache && Date.now() < _revenueCache.expires) {
+    res.json(_revenueCache.data);
+    return;
+  }
+
+  try {
+    // 30-day daily fee income from platform_revenue table
+    const rows = await db.execute(sql`
+      SELECT
+        DATE_TRUNC('day', created_at)::date AS day,
+        SUM(amount)::float AS fees
+      FROM platform_revenue
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `);
+
+    // Also aggregate platform fees from wallet_transactions type='fee'
+    const feeRows = await db.execute(sql`
+      SELECT
+        DATE_TRUNC('day', created_at)::date AS day,
+        ABS(SUM(amount))::float AS fees
+      FROM wallet_transactions
+      WHERE type = 'fee' AND created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `);
+
+    // Merge both sources
+    const byDay: Record<string, number> = {};
+    for (const r of (rows.rows as any[])) {
+      const d = String(r.day);
+      byDay[d] = (byDay[d] ?? 0) + Number(r.fees ?? 0);
+    }
+    for (const r of (feeRows.rows as any[])) {
+      const d = String(r.day);
+      byDay[d] = (byDay[d] ?? 0) + Number(r.fees ?? 0);
+    }
+
+    // Fill in all 30 days (zero for missing days)
+    const result: { date: string; fees: number }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - i);
+      const key = d.toISOString().split("T")[0]!;
+      result.push({ date: key, fees: Math.round((byDay[key] ?? 0)) });
+    }
+
+    const response = { chart: result };
+    _revenueCache = { data: response, expires: Date.now() + 120_000 };
+    res.json(response);
+  } catch (e) {
+    res.json({ chart: [] });
+  }
+});
+
 router.get("/admin/stats", async (req, res): Promise<void> => {
   const ok = await requireAdmin(req, res, true);
   if (!ok) return;
+
+  // Serve from cache if still fresh (30s TTL)
+  if (_statsCache && Date.now() < _statsCache.expires) {
+    res.json(_statsCache.data);
+    return;
+  }
 
   // Use SQL aggregates — never load full tables into memory
   const [
@@ -619,7 +689,10 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
       cropType: r.l.purpose,
       createdAt: r.l.createdAt.toISOString(),
     })),
-  });
+  };
+
+  _statsCache = { data: payload, expires: Date.now() + 30_000 };
+  res.json(payload);
 });
 
 router.get("/admin/transactions", async (req, res): Promise<void> => {
