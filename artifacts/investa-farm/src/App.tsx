@@ -8,6 +8,7 @@ import { PushScheduler } from "@/components/push-scheduler";
 import { RateAppModal, useRateAppTrigger } from "@/components/rate-app-modal";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getToken, getStoredUser } from "@/lib/auth";
+import { setInstallPrompt } from "@/lib/pwa";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { CurrencyProvider } from "@/lib/currency";
 import { SecurityGuard } from "@/components/security-guard";
@@ -446,7 +447,7 @@ function PwaInstallBanner() {
   }, []);
 
   useEffect(() => {
-    const handler = (e: Event) => { e.preventDefault(); setPrompt(e); };
+    const handler = (e: Event) => { e.preventDefault(); setPrompt(e); setInstallPrompt(e); };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);

@@ -4,7 +4,7 @@ import {
   ArrowLeft, CheckCircle2, Loader2, Clock, FileText, ChevronLeft,
   AlertCircle, BarChart3, Users, Shield, DollarSign, Zap, Sparkles,
   X, TrendingUp, Leaf, Droplets, Truck, Package, Calculator,
-  ChevronRight, ScrollText, Download, Upload,
+  ChevronRight, ScrollText, Download, Upload, ShoppingCart,
 } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { getToken, formatKES } from "@/lib/auth";
@@ -535,6 +535,25 @@ export default function LoanApply() {
                         <p className="text-foreground font-bold text-[10px]">{formatKES(i.v)}</p>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Order inputs banner for funded loans */}
+                {(app.status === "approved" || app.status === "disbursed") && (
+                  <div className="rounded-2xl overflow-hidden border border-green-200"
+                    style={{ background: "linear-gradient(135deg, #052e16 0%, #15803d 60%, #16a34a 100%)" }}>
+                    <div className="px-3.5 py-2.5 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 text-lg">🎉</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-bold text-xs leading-tight">Farm Funded! Order Your Inputs</p>
+                        <p className="text-white/70 text-[10px] mt-0.5 leading-tight">Voucher ready — redeem at certified agro-dealers, no cash needed</p>
+                      </div>
+                      <button onClick={() => setLocation("/farmer/operations")}
+                        className="flex items-center gap-1 bg-white text-green-800 font-bold text-[10px] px-2.5 py-1.5 rounded-xl active:scale-95 transition-transform flex-shrink-0 shadow-md">
+                        <ShoppingCart size={11} />
+                        Order
+                      </button>
+                    </div>
                   </div>
                 )}
 

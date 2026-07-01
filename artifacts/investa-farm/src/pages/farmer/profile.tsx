@@ -3,7 +3,8 @@ import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, getStoredUser, storeUser, getToken, formatKES } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon, Leaf, BarChart2 } from "lucide-react";
+import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon, Leaf, BarChart2, Smartphone, Check } from "lucide-react";
+import { getInstallPrompt, triggerInstall, isIosBrowser, isStandalone } from "@/lib/pwa";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { WalletModal } from "@/components/wallet-modal";
@@ -28,6 +29,8 @@ export default function FarmerProfile() {
     localStorage.setItem("investa_theme", next ? "dark" : "light");
   };
 
+  const [pwaOpen, setPwaOpen] = useState(false);
+  const [pwaInstalled, setPwaInstalled] = useState(false);
   const [settingsName, setSettingsName] = useState("");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -106,6 +109,7 @@ export default function FarmerProfile() {
         { icon: ShieldCheck, label: "Security & 2FA", sublabel: "Two-factor authentication (TOTP)", action: () => setLocation("/farmer/totp") },
         { icon: Settings, label: "Account Settings", sublabel: "Name, password", action: openSettings },
         { icon: isDark ? Sun : Moon, label: isDark ? "Switch to Light Mode" : "Switch to Dark Mode", sublabel: "Toggle app appearance", action: toggleDark },
+        { icon: Smartphone, label: "Add to Home Screen", sublabel: "Install app for instant access", action: () => setPwaOpen(true) },
       ]
     },
     {
@@ -232,6 +236,99 @@ export default function FarmerProfile() {
       <RateAppModal open={rateOpen} onClose={() => setRateOpen(false)} />
       <BottomNav role="farmer" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+
+      {/* PWA Install Sheet */}
+      <AnimatePresence>
+        {pwaOpen && (
+          <motion.div className="fixed inset-0 z-[60] flex items-end justify-center"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPwaOpen(false)} />
+            <motion.div className="relative w-full max-w-[430px] bg-card rounded-t-3xl pb-10"
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Smartphone size={18} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-base text-foreground">Add to Home Screen</p>
+                    <p className="text-muted-foreground text-[11px]">Install Investa Farm on your device</p>
+                  </div>
+                </div>
+                <button onClick={() => setPwaOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <X size={16} className="text-muted-foreground" />
+                </button>
+              </div>
+              <div className="px-5 py-4 space-y-4">
+                {isStandalone() ? (
+                  <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center space-y-2">
+                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+                      <Check size={22} className="text-green-600" />
+                    </div>
+                    <p className="text-green-800 font-bold text-sm">Already Installed!</p>
+                    <p className="text-green-600 text-xs">Investa Farm is running as a home screen app.</p>
+                  </div>
+                ) : isIosBrowser() ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground text-center">Follow these steps in Safari:</p>
+                    {[
+                      { icon: "⎋", label: "Tap the Share button", sub: "At the bottom of Safari browser", bg: "bg-blue-50 border-blue-200", text: "text-blue-800" },
+                      { icon: "＋", label: 'Select "Add to Home Screen"', sub: "Scroll down in the share sheet", bg: "bg-primary/5 border-primary/20", text: "text-primary" },
+                      { icon: "✓", label: "Tap Add", sub: "The app appears on your home screen", bg: "bg-green-50 border-green-200", text: "text-green-800" },
+                    ].map(({ icon, label, sub, bg, text }) => (
+                      <div key={label} className={`flex items-center gap-3 p-3 rounded-2xl border ${bg}`}>
+                        <div className="w-10 h-10 rounded-xl bg-white/70 flex items-center justify-center flex-shrink-0 text-xl font-bold">{icon}</div>
+                        <div>
+                          <p className={`text-sm font-semibold ${text}`}>{label}</p>
+                          <p className="text-muted-foreground text-xs">{sub}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : getInstallPrompt() ? (
+                  <div className="space-y-4">
+                    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 text-center space-y-2">
+                      <div className="text-3xl">📱</div>
+                      <p className="text-foreground font-bold text-sm">Install Investa Farm</p>
+                      <p className="text-muted-foreground text-xs">Add to your home screen for instant access — works offline too!</p>
+                    </div>
+                    {pwaInstalled ? (
+                      <div className="w-full bg-green-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2">
+                        <Check size={18} /> Installed!
+                      </div>
+                    ) : (
+                      <button onClick={async () => {
+                        const outcome = await triggerInstall();
+                        if (outcome === "accepted") { setPwaInstalled(true); setTimeout(() => setPwaOpen(false), 1500); }
+                      }} className="w-full bg-primary text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                        <Smartphone size={18} /> Install Now — It's Free
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground text-center">To install, open in Chrome and tap the menu:</p>
+                    {[
+                      { icon: "⋮", label: "Tap the 3-dot menu", sub: "Top right of Chrome browser" },
+                      { icon: "＋", label: 'Select "Add to Home Screen"', sub: 'Or "Install App" if shown' },
+                    ].map(({ icon, label, sub }) => (
+                      <div key={label} className="flex items-center gap-3 p-3 rounded-2xl bg-muted/50 border border-border">
+                        <div className="w-10 h-10 rounded-xl bg-card flex items-center justify-center flex-shrink-0 text-xl font-bold text-foreground">{icon}</div>
+                        <div>
+                          <p className="text-foreground text-sm font-semibold">{label}</p>
+                          <p className="text-muted-foreground text-xs">{sub}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-center text-muted-foreground text-[10px]">Free · No app store required · Works on iPhone & Android</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Account Settings Sheet */}
       <AnimatePresence>

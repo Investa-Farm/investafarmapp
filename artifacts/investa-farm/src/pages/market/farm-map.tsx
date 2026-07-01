@@ -117,6 +117,20 @@ function makeLabelIcon(crop: string, active: boolean, isPortfolioFarm: boolean, 
 
 const HIGH_RISK = new Set(["coffee", "avocado", "tobacco"]);
 const MOD_RISK  = new Set(["tea", "wheat", "tomatoes", "potatoes"]);
+function getGrowthNdvi(cropType: string, week: number): number {
+  const maxWeeks = 20;
+  const peak = maxWeeks * 0.58;
+  const c = cropType.toLowerCase();
+  const baseMax = c.includes("coffee") || c.includes("avocado") ? 0.83
+    : c.includes("tea") ? 0.79
+    : c.includes("dairy") || c.includes("poultry") ? 0.65
+    : c.includes("maize") || c.includes("wheat") ? 0.76
+    : 0.72;
+  if (week <= 1) return 0.13;
+  if (week <= peak) return Math.min(baseMax, 0.14 + (baseMax - 0.14) * (week / peak));
+  return Math.max(0.30, baseMax - (baseMax - 0.30) * ((week - peak) / (maxWeeks - peak)));
+}
+
 function riskLevel(crop: string, chg: number) {
   const c = crop.toLowerCase();
   if (HIGH_RISK.has(c) || Math.abs(chg) > 5) return "High";
@@ -143,6 +157,7 @@ export default function FarmMap() {
   const [satellite, setSatellite]   = useState(false);
   const [portfolioOnly, setPortfolioOnly] = useState(false);
   const [showControls, setShowControls]  = useState(false);
+  const [growthWeek, setGrowthWeek]      = useState(12);
 
   const { data: farms = [], isLoading } = useQuery<MapFarm[]>({
     queryKey: ["market-map-data"],
@@ -485,6 +500,40 @@ export default function FarmMap() {
               <div className="bg-muted rounded-xl p-2.5 text-center">
                 <p className="text-[10px] text-muted-foreground font-medium">Shares</p>
                 <p className="text-sm font-bold text-foreground">{selected.sharesAvailable.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Growth Timeline Slider */}
+            <div className="mb-3 bg-muted/40 rounded-2xl p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <Leaf size={10} /> Growth Timeline
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full" style={{ background: ndviToColor(getGrowthNdvi(selected.cropType, growthWeek)) }} />
+                  <span className="text-[10px] font-bold" style={{ color: ndviToColor(getGrowthNdvi(selected.cropType, growthWeek)) }}>
+                    {getGrowthNdvi(selected.cropType, growthWeek) >= 0.7 ? "Healthy" : getGrowthNdvi(selected.cropType, growthWeek) >= 0.5 ? "Good" : getGrowthNdvi(selected.cropType, growthWeek) >= 0.4 ? "Fair" : "Stressed"}
+                    {" "}(NDVI {getGrowthNdvi(selected.cropType, growthWeek).toFixed(2)})
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-0.5 mb-2">
+                {Array.from({ length: 20 }, (_, i) => i + 1).map(w => {
+                  const ndvi = getGrowthNdvi(selected.cropType, w);
+                  return (
+                    <div key={w} onClick={() => setGrowthWeek(w)}
+                      className="flex-1 rounded-sm cursor-pointer transition-all"
+                      style={{ height: 12, background: ndviToColor(ndvi), opacity: w === growthWeek ? 1 : 0.35 }} />
+                  );
+                })}
+              </div>
+              <input type="range" min={1} max={20} value={growthWeek}
+                onChange={e => setGrowthWeek(+e.target.value)}
+                className="w-full accent-primary h-1" style={{ cursor: "pointer" }} />
+              <div className="flex justify-between mt-1">
+                <span className="text-[9px] text-muted-foreground">Wk 1 (Seedling)</span>
+                <span className="text-[9px] text-primary font-bold">Week {growthWeek}</span>
+                <span className="text-[9px] text-muted-foreground">Wk 20 (Harvest)</span>
               </div>
             </div>
 
