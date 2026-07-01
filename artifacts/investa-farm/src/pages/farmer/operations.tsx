@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useGetFarmerDashboard } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, isDemoAccount, getToken } from "@/lib/auth";
-import { Leaf, Droplets, Sun, CheckCircle2, Clock, Plus, X, Tag, Copy, Check, ShoppingCart, ChevronRight, AlertTriangle, Search, Loader2, MapPin } from "lucide-react";
+import { Leaf, Droplets, Sun, CheckCircle2, Clock, Plus, X, Tag, Copy, Check, ShoppingCart, ChevronRight, AlertTriangle, Search, Loader2, MapPin, DollarSign, BarChart3, TrendingUp, Wallet, ArrowRight } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/skeleton";
+import { RepayModal } from "@/components/repay-modal";
 import { motion, AnimatePresence } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type OrderItem = { name: string; qty: string; unit: string };
 
@@ -470,6 +471,22 @@ export default function FarmerOperations() {
   const [disasterNotes, setDisasterNotes] = useState("");
   const [submittingReport, setSubmittingReport] = useState(false);
   const [reportDone, setReportDone] = useState(false);
+  const [repayLoan, setRepayLoan] = useState<any>(null);
+  const [repayOpen, setRepayOpen] = useState(false);
+
+  const { data: loans = [] } = useQuery<any[]>({
+    queryKey: ["loan-apps"],
+    queryFn: async () => {
+      const r = await fetch("/api/loans/applications", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 60_000,
+    enabled: !!token,
+  });
+
+  const activeLoans = loans.filter((l: any) => ["approved","disbursed","submitted","under_review"].includes(l.status));
+  const clearedLoans = loans.filter((l: any) => l.status === "disbursed" && false); 
 
   const { data: farmUpdates } = useQuery<any[]>({
     queryKey: ["farmer-updates"],
@@ -647,6 +664,189 @@ export default function FarmerOperations() {
           </div>
         )}
 
+        {/* ── Loan Repayment Tracker ────────────────────────────────── */}
+        {activeLoans.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+                <Wallet size={12} className="text-amber-700" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">Loan Repayment</p>
+            </div>
+
+            {activeLoans.map((loan: any) => {
+              const principal = Number(loan.amount);
+              const totalOwed = principal * 1.08;
+              const monthlyPayment = totalOwed / (loan.repaymentPeriodMonths || 6);
+              const createdAt = new Date(loan.createdAt || loan.submittedAt || Date.now());
+              const monthsElapsed = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+              const repaid = loan.status === "disbursed" && monthsElapsed === 0 ? 0 : Math.min(monthsElapsed * monthlyPayment, totalOwed);
+              const pct = Math.min(100, Math.round((repaid / totalOwed) * 100));
+              const remaining = Math.max(0, totalOwed - repaid);
+              const canRepay = ["approved","disbursed"].includes(loan.status);
+
+              const statusColors: Record<string,string> = {
+                approved: "bg-blue-100 text-blue-700",
+                disbursed: "bg-green-100 text-green-700",
+                submitted: "bg-amber-100 text-amber-700",
+                under_review: "bg-purple-100 text-purple-700",
+              };
+
+              return (
+                <div key={loan.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                  {/* Card header */}
+                  <div className="bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-bold text-xs uppercase tracking-wide">
+                        {loan.cropName ?? loan.purpose ?? "Farm"} Loan
+                      </p>
+                      <p className="text-white/80 text-[10px] mt-0.5">{loan.farmLocation ?? "Kenya"}</p>
+                    </div>
+                    <span className={`text-[9px] font-bold px-2 py-1 rounded-full capitalize ${statusColors[loan.status] ?? "bg-white/20 text-white"}`}>
+                      {loan.status?.replace("_", " ")}
+                    </span>
+                  </div>
+
+                  <div className="p-4 space-y-4">
+                    {/* Key figures */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: "Principal", val: formatKES(principal), color: "text-foreground" },
+                        { label: "Total Owed", val: formatKES(totalOwed), color: "text-amber-700" },
+                        { label: "Monthly", val: formatKES(monthlyPayment), color: "text-primary" },
+                      ].map(({ label, val, color }) => (
+                        <div key={label} className="bg-muted/50 rounded-xl p-2.5 text-center">
+                          <p className="text-muted-foreground text-[9px] uppercase tracking-wider">{label}</p>
+                          <p className={`font-bold text-xs mt-0.5 ${color}`}>{val}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Repayment progress */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-xs font-semibold text-foreground">Repayment Progress</p>
+                        <span className="text-xs font-bold text-primary">{pct}%</span>
+                      </div>
+                      <div className="relative h-3 bg-muted rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 1, ease: "easeOut" }}
+                          className="h-full rounded-full"
+                          style={{ background: pct >= 75 ? "#16a34a" : pct >= 40 ? "#f59e0b" : "#3b82f6" }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between mt-1.5 text-[10px] text-muted-foreground">
+                        <span>{formatKES(repaid)} repaid</span>
+                        <span>{formatKES(remaining)} remaining</span>
+                      </div>
+                    </div>
+
+                    {/* Timeline */}
+                    <div className="flex items-center gap-2 bg-muted/40 rounded-xl px-3 py-2">
+                      <Clock size={11} className="text-muted-foreground flex-shrink-0" />
+                      <span className="text-muted-foreground text-[10px]">
+                        {loan.repaymentPeriodMonths} month plan · {Math.max(0, (loan.repaymentPeriodMonths || 6) - monthsElapsed)} months remaining
+                      </span>
+                    </div>
+
+                    {/* CTA */}
+                    {canRepay && (
+                      <button
+                        onClick={() => { setRepayLoan(loan); setRepayOpen(true); }}
+                        className="w-full bg-amber-500 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2 text-sm">
+                        <DollarSign size={15} />
+                        Make a Repayment
+                        <ArrowRight size={13} />
+                      </button>
+                    )}
+                    {!canRepay && (
+                      <div className="text-center text-muted-foreground text-[11px] py-1">
+                        Repayment available once loan is approved &amp; disbursed
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Revenue Sharing Breakdown ─────────────────────────────── */}
+        {dashboard && (dashboard.fundingTarget > 0 || activeLoans.length > 0) && (
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-primary/90 to-emerald-600 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 size={14} className="text-white" />
+                <p className="text-white font-bold text-sm">Revenue Sharing at Harvest</p>
+              </div>
+              <p className="text-white/70 text-[10px] mt-0.5">How your harvest revenue is split between you and investors</p>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* Visual bar */}
+              <div className="space-y-1.5">
+                <div className="flex h-4 rounded-xl overflow-hidden gap-0.5">
+                  <div className="bg-primary flex items-center justify-center" style={{ width: "55%" }}>
+                    <span className="text-white text-[9px] font-black">55%</span>
+                  </div>
+                  <div className="bg-amber-400 flex items-center justify-center" style={{ width: "44.5%" }}>
+                    <span className="text-white text-[9px] font-black">44.5%</span>
+                  </div>
+                  <div className="bg-muted-foreground/30 rounded-r-xl flex items-center justify-center" style={{ width: "0.5%" }} />
+                </div>
+                <div className="flex items-center justify-between text-[10px]">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-primary rounded-sm" />
+                    <span className="font-semibold text-foreground">You (Farmer)</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-amber-400 rounded-sm" />
+                    <span className="font-semibold text-foreground">Investors</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-muted-foreground/30 rounded-sm" />
+                    <span className="text-muted-foreground">Platform</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Real-number breakdown */}
+              {(() => {
+                const fundingTarget = dashboard.fundingTarget || (activeLoans[0] ? Number(activeLoans[0].amount) : 0);
+                const projectedRevenue = fundingTarget * 1.40;
+                const farmerShare = projectedRevenue * 0.55;
+                const investorShare = projectedRevenue * 0.445;
+                const platformFee = projectedRevenue * 0.005;
+                return (
+                  <div className="space-y-2">
+                    {[
+                      { label: "Projected Gross Revenue", val: formatKES(projectedRevenue), color: "text-foreground", bg: "bg-muted/40", icon: "📦" },
+                      { label: "Your 55% Share", val: formatKES(farmerShare), color: "text-primary font-black", bg: "bg-primary/5 border border-primary/15", icon: "🌾" },
+                      { label: "Investor 44.5% Share", val: formatKES(investorShare), color: "text-amber-700 font-bold", bg: "bg-amber-50 border border-amber-100", icon: "📈" },
+                      { label: "Platform Fee (0.5%)", val: formatKES(platformFee), color: "text-muted-foreground", bg: "bg-muted/40", icon: "🏛️" },
+                    ].map(({ label, val, color, bg, icon }) => (
+                      <div key={label} className={`${bg} rounded-xl px-3 py-2.5 flex items-center justify-between`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{icon}</span>
+                          <span className="text-foreground text-xs">{label}</span>
+                        </div>
+                        <span className={`text-xs ${color}`}>{val}</span>
+                      </div>
+                    ))}
+                    <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+                      <p className="text-green-700 text-[10px] leading-relaxed">
+                        💡 Based on a 40% revenue multiplier (industry average for Kenya smallholder farms). Your actual payout depends on real harvest yield and market prices.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
         {/* Update nudge */}
         {showUpdateNudge && (
           <div className="bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3 flex items-center gap-3">
@@ -774,6 +974,7 @@ export default function FarmerOperations() {
         )}
       </AnimatePresence>
 
+      <RepayModal open={repayOpen} onClose={() => setRepayOpen(false)} loan={repayLoan} />
       <BottomNav role="farmer" />
     </div>
   );

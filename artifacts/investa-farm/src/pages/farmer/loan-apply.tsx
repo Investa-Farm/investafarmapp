@@ -599,8 +599,8 @@ export default function LoanApply() {
               style={{ maxHeight: "92dvh" }}>
 
               {/* Header */}
-              <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
-                <div className="flex items-center justify-between mb-3">
+              <div className="px-5 pt-5 pb-4 border-b border-border flex-shrink-0">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     {modalStep > 1 && modalStep < 6 && (
                       <button onClick={handleBack} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center -ml-1 mr-0.5">
@@ -618,11 +618,46 @@ export default function LoanApply() {
                     </button>
                   )}
                 </div>
-                <div className="flex gap-1">
-                  {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-                    <div key={i} className={`flex-1 h-1.5 rounded-full transition-all ${i + 1 <= modalStep ? "bg-primary" : "bg-muted"}`} />
-                  ))}
-                </div>
+                {/* Visual step indicator — numbered circles + labels */}
+                {modalStep < 6 ? (
+                  <div className="flex items-start justify-between">
+                    {[
+                      { n: 1, label: "Farm" },
+                      { n: 2, label: "Costs" },
+                      { n: 3, label: "Revenue" },
+                      { n: 4, label: "AI Score" },
+                      { n: 5, label: "Sign" },
+                    ].map(({ n, label }, idx) => {
+                      const done = n < modalStep;
+                      const active = n === modalStep;
+                      return (
+                        <div key={n} className="flex flex-col items-center gap-1 flex-1">
+                          <div className="relative flex items-center w-full justify-center">
+                            {idx > 0 && (
+                              <div className={`absolute right-1/2 top-1/2 -translate-y-1/2 h-0.5 w-full transition-colors ${done || active ? "bg-primary" : "bg-muted"}`} style={{ right: "50%", left: 0 }} />
+                            )}
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold z-10 border-2 transition-all ${
+                              done ? "bg-primary border-primary text-white" :
+                              active ? "bg-white border-primary text-primary shadow-sm shadow-primary/20" :
+                              "bg-muted border-muted text-muted-foreground"
+                            }`}>
+                              {done ? "✓" : n}
+                            </div>
+                          </div>
+                          <span className={`text-[9px] font-semibold leading-tight text-center transition-colors ${
+                            active ? "text-primary" : done ? "text-primary/60" : "text-muted-foreground"
+                          }`}>{label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+                      <div key={i} className="flex-1 h-1.5 rounded-full bg-primary" />
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Body */}
@@ -913,81 +948,82 @@ export default function LoanApply() {
 
                 {/* ── STEP 6: Done ── */}
                 {modalStep === 6 && (
-                  <div className="space-y-5 py-4">
-                    <div className="text-center space-y-3">
+                  <div className="space-y-5 py-2">
+                    {/* Hero success banner */}
+                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+                      className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl p-6 text-center space-y-3">
                       <motion.div
-                        initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: "spring", damping: 14, stiffness: 200 }}
-                        className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-                        <CheckCircle2 size={40} className="text-green-600" />
+                        initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", damping: 12, stiffness: 220, delay: 0.1 }}
+                        className="w-20 h-20 rounded-full bg-white/20 border-4 border-white/40 flex items-center justify-center mx-auto">
+                        <CheckCircle2 size={42} className="text-white" />
                       </motion.div>
                       <div>
-                        <h3 className="font-black text-foreground text-xl">Proposal Submitted!</h3>
-                        <p className="text-muted-foreground text-sm mt-1">Your farm is now live on the investor marketplace</p>
+                        <motion.h3 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+                          className="font-black text-white text-2xl tracking-tight">🎉 Proposal Live!</motion.h3>
+                        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}
+                          className="text-white/80 text-sm mt-1">Your farm is now open for investment</motion.p>
                       </div>
                       {/* Auto-close countdown bar */}
-                      <div className="mx-auto max-w-[160px]">
-                        <motion.div className="h-0.5 bg-primary/20 rounded-full overflow-hidden">
-                          <motion.div
-                            className="h-full bg-primary rounded-full"
-                            initial={{ width: "100%" }}
-                            animate={{ width: "0%" }}
-                            transition={{ duration: 4, ease: "linear" }}
-                          />
-                        </motion.div>
-                        <p className="text-muted-foreground text-[9px] mt-1">Closing automatically…</p>
+                      <div className="mx-auto max-w-[140px]">
+                        <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                          <motion.div className="h-full bg-white rounded-full"
+                            initial={{ width: "100%" }} animate={{ width: "0%" }}
+                            transition={{ duration: 4, ease: "linear" }} />
+                        </div>
+                        <p className="text-white/50 text-[9px] mt-1">Closing automatically…</p>
                       </div>
-                    </div>
+                    </motion.div>
 
-                    <div className="bg-gradient-to-br from-primary/5 to-emerald-50 border border-primary/20 rounded-2xl p-4 space-y-2">
-                      <p className="text-foreground font-bold text-sm">📋 Proposal Overview</p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-white/60 rounded-xl p-2.5">
-                          <p className="text-muted-foreground">Crop</p>
-                          <p className="font-bold text-foreground">{cropType}</p>
-                        </div>
-                        <div className="bg-white/60 rounded-xl p-2.5">
-                          <p className="text-muted-foreground">Funding Raised</p>
-                          <p className="font-bold text-primary">{formatKES(totalAmount)}</p>
-                        </div>
-                        <div className="bg-white/60 rounded-xl p-2.5">
-                          <p className="text-muted-foreground">Location</p>
-                          <p className="font-bold text-foreground">{farmLocation}</p>
-                        </div>
-                        {grossRevenue > 0 && (
-                          <div className="bg-white/60 rounded-xl p-2.5">
-                            <p className="text-muted-foreground">Your 55% Share</p>
-                            <p className="font-bold text-green-700">{formatKES(farmerShare)}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-foreground">What happens next?</p>
+                    {/* Proposal summary cards */}
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                      className="grid grid-cols-2 gap-2">
                       {[
-                        "Your farm is now live on the primary market for investors",
-                        "Investors can buy shares to fund your farm proposal",
-                        "Once fully funded, you receive a digital disbursement voucher",
-                        "Redeem the voucher at agribusiness suppliers for inputs",
-                      ].map((t, i) => (
-                        <div key={i} className="flex items-start gap-2">
-                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span className="text-white text-[9px] font-bold">{i + 1}</span>
-                          </div>
-                          <p className="text-muted-foreground text-xs">{t}</p>
+                        { icon: "🌾", label: "Crop", val: cropType, color: "text-foreground" },
+                        { icon: "💰", label: "Funding", val: formatKES(totalAmount), color: "text-primary font-black" },
+                        { icon: "📍", label: "Location", val: farmLocation || "—", color: "text-foreground" },
+                        { icon: "💵", label: "Your 55% Share", val: grossRevenue > 0 ? formatKES(farmerShare) : "At harvest", color: "text-green-700 font-black" },
+                      ].map(({ icon, label, val, color }) => (
+                        <div key={label} className="bg-card border border-border rounded-2xl p-3">
+                          <p className="text-lg mb-0.5">{icon}</p>
+                          <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{label}</p>
+                          <p className={`text-xs mt-0.5 truncate ${color}`}>{val}</p>
                         </div>
                       ))}
-                    </div>
+                    </motion.div>
 
-                    <button onClick={() => { closeModal(); setLocation("/farmer/farm-profile"); }}
-                      className="w-full bg-primary text-white font-bold py-4 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                      <Leaf size={16} /> View My Farm on Market
-                    </button>
-                    <button onClick={closeModal}
-                      className="w-full border border-border text-foreground font-semibold py-3 rounded-2xl active:scale-95 transition-all text-sm">
-                      Back to Dashboard
-                    </button>
+                    {/* What happens next */}
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                      className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                      <p className="text-xs font-bold text-foreground uppercase tracking-wider">What happens next?</p>
+                      {[
+                        { icon: "📊", step: "Farm listed on investor marketplace — visible to 15,000+ investors" },
+                        { icon: "💸", step: "Investors buy shares to fund your proposal to 100%" },
+                        { icon: "🏷️", step: "Once fully funded you receive a digital disbursement voucher" },
+                        { icon: "🛒", step: "Redeem the voucher at certified agribusiness suppliers for inputs" },
+                        { icon: "🌱", step: "Grow your crop and report harvest for revenue distribution" },
+                      ].map(({ icon, step }, i) => (
+                        <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.35 + i * 0.07 }}
+                          className="flex items-start gap-3">
+                          <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 text-sm">
+                            {icon}
+                          </div>
+                          <p className="text-muted-foreground text-xs leading-relaxed pt-1">{step}</p>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+
+                    <div className="space-y-2 pb-2">
+                      <button onClick={() => { closeModal(); setLocation("/farmer/farm-profile"); }}
+                        className="w-full bg-primary text-white font-bold py-4 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2 text-sm">
+                        <Leaf size={16} /> View My Farm on Market
+                      </button>
+                      <button onClick={closeModal}
+                        className="w-full border border-border text-foreground font-semibold py-3 rounded-2xl active:scale-95 transition-all text-sm">
+                        Back to Dashboard
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
