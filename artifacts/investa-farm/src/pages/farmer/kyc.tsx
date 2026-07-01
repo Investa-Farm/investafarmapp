@@ -481,70 +481,72 @@ export default function FarmerKyc() {
                   const pdf = isPdf(doc.fileUrl);
                   const img = isImage(doc.fileUrl);
                   return (
-                    <div key={doc.id} className="bg-card border border-border rounded-2xl p-3.5 flex items-center gap-3">
-                      {/* Thumbnail */}
-                      <button
-                        onClick={() => setViewingDoc(doc)}
-                        className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-muted flex items-center justify-center active:scale-90 transition-transform"
-                      >
-                        {img ? (
-                          <img src={doc.fileUrl} alt="" className="w-11 h-11 object-cover" />
-                        ) : pdf ? (
-                          <div className="w-11 h-11 bg-red-50 flex items-center justify-center">
-                            <FileText size={20} className="text-red-500" />
-                          </div>
-                        ) : (
-                          <FileText size={18} className="text-primary" />
-                        )}
-                      </button>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-foreground text-sm font-semibold truncate">{doc.title}</p>
-                        <p className="text-muted-foreground text-[10px]">{DOC_TYPES.find(d => d.value === doc.docType)?.label ?? doc.docType} · {pdf ? "PDF" : img ? "Image" : "File"}</p>
-                        {doc.status === "rejected" && doc.notes && (
-                          <p className="text-red-600 text-[10px] font-semibold mt-1">❌ Reason: {doc.notes}</p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {/* View button */}
+                    <div key={doc.id}>
+                      <div className="bg-card border border-border rounded-2xl p-3.5 flex items-center gap-3">
+                        {/* Thumbnail */}
                         <button
                           onClick={() => setViewingDoc(doc)}
-                          className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center active:scale-90 transition-transform"
-                          aria-label="View document"
-                          title="View document"
+                          className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-muted flex items-center justify-center active:scale-90 transition-transform"
                         >
-                          <Eye size={14} className="text-primary" />
-                        </button>
-                        {statusIcon(doc.status)}
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${statusClass(doc.status)}`}>{doc.status}</span>
-                        {doc.status !== "approved" && (
-                          <button onClick={() => remove.mutate(doc.id)} aria-label="Delete document"
-                            className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center active:scale-90 transition-transform">
-                            <Trash2 size={13} className="text-red-500" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {doc.status === "rejected" && (
-                      <div className="mt-2 mx-1 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-start gap-2">
-                        <XCircle size={13} className="text-red-500 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-red-700 text-[11px] font-bold">Document Rejected</p>
-                          {doc.notes ? (
-                            <p className="text-red-600 text-[10px] mt-0.5">{doc.notes}</p>
+                          {img ? (
+                            <img src={doc.fileUrl} alt="" className="w-11 h-11 object-cover" />
+                          ) : pdf ? (
+                            <div className="w-11 h-11 bg-red-50 flex items-center justify-center">
+                              <FileText size={20} className="text-red-500" />
+                            </div>
                           ) : (
-                            <p className="text-red-500 text-[10px] mt-0.5">Please re-upload a clearer version of this document.</p>
+                            <FileText size={18} className="text-primary" />
+                          )}
+                        </button>
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground text-sm font-semibold truncate">{doc.title}</p>
+                          <p className="text-muted-foreground text-[10px]">{DOC_TYPES.find(d => d.value === doc.docType)?.label ?? doc.docType} · {pdf ? "PDF" : img ? "Image" : "File"}</p>
+                          {doc.status === "rejected" && doc.notes && (
+                            <p className="text-red-600 text-[10px] font-semibold mt-1">❌ Reason: {doc.notes}</p>
                           )}
                         </div>
-                        <button
-                          onClick={() => { remove.mutate(doc.id); openPopup(doc.docType); }}
-                          className="text-[10px] font-bold text-red-700 border border-red-300 rounded-lg px-2 py-1 flex-shrink-0 active:scale-95 bg-white"
-                        >
-                          Re-upload
-                        </button>
+
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {/* View button */}
+                          <button
+                            onClick={() => setViewingDoc(doc)}
+                            className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center active:scale-90 transition-transform"
+                            aria-label="View document"
+                            title="View document"
+                          >
+                            <Eye size={14} className="text-primary" />
+                          </button>
+                          {statusIcon(doc.status)}
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${statusClass(doc.status)}`}>{doc.status}</span>
+                          {doc.status !== "approved" && (
+                            <button onClick={() => remove.mutate(doc.id)} aria-label="Delete document"
+                              className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center active:scale-90 transition-transform">
+                              <Trash2 size={13} className="text-red-500" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    )}
+                      {doc.status === "rejected" && (
+                        <div className="mt-2 mx-1 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-start gap-2">
+                          <XCircle size={13} className="text-red-500 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-red-700 text-[11px] font-bold">Document Rejected</p>
+                            {doc.notes ? (
+                              <p className="text-red-600 text-[10px] mt-0.5">{doc.notes}</p>
+                            ) : (
+                              <p className="text-red-500 text-[10px] mt-0.5">Please re-upload a clearer version of this document.</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => { remove.mutate(doc.id); openPopup(doc.docType); }}
+                            className="text-[10px] font-bold text-red-700 border border-red-300 rounded-lg px-2 py-1 flex-shrink-0 active:scale-95 bg-white"
+                          >
+                            Re-upload
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })
               )}
