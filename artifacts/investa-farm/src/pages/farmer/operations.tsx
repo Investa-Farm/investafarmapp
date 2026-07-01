@@ -459,8 +459,20 @@ export default function FarmerOperations() {
   const { data: dashboard, isLoading } = useGetFarmerDashboard();
   const isDemo = isDemoAccount();
   const token = getToken();
-  const [tasks, setTasks] = useState(isDemo ? defaultTasks : []);
+  const [tasks, setTasks] = useState(isDemo ? defaultTasks : [] as typeof defaultTasks);
+  const [tasksLoaded, setTasksLoaded] = useState(isDemo);
   const [showAdd, setShowAdd] = useState(false);
+
+  useEffect(() => {
+    if (tasksLoaded || !token) return;
+    fetch("/api/farmer/tasks", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then((data: typeof defaultTasks | null) => {
+        if (Array.isArray(data) && data.length > 0) setTasks(data as typeof defaultTasks);
+      })
+      .catch(() => {})
+      .finally(() => setTasksLoaded(true));
+  }, [token, tasksLoaded]);
   const [newLabel, setNewLabel] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [showHarvestModal, setShowHarvestModal] = useState(false);

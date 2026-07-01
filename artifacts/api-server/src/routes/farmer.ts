@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, farmsTable, investmentsTable, farmUpdatesTable, marketListingsTable, usersTable, notificationsTable, loanApplicationsTable, voucherOrdersTable } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { db, farmsTable, investmentsTable, farmUpdatesTable, marketListingsTable, usersTable, notificationsTable, loanApplicationsTable, voucherOrdersTable, farmerTasksTable } from "@workspace/db";
+import { eq, and, inArray, asc } from "drizzle-orm";
 import { CreateFarmUpdateBody } from "@workspace/api-zod";
 import { getCurrentUser } from "./auth";
 import { notifyUser } from "../lib/push";
@@ -470,6 +470,83 @@ router.get("/farmer/growth/:farmId", async (req, res): Promise<void> => {
   else                               marketInsight = `${farm.cropType} market is under pressure. Consider forward contracts.`;
 
   res.json({ stage, percent, daysElapsed, daysTotal, marketChangePercent, marketPriceKes, marketInsight });
+});
+
+const DEFAULT_TASKS = [
+  { label: "Apply fertiliser", notes: "Use CAN at vegetative stage", category: "Inputs", icon: "🌱" },
+  { label: "Irrigate fields", notes: "Check soil moisture before watering", category: "Water", icon: "💧" },
+  { label: "Pest scouting", notes: "Walk rows and check for aphids/army worms", category: "Pest Control", icon: "🔍" },
+  { label: "Record field activities", notes: "Update the Investa platform with progress", category: "Admin", icon: "📊" },
+  { label: "Soil test", notes: "Send samples to extension officer", category: "Quality", icon: "🔬" },
+];
+
+router.get("/farmer/tasks", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  let tasks = await db.select().from(farmerTasksTable)
+    .where(eq(farmerTasksTable.farmerId, user.id))
+    .orderBy(asc(farmerTasksTable.createdAt));
+
+  if (tasks.length === 0) {
+    const seeded = await db.insert(farmerTasksTable)
+      .values(DEFAULT_TASKS.map(t => ({ ...t, farmerId: user.id })))
+      .returning();
+    tasks = seeded;
+  }
+
+  res.json(tasks);
+});
+
+router.post("/farmer/tasks", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { label, notes, category, icon } = req.body as { label?: string; notes?: string; category?: string; icon?: string };
+  if (!label?.trim()) { res.status(400).json({ error: "Label is required" }); return; }
+
+  const [task] = await db.insert(farmerTasksTable).values({
+    farmerId: user.id,
+    label: label.trim().slice(0, 200),
+    notes: notes ?? "",
+    category: category ?? "Custom",
+    icon: icon ?? "📋",
+  }).returning();
+
+  res.status(201).json(task);
+});
+
+router.patch("/farmer/tasks/:id", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const id = Number(req.params["id"]);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const { done, label, notes } = req.body as { done?: boolean; label?: string; notes?: string };
+  const updates: Partial<{ done: boolean; label: string; notes: string }> = {};
+  if (done !== undefined) updates.done = done;
+  if (label !== undefined) updates.label = label.slice(0, 200);
+  if (notes !== undefined) updates.notes = notes;
+
+  await db.update(farmerTasksTable)
+    .set(updates)
+    .where(and(eq(farmerTasksTable.id, id), eq(farmerTasksTable.farmerId, user.id)));
+
+  res.json({ ok: true });
+});
+
+router.delete("/farmer/tasks/:id", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const id = Number(req.params["id"]);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  await db.delete(farmerTasksTable)
+    .where(and(eq(farmerTasksTable.id, id), eq(farmerTasksTable.farmerId, user.id)));
+
+  res.json({ ok: true });
 });
 
 export default router;

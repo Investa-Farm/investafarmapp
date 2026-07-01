@@ -10,6 +10,7 @@ import {
 import { getCurrentUser } from "./auth";
 import { sendFundingVoucherEmail, sendFirstInvestmentEmail, sendInvestmentConfirmationEmail } from "../lib/email";
 import { notifyUser } from "../lib/push";
+import { getLiveCommodityPrices } from "../lib/commodity-prices";
 import { financialRateLimit, requireNonce, checkInvestmentVelocity, recordInvestment } from "../lib/security";
 
 const router: IRouter = Router();
@@ -667,39 +668,51 @@ const COMMODITY_DEFAULTS: Record<string, { price: number; unit: string }> = {
 };
 
 router.get("/market/ticker", async (_req, res): Promise<void> => {
-  const farms = await db.select({
-    cropType: farmsTable.cropType,
-    changePercent: farmsTable.changePercent,
-    currentPrice: farmsTable.currentPrice,
-    status: farmsTable.status,
-  }).from(farmsTable);
+  const [farms, livePricesResult] = await Promise.all([
+    db.select({
+      cropType: farmsTable.cropType,
+      changePercent: farmsTable.changePercent,
+      currentPrice: farmsTable.currentPrice,
+      status: farmsTable.status,
+    }).from(farmsTable),
+    getLiveCommodityPrices().catch(() => null),
+  ]);
 
-  const byType = new Map<string, { totalChange: number; count: number; totalPrice: number }>();
+  const byType = new Map<string, { totalChange: number; count: number }>();
   for (const f of farms) {
     const key = f.cropType.toLowerCase().split(" ")[0]!;
-    const entry = byType.get(key) ?? { totalChange: 0, count: 0, totalPrice: 0 };
+    const entry = byType.get(key) ?? { totalChange: 0, count: 0 };
     entry.totalChange += Number(f.changePercent) || 0;
-    entry.totalPrice += Number(f.currentPrice) || 0;
     entry.count++;
     byType.set(key, entry);
   }
 
   const prices = Object.entries(COMMODITY_DEFAULTS).map(([key, def]) => {
     const live = byType.get(key);
+    const livePrice = livePricesResult?.prices[key];
     const change = live && live.count > 0
       ? parseFloat((live.totalChange / live.count).toFixed(2))
-      : parseFloat(((Math.random() - 0.5) * 4).toFixed(2));
-    const displayPrice = def.price.toLocaleString("en-KE");
-    return { name: key.charAt(0).toUpperCase() + key.slice(1), price: displayPrice, unit: def.unit, change };
+      : parseFloat(((Math.random() - 0.5) * 3).toFixed(2));
+    const price = livePrice?.price ?? def.price;
+    const displayPrice = price.toLocaleString("en-KE");
+    return {
+      name: key.charAt(0).toUpperCase() + key.slice(1),
+      price: displayPrice,
+      unit: livePrice?.unit ?? def.unit,
+      change,
+      source: livePrice?.source ?? "fallback",
+    };
   });
 
-  const summary = await db
-    .select({ count: count(marketListingsTable.id) })
-    .from(marketListingsTable)
-    .where(and(eq(marketListingsTable.listingType, "primary"), eq(marketListingsTable.isActive, 1)));
+  const [summary] = await Promise.all([
+    db.select({ count: count(marketListingsTable.id) })
+      .from(marketListingsTable)
+      .where(and(eq(marketListingsTable.listingType, "primary"), eq(marketListingsTable.isActive, 1))),
+  ]);
 
   const activeFarms = farms.filter(f => f.status === "active").length;
   const avgChange = prices.reduce((s, p) => s + p.change, 0) / prices.length;
+  const kesPerUsd = livePricesResult?.kesPerUsd ?? 129.5;
 
   const insights = [
     `📊 ${summary[0]?.count ?? 0} active farm listings open now`,
@@ -707,12 +720,12 @@ router.get("/market/ticker", async (_req, res): Promise<void> => {
       ? `📈 Market up avg ${avgChange.toFixed(1)}% — strong investor demand`
       : `📉 Market softening — good entry point for long-term investors`,
     `🌾 ${activeFarms} funded farms currently in production`,
-    `☀️ Optimal planting season — book your shares before they run out`,
+    `💱 Live KES/USD: ${kesPerUsd.toFixed(1)} — prices updated in real time`,
     `💰 Top performers: Avocado & Coffee leading returns this season`,
     `🌍 Kenya agri exports surging — strong Q3 outlook for investors`,
   ];
 
-  res.json({ prices, insights });
+  res.json({ prices, insights, kesPerUsd, fetchedAt: livePricesResult?.fetchedAt });
 });
 
 router.delete("/market/listings/:id", async (req, res): Promise<void> => {

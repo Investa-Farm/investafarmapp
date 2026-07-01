@@ -577,4 +577,33 @@ router.get("/offtaker/market-prices", async (_req, res): Promise<void> => {
   res.json(prices);
 });
 
+router.patch("/agribusiness/voucher-orders/:id/status", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const orderId = parseInt(req.params["id"]!);
+  if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order id" }); return; }
+
+  const { status } = req.body as { status?: string };
+  const valid = ["pending", "in_transit", "fulfilled", "cancelled", "failed"];
+  if (!status || !valid.includes(status)) {
+    res.status(400).json({ error: `status must be one of: ${valid.join(", ")}` }); return;
+  }
+
+  try {
+    const [order] = await db.select().from(voucherOrdersTable).where(eq(voucherOrdersTable.id, orderId));
+    if (!order) { res.status(404).json({ error: "Order not found" }); return; }
+    if (order.agribusinessId !== user.id) { res.status(403).json({ error: "Not your order" }); return; }
+
+    await db.update(voucherOrdersTable)
+      .set({ status, updatedAt: new Date() } as any)
+      .where(eq(voucherOrdersTable.id, orderId));
+
+    res.json({ ok: true, status });
+  } catch (e) {
+    logger.error({ err: e }, "[AGRIBUSINESS] Failed to update order status");
+    res.status(500).json({ error: "Failed to update order" });
+  }
+});
+
 export default router;
