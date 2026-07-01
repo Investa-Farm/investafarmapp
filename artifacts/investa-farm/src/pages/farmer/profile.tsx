@@ -3,10 +3,11 @@ import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, getStoredUser, storeUser, getToken, formatKES } from "@/lib/auth";
-import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon, Leaf } from "lucide-react";
+import { LogOut, ChevronRight, Shield, Bell, Settings, HelpCircle, FileText, TrendingUp, Users, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon, Leaf, BarChart2 } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { WalletModal } from "@/components/wallet-modal";
+import { RateAppModal } from "@/components/rate-app-modal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 
@@ -18,6 +19,7 @@ export default function FarmerProfile() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [rateOpen, setRateOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
   const toggleDark = () => {
     const next = !isDark;
@@ -112,13 +114,14 @@ export default function FarmerProfile() {
         { icon: Leaf, label: "View Crop Details", sublabel: "Active farm & growth stage", action: () => setLocation("/farmer/farm-profile") },
         { icon: TrendingUp, label: "Funding History", sublabel: "View all funding applications", action: () => setLocation("/farmer/loans") },
         { icon: Users, label: "Farmer Group", sublabel: "Manage cooperative members", action: () => setLocation("/farmer/group") },
-        { icon: Star, label: "My Farms", sublabel: "Listed farms and performance", action: () => setLocation("/farmer/market") },
+        { icon: BarChart2, label: "My Farms", sublabel: "Listed farms and performance", action: () => setLocation("/farmer/market") },
       ]
     },
     {
       title: "Support",
       items: [
         { icon: HelpCircle, label: "Help & Support", sublabel: "FAQs, contact us", action: () => setLocation("/faq") },
+        { icon: Star, label: "Rate Our Services", sublabel: "Share your experience", action: () => setRateOpen(true) },
       ]
     },
   ];
@@ -226,6 +229,7 @@ export default function FarmerProfile() {
       </div>
 
       <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
+      <RateAppModal open={rateOpen} onClose={() => setRateOpen(false)} />
       <BottomNav role="farmer" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
 

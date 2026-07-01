@@ -11,6 +11,7 @@ import { NotificationStatusRow } from "@/components/notification-prompt";
 import { InlineMicBot } from "@/components/ai-assistant";
 import { AiMatchmaker } from "@/components/ai-matchmaker";
 import { WalletModal } from "@/components/wallet-modal";
+import { RateAppModal } from "@/components/rate-app-modal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
 
@@ -23,6 +24,7 @@ export default function Profile() {
   const [kycOpen, setKycOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [rateOpen, setRateOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [matcherOpen, setMatcherOpen] = useState(false);
   const token = getToken();
@@ -238,6 +240,7 @@ export default function Profile() {
       badgeLabel: totpStatus?.totpEnabled ? "ON" : "OFF",
     },
     { icon: HelpCircle, label: "Help & FAQs", sublabel: "Answers & support", action: () => setLocation("/faq"), badge: null, badgeLabel: null },
+    { icon: Star, label: "Rate Our Services", sublabel: "Share your experience with us", action: () => setRateOpen(true), badge: null, badgeLabel: null },
   ];
 
   return (
@@ -553,6 +556,7 @@ export default function Profile() {
         )}
       </AnimatePresence>
 
+      <RateAppModal open={rateOpen} onClose={() => setRateOpen(false)} />
       {/* Wallet popup modal */}
       <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
 
