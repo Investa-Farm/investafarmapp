@@ -655,7 +655,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   const platformCash     = Number(platformCashRow[0]?.total ?? 0);
   const activeFinancingDB= Number(activeFinancingRow[0]?.total ?? 0);
 
-  res.json({
+  const payload = {
     totalUsers,
     totalFarmers,
     totalInvestors,
@@ -672,7 +672,6 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     completedLoans,
     platformCash,
     activeFinancingKES: activeFinancingDB,
-    // Real DB numbers (no artificial baseline inflation in stats)
     platformFarmers: totalFarmers,
     platformInvestors: totalInvestors,
     historicalFundingKES: totalInvested,

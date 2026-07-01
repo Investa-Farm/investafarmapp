@@ -1,0 +1,50 @@
+2026-07-01T06:28:30.041439308Z dist/public/assets/pexels-markus-winkler-1430818-2862150_1781945269224-Bf9Ifkj0.jpg         1,562.99 kB
+2026-07-01T06:28:30.041475909Z dist/public/assets/pexels-lisa-yakurim-40702902-13076945_1781945269227-BO_O-SjE.jpg         1,708.26 kB
+2026-07-01T06:28:30.041478839Z dist/public/assets/pexels-elizabeth-tamara-27565957-19239403_1781945269226-CgjDJcRR.jpg     2,375.87 kB
+2026-07-01T06:28:30.04148397Z dist/public/assets/pexels-livier-garcia-645743-1459331_1781945539889-Br0EzHb4.jpg           2,491.11 kB
+2026-07-01T06:28:30.04148666Z dist/public/assets/pexels-carina-chowanek-297993717-13340333_1781945269230-C4XzFo-t.jpg     2,557.08 kB
+2026-07-01T06:28:30.041522181Z dist/public/assets/pexels-fatima-yusuf-323522203-30541313_1781945539888-DlP5ZZml.jpg        3,176.86 kB
+2026-07-01T06:28:30.041526071Z dist/public/assets/pexels-ana-vieira-1110685065-33068285_1781945269212-G0hmgQRA.jpg         3,448.50 kB
+2026-07-01T06:28:30.041531411Z dist/public/assets/pexels-gamerxtc-17064389_1781945269229-BvDDzrOq.jpg                      3,514.25 kB
+2026-07-01T06:28:30.041539352Z dist/public/assets/pexels-nc-farm-bureau-mark-27083566_1781945539889-CXYqG8Ri.jpg           3,568.29 kB
+2026-07-01T06:28:30.041579423Z dist/public/assets/pexels-mnannapaneni-6187904_1781945269231-CgBL98vU.jpg                   4,363.11 kB
+2026-07-01T06:28:30.041583583Z dist/public/assets/pexels-quang-nguyen-vinh-222549-14776851_1781945269218-Dq5MOlwL.jpg      6,589.02 kB
+2026-07-01T06:28:30.041586003Z dist/public/assets/pexels-karola-g-4750271_1781945269221-BQ1-0JEg.jpg                       6,981.81 kB
+2026-07-01T06:28:30.041626284Z dist/public/assets/index-CTXKl8gl.css                                                         227.80 kB │ gzip:  35.73 kB
+2026-07-01T06:28:30.04179417Z dist/public/assets/confetti-overlay-mQPSOfQV.js                                                 1.75 kB │ gzip:   0.91 kB
+2026-07-01T06:28:30.04179899Z dist/public/assets/success-toast-Bn47QrFR.js                                                    3.55 kB │ gzip:   1.28 kB
+2026-07-01T06:28:30.041841211Z dist/public/assets/transaction-notification-BRh5lcqw.js                                         3.68 kB │ gzip:   1.55 kB
+2026-07-01T06:28:30.041848542Z dist/public/assets/index-By_EiBiP.js                                                        2,628.95 kB │ gzip: 657.74 kB
+2026-07-01T06:28:30.041907374Z 
+2026-07-01T06:28:30.041911704Z (!) Some chunks are larger than 500 kB after minification. Consider:
+2026-07-01T06:28:30.041914774Z - Using dynamic import() to code-split the application
+2026-07-01T06:28:30.041917724Z - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+2026-07-01T06:28:30.041920204Z - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+2026-07-01T06:28:30.042174162Z ✓ built in 8.87s
+2026-07-01T06:28:30.150723353Z ==> Building API server...
+2026-07-01T06:28:30.561395185Z 
+2026-07-01T06:28:30.561417186Z > @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+2026-07-01T06:28:30.561422336Z > node ./build.mjs
+2026-07-01T06:28:30.561426246Z 
+2026-07-01T06:28:30.895610951Z ✘ [ERROR] Expected ")" but found ";"
+2026-07-01T06:28:30.895633842Z 
+2026-07-01T06:28:30.895639452Z     src/routes/admin.ts:692:3:
+2026-07-01T06:28:30.895644002Z       692 │   };
+2026-07-01T06:28:30.895647812Z           │    ^
+2026-07-01T06:28:30.895651663Z           ╵    )
+2026-07-01T06:28:30.895655283Z 
+2026-07-01T06:28:31.213244938Z 1 error
+2026-07-01T06:28:31.216573648Z Error: Build failed with 1 error:
+2026-07-01T06:28:31.216589538Z src/routes/admin.ts:692:3: ERROR: Expected ")" but found ";"
+2026-07-01T06:28:31.216594939Z     at failureErrorWithLog (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:1467:15)
+2026-07-01T06:28:31.216599449Z     at /opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:926:25
+2026-07-01T06:28:31.216603249Z     at /opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:1345:9
+2026-07-01T06:28:31.216607729Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+2026-07-01T06:28:31.216612019Z   errors: [Getter/Setter],
+2026-07-01T06:28:31.21661613Z   warnings: [Getter/Setter]
+2026-07-01T06:28:31.216620019Z }
+2026-07-01T06:28:31.222566197Z /opt/render/project/src/artifacts/api-server:
+2026-07-01T06:28:31.222582777Z  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 build: `node ./build.mjs`
+2026-07-01T06:28:31.222588618Z Exit status 1
+2026-07-01T06:28:31.29652416Z ==> Build failed 😞
+2026-07-01T06:28:31.296541301Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
