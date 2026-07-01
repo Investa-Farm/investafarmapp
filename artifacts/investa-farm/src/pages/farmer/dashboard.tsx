@@ -50,7 +50,7 @@ export default function FarmerDashboard() {
   const [heroIdx, setHeroIdx] = useState(0);
 
   useEffect(() => {
-    const t = setInterval(() => setHeroIdx(i => (i + 1) % HERO_IMAGES.length), 5000);
+    const t = setInterval(() => setHeroIdx(i => (i + 1) % ALL_CROP_SLIDES.length), 5000);
     return () => clearInterval(t);
   }, []);
 
@@ -423,26 +423,82 @@ export default function FarmerDashboard() {
           </div>
         )}
 
-        {/* KYC banner — shown prominently if not completed */}
-        {kycApproved === 0 && (
-          <div data-tour="kyc-prompt" className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <ShieldCheck size={20} className="text-amber-600" />
+        {/* KYC banner — 3 states: rejected / no-docs / under-review */}
+        {!isDemo && (() => {
+          const rejectedDocs = kycDocs.filter((d: any) => d.status === "rejected");
+          const hasUploads = kycDocs.length > 0;
+          if (rejectedDocs.length > 0) {
+            return (
+              <div data-tour="kyc-prompt" className="bg-red-50 border-2 border-red-300 rounded-2xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0 flex-shrink-0">
+                    <ShieldCheck size={20} className="text-red-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-red-800 font-bold text-sm">❌ {rejectedDocs.length} Document{rejectedDocs.length > 1 ? "s" : ""} Rejected</p>
+                    <div className="mt-1 space-y-0.5">
+                      {rejectedDocs.map((d: any) => (
+                        <p key={d.id} className="text-red-700 text-xs">
+                          <span className="font-semibold">{d.title || d.docType}</span>
+                          {d.notes ? <span className="text-red-600"> — {d.notes}</span> : <span className="text-red-500"> — please re-upload a clearer version</span>}
+                        </p>
+                      ))}
+                    </div>
+                    <button onClick={() => setLocation("/farmer/kyc")}
+                      className="mt-2.5 bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-xl active:scale-95 transition-transform flex items-center gap-1.5 w-full justify-center">
+                      <ShieldCheck size={13} /> Re-upload Documents →
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-amber-800 font-bold text-sm">Complete KYC First</p>
-                <p className="text-amber-700 text-xs mt-0.5 leading-relaxed">
-                  Identity verification is required before you can apply for funding or get listed on the investor market.
-                </p>
-                <button onClick={() => setKycOpen(true)}
-                  className="mt-2.5 bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-xl active:scale-95 transition-transform flex items-center gap-1.5 w-full justify-center">
-                  <ShieldCheck size={13} /> Verify Identity Now →
-                </button>
+            );
+          }
+          if (kycApproved === 0 && !hasUploads) {
+            return (
+              <div data-tour="kyc-prompt" className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <ShieldCheck size={20} className="text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-amber-800 font-bold text-sm">Complete KYC First</p>
+                    <p className="text-amber-700 text-xs mt-0.5 leading-relaxed">
+                      Identity verification is required before you can apply for funding or get listed on the investor market.
+                    </p>
+                    <button onClick={() => setKycOpen(true)}
+                      className="mt-2.5 bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-xl active:scale-95 transition-transform flex items-center gap-1.5 w-full justify-center">
+                      <ShieldCheck size={13} /> Verify Identity Now →
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            );
+          }
+          if (kycApproved === 0 && hasUploads) {
+            return (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <ShieldCheck size={20} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-blue-800 font-bold text-sm">🔍 Documents Under Review</p>
+                    <p className="text-blue-700 text-xs mt-0.5 leading-relaxed">
+                      Our team is verifying your documents. This takes 24–48 hours. You'll be notified once approved.
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-blue-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-400 rounded-full w-2/3 animate-pulse" />
+                      </div>
+                      <span className="text-blue-600 text-[10px] font-semibold">{kycDocs.filter((d: any) => d.status === "approved").length}/{kycDocs.length} approved</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
       </div>
 

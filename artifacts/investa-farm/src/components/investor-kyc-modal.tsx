@@ -34,14 +34,18 @@ function UploadPopup({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const qc = useQueryClient();
 
+  const [cameraBlocked, setCameraBlocked] = useState(false);
+
   const startCamera = useCallback(async () => {
     setCameraReady(false);
+    setCameraBlocked(false);
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
       setStream(s);
       // srcObject assigned via useEffect once video element is mounted
     } catch {
       setCameraReady(false);
+      setCameraBlocked(true);
     }
   }, []);
 
@@ -213,24 +217,58 @@ function UploadPopup({
                 </>
               ) : (
                 <>
-                  <button onClick={startCamera}
-                    className="w-full border-2 border-dashed border-primary/40 rounded-2xl p-6 flex flex-col items-center gap-2">
-                    <Video size={24} className="text-primary" />
-                    <p className="text-foreground font-semibold text-sm">Take Live Selfie</p>
-                    <p className="text-muted-foreground text-xs">Works on phone and laptop cameras</p>
-                  </button>
-                  <p className="text-center text-muted-foreground text-xs">— or upload photo —</p>
-                  <label className="w-full border border-dashed border-border rounded-xl p-3 flex items-center gap-3 cursor-pointer">
-                    <Upload size={16} className="text-muted-foreground flex-shrink-0" />
-                    <span className="text-muted-foreground text-xs">{filePreview ?? "Choose selfie photo"}</span>
-                    <input type="file" accept=".jpg,.jpeg,.png" onChange={handleFileChange} className="hidden" />
-                  </label>
-                  {ready && (
-                    <button onClick={() => upload.mutate()} disabled={upload.isPending}
-                      className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
-                      {upload.isPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                      {upload.isPending ? "Uploading…" : "Submit"}
-                    </button>
+                  {cameraBlocked ? (
+                    <div className="space-y-3">
+                      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                        <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-amber-800 font-bold text-sm">Camera Access Denied</p>
+                          <p className="text-amber-700 text-xs mt-0.5 leading-relaxed">
+                            Your browser blocked camera access. You can upload a selfie photo from your gallery instead.
+                          </p>
+                          <button onClick={startCamera}
+                            className="mt-2 text-amber-700 text-xs font-semibold underline">
+                            Try camera again
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-center text-muted-foreground text-xs font-medium">Upload selfie from gallery</p>
+                      <label className="w-full border-2 border-dashed border-primary/40 rounded-2xl p-5 flex flex-col items-center gap-2 cursor-pointer">
+                        <Upload size={22} className="text-primary" />
+                        <p className="text-foreground font-semibold text-sm">Choose Selfie Photo</p>
+                        <p className="text-muted-foreground text-xs">{filePreview ?? "JPG or PNG — clear face photo"}</p>
+                        <input type="file" accept=".jpg,.jpeg,.png" onChange={handleFileChange} className="hidden" />
+                      </label>
+                      {ready && (
+                        <button onClick={() => upload.mutate()} disabled={upload.isPending}
+                          className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+                          {upload.isPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                          {upload.isPending ? "Uploading…" : "Submit Selfie"}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <button onClick={startCamera}
+                        className="w-full border-2 border-dashed border-primary/40 rounded-2xl p-6 flex flex-col items-center gap-2">
+                        <Video size={24} className="text-primary" />
+                        <p className="text-foreground font-semibold text-sm">Take Live Selfie</p>
+                        <p className="text-muted-foreground text-xs">Works on phone and laptop cameras</p>
+                      </button>
+                      <p className="text-center text-muted-foreground text-xs">— or upload photo —</p>
+                      <label className="w-full border border-dashed border-border rounded-xl p-3 flex items-center gap-3 cursor-pointer">
+                        <Upload size={16} className="text-muted-foreground flex-shrink-0" />
+                        <span className="text-muted-foreground text-xs">{filePreview ?? "Choose selfie photo"}</span>
+                        <input type="file" accept=".jpg,.jpeg,.png" onChange={handleFileChange} className="hidden" />
+                      </label>
+                      {ready && (
+                        <button onClick={() => upload.mutate()} disabled={upload.isPending}
+                          className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+                          {upload.isPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                          {upload.isPending ? "Uploading…" : "Submit"}
+                        </button>
+                      )}
+                    </>
                   )}
                 </>
               )}

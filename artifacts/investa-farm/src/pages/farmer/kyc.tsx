@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Upload, FileText, CheckCircle2, Clock, XCircle, Trash2, Plus, Loader2, X, Image, Eye, FileImage, ExternalLink } from "lucide-react";
+import { ArrowLeft, Upload, FileText, CheckCircle2, Clock, XCircle, Trash2, Plus, Loader2, X, Image, Eye, FileImage, ExternalLink, Navigation, MapPin, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { getToken } from "@/lib/auth";
@@ -135,6 +135,60 @@ export default function FarmerKyc() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [showUnderReview, setShowUnderReview] = useState(false);
   const token = getToken();
+
+  // GPS location capture state
+  const [gpsStatus, setGpsStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [gpsTimedOut, setGpsTimedOut] = useState(false);
+  const [gpsManualLat, setGpsManualLat] = useState("");
+  const [gpsManualLng, setGpsManualLng] = useState("");
+
+  const captureGps = useCallback(async () => {
+    setGpsStatus("loading");
+    setGpsTimedOut(false);
+    if (!("geolocation" in navigator)) {
+      setGpsStatus("error");
+      setGpsTimedOut(true);
+      return;
+    }
+    const timeout = setTimeout(() => { setGpsTimedOut(true); }, 12000);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        clearTimeout(timeout);
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: Math.round(pos.coords.accuracy) };
+        setGpsCoords(coords);
+        try {
+          await fetch("/api/kyc/location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ county: "", subCounty: "", ward: "", gpsLat: coords.lat, gpsLng: coords.lng, gpsAccuracy: coords.accuracy }),
+          });
+        } catch { /* non-critical */ }
+        setGpsStatus("done");
+      },
+      () => {
+        clearTimeout(timeout);
+        setGpsStatus("error");
+        setGpsTimedOut(true);
+      },
+      { enableHighAccuracy: true, timeout: 12000 }
+    );
+  }, [token]);
+
+  const submitManualGps = async () => {
+    const lat = parseFloat(gpsManualLat);
+    const lng = parseFloat(gpsManualLng);
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    try {
+      await fetch("/api/kyc/location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ county: "", subCounty: "", ward: "", gpsLat: lat, gpsLng: lng }),
+      });
+      setGpsCoords({ lat, lng });
+      setGpsStatus("done");
+    } catch { /* non-critical */ }
+  };
 
   const { data: rawDocs = [], isLoading } = useQuery<KycDoc[]>({
     queryKey: ["kyc-docs"],
@@ -578,6 +632,74 @@ export default function FarmerKyc() {
             <Plus size={16} /> Add Another Document
           </button>
         )}
+
+        {/* GPS Location Capture */}
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+              <MapPin size={15} className="text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-foreground">Farm Location</p>
+              <p className="text-muted-foreground text-[10px]">Capture GPS coordinates of your farm</p>
+            </div>
+            {gpsStatus === "done" && <CheckCircle2 size={18} className="text-green-600 flex-shrink-0" />}
+          </div>
+
+          {gpsStatus === "done" && gpsCoords ? (
+            <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 flex items-center gap-2">
+              <MapPin size={12} className="text-green-600 flex-shrink-0" />
+              <p className="text-green-700 text-xs font-mono">
+                {gpsCoords.lat.toFixed(6)}, {gpsCoords.lng.toFixed(6)}
+                {gpsCoords.accuracy && <span className="text-green-500 ml-2">±{gpsCoords.accuracy}m</span>}
+              </p>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={captureGps}
+                disabled={gpsStatus === "loading"}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-60 ${
+                  gpsStatus === "error" ? "bg-red-50 border border-red-200 text-red-700" : "bg-primary/10 border border-primary/20 text-primary"
+                }`}
+              >
+                {gpsStatus === "loading" ? <Loader2 size={13} className="animate-spin" /> : <Navigation size={13} />}
+                {gpsStatus === "loading" ? "Locating farm…" : gpsStatus === "error" ? "Retry GPS" : "Capture Farm Location"}
+              </button>
+
+              {(gpsTimedOut || gpsStatus === "error") && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-muted-foreground text-[10px] text-center">
+                    {gpsStatus === "error" ? "GPS failed. Enter coordinates manually:" : "GPS taking long. Enter manually:"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="number" step="any" value={gpsManualLat} onChange={e => setGpsManualLat(e.target.value)}
+                      placeholder="Latitude (e.g. -1.28)"
+                      className="border border-border rounded-xl px-3 py-2 text-xs bg-background focus:outline-none focus:border-primary" />
+                    <input type="number" step="any" value={gpsManualLng} onChange={e => setGpsManualLng(e.target.value)}
+                      placeholder="Longitude (e.g. 36.82)"
+                      className="border border-border rounded-xl px-3 py-2 text-xs bg-background focus:outline-none focus:border-primary" />
+                  </div>
+                  <button onClick={submitManualGps} disabled={!gpsManualLat || !gpsManualLng}
+                    className="w-full py-2 rounded-xl bg-primary text-white text-xs font-bold active:scale-95 transition-transform disabled:opacity-50">
+                    Save Location
+                  </button>
+                </div>
+              )}
+
+              {gpsStatus === "loading" && !gpsTimedOut && (
+                <p className="text-muted-foreground text-[10px] text-center mt-2">
+                  Allow location access when prompted by your browser
+                </p>
+              )}
+              {gpsStatus === "idle" && (
+                <p className="text-muted-foreground text-[10px] text-center mt-2">
+                  Optional but speeds up verification
+                </p>
+              )}
+            </>
+          )}
+        </div>
 
         {/* Info box */}
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
