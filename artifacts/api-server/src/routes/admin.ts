@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, notInArray, and, count, sql } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "crypto";
-import { db, pool, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable } from "@workspace/db";
+import { db, pool, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable, supportTicketsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail, sendGenericEmail, sendSubAdminWelcomeEmail } from "../lib/email";
 import { sendPushToUser, createInAppNotification } from "../lib/push";
@@ -1595,6 +1595,140 @@ router.get("/admin/db-status", async (req, res): Promise<void> => {
   } finally {
     client.release();
   }
+});
+
+// ── SUPPORT TICKETS (admin) ───────────────────────────────────────────────────
+
+router.get("/admin/support-tickets", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res, true);
+  if (!ok) return;
+
+  const rows = await db
+    .select({ ticket: supportTicketsTable, user: usersTable })
+    .from(supportTicketsTable)
+    .leftJoin(usersTable, eq(usersTable.id, supportTicketsTable.userId))
+    .orderBy(desc(supportTicketsTable.createdAt))
+    .limit(500);
+
+  res.json(rows.map(r => ({
+    ...r.ticket,
+    userName: r.user?.name ?? "Unknown",
+    userEmail: r.user?.email ?? "",
+  })));
+});
+
+router.patch("/admin/support-tickets/:id", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const id = parseInt(req.params.id, 10);
+  if (!id) { res.status(400).json({ error: "Invalid ticket id" }); return; }
+
+  const { adminReply, status } = req.body as { adminReply?: string; status?: string };
+  const validStatuses = ["open", "in_progress", "resolved", "closed"];
+  const updates: Record<string, any> = { updatedAt: new Date() };
+  if (adminReply !== undefined) { updates.adminReply = adminReply.trim(); updates.adminRepliedAt = new Date(); }
+  if (status && validStatuses.includes(status)) updates.status = status as any;
+
+  const [updated] = await db.update(supportTicketsTable).set(updates).where(eq(supportTicketsTable.id, id)).returning();
+  if (!updated) { res.status(404).json({ error: "Ticket not found" }); return; }
+
+  // Notify user of reply
+  if (adminReply && updated.userId) {
+    const user = await db.select().from(usersTable).where(eq(usersTable.id, updated.userId)).limit(1);
+    if (user[0]) {
+      sendGenericEmail(user[0].email, `Re: Support Ticket #${id} — ${updated.subject}`, `
+        <p>Hi ${user[0].name},</p>
+        <p>Our support team has replied to your ticket <strong>#${id}: ${updated.subject}</strong>.</p>
+        <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:16px;margin:16px 0;border-radius:4px">
+          <p style="margin:0;color:#15803d;font-size:14px">${adminReply.trim()}</p>
+        </div>
+        <p>Status: <strong style="text-transform:capitalize">${status ?? updated.status}</strong></p>
+        <p>— Investa Farm Support Team</p>
+      `).catch(() => {});
+    }
+  }
+
+  res.json({ ok: true, ticket: updated });
+});
+
+router.post("/admin/support-tickets/:id/credit", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const id = parseInt(req.params.id, 10);
+  if (!id) { res.status(400).json({ error: "Invalid ticket id" }); return; }
+
+  const { amountKES, note } = req.body as { amountKES: number; note?: string };
+  if (!amountKES || amountKES <= 0) { res.status(400).json({ error: "amountKES must be positive" }); return; }
+
+  const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id)).limit(1);
+  if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
+
+  // Credit the wallet
+  const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, ticket.userId)).limit(1);
+  if (!wallet) { res.status(404).json({ error: "User wallet not found" }); return; }
+
+  const newBalance = Number(wallet.balance) + amountKES;
+  await db.update(walletsTable).set({ balance: String(newBalance), updatedAt: new Date() }).where(eq(walletsTable.userId, ticket.userId));
+  await db.insert(walletTransactionsTable).values({
+    userId: ticket.userId, type: "deposit", amount: String(amountKES),
+    balanceAfter: String(newBalance), status: "completed",
+    description: note?.trim() || `Support credit — Ticket #${id}`,
+    reference: `SUPPORT-${id}-${Date.now()}`,
+  });
+
+  // Mark ticket as credited
+  await db.update(supportTicketsTable).set({ walletCredited: amountKES, status: "resolved", updatedAt: new Date() }).where(eq(supportTicketsTable.id, id));
+
+  // Notify user
+  const user = await db.select().from(usersTable).where(eq(usersTable.id, ticket.userId)).limit(1);
+  if (user[0]) {
+    sendGenericEmail(user[0].email, `KES ${amountKES.toLocaleString("en-KE")} Credited to Your Wallet`, `
+      <p>Hi ${user[0].name},</p>
+      <p>We have credited <strong>KES ${amountKES.toLocaleString("en-KE")}</strong> to your Investa Farm wallet
+         in resolution of your support ticket <strong>#${id}</strong>.</p>
+      ${note ? `<p><em>${note}</em></p>` : ""}
+      <p>Your new wallet balance has been updated. You can view it in the app.</p>
+      <p>— Investa Farm Support Team</p>
+    `).catch(() => {});
+  }
+
+  res.json({ ok: true, amountKES, newBalance });
+});
+
+// ── DIRECT WALLET CREDIT (Activity tab) ──────────────────────────────────────
+
+router.post("/admin/wallet/:userId/credit", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const userId = parseInt(req.params.userId, 10);
+  if (!userId) { res.status(400).json({ error: "Invalid userId" }); return; }
+
+  const { amountKES, reference, note } = req.body as { amountKES: number; reference?: string; note?: string };
+  if (!amountKES || amountKES <= 0) { res.status(400).json({ error: "amountKES must be positive" }); return; }
+
+  const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, userId)).limit(1);
+  if (!wallet) { res.status(404).json({ error: "Wallet not found for this user" }); return; }
+
+  const newBalance = Number(wallet.balance) + amountKES;
+  await db.update(walletsTable).set({ balance: String(newBalance), updatedAt: new Date() }).where(eq(walletsTable.userId, userId));
+  await db.insert(walletTransactionsTable).values({
+    userId, type: "deposit", amount: String(amountKES),
+    balanceAfter: String(newBalance), status: "completed",
+    description: note?.trim() || "Admin direct credit",
+    reference: reference?.trim() || `ADMIN-CREDIT-${Date.now()}`,
+  });
+
+  const user = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (user[0]) {
+    sendGenericEmail(user[0].email, `KES ${amountKES.toLocaleString("en-KE")} Added to Your Wallet`, `
+      <p>Hi ${user[0].name},</p>
+      <p>An administrator has added <strong>KES ${amountKES.toLocaleString("en-KE")}</strong> to your Investa Farm wallet.</p>
+      ${note ? `<p>Note: <em>${note}</em></p>` : ""}
+      <p>— Investa Farm Team</p>
+    `).catch(() => {});
+  }
+
+  res.json({ ok: true, amountKES, newBalance });
 });
 
 // Public DB health — lightweight, no auth, safe for uptime monitors
