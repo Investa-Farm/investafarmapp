@@ -525,7 +525,6 @@ router.delete("/admin/users/:id", async (req, res): Promise<void> => {
 const PLATFORM_BASELINE = {
   farmers:              119_973,   // + live DB → ~120,000
   investors:              4_978,   // + live DB → ~5,000
-  totalUsers:         1_076_510,  // + live DB (~123K) → ~1,200,000
   historicalFundingKES: 779_200_000, // + live DB → ~KES 780M ($6M USD)
   activeFinancingKES:    52_000_000, // active farm financing across network
   totalTxCount:          284_600,  // historical transaction count baseline
@@ -643,7 +642,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   const totalFarmers     = Number(farmerRow[0]?.c ?? 0);
   const totalInvestors   = Number(investorRow[0]?.c ?? 0);
   const totalCooperatives= Number(cooperativeRow[0]?.c ?? 0);
-  const totalUsers       = Number(totalUserRow[0]?.c ?? 0) + PLATFORM_BASELINE.totalUsers;
+  const totalUsers       = Number(totalUserRow[0]?.c ?? 0);
   const totalFarms       = Number(farmRow[0]?.c ?? 0);
   const totalLoans       = Number(loanRow[0]?.c ?? 0);
   const pendingKyc       = Number(pendingKycRow[0]?.c ?? 0);
