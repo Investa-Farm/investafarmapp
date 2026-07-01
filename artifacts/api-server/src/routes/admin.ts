@@ -604,6 +604,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     return;
   }
 
+  try {
   // Use SQL aggregates — never load full tables into memory
   const [
     farmerRow, investorRow, cooperativeRow, totalUserRow,
@@ -692,6 +693,9 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
 
   _statsCache = { data: payload, expires: Date.now() + 30_000 };
   res.json(payload);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load stats: " + String(err) });
+  }
 });
 
 router.get("/admin/transactions", async (req, res): Promise<void> => {

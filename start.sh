@@ -17,7 +17,7 @@ pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
 # Push database schema (force to skip interactive data-loss prompts)
 echo "[setup] Pushing database schema..."
-pnpm --filter @workspace/db run push -- --force 2>&1 || true
+pnpm --filter @workspace/db run push-force 2>&1 || true
 
 # Start API server on port 8080
 pnpm --filter @workspace/api-server run dev &

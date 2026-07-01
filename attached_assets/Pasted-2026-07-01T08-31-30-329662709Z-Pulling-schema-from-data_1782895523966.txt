@@ -1,0 +1,50 @@
+2026-07-01T08:31:30.329662709Z [⢿] Pulling schema from database...
+2026-07-01T08:31:30.458092002Z [⣻] Pulling schema from database...
+2026-07-01T08:31:30.586880547Z [⣽] Pulling schema from database...
+2026-07-01T08:31:30.715459465Z [⣷] Pulling schema from database...
+2026-07-01T08:31:30.843602759Z [⣯] Pulling schema from database...
+2026-07-01T08:31:30.971180863Z [⣟] Pulling schema from database...
+2026-07-01T08:31:31.099662107Z [⡿] Pulling schema from database...
+2026-07-01T08:31:31.227585543Z [⢿] Pulling schema from database...
+2026-07-01T08:31:31.275743198Z [✓] Pulling schema from database...
+2026-07-01T08:31:31.662756785Z · You're about to add watchlist_user_id_farm_id_unique unique constraint to the table, which contains 1 items. If this statement fails, you will receive an error from the database. Do you want to truncate watchlist table?
+2026-07-01T08:31:31.662783326Z 
+2026-07-01T08:31:31.666271484Z ❯ No, add the constraint without truncating the table
+2026-07-01T08:31:41.759885273Z   Yes, truncate the table==> Building frontend...
+2026-07-01T08:31:42.211034914Z 
+2026-07-01T08:31:42.211065715Z > @workspace/investa-farm@0.0.0 build /opt/render/project/src/artifacts/investa-farm
+2026-07-01T08:31:42.211072315Z > vite build --config vite.config.ts
+2026-07-01T08:31:42.211076255Z 
+2026-07-01T08:31:42.526770126Z vite v7.3.2 building client environment for production...
+2026-07-01T08:31:42.608238804Z transforming...
+2026-07-01T08:31:43.250340747Z src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+2026-07-01T08:31:44.179902799Z ✓ 100 modules transformed.
+2026-07-01T08:31:44.181674199Z ✗ Build failed in 1.62s
+2026-07-01T08:31:44.182719084Z error during build:
+2026-07-01T08:31:44.182725334Z [vite:esbuild] Transform failed with 1 error:
+2026-07-01T08:31:44.182730244Z /opt/render/project/src/artifacts/investa-farm/src/pages/farmer/kyc.tsx:529:20: ERROR: Expected ")" but found "{"
+2026-07-01T08:31:44.182735274Z file: /opt/render/project/src/artifacts/investa-farm/src/pages/farmer/kyc.tsx:529:20
+2026-07-01T08:31:44.182739104Z 
+2026-07-01T08:31:44.182743775Z Expected ")" but found "{"
+2026-07-01T08:31:44.182748415Z 527 |                        </div>
+2026-07-01T08:31:44.182752865Z 528 |                      </div>
+2026-07-01T08:31:44.182758395Z 529 |                      {doc.status === "rejected" && (
+2026-07-01T08:31:44.182766456Z     |                      ^
+2026-07-01T08:31:44.182773596Z 530 |                        <div className="mt-2 mx-1 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-start...
+2026-07-01T08:31:44.182778076Z 531 |                          <XCircle size={13} className="text-red-500 flex-shrink-0 mt-0.5" />
+2026-07-01T08:31:44.182781956Z 
+2026-07-01T08:31:44.182797806Z     at failureErrorWithLog (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:1467:15)
+2026-07-01T08:31:44.182800706Z     at /opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:736:50
+2026-07-01T08:31:44.182804017Z     at responseCallbacks.<computed> (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:603:9)
+2026-07-01T08:31:44.182806707Z     at handleIncomingPacket (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:658:12)
+2026-07-01T08:31:44.182809367Z     at Socket.readFromStdout (/opt/render/project/src/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:581:7)
+2026-07-01T08:31:44.182830968Z     at Socket.emit (node:events:524:28)
+2026-07-01T08:31:44.182837288Z     at addChunk (node:internal/streams/readable:561:12)
+2026-07-01T08:31:44.182840928Z     at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+2026-07-01T08:31:44.182843658Z     at Readable.push (node:internal/streams/readable:392:5)
+2026-07-01T08:31:44.182846418Z     at Pipe.onStreamRead (node:internal/stream_base_commons:191:23)
+2026-07-01T08:31:44.239933534Z /opt/render/project/src/artifacts/investa-farm:
+2026-07-01T08:31:44.239953515Z  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/investa-farm@0.0.0 build: `vite build --config vite.config.ts`
+2026-07-01T08:31:44.239956695Z Exit status 1
+2026-07-01T08:31:44.351329492Z ==> Build failed 😞
+2026-07-01T08:31:44.351348393Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

@@ -9,10 +9,15 @@ import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
 import { WalletModal } from "@/components/wallet-modal";
 import { useLocation, Link } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
-import heroImg1 from "@assets/IMG_8896_1782888668963.png";
-import heroImg2 from "@assets/IMG_7986_1781245283494.png";
-import heroImg3 from "@assets/IMG_7989_1781190961177.png";
-import heroImg4 from "@assets/IMG_7993_1781190961177.png";
+import { getCropImage } from "@/lib/crops";
+import heroImg1 from "@assets/pexels-livier-garcia-645743-1459331_1781945539889.jpg";
+import heroImg2 from "@assets/pexels-fatima-yusuf-323522203-30541313_1781945539888.jpg";
+import heroImg3 from "@assets/IMG_8010_1781245320473.jpeg";
+import heroImg4 from "@assets/pexels-carina-chowanek-297993717-13340333_1781945269230.jpg";
+import heroImg5 from "@assets/pexels-elizabeth-tamara-27565957-19239403_1781945269226.jpg";
+import heroImg6 from "@assets/pexels-lisa-yakurim-40702902-13076945_1781945269227.jpg";
+import heroImg7 from "@assets/pexels-markus-winkler-1430818-2862150_1781945269224.jpg";
+import heroImg8 from "@assets/IMG_8016_1781250402404.jpeg";
 import { KycModal } from "@/components/kyc-modal";
 import { LoanModal } from "@/components/loan-modal";
 import { NotificationPrompt } from "@/components/notification-prompt";
@@ -20,7 +25,7 @@ import { NotificationsPanel } from "@/components/notifications-panel";
 import { InlineMicBot } from "@/components/ai-assistant";
 import { AppTour } from "@/components/app-tour";
 
-const HERO_IMAGES = [heroImg1, heroImg2, heroImg3, heroImg4];
+const ALL_CROP_SLIDES = [heroImg1, heroImg2, heroImg3, heroImg4, heroImg5, heroImg6, heroImg7, heroImg8];
 
 type GroupInfo = { id: number; name: string; registrationNumber: string; county: string; memberCount: number; status: string } | null;
 
@@ -113,6 +118,16 @@ export default function FarmerDashboard() {
   const currentFarm = farms?.[0];
   const walletBalance = parseFloat(walletData?.wallet?.balance ?? "0");
 
+  // Build hero slides: if farmer has a crop, lead with that crop's image; then cycle rest
+  const heroSlides = (() => {
+    if (currentFarm?.cropType) {
+      const cropImg = getCropImage(currentFarm.cropType);
+      const rest = ALL_CROP_SLIDES.filter(s => s !== cropImg);
+      return [cropImg, ...rest];
+    }
+    return ALL_CROP_SLIDES;
+  })();
+
   const getGreeting = () => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning,";
@@ -127,10 +142,10 @@ export default function FarmerDashboard() {
   return (
     <div className="app-shell pb-20 page-enter" data-testid="farmer-dashboard">
 
-      {/* Hero header with farm background */}
+      {/* Hero header with crop slideshow background */}
       <div className="relative overflow-hidden" style={{ minHeight: 240 }}>
-        {HERO_IMAGES.map((img, i) => (
-          <img key={i} src={img} alt="Farm" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000" style={{ opacity: heroIdx === i ? 1 : 0 }} />
+        {heroSlides.map((img, i) => (
+          <img key={i} src={img} alt="Farm" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000" style={{ opacity: heroIdx % heroSlides.length === i ? 1 : 0 }} />
         ))}
         <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.10) 60%, transparent 100%)" }} />
 
@@ -172,19 +187,27 @@ export default function FarmerDashboard() {
           </div>
         </div>
 
+        {/* Slide indicator dots */}
+        <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
+          {heroSlides.map((_, i) => (
+            <button key={i} onClick={() => setHeroIdx(i)}
+              className={`rounded-full transition-all duration-300 ${heroIdx % heroSlides.length === i ? "w-5 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/40"}`} />
+          ))}
+        </div>
+
         {/* Active Crop Card */}
-        <div className="relative z-10 mx-5 mb-0">
+        <div className="relative z-10 mx-5 mb-4">
           <div className="rounded-2xl overflow-hidden shadow-xl" style={{ background: "rgba(0,0,0,0.52)", backdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.14)" }}>
             <div className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
                   <p className="text-white/60 text-[10px] uppercase tracking-wider font-semibold">Active Crop</p>
                   <p className="text-white font-bold text-lg leading-tight mt-0.5">
-                    {currentFarm?.cropType ?? "—"}
+                    {currentFarm?.cropType ?? "No active farm"}
                   </p>
                   <div className="flex items-center gap-1.5 mt-1">
                     <MapPin size={11} className="text-green-300" />
-                    <span className="text-green-300 text-xs">{currentFarm?.location ?? "—"}</span>
+                    <span className="text-green-300 text-xs">{currentFarm?.location ?? "Apply for funding to get started"}</span>
                   </div>
                 </div>
                 <div className="text-right">
@@ -194,6 +217,7 @@ export default function FarmerDashboard() {
                     {farmHealth && <span className="text-white/50 text-sm">/100</span>}
                   </div>
                   {farmHealth && <span className="inline-block bg-green-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full mt-0.5">Good</span>}
+                  {!farmHealth && <span className="inline-block bg-white/20 text-white text-[9px] font-bold px-2 py-0.5 rounded-full mt-0.5">—</span>}
                 </div>
               </div>
             </div>
@@ -202,68 +226,96 @@ export default function FarmerDashboard() {
       </div>
 
       <div className="px-5 pt-4 space-y-4">
-        {/* Wallet balance card — always first */}
-        <div className="bg-gradient-to-br from-[#052e16] to-[#166534] rounded-2xl p-4 text-white shadow-lg">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Wallet size={15} className="text-green-300" />
-              <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">My Wallet</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Currency picker */}
-              <div className="relative">
-                <button
-                  onClick={() => setCurrencyPickerOpen(o => !o)}
-                  className="flex items-center gap-1 text-green-300 text-[10px] font-bold bg-white/10 px-2 py-1 rounded-lg active:bg-white/20 transition-colors"
-                >
-                  <Globe2 size={9} />
-                  {currency.flag} {currency.code}
-                </button>
-                {currencyPickerOpen && (
-                  <div className="absolute right-0 top-7 z-20 bg-[#052e16] border border-white/20 rounded-xl shadow-2xl overflow-hidden w-44">
-                    {CURRENCIES.map(c => (
-                      <button
-                        key={c.code}
-                        onClick={() => { setCurrency(c.code as CurrencyCode); setCurrencyPickerOpen(false); }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
-                          c.code === currency.code ? "bg-white/20 text-white font-bold" : "text-white/70 hover:bg-white/10"
-                        }`}
-                      >
-                        <span>{c.flag}</span>
-                        <span className="font-semibold">{c.code}</span>
-                        <span className="text-white/50 text-[10px] ml-auto">{c.symbol}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+
+        {/* Wallet card — styled like a premium bank card */}
+        <div
+          className="relative rounded-[22px] overflow-hidden select-none shadow-2xl"
+          style={{ minHeight: 190 }}
+        >
+          {/* Crop image background — uses current farm's crop or fallback */}
+          <img
+            src={currentFarm?.cropType ? getCropImage(currentFarm.cropType) : heroImg8}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {/* Dark green gradient overlay */}
+          <div
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(135deg, rgba(5,46,22,0.92) 0%, rgba(20,83,45,0.88) 45%, rgba(22,101,52,0.80) 70%, rgba(22,163,74,0.78) 100%)" }}
+          />
+          {/* Subtle dot pattern */}
+          <div className="absolute inset-0 opacity-[0.05]"
+            style={{ backgroundImage: "radial-gradient(circle, white 1.5px, transparent 1.5px)", backgroundSize: "18px 18px" }} />
+
+          <div className="relative p-4 flex flex-col justify-between" style={{ minHeight: 190 }}>
+            {/* Top row */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet size={14} className="text-green-300" />
+                <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest">Farmer Wallet</p>
               </div>
-              <Link href="/farmer/wallet">
-                <button className="text-green-300 text-[10px] font-bold flex items-center gap-0.5">
-                  Manage <ArrowUpRight size={11} />
-                </button>
-              </Link>
+              {/* Currency picker */}
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <button
+                    onClick={() => setCurrencyPickerOpen(o => !o)}
+                    className="flex items-center gap-1 text-green-300 text-[10px] font-bold bg-white/10 px-2 py-1 rounded-lg active:bg-white/20 transition-colors"
+                  >
+                    <Globe2 size={9} />
+                    {currency.flag} {currency.code}
+                  </button>
+                  {currencyPickerOpen && (
+                    <div className="absolute right-0 top-7 z-20 bg-[#052e16] border border-white/20 rounded-xl shadow-2xl overflow-hidden w-44">
+                      {CURRENCIES.map(c => (
+                        <button
+                          key={c.code}
+                          onClick={() => { setCurrency(c.code as CurrencyCode); setCurrencyPickerOpen(false); }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
+                            c.code === currency.code ? "bg-white/20 text-white font-bold" : "text-white/70 hover:bg-white/10"
+                          }`}
+                        >
+                          <span>{c.flag}</span>
+                          <span className="font-semibold">{c.code}</span>
+                          <span className="text-white/50 text-[10px] ml-auto">{c.symbol}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Gold chip */}
+                <div className="w-8 h-6 rounded-sm bg-amber-300/80 border border-amber-200/50 flex flex-col justify-center items-center gap-0.5 p-1">
+                  <div className="w-full h-0.5 bg-amber-600/40 rounded" />
+                  <div className="w-full h-0.5 bg-amber-600/40 rounded" />
+                </div>
+              </div>
             </div>
-          </div>
-          <p className="text-white font-bold text-3xl tracking-tight">{formatAmount(walletBalance)}</p>
-          {currency.code !== "KES" && (
-            <p className="text-white/40 text-[10px] mt-0.5">
-              ≈ {formatKES(walletBalance)} · Available balance
-            </p>
-          )}
-          {currency.code === "KES" && (
-            <p className="text-white/50 text-[10px] mt-0.5">Available balance</p>
-          )}
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            <button onClick={() => setWalletOpen(true)}
-              className="flex items-center justify-center gap-2 py-2.5 bg-white/15 border border-white/20 rounded-xl active:bg-white/25 transition-colors">
-              <Wallet size={13} className="text-green-300" />
-              <span className="text-white text-xs font-semibold">Open Wallet</span>
-            </button>
-            <button onClick={() => setLocation("/farmer/wallet")}
-              className="flex items-center justify-center gap-2 py-2.5 bg-white/15 border border-white/20 rounded-xl active:bg-white/25 transition-colors">
-              <ArrowUpRight size={13} className="text-green-300" />
-              <span className="text-white text-xs font-semibold">Withdraw</span>
-            </button>
+
+            {/* Balance — centre */}
+            <div className="text-center py-2">
+              <p className="text-white/60 text-[9px] uppercase tracking-widest mb-0.5">Available Balance</p>
+              <p className="text-white font-bold text-4xl tracking-tight drop-shadow-lg">{formatAmount(walletBalance)}</p>
+              {currency.code !== "KES" && (
+                <p className="text-white/40 text-[10px] mt-0.5">≈ {formatKES(walletBalance)}</p>
+              )}
+              <div className="flex items-center justify-center gap-1.5 mt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                <p className="text-green-300 text-[9px] font-semibold uppercase tracking-wider">Live Balance</p>
+              </div>
+            </div>
+
+            {/* Bottom row — action buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setWalletOpen(true)}
+                className="flex items-center justify-center gap-2 py-2.5 bg-white/15 border border-white/25 rounded-xl active:bg-white/25 transition-colors">
+                <Wallet size={13} className="text-green-300" />
+                <span className="text-white text-xs font-semibold">Open Wallet</span>
+              </button>
+              <button onClick={() => setLocation("/farmer/wallet")}
+                className="flex items-center justify-center gap-2 py-2.5 bg-white/15 border border-white/25 rounded-xl active:bg-white/25 transition-colors">
+                <ArrowUpRight size={13} className="text-green-300" />
+                <span className="text-white text-xs font-semibold">Withdraw</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -282,23 +334,32 @@ export default function FarmerDashboard() {
           </button>
         )}
 
-        {/* View My Listing CTA — only when there is a current farm */}
+        {/* Farm funding progress — shown when there is an active farm (no separate "View Listing" button) */}
         {currentFarm && (
           <button
             onClick={() => setLocation("/farmer/operations")}
-            className="w-full bg-gradient-to-r from-primary to-green-500 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-md shadow-primary/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                  <TrendingUp size={22} className="text-white" />
+            className="w-full bg-card border border-border rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
+                  <img src={getCropImage(currentFarm.cropType)} alt="" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <p className="text-white font-bold text-base">View My Listing</p>
-                  <p className="text-white/75 text-xs mt-0.5">{currentFarm.cropType} · {currentFarm.fundingPercent ?? 0}% funded</p>
+                  <p className="text-foreground font-bold text-sm">{currentFarm.cropType}</p>
+                  <p className="text-muted-foreground text-[10px]">{currentFarm.location}</p>
                 </div>
               </div>
-              <ChevronRight size={18} className="text-white/70" />
+              <div className="text-right">
+                <p className="text-primary font-bold text-sm">{currentFarm.fundingPercent ?? 0}%</p>
+                <p className="text-muted-foreground text-[10px]">funded</p>
+              </div>
             </div>
+            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${currentFarm.fundingPercent ?? 0}%` }} />
+            </div>
+            <p className="text-muted-foreground text-[10px] mt-1.5 flex items-center gap-1">
+              <TrendingUp size={10} className="text-primary" /> Tap to manage your listing
+            </p>
           </button>
         )}
 
