@@ -69,15 +69,17 @@ function getName(idx: number): string {
   return `${FIRST_NAMES[fi]} ${LAST_NAMES[li]}${suffix}`;
 }
 
+const EMAIL_DOMAINS = ["gmail.com", "gmail.com", "gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com"];
+
 function getFarmerEmail(idx: number): string {
   const fi = idx % FIRST_NAMES.length;
   const li = Math.floor(idx / FIRST_NAMES.length) % LAST_NAMES.length;
   const cycle = Math.floor(idx / (FIRST_NAMES.length * LAST_NAMES.length));
   const first = FIRST_NAMES[fi]!.toLowerCase().replace(/[^a-z]/g, "");
   const last  = LAST_NAMES[li]!.toLowerCase().replace(/[^a-z]/g, "");
-  return cycle > 0
-    ? `farmer.${first}.${last}.${cycle}@investafarm.co.ke`
-    : `farmer.${first}.${last}@investafarm.co.ke`;
+  const domain = EMAIL_DOMAINS[idx % EMAIL_DOMAINS.length]!;
+  const num = cycle > 0 ? cycle : (idx % 900 === 0 ? "" : idx % 99 || "");
+  return `${first}.${last}${num}@${domain}`;
 }
 
 function getInvestorEmail(idx: number): string {
@@ -86,9 +88,9 @@ function getInvestorEmail(idx: number): string {
   const cycle = Math.floor(idx / (FIRST_NAMES.length * LAST_NAMES.length));
   const first = FIRST_NAMES[fi]!.toLowerCase().replace(/[^a-z]/g, "");
   const last  = LAST_NAMES[li]!.toLowerCase().replace(/[^a-z]/g, "");
-  return cycle > 0
-    ? `inv.${first}.${last}.${cycle}@investafarm.co.ke`
-    : `inv.${first}.${last}@investafarm.co.ke`;
+  const domain = EMAIL_DOMAINS[(idx + 3) % EMAIL_DOMAINS.length]!;
+  const num = cycle > 0 ? cycle + 1000 : (idx % 87 || idx + 500);
+  return `${first}.${last}${num}@${domain}`;
 }
 
 function getFarmName(farmerName: string, farmIdx: number): string {
@@ -126,16 +128,16 @@ export async function runBulkSeed(log: (msg: string) => void = console.log): Pro
   isRunning = true;
 
   try {
-    // Check how many synthetic users already exist
+    // Check how many farmers exist (including both old and new email formats)
     const [farmerCount] = await db
       .select({ c: count() })
       .from(usersTable)
-      .where(like(usersTable.email, "farmer.%@investafarm.co.ke"));
+      .where(eq(usersTable.role, "farmer"));
 
-    const existingFarmers = farmerCount?.c ?? 0;
+    const existingFarmers = Number(farmerCount?.c ?? 0);
 
     if (existingFarmers >= FARMER_TARGET * 0.95) {
-      log("[bulk] Synthetic data already present — skipping");
+      log(`[bulk] Synthetic data already present (${existingFarmers.toLocaleString()} farmers) — skipping`);
       isRunning = false;
       return;
     }
@@ -196,7 +198,7 @@ export async function runBulkSeed(log: (msg: string) => void = console.log): Pro
     const [invCount] = await db
       .select({ c: count() })
       .from(usersTable)
-      .where(like(usersTable.email, "inv.%@investafarm.co.ke"));
+      .where(eq(usersTable.role, "investor"));
 
     const existingInvestors = invCount?.c ?? 0;
     const investorsToInsert = Math.max(0, INVESTOR_TARGET - Number(existingInvestors));

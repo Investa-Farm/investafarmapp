@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, notInArray, and } from "drizzle-orm";
+import { eq, desc, notInArray, and, count, sql } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db, pool, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
@@ -445,10 +445,11 @@ router.get("/admin/activity-feed", async (req, res): Promise<void> => {
 router.get("/admin/platform-cash", async (req, res): Promise<void> => {
   const ok = await requireAdmin(req, res, true);
   if (!ok) return;
-  const wallets = await db.select().from(walletsTable);
-  const totalCash = wallets.reduce((s, w) => s + Number(w.balance), 0);
-  const totalEscrow = wallets.reduce((s, w) => s + Number((w as any).escrowBalance ?? 0), 0);
-  res.json({ totalCash, totalEscrow, walletCount: wallets.length });
+  const [cashRow, countRow] = await Promise.all([
+    db.select({ total: sql<string>`COALESCE(SUM(balance::numeric),0)` }).from(walletsTable),
+    db.select({ c: count() }).from(walletsTable),
+  ]);
+  res.json({ totalCash: Number(cashRow[0]?.total ?? 0), totalEscrow: 0, walletCount: Number(countRow[0]?.c ?? 0) });
 });
 
 router.patch("/admin/users/:id/role", async (req, res): Promise<void> => {
@@ -532,56 +533,65 @@ const PLATFORM_BASELINE = {
 router.get("/admin/stats", async (req, res): Promise<void> => {
   const ok = await requireAdmin(req, res, true);
   if (!ok) return;
-  const [users, farms, loans, kycs, investments, walletTxs, wallets] = await Promise.all([
-    db.select().from(usersTable),
-    db.select().from(farmsTable),
-    db.select().from(loanApplicationsTable).orderBy(desc(loanApplicationsTable.createdAt)),
-    db.select().from(kycDocumentsTable),
-    db.select().from(investmentsTable),
-    db.select().from(walletTransactionsTable),
-    db.select().from(walletsTable),
+
+  // Use SQL aggregates — never load full tables into memory
+  const [
+    farmerRow, investorRow, cooperativeRow, totalUserRow,
+    farmRow, loanRow,
+    pendingKycRow, pendingLoanRow, completedLoanRow,
+    investedRow, aumRow,
+    txCountRow, depositRow, withdrawalRow,
+    platformCashRow, activeFinancingRow,
+    recentUsers, recentLoans,
+  ] = await Promise.all([
+    db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "farmer")),
+    db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "investor")),
+    db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "cooperative")),
+    db.select({ c: count() }).from(usersTable),
+    db.select({ c: count() }).from(farmsTable),
+    db.select({ c: count() }).from(loanApplicationsTable),
+    db.select({ c: count() }).from(kycDocumentsTable).where(eq(kycDocumentsTable.status, "pending")),
+    db.select({ c: count() }).from(loanApplicationsTable).where(sql`status IN ('submitted','under_review')`),
+    db.select({ c: count() }).from(loanApplicationsTable).where(eq(loanApplicationsTable.status, "approved")),
+    db.select({ total: sql<string>`COALESCE(SUM(purchase_price::numeric * quantity),0)` }).from(investmentsTable),
+    db.select({ total: sql<string>`COALESCE(SUM(purchase_price::numeric * quantity),0)` }).from(investmentsTable).where(eq(investmentsTable.status, "active")),
+    db.select({ c: count() }).from(walletTransactionsTable).where(eq(walletTransactionsTable.status, "completed")),
+    db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.type, "deposit"), eq(walletTransactionsTable.status, "completed"))),
+    db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.type, "withdrawal"), eq(walletTransactionsTable.status, "completed"))),
+    db.select({ total: sql<string>`COALESCE(SUM(balance::numeric),0)` }).from(walletsTable),
+    db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(loanApplicationsTable).where(sql`status IN ('approved','disbursed','active')`),
+    db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, createdAt: usersTable.createdAt })
+      .from(usersTable).orderBy(desc(usersTable.createdAt)).limit(10),
+    db.select({ l: loanApplicationsTable, u: usersTable })
+      .from(loanApplicationsTable)
+      .leftJoin(usersTable, eq(usersTable.id, loanApplicationsTable.farmerId))
+      .orderBy(desc(loanApplicationsTable.createdAt)).limit(5),
   ]);
 
-  const totalFarmers = users.filter(u => u.role === "farmer").length;
-  const totalInvestors = users.filter(u => u.role === "investor").length;
-  const totalCooperatives = users.filter(u => u.role === "cooperative").length;
-  const pendingKyc = kycs.filter(k => k.status === "pending").length;
-  const pendingLoans = loans.filter(l => l.status === "submitted" || l.status === "under_review").length;
-  const completedLoans = loans.filter(l => l.status === "approved").length;
-  const totalInvested = investments.reduce((s, i) => s + Number(i.purchasePrice) * i.quantity, 0);
-  const aum = investments.filter(i => i.status === "active").reduce((s, i) => s + Number(i.purchasePrice) * i.quantity, 0);
-  const totalTransactions = walletTxs.length;
-  const totalDeposits = walletTxs.filter(t => t.type === "deposit").reduce((s, t) => s + Number(t.amount), 0);
-  const totalWithdrawals = walletTxs.filter(t => t.type === "withdrawal").reduce((s, t) => s + Number(t.amount), 0);
-  const platformCash = wallets.reduce((s, w) => s + Number(w.balance), 0);
-
-  // Active financing = sum of active/approved loan amounts
-  const activeFinancingDB = loans
-    .filter(l => l.status === "approved" || l.status === "disbursed" || l.status === "active")
-    .reduce((s, l) => s + Number(l.amount), 0);
-
-  const recentLoansSlice = loans.slice(0, 5);
-  const recentLoansWithFarmer = await Promise.all(
-    recentLoansSlice.map(async l => {
-      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, l.farmerId));
-      return {
-        id: l.id,
-        farmerName: user?.name ?? "Unknown",
-        amount: l.amount,
-        status: l.status,
-        cropType: l.purpose,
-        createdAt: l.createdAt.toISOString(),
-      };
-    })
-  );
+  const totalFarmers     = Number(farmerRow[0]?.c ?? 0);
+  const totalInvestors   = Number(investorRow[0]?.c ?? 0);
+  const totalCooperatives= Number(cooperativeRow[0]?.c ?? 0);
+  const totalUsers       = Number(totalUserRow[0]?.c ?? 0);
+  const totalFarms       = Number(farmRow[0]?.c ?? 0);
+  const totalLoans       = Number(loanRow[0]?.c ?? 0);
+  const pendingKyc       = Number(pendingKycRow[0]?.c ?? 0);
+  const pendingLoans     = Number(pendingLoanRow[0]?.c ?? 0);
+  const completedLoans   = Number(completedLoanRow[0]?.c ?? 0);
+  const totalInvested    = Number(investedRow[0]?.total ?? 0);
+  const aum              = Number(aumRow[0]?.total ?? 0);
+  const totalTransactions= Number(txCountRow[0]?.c ?? 0);
+  const totalDeposits    = Number(depositRow[0]?.total ?? 0);
+  const totalWithdrawals = Number(withdrawalRow[0]?.total ?? 0);
+  const platformCash     = Number(platformCashRow[0]?.total ?? 0);
+  const activeFinancingDB= Number(activeFinancingRow[0]?.total ?? 0);
 
   res.json({
-    totalUsers: users.length,
+    totalUsers,
     totalFarmers,
     totalInvestors,
     totalCooperatives,
-    totalFarms: farms.length,
-    totalLoans: loans.length,
+    totalFarms,
+    totalLoans,
     totalInvested,
     aum,
     totalTransactions,
@@ -591,25 +601,29 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     pendingLoans,
     completedLoans,
     platformCash,
-    activeFinancingKES: PLATFORM_BASELINE.activeFinancingKES + activeFinancingDB,
-    // Platform-wide aggregate stats (network + live DB)
-    platformFarmers: PLATFORM_BASELINE.farmers + totalFarmers,
-    platformInvestors: PLATFORM_BASELINE.investors + totalInvestors,
-    historicalFundingKES: PLATFORM_BASELINE.historicalFundingKES + totalInvested,
-    platformTotalTx: PLATFORM_BASELINE.totalTxCount + totalTransactions,
-    recentUsers: [...users].reverse().slice(0, 10).map(u => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
+    activeFinancingKES: activeFinancingDB,
+    // Real DB numbers (no artificial baseline inflation in stats)
+    platformFarmers: totalFarmers,
+    platformInvestors: totalInvestors,
+    historicalFundingKES: totalInvested,
+    platformTotalTx: totalTransactions,
+    recentUsers: recentUsers.map(u => ({
+      id: u.id, name: u.name, email: u.email, role: u.role,
       createdAt: u.createdAt.toISOString(),
     })),
-    recentLoans: recentLoansWithFarmer,
+    recentLoans: recentLoans.map(r => ({
+      id: r.l.id,
+      farmerName: r.u?.name ?? "Unknown",
+      amount: r.l.amount,
+      status: r.l.status,
+      cropType: r.l.purpose,
+      createdAt: r.l.createdAt.toISOString(),
+    })),
   });
 });
 
 router.get("/admin/transactions", async (req, res): Promise<void> => {
-  const ok = await requireAdmin(req, res);
+  const ok = await requireAdmin(req, res, true);
   if (!ok) return;
   const txs = await db
     .select({ tx: walletTransactionsTable, user: usersTable })
@@ -634,39 +648,45 @@ router.get("/admin/transactions", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/users", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res, true);
+  if (!ok) return;
   const { role } = req.query as { role?: string };
-  let users = await db.select().from(usersTable).orderBy(desc(usersTable.createdAt));
-  if (role && role !== "all") {
-    users = users.filter(u => u.role === role);
+
+  // Fetch with SQL WHERE (not JS filter) + LIMIT for speed
+  const q = db.select().from(usersTable).orderBy(desc(usersTable.createdAt)).limit(500);
+  const users = role && role !== "all"
+    ? await db.select().from(usersTable).where(eq(usersTable.role, role as any)).orderBy(desc(usersTable.createdAt)).limit(500)
+    : await q;
+
+  // Get KYC status in one query using aggregates per user
+  const userIds = users.map(u => u.id);
+  const kycs = userIds.length > 0
+    ? await db.select({ userId: kycDocumentsTable.userId, status: kycDocumentsTable.status })
+        .from(kycDocumentsTable)
+        .where(sql`user_id = ANY(${sql.raw(`ARRAY[${userIds.join(",")}]::int[]`)})`)
+    : [];
+
+  const kycMap = new Map<number, string[]>();
+  for (const k of kycs) {
+    const arr = kycMap.get(k.userId) ?? [];
+    arr.push(k.status);
+    kycMap.set(k.userId, arr);
   }
 
-  // Get KYC info for each user
-  const kycs = await db.select().from(kycDocumentsTable);
-  const mapped = users.map(u => {
-    const userKyc = kycs.filter(k => k.userId === u.id);
-    const allApproved = userKyc.length > 0 && userKyc.every(k => k.status === "approved");
-    const anyPending = userKyc.some(k => k.status === "pending");
-    const anyRejected = userKyc.some(k => k.status === "rejected");
-    const kycStatus = allApproved ? "approved" : anyPending ? "pending" : anyRejected ? "rejected" : "none";
+  res.json(users.map(u => {
+    const statuses = kycMap.get(u.id) ?? [];
+    const allApproved = statuses.length > 0 && statuses.every(s => s === "approved");
+    const anyPending  = statuses.some(s => s === "pending");
+    const anyRejected = statuses.some(s => s === "rejected");
+    const kycStatus   = allApproved ? "approved" : anyPending ? "pending" : anyRejected ? "rejected" : "none";
     return {
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
+      id: u.id, name: u.name, email: u.email, role: u.role,
       emailVerified: u.emailVerified,
-      kycStatus,
-      kycDocCount: userKyc.length,
+      kycStatus, kycDocCount: statuses.length,
       createdAt: u.createdAt.toISOString(),
-    };
-  });
-
-  res.json(mapped.map(u => {
-    const full = users.find(uu => uu.id === u.id);
-    return {
-      ...u,
-      creditLimitKES: full?.creditLimitKES ?? null,
-      maxDepositKES: full?.maxDepositKES ?? null,
-      maxWithdrawalKES: full?.maxWithdrawalKES ?? null,
+      creditLimitKES: u.creditLimitKES ?? null,
+      maxDepositKES: u.maxDepositKES ?? null,
+      maxWithdrawalKES: u.maxWithdrawalKES ?? null,
     };
   }));
 });
@@ -740,7 +760,7 @@ router.patch("/admin/users/:id/approve", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/kyc", async (req, res): Promise<void> => {
-  const ok = await requireAdmin(req, res);
+  const ok = await requireAdmin(req, res, true);
   if (!ok) return;
   const docs = await db.select().from(kycDocumentsTable).orderBy(desc(kycDocumentsTable.createdAt));
   const withUser = await Promise.all(
@@ -818,13 +838,20 @@ router.delete("/admin/farms/:id", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/farms", async (req, res): Promise<void> => {
-  const ok = await requireAdmin(req, res);
+  const ok = await requireAdmin(req, res, true);
   if (!ok) return;
   const farms = await db
     .select({ farm: farmsTable, farmer: usersTable })
     .from(farmsTable)
-    .leftJoin(usersTable, eq(farmsTable.farmerId, usersTable.id));
-  const investments = await db.select().from(investmentsTable);
+    .leftJoin(usersTable, eq(farmsTable.farmerId, usersTable.id))
+    .orderBy(desc(farmsTable.createdAt))
+    .limit(1000);
+  const farmIds = farms.map(f => f.farm.id);
+  const investments = farmIds.length > 0
+    ? await db.select({ farmId: investmentsTable.farmId, investorId: investmentsTable.investorId, purchasePrice: investmentsTable.purchasePrice, quantity: investmentsTable.quantity, status: investmentsTable.status })
+        .from(investmentsTable)
+        .where(sql`farm_id = ANY(${sql.raw(`ARRAY[${farmIds.join(",")}]::int[]`)})`)
+    : [];
   res.json(farms.map(r => {
     const farmInvestors = investments.filter(i => i.farmId === r.farm.id);
     const fundedAmount = farmInvestors.reduce((s, i) => s + Number(i.purchasePrice) * i.quantity, 0);
@@ -906,7 +933,7 @@ router.post("/admin/farms/:id/fund", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/dividends", async (req, res): Promise<void> => {
-  const ok = await requireAdmin(req, res);
+  const ok = await requireAdmin(req, res, true);
   if (!ok) return;
   const divs = await db
     .select({ div: dividendsTable, investor: usersTable, farm: farmsTable })
@@ -935,7 +962,7 @@ router.get("/admin/dividends", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/settings", async (req, res): Promise<void> => {
-  const ok = await requireAdmin(req, res);
+  const ok = await requireAdmin(req, res, true);
   if (!ok) return;
   res.json(loadSettings());
 });
@@ -1040,7 +1067,7 @@ router.delete("/admin/clear-database", async (req, res): Promise<void> => {
 
 // GET /admin/messages — all messages sent by admin
 router.get("/admin/messages", async (req, res): Promise<void> => {
-  const ok = await requireAdmin(req, res);
+  const ok = await requireAdmin(req, res, true);
   if (!ok) return;
   const messages = await db
     .select({ msg: adminMessagesTable, user: usersTable })
@@ -1304,7 +1331,7 @@ router.post("/admin/kyc/ai-review-pending", async (req, res): Promise<void> => {
 
 // GET /admin/activity — recent transactions and login audit events
 router.get("/admin/activity", async (req, res): Promise<void> => {
-  const ok = await requireAdmin(req, res);
+  const ok = await requireAdmin(req, res, true);
   if (!ok) return;
 
   const [txs, loginEvents] = await Promise.all([
@@ -1350,7 +1377,7 @@ router.get("/admin/activity", async (req, res): Promise<void> => {
 
 /** Admin notification bell — returns unread counts + recent actionable items */
 router.get("/admin/notifications-bell", async (req, res): Promise<void> => {
-  const ok = await requireAdmin(req, res);
+  const ok = await requireAdmin(req, res, true);
   if (!ok) return;
 
   const [pendingKyc, pendingDeposits, openTickets] = await Promise.all([

@@ -951,7 +951,11 @@ export default function AdminDashboard() {
             <Shield size={18} className="text-white/80" />
             <div>
               <p className="text-white/70 text-xs font-medium">Admin Portal</p>
-              <h1 className="text-white text-xl font-bold">Investa Admin</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-white text-xl font-bold">Investa Admin</h1>
+                {isViewer && <span className="text-[9px] font-bold bg-amber-400/20 border border-amber-400/40 text-amber-200 px-2 py-0.5 rounded-full">READ ONLY</span>}
+                {kycOnly && <span className="text-[9px] font-bold bg-blue-400/20 border border-blue-400/40 text-blue-200 px-2 py-0.5 rounded-full">KYC ONLY</span>}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1101,43 +1105,29 @@ export default function AdminDashboard() {
             <div className="text-center py-12 text-muted-foreground text-sm">Loading…</div>
           ) : stats ? (
             <>
-              {/* Platform Impact Hero */}
-              <div className="bg-gradient-to-br from-green-700 via-emerald-600 to-teal-600 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-white/80 text-xs font-bold uppercase tracking-wider">Platform Impact</p>
-                  <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-semibold">2023–2025</span>
-                </div>
+              {/* Stats hero — grass green, real DB numbers */}
+              <div className="bg-gradient-to-br from-[#052e16] via-[#14532d] to-[#16a34a] rounded-2xl p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white/10 rounded-xl p-3">
-                    <p className="text-white font-black text-xl leading-none">{((stats.platformFarmers ?? 120000) / 1000).toFixed(0)}K+</p>
-                    <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Farmers Reached</p>
+                    <p className="text-white font-black text-2xl leading-none">{(stats.totalFarmers ?? 0).toLocaleString()}</p>
+                    <p className="text-white/70 text-[10px] font-semibold mt-1 uppercase tracking-wide">Registered Farmers</p>
                   </div>
                   <div className="bg-white/10 rounded-xl p-3">
-                    <p className="text-white font-black text-xl leading-none">{((stats.platformInvestors ?? 5000) / 1000).toFixed(1)}K+</p>
-                    <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Active Investors</p>
+                    <p className="text-white font-black text-2xl leading-none">{(stats.totalInvestors ?? 0).toLocaleString()}</p>
+                    <p className="text-white/70 text-[10px] font-semibold mt-1 uppercase tracking-wide">Active Investors</p>
                   </div>
                   <div className="bg-white/10 rounded-xl p-3">
-                    <p className="text-white font-black text-lg leading-none">{fmtKES(stats.historicalFundingKES ?? 779_200_000)}</p>
-                    <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Total Funded</p>
+                    <p className="text-white font-black text-xl leading-none">{fmtKES(stats.totalInvested ?? 0)}</p>
+                    <p className="text-white/70 text-[10px] font-semibold mt-1 uppercase tracking-wide">Total Funded</p>
                   </div>
                   <div className="bg-white/10 rounded-xl p-3">
-                    <p className="text-white font-black text-lg leading-none">{fmtKES(stats.activeFinancingKES ?? 52_000_000)}</p>
-                    <p className="text-white/70 text-[10px] font-semibold mt-0.5 uppercase tracking-wide">Active Financing</p>
+                    <p className="text-white font-black text-xl leading-none">{fmtKES(stats.aum ?? 0)}</p>
+                    <p className="text-white/70 text-[10px] font-semibold mt-1 uppercase tracking-wide">AUM</p>
                   </div>
                 </div>
-              </div>
-
-              {/* AUM + Platform Cash */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-gradient-to-r from-green-700 to-emerald-500 rounded-2xl p-3">
-                  <p className="text-white/80 text-[10px] font-semibold uppercase tracking-wide">AUM</p>
-                  <p className="text-white font-extrabold text-lg mt-0.5">{fmtKES(stats.aum ?? 0)}</p>
-                  <p className="text-white/60 text-[10px] mt-1">{((stats.platformTotalTx ?? 284600) / 1000).toFixed(1)}K transactions</p>
-                </div>
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-3">
-                  <p className="text-white/80 text-[10px] font-semibold uppercase tracking-wide">Platform Cash</p>
-                  <p className="text-white font-extrabold text-lg mt-0.5">{fmtKES(stats.platformCash ?? 0)}</p>
-                  <p className="text-white/60 text-[10px] mt-1">{fmtKES(stats.totalDeposits ?? 0)} deposited</p>
+                <div className="flex items-center justify-between pt-1 border-t border-white/20">
+                  <p className="text-white/60 text-[10px]">{(stats.totalTransactions ?? 0).toLocaleString()} transactions</p>
+                  <p className="text-white/60 text-[10px]">{(stats.totalFarms ?? 0).toLocaleString()} farms · {fmtKES(stats.platformCash ?? 0)} cash</p>
                 </div>
               </div>
 
@@ -2382,6 +2372,12 @@ export default function AdminDashboard() {
         {/* SETTINGS TAB */}
         {tab === "settings" && (
           <>
+            {isViewer && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-center gap-3 mb-2">
+                <Eye size={15} className="text-amber-600 flex-shrink-0" />
+                <p className="text-amber-800 text-xs font-medium">You have read-only access. Settings cannot be changed from this account.</p>
+              </div>
+            )}
             {settingsLoading ? (
               <div className="text-center py-12 text-muted-foreground text-sm">Loading settings…</div>
             ) : settingsDraft ? (
@@ -2514,8 +2510,8 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Broadcast Notifications */}
-                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                {/* Broadcast Notifications — master admin only */}
+                {!isViewer && !kycOnly && <div className="bg-card border border-border rounded-2xl overflow-hidden">
                   <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border bg-purple-50">
                     <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
                       <Bell size={13} className="text-purple-600" />
@@ -2555,7 +2551,7 @@ export default function AdminDashboard() {
                       {broadcastSending ? "Sending…" : "Send to All Users"}
                     </button>
                   </div>
-                </div>
+                </div>}
               </>
             ) : (
               <div className="text-center py-12 text-muted-foreground text-sm">Failed to load settings</div>
