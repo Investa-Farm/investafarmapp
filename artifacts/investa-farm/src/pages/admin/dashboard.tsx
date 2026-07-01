@@ -13,10 +13,11 @@ import { getToken } from "@/lib/auth";
 
 interface AdminStats {
   totalUsers: number; totalFarmers: number; totalInvestors: number; totalCooperatives: number;
-  totalFarms: number; totalLoans: number; totalInvested: number; aum: number;
+  totalFarms: number; activeFarms: number; totalLoans: number; totalInvested: number; aum: number;
   totalTransactions: number; totalDeposits: number; totalWithdrawals: number;
   pendingKyc: number; pendingLoans: number; completedLoans: number;
   platformCash: number; activeFinancingKES: number;
+  loansGivenCount: number; loansGivenKES: number;
   platformFarmers: number; platformInvestors: number; historicalFundingKES: number;
   platformTotalTx: number;
   recentUsers: Array<{ id: number; name: string; email: string; role: string; createdAt: string }>;
@@ -79,6 +80,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(false);
   const [kycLoading, setKycLoading] = useState(false);
+  const [kycError, setKycError] = useState<string | null>(null);
   const [txLoading, setTxLoading] = useState(false);
   const [farmsLoading, setFarmsLoading] = useState(false);
   const [payoutsLoading, setPayoutsLoading] = useState(false);
@@ -434,9 +436,17 @@ export default function AdminDashboard() {
 
   const fetchKyc = async () => {
     setKycLoading(true);
+    setKycError(null);
     try {
       const r = await fetch("/api/admin/kyc", { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) setKycDocs(await r.json());
+      if (r.ok) {
+        setKycDocs(await r.json());
+      } else {
+        const err = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
+        setKycError(err.error ?? `Failed to load KYC documents (${r.status})`);
+      }
+    } catch (e) {
+      setKycError("Network error loading KYC documents");
     } finally {
       setKycLoading(false);
     }
@@ -1146,7 +1156,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-white/20">
                   <p className="text-white/60 text-[10px]">{(stats.totalTransactions ?? 0).toLocaleString()} transactions</p>
-                  <p className="text-white/60 text-[10px]">{(stats.totalFarms ?? 0).toLocaleString()} farms · {fmtKES(stats.platformCash ?? 0)} cash</p>
+                  <p className="text-white/60 text-[10px]">{(stats.activeFarms ?? 0).toLocaleString()} active farms · {fmtKES(stats.platformCash ?? 0)} cash</p>
                 </div>
               </div>
 
@@ -1155,8 +1165,8 @@ export default function AdminDashboard() {
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Operations</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { label: "Active Farms", val: stats.totalFarms, icon: Tractor },
-                    { label: "Total Loans", val: stats.totalLoans, icon: DollarSign },
+                    { label: "Active Farms", val: stats.activeFarms ?? stats.totalFarms, icon: Tractor },
+                    { label: "Loans Given", val: stats.loansGivenCount ?? 0, icon: DollarSign },
                     { label: "Pending KYC", val: stats.pendingKyc, icon: FileText },
                     { label: "Pending Loans", val: stats.pendingLoans, icon: Clock },
                   ].map(({ label, val, icon: Icon }) => (
@@ -1585,6 +1595,12 @@ export default function AdminDashboard() {
 
             {kycLoading ? (
               <div className="text-center py-8 text-muted-foreground text-sm">Loading documents…</div>
+            ) : kycError ? (
+              <div className="text-center py-8 space-y-2">
+                <p className="text-red-500 text-sm font-semibold">Failed to load KYC documents</p>
+                <p className="text-muted-foreground text-xs">{kycError}</p>
+                <button onClick={fetchKyc} className="mt-2 text-xs text-primary underline">Try again</button>
+              </div>
             ) : kycdocs.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">No KYC documents yet</div>
             ) : kycdocs.map(doc => (

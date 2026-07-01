@@ -615,11 +615,12 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   // Use SQL aggregates — never load full tables into memory
   const [
     farmerRow, investorRow, cooperativeRow, totalUserRow,
-    farmRow, loanRow,
+    farmRow, activeFarmRow, loanRow,
     pendingKycRow, pendingLoanRow, completedLoanRow,
     investedRow, aumRow,
     txCountRow, depositRow, withdrawalRow,
     platformCashRow, activeFinancingRow,
+    loansGivenCountRow, loansGivenAmountRow,
     recentUsers, recentLoans,
   ] = await Promise.all([
     db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "farmer")),
@@ -627,6 +628,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "cooperative")),
     db.select({ c: count() }).from(usersTable),
     db.select({ c: count() }).from(farmsTable),
+    db.select({ c: count() }).from(farmsTable).where(eq(farmsTable.status, "active")),
     db.select({ c: count() }).from(loanApplicationsTable),
     db.select({ c: count() }).from(kycDocumentsTable).where(eq(kycDocumentsTable.status, "pending")),
     db.select({ c: count() }).from(loanApplicationsTable).where(sql`status IN ('submitted','under_review')`),
@@ -638,6 +640,8 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.type, "withdrawal"), eq(walletTransactionsTable.status, "completed"))),
     db.select({ total: sql<string>`COALESCE(SUM(balance::numeric),0)` }).from(walletsTable),
     db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(loanApplicationsTable).where(sql`status IN ('approved','disbursed')`),
+    db.select({ c: count() }).from(loanApplicationsTable).where(eq(loanApplicationsTable.status, "disbursed")),
+    db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(loanApplicationsTable).where(eq(loanApplicationsTable.status, "disbursed")),
     db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, createdAt: usersTable.createdAt })
       .from(usersTable).orderBy(desc(usersTable.createdAt)).limit(10),
     db.select({ l: loanApplicationsTable, u: usersTable })
@@ -651,6 +655,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   const totalCooperatives= Number(cooperativeRow[0]?.c ?? 0);
   const totalUsers       = Number(totalUserRow[0]?.c ?? 0);
   const totalFarms       = Number(farmRow[0]?.c ?? 0);
+  const activeFarms      = Number(activeFarmRow[0]?.c ?? 0);
   const totalLoans       = Number(loanRow[0]?.c ?? 0);
   const pendingKyc       = Number(pendingKycRow[0]?.c ?? 0);
   const pendingLoans     = Number(pendingLoanRow[0]?.c ?? 0);
@@ -662,6 +667,8 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   const totalWithdrawals = Number(withdrawalRow[0]?.total ?? 0);
   const platformCash     = Number(platformCashRow[0]?.total ?? 0);
   const activeFinancingDB= Number(activeFinancingRow[0]?.total ?? 0);
+  const loansGivenCount  = Number(loansGivenCountRow[0]?.c ?? 0);
+  const loansGivenKES    = Number(loansGivenAmountRow[0]?.total ?? 0);
 
   const payload = {
     totalUsers,
@@ -669,6 +676,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     totalInvestors,
     totalCooperatives,
     totalFarms,
+    activeFarms,
     totalLoans,
     totalInvested,
     aum,
@@ -680,6 +688,8 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     completedLoans,
     platformCash,
     activeFinancingKES: activeFinancingDB,
+    loansGivenCount,
+    loansGivenKES,
     platformFarmers: totalFarmers,
     platformInvestors: totalInvestors,
     historicalFundingKES: totalInvested,
@@ -1566,7 +1576,7 @@ router.get("/admin/notifications-bell", async (req, res): Promise<void> => {
       userId: r.doc.userId,
       userName: r.user?.name ?? "Unknown",
       userEmail: r.user?.email ?? "",
-      docType: r.doc.documentType,
+      docType: r.doc.docType,
       createdAt: r.doc.createdAt?.toISOString() ?? null,
     })),
     pendingDeposits: pendingDeposits.map(r => ({
