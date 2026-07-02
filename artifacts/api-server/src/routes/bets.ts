@@ -1,11 +1,39 @@
 import { Router, type IRouter } from "express";
 import { db, cropBetsTable, betStakesTable, farmsTable, usersTable, walletsTable } from "@workspace/db";
-import { eq, desc, sum, sql, and } from "drizzle-orm";
+import { eq, desc, sum, sql, and, count } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 
 const router: IRouter = Router();
 
+async function seedDemoBets() {
+  try {
+    const [{ c }] = await db.select({ c: count() }).from(cropBetsTable);
+    if (Number(c) > 0) return;
+    const farms = await db.select({ id: farmsTable.id, cropType: farmsTable.cropType, name: farmsTable.name })
+      .from(farmsTable).limit(5);
+    if (farms.length === 0) return;
+    const now = new Date();
+    const seed = farms.slice(0, 3).map((f, i) => ({
+      creatorId: null as any,
+      farmId: f.id,
+      question: [
+        `Will ${f.name} achieve more than 25% ROI this season?`,
+        `Will ${f.cropType} prices rise above current market levels by harvest?`,
+        `Will ${f.name} fully fund before the deadline?`,
+      ][i],
+      description: "Community prediction — stake YES or NO and win from the pool.",
+      targetMetric: ["roi", "price", "funded_pct"][i],
+      targetValue: ["25", "120", "100"][i],
+      minStakeKES: "500",
+      maxStakeKES: "50000",
+      expiresAt: new Date(now.getTime() + (30 + i * 15) * 24 * 3600 * 1000),
+    }));
+    await db.insert(cropBetsTable).values(seed);
+  } catch { /* best-effort */ }
+}
+
 router.get("/bets", async (req, res): Promise<void> => {
+  await seedDemoBets();
   try {
     const bets = await db
       .select({ bet: cropBetsTable, farm: farmsTable, creator: usersTable })

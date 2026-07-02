@@ -11,6 +11,13 @@ import {
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
+function fmtNum(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 10_000) return `${Math.round(n / 1_000)}K`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
+
 interface AdminStats {
   totalUsers: number; totalFarmers: number; totalInvestors: number; totalCooperatives: number;
   totalFarms: number; activeFarms: number; totalLoans: number; totalInvested: number; aum: number;
@@ -1166,7 +1173,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { label: "Active Farms", val: stats.activeFarms ?? stats.totalFarms, icon: Tractor },
-                    { label: "Loans Given", val: stats.loansGivenCount ?? 0, icon: DollarSign },
+                    { label: "Active Loans", val: (stats.loansGivenCount ?? 0) + (stats.completedLoans ?? 0), icon: DollarSign },
                     { label: "Pending KYC", val: stats.pendingKyc, icon: FileText },
                     { label: "Pending Loans", val: stats.pendingLoans, icon: Clock },
                   ].map(({ label, val, icon: Icon }) => (
@@ -1175,7 +1182,7 @@ export default function AdminDashboard() {
                         <Icon size={14} className="text-primary" />
                       </div>
                       <div>
-                        <p className="text-foreground font-bold text-sm">{val}</p>
+                        <p className="text-foreground font-bold text-sm">{fmtNum(val)}</p>
                         <p className="text-muted-foreground text-[10px]">{label}</p>
                       </div>
                     </div>

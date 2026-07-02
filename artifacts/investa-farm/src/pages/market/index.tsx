@@ -1189,27 +1189,21 @@ export default function MarketHome() {
               </div>
             </Link>
 
-            {/* Social features strip — Bets + Syndicates */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <Link href="/bets">
-                <div className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-300/40 rounded-2xl p-3.5 cursor-pointer active:scale-[0.97] transition-all h-full">
-                  <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center mb-2">
-                    <Flame size={16} className="text-orange-600" />
+            {/* Social features strip — Syndicates */}
+            <Link href="/syndicates">
+              <div className="bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-300/40 rounded-2xl p-3.5 cursor-pointer active:scale-[0.97] transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                    <Users2 size={18} className="text-violet-600" />
                   </div>
-                  <p className="text-foreground font-bold text-sm leading-tight">Crop Bets</p>
-                  <p className="text-muted-foreground text-[10px] mt-0.5 leading-snug">Predict prices · win from the community pool</p>
-                </div>
-              </Link>
-              <Link href="/syndicates">
-                <div className="bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-300/40 rounded-2xl p-3.5 cursor-pointer active:scale-[0.97] transition-all h-full">
-                  <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center mb-2">
-                    <Users2 size={16} className="text-violet-600" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-foreground font-bold text-sm leading-tight">Syndicates</p>
+                    <p className="text-muted-foreground text-[10px] mt-0.5">Pool funds · co-invest in bigger farms</p>
                   </div>
-                  <p className="text-foreground font-bold text-sm leading-tight">Syndicates</p>
-                  <p className="text-muted-foreground text-[10px] mt-0.5 leading-snug">Pool funds · co-invest in bigger farms</p>
+                  <ChevronRight size={15} className="text-muted-foreground flex-shrink-0" />
                 </div>
-              </Link>
-            </div>
+              </div>
+            </Link>
           </>
         )}
 

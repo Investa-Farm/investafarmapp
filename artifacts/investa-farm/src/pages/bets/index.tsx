@@ -142,7 +142,7 @@ export default function BetsPage() {
       {/* Header */}
       <div className="hero-header px-5 pt-12 pb-5">
         <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => setLocation("/market")}
+          <button onClick={() => setLocation("/portfolio")}
             className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
             <ArrowLeft size={18} className="text-white" />
           </button>

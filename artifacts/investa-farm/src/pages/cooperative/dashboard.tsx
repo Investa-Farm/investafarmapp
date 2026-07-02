@@ -368,31 +368,78 @@ function RouteOptimizationPanel({ deliveries }: { deliveries: Delivery[] }) {
   );
 }
 
+type ApiOrder = {
+  id: number; voucherCode: string; farmerName: string; farmerPhone?: string;
+  farmerLocation?: string; items: string[]; amount: number; status: string; createdAt: string;
+};
+
+function apiToDelivery(o: ApiOrder, localAgent?: { agent: string; eta: string }): Delivery {
+  return {
+    id: o.id,
+    voucherCode: o.voucherCode,
+    farmerName: o.farmerName,
+    farmerPhone: o.farmerPhone ?? "",
+    location: o.farmerLocation ?? "Kenya",
+    items: Array.isArray(o.items) ? o.items.join(", ") : String(o.items),
+    amountKes: Number(o.amount),
+    status: (o.status === "fulfilled" ? "delivered" : o.status === "cancelled" ? "failed" : o.status) as DeliveryStatus,
+    createdAt: o.createdAt,
+    agent: localAgent?.agent,
+    eta: localAgent?.eta,
+  };
+}
+
 function LastMileDeliveryTab() {
-  const [deliveries, setDeliveries] = useState<Delivery[]>(MOCK_DELIVERIES);
+  const token = getToken();
   const [filterStatus, setFilterStatus] = useState<DeliveryStatus | "all">("all");
   const [assigningId, setAssigningId] = useState<number | null>(null);
   const [selectedAgent, setSelectedAgent] = useState("");
   const [selectedEta, setSelectedEta] = useState("");
   const [marking, setMarking] = useState<number | null>(null);
+  const [agentMap, setAgentMap] = useState<Record<number, { agent: string; eta: string }>>({});
+
+  const { data: rawOrders = [], refetch } = useQuery<ApiOrder[]>({
+    queryKey: ["cooperative-deliveries"],
+    queryFn: async () => {
+      const r = await fetch("/api/agribusiness/voucher-orders", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!token,
+    staleTime: 30_000,
+  });
+
+  const deliveries: Delivery[] = rawOrders.map(o => apiToDelivery(o, agentMap[o.id]));
 
   const listed = filterStatus === "all" ? deliveries : deliveries.filter(d => d.status === filterStatus);
   const pending = deliveries.filter(d => d.status === "pending").length;
   const inTransit = deliveries.filter(d => d.status === "in_transit").length;
   const delivered = deliveries.filter(d => d.status === "delivered").length;
 
-  const assignAgent = (id: number) => {
+  const assignAgent = async (id: number) => {
     if (!selectedAgent) return;
-    setDeliveries(prev => prev.map(d => d.id === id
-      ? { ...d, status: "in_transit" as DeliveryStatus, agent: selectedAgent, eta: selectedEta || "2–4 hours" }
-      : d));
+    setAgentMap(prev => ({ ...prev, [id]: { agent: selectedAgent, eta: selectedEta || "2–4 hours" } }));
+    try {
+      await fetch(`/api/agribusiness/voucher-orders/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "in_transit" }),
+      });
+      refetch();
+    } catch { /* local state updated, API best-effort */ }
     setAssigningId(null); setSelectedAgent(""); setSelectedEta("");
   };
 
   const markDelivered = async (id: number) => {
     setMarking(id);
-    await new Promise(r => setTimeout(r, 800));
-    setDeliveries(prev => prev.map(d => d.id === id ? { ...d, status: "delivered" as DeliveryStatus } : d));
+    try {
+      await fetch(`/api/agribusiness/voucher-orders/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "fulfilled" }),
+      });
+      await refetch();
+    } catch { /* best-effort */ }
     setMarking(null);
   };
 

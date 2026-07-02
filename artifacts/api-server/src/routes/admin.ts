@@ -70,7 +70,8 @@ router.post("/admin/login", async (req, res): Promise<void> => {
   // Also handles viewer/sub-admin accounts so they can log in from the same page
   if (email && password) {
     const bcrypt = await import("bcrypt");
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+    const emailLower = String(email).toLowerCase().trim();
+    const [user] = await db.select().from(usersTable).where(sql`LOWER(${usersTable.email}) = ${emailLower}`);
     if (user) {
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (valid) {
@@ -96,8 +97,9 @@ router.post("/admin/login-viewer", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Email and password are required" });
     return;
   }
+  const emailLower = String(email).toLowerCase().trim();
   const bcrypt = await import("bcrypt");
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  const [user] = await db.select().from(usersTable).where(sql`LOWER(${usersTable.email}) = ${emailLower}`);
   if (!user || (user.role !== "viewer" as any && user.role !== "admin")) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
@@ -640,8 +642,8 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.type, "withdrawal"), eq(walletTransactionsTable.status, "completed"))),
     db.select({ total: sql<string>`COALESCE(SUM(balance::numeric),0)` }).from(walletsTable),
     db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(loanApplicationsTable).where(sql`status IN ('approved','disbursed')`),
-    db.select({ c: count() }).from(loanApplicationsTable).where(eq(loanApplicationsTable.status, "disbursed")),
-    db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(loanApplicationsTable).where(eq(loanApplicationsTable.status, "disbursed")),
+    db.select({ c: count() }).from(loanApplicationsTable).where(sql`status IN ('approved','disbursed')`),
+    db.select({ total: sql<string>`COALESCE(SUM(amount::numeric),0)` }).from(loanApplicationsTable).where(sql`status IN ('approved','disbursed')`),
     db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, createdAt: usersTable.createdAt })
       .from(usersTable).orderBy(desc(usersTable.createdAt)).limit(10),
     db.select({ l: loanApplicationsTable, u: usersTable })

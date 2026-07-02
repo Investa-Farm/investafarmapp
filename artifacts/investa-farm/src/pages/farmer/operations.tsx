@@ -543,16 +543,36 @@ export default function FarmerOperations() {
   };
 
   const toggleTask = (id: number) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+    const newTasks = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+    setTasks(newTasks);
+    if (!isDemo && token) {
+      const task = newTasks.find(t => t.id === id);
+      fetch(`/api/farmer/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ done: task?.done }),
+      }).catch(() => {});
+    }
   };
 
   const addTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLabel.trim()) return;
-    setTasks(prev => [...prev, {
-      id: Date.now(), label: newLabel, done: false, icon: "📋", notes: newNotes, category: "Custom"
-    }]);
+    const tempId = Date.now();
+    setTasks(prev => [...prev, { id: tempId, label: newLabel, done: false, icon: "📋", notes: newNotes, category: "Custom" }]);
     setNewLabel(""); setNewNotes(""); setShowAdd(false);
+    if (!isDemo && token) {
+      fetch("/api/farmer/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ label: newLabel, notes: newNotes, category: "Custom", icon: "📋" }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then((created: { id: number } | null) => {
+          if (created?.id) setTasks(prev => prev.map(t => t.id === tempId ? { ...t, id: created.id } : t));
+        })
+        .catch(() => {});
+    }
   };
 
   const done = tasks.filter(t => t.done).length;

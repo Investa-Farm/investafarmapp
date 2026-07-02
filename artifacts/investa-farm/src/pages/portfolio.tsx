@@ -98,6 +98,94 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+type MyBetStake = {
+  stakeId: number; betId: number; amountKES: number; position: "yes" | "no";
+  payout: number | null; betQuestion: string; farmName: string;
+  betStatus: string; betOutcome?: string; createdAt: string;
+};
+
+function MyBetsStrip({ onNavigate }: { onNavigate: () => void }) {
+  const token = getToken();
+  const { data: stakes = [], isLoading } = useQuery<MyBetStake[]>({
+    queryKey: ["portfolio-my-stakes"],
+    queryFn: async () => {
+      const r = await fetch("/api/bets/my/stakes", { headers: { Authorization: `Bearer ${token}` } });
+      return r.ok ? r.json() : [];
+    },
+    enabled: !!token,
+    staleTime: 60_000,
+  });
+
+  const totalStaked = stakes.reduce((s, m) => s + m.amountKES, 0);
+  const activeBets  = stakes.filter(s => !s.betOutcome).length;
+
+  return (
+    <div className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-300/40 rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center">
+            <Flame size={15} className="text-orange-600" />
+          </div>
+          <div>
+            <p className="text-foreground font-bold text-sm leading-none">Crop Bets</p>
+            <p className="text-muted-foreground text-[10px]">Predict prices · win the pool</p>
+          </div>
+        </div>
+        <button onClick={onNavigate}
+          className="text-[10px] font-bold text-orange-600 bg-orange-500/15 border border-orange-300/50 px-2.5 py-1 rounded-full">
+          {stakes.length > 0 ? "View All" : "Browse Bets"}
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="px-4 pb-3.5">
+          <div className="h-10 bg-muted/40 rounded-xl animate-pulse" />
+        </div>
+      ) : stakes.length === 0 ? (
+        <div className="px-4 pb-3.5">
+          <button onClick={onNavigate}
+            className="w-full flex items-center justify-center gap-2 bg-orange-500/10 border border-orange-300/40 border-dashed rounded-xl py-3 text-orange-600 text-xs font-bold active:scale-[0.98] transition-all">
+            <Zap size={13} /> Place your first bet
+          </button>
+        </div>
+      ) : (
+        <div className="px-4 pb-3.5 space-y-1.5">
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            {[
+              { label: "Bets", val: String(stakes.length) },
+              { label: "Active", val: String(activeBets) },
+              { label: "Staked", val: formatKES(totalStaked) },
+            ].map(({ label, val }) => (
+              <div key={label} className="bg-white/50 border border-orange-200/40 rounded-lg py-1.5 px-2 text-center">
+                <p className="text-foreground font-bold text-xs">{val}</p>
+                <p className="text-muted-foreground text-[9px]">{label}</p>
+              </div>
+            ))}
+          </div>
+          {stakes.slice(0, 2).map(s => {
+            const won = !!s.betOutcome && s.position === s.betOutcome;
+            const lost = !!s.betOutcome && s.position !== s.betOutcome;
+            return (
+              <div key={s.stakeId} onClick={onNavigate}
+                className="flex items-center gap-2.5 bg-white/50 rounded-xl px-3 py-2 cursor-pointer">
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                  s.position === "yes" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                  {s.position.toUpperCase()}
+                </span>
+                <p className="text-foreground text-[10px] font-medium flex-1 min-w-0 truncate">{s.betQuestion}</p>
+                <span className={`text-[10px] font-bold flex-shrink-0 ${
+                  won ? "text-green-600" : lost ? "text-red-500" : "text-amber-600"}`}>
+                  {won ? `+${formatKES((s.payout ?? 0) - s.amountKES)}` : lost ? "Lost" : "Open"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Portfolio() {
   const { data: holdings, isLoading } = useGetPortfolio();
   const { data: summary } = useGetPortfolioSummary();
@@ -786,25 +874,21 @@ export default function Portfolio() {
             );
           })()}
 
-          {/* Social features strip */}
-          <div className="grid grid-cols-2 gap-2.5 flex-shrink-0">
-            <button onClick={() => setLocation("/bets")}
-              className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-300/40 rounded-2xl p-3.5 text-left active:scale-[0.97] transition-all">
-              <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center mb-2">
-                <Flame size={16} className="text-orange-600" />
-              </div>
-              <p className="text-foreground font-bold text-sm leading-tight">Crop Bets</p>
-              <p className="text-muted-foreground text-[10px] mt-0.5 leading-snug">Stake KES · predict prices · win the pool</p>
-            </button>
-            <button onClick={() => setLocation("/syndicates")}
-              className="bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-300/40 rounded-2xl p-3.5 text-left active:scale-[0.97] transition-all">
-              <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center mb-2">
-                <Users2 size={16} className="text-violet-600" />
-              </div>
+          {/* My Bets section */}
+          <MyBetsStrip onNavigate={() => setLocation("/bets")} />
+
+          {/* Syndicates */}
+          <button onClick={() => setLocation("/syndicates")}
+            className="flex items-center gap-3 w-full bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-300/40 rounded-2xl p-3.5 text-left active:scale-[0.97] transition-all">
+            <div className="w-9 h-9 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+              <Users2 size={18} className="text-violet-600" />
+            </div>
+            <div className="flex-1 min-w-0">
               <p className="text-foreground font-bold text-sm leading-tight">Syndicates</p>
-              <p className="text-muted-foreground text-[10px] mt-0.5 leading-snug">Pool with investors · co-fund bigger farms</p>
-            </button>
-          </div>
+              <p className="text-muted-foreground text-[10px] mt-0.5">Pool with investors · co-fund bigger farms</p>
+            </div>
+            <ChevRight size={15} className="text-muted-foreground flex-shrink-0" />
+          </button>
                 </motion.div>
               )}
             </AnimatePresence>
