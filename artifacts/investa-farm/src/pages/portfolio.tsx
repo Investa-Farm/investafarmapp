@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGetPortfolio, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
@@ -7,7 +7,8 @@ import {
   TrendingUp, TrendingDown, Share2, Tag, ExternalLink, Users, BadgeCheck,
   Copy, Check, Lock, Globe, ChevronRight as ChevRight, Zap, BookOpen,
   Star, Plus, RefreshCw, Bell, CreditCard, X, Info, ChevronLeft, ChevronRight,
-  Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Briefcase, Flame, Users2,
+  Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Briefcase, Flame,
+  ShieldCheck, KeyRound, Smartphone, AlertTriangle, Eye,
 } from "lucide-react";
 import { PortfolioWizard } from "@/components/portfolio-wizard";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
@@ -65,6 +66,26 @@ type Summary = {
 function AnimatedKES({ value, className }: { value: number; className?: string }) {
   const animated = useCountUp(value);
   return <span className={className}>{formatKES(animated)}</span>;
+}
+
+function SecurityRow({ icon, label, ok, action }: {
+  icon: ReactNode; label: string; ok: boolean;
+  action?: { label: string; href: string };
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className={ok ? "text-green-600" : "text-muted-foreground"}>{icon}</span>
+        <p className="text-foreground text-xs font-medium">{label}</p>
+      </div>
+      {ok
+        ? <span className="flex items-center gap-1 text-green-600 text-[10px] font-bold"><Check size={10} /> Active</span>
+        : action
+          ? <a href={action.href} className="text-primary text-[10px] font-bold underline underline-offset-2">{action.label}</a>
+          : <span className="text-muted-foreground text-[10px] font-medium">Not set</span>
+      }
+    </div>
+  );
 }
 
 type Period = "1W" | "1M" | "3M";
@@ -877,18 +898,61 @@ export default function Portfolio() {
           {/* My Bets section */}
           <MyBetsStrip onNavigate={() => setLocation("/bets")} />
 
-          {/* Syndicates */}
-          <button onClick={() => setLocation("/syndicates")}
-            className="flex items-center gap-3 w-full bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-300/40 rounded-2xl p-3.5 text-left active:scale-[0.97] transition-all">
-            <div className="w-9 h-9 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
-              <Users2 size={18} className="text-violet-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-foreground font-bold text-sm leading-tight">Syndicates</p>
-              <p className="text-muted-foreground text-[10px] mt-0.5">Pool with investors · co-fund bigger farms</p>
-            </div>
-            <ChevRight size={15} className="text-muted-foreground flex-shrink-0" />
-          </button>
+          {/* Security status card */}
+          {(() => {
+            const u = getStoredUser() as any;
+            const hasMfa = !!(u?.mfaEnabled || u?.totpEnabled);
+            const score = hasMfa ? 85 : 55;
+            const scoreColor = score >= 80 ? "text-green-600" : score >= 60 ? "text-amber-600" : "text-red-500";
+            const scoreBg = score >= 80 ? "bg-green-50 border-green-200" : score >= 60 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
+            return (
+              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <ShieldCheck size={17} className="text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-foreground font-bold text-sm">Account Security</p>
+                      <p className="text-muted-foreground text-[10px]">Your protection status</p>
+                    </div>
+                  </div>
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-black ${scoreBg} ${scoreColor}`}>
+                    {score}/100
+                  </div>
+                </div>
+
+                {/* Score bar */}
+                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${score}%`,
+                      background: score >= 80 ? "linear-gradient(90deg,#16a34a,#4ade80)"
+                        : score >= 60 ? "linear-gradient(90deg,#d97706,#fbbf24)"
+                        : "linear-gradient(90deg,#dc2626,#f87171)",
+                    }}
+                  />
+                </div>
+
+                {/* Status rows */}
+                <div className="space-y-2">
+                  <SecurityRow icon={<BadgeCheck size={13} />} label="Email Verified" ok={!!(u?.emailVerified)} />
+                  <SecurityRow icon={<KeyRound size={13} />} label="Two-Factor Authentication (TOTP)" ok={hasMfa} action={hasMfa ? undefined : { label: "Enable", href: "/settings/security" }} />
+                  <SecurityRow icon={<Smartphone size={13} />} label="M-Pesa Wallet Linked" ok={true} />
+                  <SecurityRow icon={<Eye size={13} />} label="KYC Identity Verified" ok={u?.kycStatus === "approved"} />
+                </div>
+
+                {!hasMfa && (
+                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <AlertTriangle size={13} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-amber-800 text-[10px] font-medium leading-relaxed">Enable 2-factor authentication in Settings → Security to significantly boost your account protection.</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
                 </motion.div>
               )}
             </AnimatePresence>

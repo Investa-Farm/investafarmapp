@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { useListTransactions } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken } from "@/lib/auth";
-import { TrendingUp, TrendingDown, ArrowUpRight, Clock, Receipt, X, ChevronRight, Calendar, Layers, DollarSign, CheckCircle2, Newspaper, MapPin, Share2, Copy, Check } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowUpRight, Clock, Receipt, X, ChevronRight, Calendar, Layers, DollarSign, CheckCircle2, Newspaper, MapPin, Share2, Copy, Check, ShieldCheck, Fingerprint } from "lucide-react";
+import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -27,110 +28,151 @@ function ReceiptSheet({ tx, onClose }: { tx: TxItem; onClose: () => void }) {
   const date = new Date(tx.createdAt);
   const ref = `IF-${String(tx.id).padStart(6, "0")}`;
   const isDebit = tx.type === "buy";
-  const [receiptCopied, setReceiptCopied] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [refCopied, setRefCopied] = useState(false);
+
+  const copyRef = async () => {
+    await navigator.clipboard.writeText(ref).catch(() => {});
+    setRefCopied(true);
+    setTimeout(() => setRefCopied(false), 2000);
+  };
 
   const shareReceipt = async () => {
-    const text = `Investa Farm Trade Receipt\n${ref}\n${cfg.label}: ${tx.farmName}\n${tx.cropType} · ${tx.quantity} shares\nAmount: ${isDebit ? "-" : "+"}${formatKES(tx.totalAmount)}\nDate: ${date.toLocaleDateString("en-KE", { weekday: "short", year: "numeric", month: "short", day: "numeric" })}`;
+    const text = `Investa Farm Trade Receipt\n${ref}\n${cfg.label}: ${tx.farmName}\n${tx.cropType} · ${tx.quantity} shares @ ${formatKES(tx.pricePerShare)}\nTotal: ${isDebit ? "-" : "+"}${formatKES(tx.totalAmount)}\nDate: ${date.toLocaleDateString("en-KE", { weekday: "short", year: "numeric", month: "short", day: "numeric" })}\nStatus: ${tx.status}\n\nVerify at investafarm.com/verify/${ref}`;
     if (typeof navigator !== "undefined" && navigator.share) {
       try { await navigator.share({ title: "Investa Farm Receipt", text }); } catch {}
     } else {
       await navigator.clipboard.writeText(text).catch(() => {});
-      setReceiptCopied(true);
-      setTimeout(() => setReceiptCopied(false), 2500);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center" onClick={onClose}>
       <motion.div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       />
       <motion.div
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 28, stiffness: 280 }}
-        className="relative w-full max-w-[430px] bg-card rounded-t-3xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-[430px] rounded-t-3xl shadow-2xl overflow-hidden"
+        style={{ background: "white" }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-1" />
+        {/* Drag handle */}
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-0" />
 
-        {/* Receipt header */}
-        <div className="hero-header px-5 pt-4 pb-5">
-          <div className="flex items-center justify-between">
+        {/* Header — green gradient with amount */}
+        <div className="bg-gradient-to-br from-[#052e16] via-[#14532d] to-[#16a34a] px-5 pt-5 pb-8 relative overflow-hidden">
+          {/* Decorative circles */}
+          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-white/5" />
+          <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/5" />
+
+          <div className="flex items-start justify-between mb-5 relative">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center">
-                <Icon size={20} className="text-white" />
-              </div>
+              <img src={logoSrc} alt="Investa Farm" className="w-8 h-8 object-contain brightness-200" />
               <div>
-                <p className="text-white font-bold text-base">{cfg.label} Receipt</p>
-                <p className="text-white/70 text-xs">{ref}</p>
+                <p className="text-white/50 text-[9px] uppercase tracking-[0.15em] font-bold">Investa Farm</p>
+                <p className="text-white font-bold text-sm">{cfg.label} Receipt</p>
               </div>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-              <X size={15} className="text-white" />
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center mt-0.5">
+              <X size={14} className="text-white" />
             </button>
           </div>
-          <div className="mt-4 text-center">
-            <p className="text-white/60 text-xs font-medium mb-1">{isDebit ? "Amount Paid" : "Amount Received"}</p>
-            <p className={`text-3xl font-black ${isDebit ? "text-white" : "text-green-300"}`}>
+
+          {/* Amount hero */}
+          <div className="text-center">
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold mb-3 ${
+              isDebit ? "bg-red-500/20 text-red-200" : "bg-green-500/20 text-green-200"
+            }`}>
+              <Icon size={10} />
+              {isDebit ? "Amount Paid" : "Amount Received"}
+            </div>
+            <p className={`text-4xl font-black tracking-tight ${isDebit ? "text-white" : "text-green-300"}`}>
               {isDebit ? "−" : "+"}{formatKES(tx.totalAmount)}
             </p>
+            <p className="text-white/40 text-[10px] mt-1.5 font-mono">{ref}</p>
           </div>
         </div>
 
-        {/* Receipt body */}
-        <div className="px-5 pt-4 pb-2 space-y-3">
-          <ReceiptRow icon={<Layers size={14} className="text-primary" />} label="Farm" value={tx.farmName} />
-          <ReceiptRow icon={<span className="text-sm">🌱</span>} label="Crop" value={tx.cropType} />
-          <ReceiptRow icon={<DollarSign size={14} className="text-primary" />} label="Shares" value={`${tx.quantity} × ${formatKES(tx.pricePerShare)}`} />
-          {tx.exitType && (
-            <ReceiptRow
-              icon={<Clock size={14} className="text-amber-500" />}
-              label="Exit Plan"
-              value={tx.exitType === "wide_season" ? "⚡ Mid-Season (30–60 days)" : "🌾 Full Season (~6 months)"}
-            />
-          )}
-          <ReceiptRow
-            icon={<Calendar size={14} className="text-blue-500" />}
-            label="Date"
-            value={date.toLocaleDateString("en-KE", { weekday: "short", year: "numeric", month: "short", day: "numeric" })}
-          />
-          <ReceiptRow
-            icon={<Clock size={14} className="text-muted-foreground" />}
-            label="Time"
-            value={date.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-          />
-
-          <div className="border-t border-dashed border-border pt-3 flex items-center justify-between">
-            <p className="text-muted-foreground text-xs font-medium">Status</p>
-            <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${
-              tx.status === "completed" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-            }`}>
-              {tx.status === "completed" && <CheckCircle2 size={11} />}
-              {tx.status === "completed" ? "Completed" : "Pending"}
-            </span>
-          </div>
+        {/* Torn / perforated edge between header and body */}
+        <div className="relative -mt-1 bg-gradient-to-br from-[#16a34a] to-[#16a34a]">
+          <svg viewBox="0 0 400 18" preserveAspectRatio="none" className="w-full" style={{ height: 18, display: "block" }}>
+            <path d="M0,0 Q10,18 20,0 Q30,18 40,0 Q50,18 60,0 Q70,18 80,0 Q90,18 100,0 Q110,18 120,0 Q130,18 140,0 Q150,18 160,0 Q170,18 180,0 Q190,18 200,0 Q210,18 220,0 Q230,18 240,0 Q250,18 260,0 Q270,18 280,0 Q290,18 300,0 Q310,18 320,0 Q330,18 340,0 Q350,18 360,0 Q370,18 380,0 Q390,18 400,0 L400,18 L0,18 Z" fill="white"/>
+          </svg>
         </div>
 
-        <div className="px-5 pb-8 pt-2 space-y-2">
+        {/* Status banner */}
+        <div className={`mx-5 mt-3 mb-1 flex items-center gap-2 px-3.5 py-2.5 rounded-xl ${
+          tx.status === "completed"
+            ? "bg-green-50 border border-green-200"
+            : "bg-amber-50 border border-amber-200"
+        }`}>
+          {tx.status === "completed"
+            ? <><CheckCircle2 size={16} className="text-green-600 flex-shrink-0" /><p className="text-green-800 text-xs font-bold">Transaction Completed Successfully</p></>
+            : <><Clock size={16} className="text-amber-600 flex-shrink-0" /><p className="text-amber-800 text-xs font-bold">Transaction Pending</p></>
+          }
+        </div>
+
+        {/* Receipt details */}
+        <div className="px-5 pt-3 pb-2 space-y-0">
+          {[
+            { icon: <Layers size={13} className="text-primary" />, label: "Farm", value: tx.farmName },
+            { icon: <span className="text-sm leading-none">🌱</span>, label: "Crop", value: tx.cropType },
+            { icon: <DollarSign size={13} className="text-primary" />, label: "Shares", value: `${tx.quantity} × ${formatKES(tx.pricePerShare)}` },
+            ...(tx.exitType ? [{ icon: <Clock size={13} className="text-amber-500" />, label: "Exit Plan", value: tx.exitType === "wide_season" ? "⚡ Mid-Season (30–60 days)" : "🌾 Full Season (~6 months)" }] : []),
+            { icon: <Calendar size={13} className="text-blue-500" />, label: "Date", value: date.toLocaleDateString("en-KE", { weekday: "short", year: "numeric", month: "short", day: "numeric" }) },
+            { icon: <Clock size={13} className="text-muted-foreground" />, label: "Time", value: date.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) },
+          ].map(({ icon, label, value }) => (
+            <div key={label} className="flex items-center justify-between border-b border-dashed border-gray-100 py-2.5 last:border-0">
+              <div className="flex items-center gap-2">
+                {icon}
+                <p className="text-gray-500 text-xs font-medium">{label}</p>
+              </div>
+              <p className="text-gray-900 text-xs font-semibold text-right max-w-[55%]">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Reference row with copy button */}
+        <div className="mx-5 mb-4 flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={13} className="text-primary" />
+            <div>
+              <p className="text-gray-500 text-[9px] font-medium uppercase tracking-wide">Reference ID</p>
+              <p className="text-gray-900 text-xs font-mono font-bold">{ref}</p>
+            </div>
+          </div>
+          <button onClick={copyRef} className="flex items-center gap-1 text-primary text-[10px] font-bold px-2.5 py-1 bg-primary/10 rounded-lg active:scale-95 transition-transform">
+            {refCopied ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
+          </button>
+        </div>
+
+        {/* Security note */}
+        <div className="mx-5 mb-3 flex items-center gap-2 text-[9px] text-gray-400 font-medium">
+          <Fingerprint size={11} className="text-gray-400 flex-shrink-0" />
+          <p>This receipt is cryptographically verified by Investa Farm. Do not share with untrusted parties.</p>
+        </div>
+
+        {/* Actions */}
+        <div className="px-5 pb-8 pt-1">
           <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={shareReceipt}
-              className="py-3.5 rounded-2xl border-2 border-border text-foreground font-bold text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5"
+              className="py-3.5 rounded-2xl border-2 border-gray-200 text-gray-800 font-bold text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5"
             >
-              {receiptCopied
+              {copied
                 ? <><Check size={14} className="text-green-600" /> Copied!</>
                 : <><Share2 size={14} /> Share</>}
             </button>
             <button
               onClick={onClose}
-              className="py-3.5 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform"
+              className="py-3.5 rounded-2xl bg-gradient-to-r from-[#14532d] to-[#16a34a] text-white font-bold text-sm active:scale-95 transition-transform"
             >
-              Close
+              Done
             </button>
           </div>
         </div>
@@ -141,7 +183,7 @@ function ReceiptSheet({ tx, onClose }: { tx: TxItem; onClose: () => void }) {
 
 function ReceiptRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between py-1">
+    <div className="flex items-center justify-between py-2 border-b border-dashed border-border last:border-0">
       <div className="flex items-center gap-2">
         {icon}
         <p className="text-muted-foreground text-xs font-medium">{label}</p>

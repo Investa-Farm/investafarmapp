@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
-import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, ArrowUpRight, Globe2, ShoppingBag, Users2, Package } from "lucide-react";
+import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, ArrowUpRight, Globe2, ShoppingBag, Package } from "lucide-react";
 import { useCurrency, CURRENCIES, type CurrencyCode } from "@/lib/currency";
 import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
 import { WalletModal } from "@/components/wallet-modal";
@@ -342,32 +342,67 @@ export default function FarmerDashboard() {
           </button>
         )}
 
-        {/* Farm funding progress — shown when there is an active farm (no separate "View Listing" button) */}
+        {/* Farm funding progress — rich card with crop image banner */}
         {currentFarm && (
           <button
             onClick={() => setLocation("/farmer/operations")}
-            className="w-full bg-card border border-border rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
-                  <img src={getCropImage(currentFarm.cropType)} alt="" className="w-full h-full object-cover" loading="lazy" />
-                </div>
+            className="w-full rounded-2xl overflow-hidden text-left active:scale-[0.98] transition-transform shadow-lg shadow-black/10">
+            {/* Crop image banner */}
+            <div className="relative h-28 overflow-hidden">
+              <img src={getCropImage(currentFarm.cropType)} alt={currentFarm.cropType}
+                className="w-full h-full object-cover" loading="lazy" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+              {/* Top badges */}
+              <div className="absolute top-2.5 left-3 right-3 flex items-center justify-between">
+                <span className="bg-black/40 backdrop-blur-sm border border-white/20 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <MapPin size={8} /> {currentFarm.location}
+                </span>
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                  (currentFarm.fundingPercent ?? 0) >= 100
+                    ? "bg-green-500 text-white"
+                    : "bg-amber-400 text-amber-900"
+                }`}>
+                  {(currentFarm.fundingPercent ?? 0) >= 100 ? "✓ FULLY FUNDED" : "FUNDING"}
+                </span>
+              </div>
+              {/* Bottom crop label */}
+              <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between">
                 <div>
-                  <p className="text-foreground font-bold text-sm">{currentFarm.cropType}</p>
-                  <p className="text-muted-foreground text-[10px]">{currentFarm.location}</p>
+                  <p className="text-white font-black text-base leading-tight">{currentFarm.cropType}</p>
+                  <p className="text-white/70 text-[9px] font-medium">Active Farm Listing</p>
+                </div>
+                <p className="text-green-300 font-black text-xl leading-none">{currentFarm.fundingPercent ?? 0}<span className="text-sm">%</span></p>
+              </div>
+            </div>
+
+            {/* Progress + actions row */}
+            <div className="bg-card border-x border-b border-border rounded-b-2xl px-4 py-3 space-y-2.5">
+              {/* Funding progress bar */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-muted-foreground text-[10px] font-medium">Funding Progress</p>
+                  <p className="text-primary text-[10px] font-bold">{currentFarm.fundingPercent ?? 0}% complete</p>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${currentFarm.fundingPercent ?? 0}%`,
+                      background: (currentFarm.fundingPercent ?? 0) >= 100
+                        ? "linear-gradient(90deg, #16a34a, #4ade80)"
+                        : "linear-gradient(90deg, #16a34a, #86efac)"
+                    }} />
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-primary font-bold text-sm">{currentFarm.fundingPercent ?? 0}%</p>
-                <p className="text-muted-foreground text-[10px]">funded</p>
+              {/* Manage CTA */}
+              <div className="flex items-center justify-between">
+                <p className="text-muted-foreground text-[10px]">Tap to manage your listing</p>
+                <div className="flex items-center gap-1 bg-primary/10 text-primary px-2.5 py-1 rounded-lg">
+                  <TrendingUp size={11} />
+                  <span className="text-[10px] font-bold">Manage</span>
+                </div>
               </div>
             </div>
-            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${currentFarm.fundingPercent ?? 0}%` }} />
-            </div>
-            <p className="text-muted-foreground text-[10px] mt-1.5 flex items-center gap-1">
-              <TrendingUp size={10} className="text-primary" /> Tap to manage your listing
-            </p>
           </button>
         )}
 
@@ -415,24 +450,6 @@ export default function FarmerDashboard() {
             </div>
           </button>
         )}
-
-        {/* Syndicates entry */}
-        <button
-          onClick={() => setLocation("/syndicates")}
-          className="w-full bg-violet-50 border border-violet-200 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-                <Users2 size={18} className="text-violet-700" />
-              </div>
-              <div>
-                <p className="text-violet-900 font-bold text-sm">Join a Syndicate</p>
-                <p className="text-violet-700 text-[11px]">Pool with investors · get larger farm funding</p>
-              </div>
-            </div>
-            <ChevronRight size={16} className="text-violet-500" />
-          </div>
-        </button>
 
         {/* Crop Timeline — only show when there's a real active stage */}
         {currentFarm && (

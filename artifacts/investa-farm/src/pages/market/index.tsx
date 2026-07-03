@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Share2, Flame, Users2 } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Share2, Flame } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import {
   useGetTopMovers,
@@ -1189,21 +1189,6 @@ export default function MarketHome() {
               </div>
             </Link>
 
-            {/* Social features strip — Syndicates */}
-            <Link href="/syndicates">
-              <div className="bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-300/40 rounded-2xl p-3.5 cursor-pointer active:scale-[0.97] transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
-                    <Users2 size={18} className="text-violet-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-foreground font-bold text-sm leading-tight">Syndicates</p>
-                    <p className="text-muted-foreground text-[10px] mt-0.5">Pool funds · co-invest in bigger farms</p>
-                  </div>
-                  <ChevronRight size={15} className="text-muted-foreground flex-shrink-0" />
-                </div>
-              </div>
-            </Link>
           </>
         )}
 

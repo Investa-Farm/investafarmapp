@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Wallet, CheckCircle2, Receipt, CreditCard, Coins, Smartphone } from "lucide-react";
+import { X, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Wallet, CheckCircle2, Receipt, CreditCard, Coins, Smartphone, Copy, Check } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGetPortfolioSummary } from "@workspace/api-client-react";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
@@ -34,6 +34,22 @@ const MPESA_CODES = [
   { code: "+256", flag: "🇺🇬", name: "Uganda" },
   { code: "+250", flag: "🇷🇼", name: "Rwanda" },
 ];
+
+function CopyRefBtn({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        await navigator.clipboard.writeText(value).catch(() => {});
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="flex items-center gap-1 text-primary text-[10px] font-bold px-2.5 py-1 bg-primary/10 rounded-lg active:scale-95 transition-transform"
+    >
+      {copied ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
+    </button>
+  );
+}
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -521,50 +537,86 @@ export function WalletModal({ open, onClose }: Props) {
             <AnimatePresence>
               {receiptTx && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-20 flex items-end justify-center bg-black/50"
+                  className="absolute inset-0 z-20 flex items-end justify-center bg-black/60 backdrop-blur-sm"
                   onClick={(e) => { if (e.target === e.currentTarget) setReceiptTx(null); }}>
                   <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                     transition={{ type: "spring", damping: 30, stiffness: 300 }}
                     className="w-full bg-white rounded-t-3xl overflow-y-auto"
-                    style={{ maxHeight: "88dvh" }}>
-                    {/* Receipt header */}
-                    <div className="bg-primary px-5 pt-6 pb-8 text-white text-center relative">
-                      <button onClick={() => setReceiptTx(null)}
-                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                        <X size={14} />
-                      </button>
-                      <div className="text-3xl mb-1">{TX_ICONS[receiptTx.type]?.emoji ?? "💳"}</div>
-                      <p className="text-white/80 text-xs uppercase tracking-widest font-semibold mb-1 capitalize">{receiptTx.type}</p>
-                      <p className={`text-2xl font-black ${["deposit","return","transfer"].includes(receiptTx.type) ? "text-green-300" : "text-red-300"}`}>
-                        {["deposit","return","transfer"].includes(receiptTx.type) ? "+" : "-"}{formatAmount(parseFloat(receiptTx.amount))}
-                      </p>
+                    style={{ maxHeight: "90dvh" }}>
+                    {/* Drag handle */}
+                    <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-0" />
+
+                    {/* Receipt header — gradient */}
+                    <div className="bg-gradient-to-br from-[#052e16] via-[#14532d] to-[#16a34a] px-5 pt-5 pb-8 relative overflow-hidden">
+                      <div className="absolute -top-5 -right-5 w-24 h-24 rounded-full bg-white/5" />
+                      <div className="absolute -bottom-3 -left-3 w-16 h-16 rounded-full bg-white/5" />
+                      <div className="flex items-center justify-between mb-4 relative">
+                        <div className="flex items-center gap-2.5">
+                          <img src={logoSrc} alt="Investa Farm" className="w-7 h-7 object-contain brightness-200" />
+                          <div>
+                            <p className="text-white/50 text-[8px] uppercase tracking-[0.15em] font-bold">Investa Farm</p>
+                            <p className="text-white font-bold text-sm capitalize">{receiptTx.type} Receipt</p>
+                          </div>
+                        </div>
+                        <button onClick={() => setReceiptTx(null)}
+                          className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center">
+                          <X size={14} className="text-white" />
+                        </button>
+                      </div>
+                      <div className="text-center relative">
+                        <div className="text-3xl mb-2">{TX_ICONS[receiptTx.type]?.emoji ?? "💳"}</div>
+                        <p className={`text-3xl font-black tracking-tight ${["deposit","return","transfer"].includes(receiptTx.type) ? "text-green-300" : "text-red-300"}`}>
+                          {["deposit","return","transfer"].includes(receiptTx.type) ? "+" : "−"}{formatAmount(parseFloat(receiptTx.amount))}
+                        </p>
+                        <p className="text-white/40 text-[10px] font-mono mt-1.5">{receiptTx.reference ?? `WL-${String(receiptTx.id).padStart(6,"0")}`}</p>
+                      </div>
                     </div>
+
                     {/* Torn edge */}
-                    <div className="h-4 bg-primary relative" style={{ marginTop: -1 }}>
-                      <svg viewBox="0 0 400 16" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
-                        <path d="M0,0 Q20,16 40,0 Q60,16 80,0 Q100,16 120,0 Q140,16 160,0 Q180,16 200,0 Q220,16 240,0 Q260,16 280,0 Q300,16 320,0 Q340,16 360,0 Q380,16 400,0 L400,16 L0,16 Z" fill="white"/>
+                    <div className="bg-[#16a34a] relative" style={{ height: 18 }}>
+                      <svg viewBox="0 0 400 18" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
+                        <path d="M0,0 Q10,18 20,0 Q30,18 40,0 Q50,18 60,0 Q70,18 80,0 Q90,18 100,0 Q110,18 120,0 Q130,18 140,0 Q150,18 160,0 Q170,18 180,0 Q190,18 200,0 Q210,18 220,0 Q230,18 240,0 Q250,18 260,0 Q270,18 280,0 Q290,18 300,0 Q310,18 320,0 Q330,18 340,0 Q350,18 360,0 Q370,18 380,0 Q390,18 400,0 L400,18 L0,18 Z" fill="white"/>
                       </svg>
                     </div>
+
+                    {/* Status banner */}
+                    <div className={`mx-5 mt-3 mb-1 flex items-center gap-2 px-3.5 py-2.5 rounded-xl ${
+                      receiptTx.status === "completed" ? "bg-green-50 border border-green-200"
+                        : receiptTx.status === "pending" ? "bg-amber-50 border border-amber-200"
+                        : "bg-red-50 border border-red-200"
+                    }`}>
+                      <CheckCircle2 size={15} className={receiptTx.status === "completed" ? "text-green-600" : receiptTx.status === "pending" ? "text-amber-600" : "text-red-500"} />
+                      <p className={`text-xs font-bold ${receiptTx.status === "completed" ? "text-green-800" : receiptTx.status === "pending" ? "text-amber-800" : "text-red-800"}`}>
+                        {receiptTx.status.charAt(0).toUpperCase() + receiptTx.status.slice(1)}
+                      </p>
+                    </div>
+
                     {/* Receipt rows */}
-                    <div className="px-5 py-4 space-y-3">
+                    <div className="px-5 pt-3 pb-2 space-y-0">
                       {[
                         { label: "Description", value: receiptTx.description ?? receiptTx.type },
-                        { label: "Date", value: new Date(receiptTx.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" }) },
-                        { label: "Reference", value: receiptTx.reference ?? "—" },
-                        { label: "Status", value: receiptTx.status },
+                        { label: "Date & Time", value: new Date(receiptTx.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" }) },
                         { label: "Balance After", value: formatAmount(parseFloat(receiptTx.balanceAfter)) },
                       ].map(({ label, value }) => (
-                        <div key={label} className="flex justify-between items-start border-b border-dashed border-border pb-2 last:border-0">
-                          <span className="text-muted-foreground text-xs font-medium">{label}</span>
-                          <span className={`text-xs font-semibold text-right max-w-[55%] ${label === "Status" ? (receiptTx.status === "completed" ? "text-green-600" : receiptTx.status === "pending" ? "text-amber-600" : "text-red-500") : "text-foreground"}`}>
-                            {label === "Status" ? value.charAt(0).toUpperCase() + value.slice(1) : value}
-                          </span>
+                        <div key={label} className="flex justify-between items-center border-b border-dashed border-gray-100 py-2.5 last:border-0">
+                          <span className="text-gray-500 text-xs font-medium">{label}</span>
+                          <span className="text-gray-900 text-xs font-semibold text-right max-w-[55%]">{value}</span>
                         </div>
                       ))}
                     </div>
-                    <div className="px-5 pb-6">
+
+                    {/* Reference with copy */}
+                    <div className="mx-5 mb-4 flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5">
+                      <div>
+                        <p className="text-gray-400 text-[9px] font-bold uppercase tracking-wide">Reference</p>
+                        <p className="text-gray-900 text-xs font-mono font-bold">{receiptTx.reference ?? `WL-${String(receiptTx.id).padStart(6,"0")}`}</p>
+                      </div>
+                      <CopyRefBtn value={receiptTx.reference ?? `WL-${String(receiptTx.id).padStart(6,"0")}`} />
+                    </div>
+
+                    <div className="px-5 pb-8">
                       <button onClick={() => setReceiptTx(null)}
-                        className="w-full bg-primary text-white font-bold text-sm py-3.5 rounded-2xl active:scale-95 transition-transform">
+                        className="w-full bg-gradient-to-r from-[#14532d] to-[#16a34a] text-white font-bold text-sm py-3.5 rounded-2xl active:scale-95 transition-transform">
                         Done
                       </button>
                     </div>
