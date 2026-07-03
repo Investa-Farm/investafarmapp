@@ -163,6 +163,7 @@ export default function AdminDashboard() {
   const [limitsForm, setLimitsForm] = useState({ creditLimitKES: "", maxDepositKES: "", maxWithdrawalKES: "" });
   const [limitsSaving, setLimitsSaving] = useState(false);
   const [isViewer, setIsViewer] = useState(false);
+  const [seedLoading, setSeedLoading] = useState(false);
 
   // Sub-accounts management
   const [subAdmins, setSubAdmins] = useState<Array<{ id: number; name: string; email: string; createdAt: string }>>([]);
@@ -717,6 +718,28 @@ export default function AdminDashboard() {
     } finally { setFraudLoading(false); }
   };
 
+  const seedDemoData = async () => {
+    if (!confirm("This will create ~900 demo farmers, ~900 demo investors, KYC docs, and wallet transactions. Continue?")) return;
+    setSeedLoading(true);
+    try {
+      const r = await fetch("/api/admin/seed-bulk-demo", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showToast(`✅ ${data.message}`);
+        fetchStats();
+      } else {
+        showToast(data.error ?? "Seed failed", "error");
+      }
+    } catch {
+      showToast("Seed failed", "error");
+    } finally {
+      setSeedLoading(false);
+    }
+  };
+
   const fetchProposals = async () => {
     setProposalsLoading(true);
     try {
@@ -1115,7 +1138,7 @@ export default function AdminDashboard() {
               { label: "KYC Pend.", val: stats.pendingKyc },
             ].map(({ label, val }) => (
               <div key={label} className="bg-white/10 rounded-xl p-2 text-center">
-                <p className="text-white font-bold text-lg leading-none">{val}</p>
+                <p className="text-white font-bold text-lg leading-none">{fmtNum(val)}</p>
                 <p className="text-white/60 text-[9px] mt-0.5">{label}</p>
               </div>
             ))}
@@ -1203,6 +1226,30 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               </div>
+
+              {/* Seed Demo Data — master admin only */}
+              {isMasterAdmin && (
+                <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                        <Sprout size={15} className="text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="text-emerald-900 font-semibold text-xs">Seed Demo Data</p>
+                        <p className="text-emerald-600 text-[10px]">Add ~900 farmers, ~900 investors with KYC & txns</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={seedDemoData}
+                      disabled={seedLoading}
+                      className="flex-shrink-0 flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl active:scale-95 transition-transform disabled:opacity-60"
+                    >
+                      {seedLoading ? <><RefreshCw size={11} className="animate-spin" /> Seeding…</> : <><Play size={11} /> Seed</>}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Recent users */}
               <div>
@@ -1444,7 +1491,8 @@ export default function AdminDashboard() {
                       {u.role} · {u.kycDocCount} doc{u.kycDocCount !== 1 ? "s" : ""} · {new Date(u.createdAt).toLocaleDateString("en-KE")}
                     </p>
                   </div>
-                  {/* Role change */}
+                  {/* Role change — hidden for viewer accounts */}
+                  {!isViewer && (
                   <div className="relative flex-shrink-0">
                     <button onClick={() => setRoleEditId(roleEditId === u.id ? null : u.id)}
                       className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg bg-muted border border-border text-muted-foreground">
@@ -1461,8 +1509,9 @@ export default function AdminDashboard() {
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
-                {u.role !== "admin" && u.kycStatus !== "approved" && (
+                {u.role !== "admin" && u.kycStatus !== "approved" && !isViewer && (
                   <div className="border-t border-border px-4 py-2.5 flex gap-2">
                     {isMasterAdmin ? (
                       <>
@@ -1547,8 +1596,8 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
-                {/* Delete user */}
-                {u.role !== "admin" && (
+                {/* Delete user — viewers cannot delete */}
+                {u.role !== "admin" && !isViewer && (
                   <div className="border-t border-border px-4 py-2">
                     <button onClick={() => deleteUser(u.id, u.name)} disabled={actionLoading === u.id}
                       className="flex items-center gap-1.5 text-red-500 text-[11px] font-semibold hover:text-red-700 transition-colors disabled:opacity-50">
@@ -1653,7 +1702,7 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 </div>
-                {(doc.status === "pending" || doc.status === "rejected") && (
+                {(doc.status === "pending" || doc.status === "rejected") && !isViewer && (
                   <div className="border-t border-border px-4 py-2.5 flex gap-2">
                     {isMasterAdmin ? (
                       <>
@@ -1883,7 +1932,9 @@ export default function AdminDashboard() {
                       <p className="text-foreground text-xs font-semibold">{f.name}</p>
                     </div>
 
-                    {/* Action buttons */}
+                    {/* Action buttons — hidden for viewer accounts */}
+                    {!isViewer ? (
+                    <>
                     <div className="grid grid-cols-2 gap-2.5">
                       <button
                         onClick={() => approveProposal(f.id, false)}
@@ -1899,6 +1950,10 @@ export default function AdminDashboard() {
                     <p className="text-muted-foreground text-[9px] text-center mt-2">
                       Approving makes this farm visible to investors on the marketplace
                     </p>
+                    </>
+                    ) : (
+                      <p className="text-muted-foreground text-[10px] flex items-center justify-center gap-1 py-1"><Eye size={10} /> View only — approval disabled</p>
+                    )}
                   </div>
                 </div>
               ))
@@ -1980,6 +2035,8 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
+                {/* Farm actions — read-only for viewers */}
+                {!isViewer && (
                 <div className="border-t border-border px-3 py-2 flex gap-1.5 flex-wrap">
                   {["pending", "active", "funded", "harvested"].filter(s => s !== f.status).map(s => (
                     <button key={s} onClick={() => updateFarmStatus(f.id, s)}
@@ -2012,6 +2069,12 @@ export default function AdminDashboard() {
                     {deleteLoading === f.id ? "…" : "🗑 Delete"}
                   </button>
                 </div>
+                )}
+                {isViewer && (
+                  <div className="border-t border-border px-4 py-2">
+                    <p className="text-muted-foreground text-[10px] flex items-center gap-1"><Eye size={10} /> View only — farm actions disabled</p>
+                  </div>
+                )}
                 {fundingFarmId === f.id && (
                   <div className="border-t border-green-200 bg-green-50 px-3 py-3 flex gap-2 items-center">
                     <div className="relative flex-1">

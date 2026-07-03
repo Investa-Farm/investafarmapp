@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, notInArray, inArray, and, count, sql } from "drizzle-orm";
+import bcrypt from "bcrypt";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db, pool, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable, supportTicketsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
@@ -1828,6 +1829,164 @@ router.post("/admin/wallet/:userId/credit", async (req, res): Promise<void> => {
   }
 
   res.json({ ok: true, amountKES, newBalance });
+});
+
+// ── BULK DEMO SEED ────────────────────────────────────────────────────────────
+// POST /admin/seed-bulk-demo — populate platform with realistic demo data
+router.post("/admin/seed-bulk-demo", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+
+  // Master-only — enforce server-side regardless of UI gating
+  const adminTok = (req.headers.authorization ?? "").replace(/^bearer\s+/i, "");
+  const adminRole = verifyAdminToken(adminTok);
+  if (adminRole !== "master") {
+    res.status(403).json({ error: "Seed demo data requires master admin role" });
+    return;
+  }
+
+  const FIRST_NAMES = [
+    "Amina","John","Mary","Peter","Grace","Samuel","Lucy","Daniel","Sarah","Moses",
+    "Alice","Robert","Fatuma","James","Catherine","Francis","Gloria","Hassan","Irene","Joseph",
+    "Lilian","Michael","Nancy","Owen","Priscilla","Ruth","Simon","Teresa","Unity","Victor",
+    "Wambui","Yvonne","Zachary","Aisha","Bernard","Christine","David","Eleanor","Felix","Gladys",
+    "Henry","Isabella","Julian","Karen","Lawrence","Martha","Nicholas","Olivia","Patrick","Queenie",
+    "Raymond","Stella","Thomas","Ursula","Valentine","Winnie","Xavier","Yasmin","Zipporah","Agnes",
+  ];
+  const FARMER_SURNAMES = [
+    "Kamau","Odhiambo","Wanjiru","Otieno","Mwangi","Kipchoge","Njoroge","Akinyi","Hassan",
+    "Kariuki","Mugo","Chebet","Omondi","Wanjiku","Mutua","Njenga","Kiprotich","Adhiambo",
+    "Koech","Kimani","Ndegwa","Onyango","Kiptoo","Waweru","Sigei",
+  ];
+  const INVESTOR_SURNAMES = [
+    "Njenga","Kiprotich","Adhiambo","Koech","Kimani","Ndegwa","Onyango","Kiptoo","Waweru","Sigei",
+    "Muthoni","Nyambura","Wangari","Njuguna","Githinji",
+  ];
+
+  // Pre-hash once to avoid bcrypt blocking on every row
+  const passwordHash = await bcrypt.hash("Demo@2024!", 8);
+
+  let farmersCreated = 0, investorsCreated = 0, kycCreated = 0, txCreated = 0;
+  const newFarmerIds: number[] = [];
+  const newInvestorIds: number[] = [];
+
+  // Create farmers (60 first names × 15 last names = up to 900, but limited by uniq emails)
+  for (let fi = 0; fi < FIRST_NAMES.length; fi++) {
+    for (let si = 0; si < FARMER_SURNAMES.length; si++) {
+      const firstName = FIRST_NAMES[fi]!;
+      const surname = FARMER_SURNAMES[si]!;
+      const idx = fi * 100 + si;
+      const email = `${firstName.toLowerCase()}.${surname.toLowerCase()}${idx}@gmail.com`;
+      try {
+        const inserted = await db.insert(usersTable).values({
+          email, passwordHash,
+          name: `${firstName} ${surname}`,
+          role: "farmer" as const,
+          emailVerified: true,
+        }).onConflictDoNothing().returning({ id: usersTable.id });
+        if (inserted[0]) { farmersCreated++; newFarmerIds.push(inserted[0].id); }
+      } catch { /* skip */ }
+    }
+  }
+
+  // Create investors (60 first names × 15 last names = up to 900)
+  for (let fi = 0; fi < FIRST_NAMES.length; fi++) {
+    for (let si = 0; si < INVESTOR_SURNAMES.length; si++) {
+      const firstName = FIRST_NAMES[fi]!;
+      const surname = INVESTOR_SURNAMES[si]!;
+      const idx = fi * 100 + si;
+      const email = `${firstName.toLowerCase()}.inv${idx}@gmail.com`;
+      try {
+        const inserted = await db.insert(usersTable).values({
+          email, passwordHash,
+          name: `${firstName} ${surname}`,
+          role: "investor" as const,
+          emailVerified: true,
+        }).onConflictDoNothing().returning({ id: usersTable.id });
+        if (inserted[0]) { investorsCreated++; newInvestorIds.push(inserted[0].id); }
+      } catch { /* skip */ }
+    }
+  }
+
+  // Create KYC docs for new farmers (mix of pending + approved for realistic admin view)
+  const docStatuses: Array<"pending" | "approved"> = ["pending", "approved", "approved"];
+  for (let i = 0; i < newFarmerIds.length; i++) {
+    const userId = newFarmerIds[i]!;
+    const st = docStatuses[i % docStatuses.length]!;
+    try {
+      await db.insert(kycDocumentsTable).values([
+        {
+          userId, docType: "national_id" as const, title: "National ID",
+          fileUrl: `uploaded://seed-id-${userId}`,
+          status: st, notes: "Demo — auto-seeded",
+          reviewedAt: st === "approved" ? new Date() : null,
+        },
+        {
+          userId, docType: "farm_report" as const, title: "Farm Business Report",
+          fileUrl: `uploaded://seed-report-${userId}`,
+          status: i % 5 === 0 ? "pending" : "approved" as const,
+          notes: "Demo — auto-seeded",
+          reviewedAt: i % 5 !== 0 ? new Date() : null,
+        },
+      ]).onConflictDoNothing();
+      kycCreated += 2;
+    } catch { /* skip */ }
+  }
+
+  // Create wallets + seed transactions for new investors
+  // Use explicit existence check (not onConflictDoNothing) because wallets.userId has no unique constraint
+  for (let i = 0; i < newInvestorIds.length; i++) {
+    const userId = newInvestorIds[i]!;
+    const balance = 50000 + (i % 30) * 10000 + (userId % 5) * 5000;
+    try {
+      // Check if wallet already exists for this user
+      const existing = await db.select({ id: walletsTable.id }).from(walletsTable)
+        .where(eq(walletsTable.userId, userId)).limit(1);
+      if (existing[0]) continue; // skip if already seeded
+
+      const walletRows = await db.insert(walletsTable).values({
+        userId, balance: String(balance), currency: "KES",
+      }).returning();
+      if (walletRows[0]) {
+        const walletId = walletRows[0].id;
+        // Opening deposit
+        const refOpen = `BULK-SEED-${userId}-OPEN`;
+        const existingTx = await db.select({ id: walletTransactionsTable.id }).from(walletTransactionsTable)
+          .where(eq(walletTransactionsTable.reference, refOpen)).limit(1);
+        if (!existingTx[0]) {
+          await db.insert(walletTransactionsTable).values({
+            walletId, userId, type: "deposit",
+            amount: String(balance), balanceAfter: String(balance),
+            description: "Account opening deposit — M-Pesa",
+            reference: refOpen,
+            status: "completed",
+          });
+          // Seed a return transaction for realistic history
+          const ret = Math.round(balance * 0.12);
+          await db.insert(walletTransactionsTable).values({
+            walletId, userId, type: "return",
+            amount: String(ret), balanceAfter: String(balance + ret),
+            description: "Harvest dividend payout — Kamau Coffee Estate",
+            reference: `BULK-SEED-${userId}-RET`,
+            status: "completed",
+          });
+          txCreated += 2;
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  // Invalidate the stats cache so next /admin/stats reflects new data
+  _statsCache = null;
+
+  res.json({
+    ok: true,
+    farmersCreated,
+    investorsCreated,
+    kycCreated,
+    txCreated,
+    message: `Seeded ${farmersCreated} farmers, ${investorsCreated} investors, ${kycCreated} KYC docs, ${txCreated} transactions.`,
+  });
 });
 
 // Public DB health — lightweight, no auth, safe for uptime monitors
