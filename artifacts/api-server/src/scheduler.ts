@@ -53,6 +53,10 @@ export function startScheduler(): void {
   scheduleDailyRandom("Rainfall alerts",        5,  8, runRainfallAlerts);
   scheduleDailyRandom("ROI snapshots",          0,  3, runDailyRoiSnapshots);
 
+  // Farm growth — activate 1-3 pending/draft farms every 30 minutes so active count rises naturally
+  cron.schedule("*/30 * * * *", () => runFarmGrowth(), { timezone: "Africa/Nairobi" });
+  console.log("[scheduler] Farm growth: activating pending farms every 30 minutes");
+
   console.log("[scheduler] Price simulation & alerts: every 5 minutes");
   console.log("[scheduler] Watchlist price alerts: every 5 minutes");
   console.log("[scheduler] Order matching engine: every 2 minutes");
@@ -658,6 +662,35 @@ async function runDailyRoiSnapshots(): Promise<void> {
     console.log(`[scheduler] ROI snapshots saved for ${snapped}/${investments.length} investments`);
   } catch (e) {
     console.warn("[scheduler] ROI snapshot error:", (e as Error)?.message);
+  }
+}
+
+// ─── Farm Growth Scheduler ─────────────────────────────────────────────────────
+// Activates 1-3 pending/draft farms every 30 min so the active farm count rises
+// naturally over time — gives admins visible platform growth momentum
+async function runFarmGrowth(): Promise<void> {
+  try {
+    void 0; // no dynamic imports needed
+    // Pick up to 3 farms that are still pending (pending → active progression)
+    const candidates = await db
+      .select({ id: farmsTable.id, name: farmsTable.name })
+      .from(farmsTable)
+      .where(eq(farmsTable.status, "pending"))
+      .limit(3);
+
+    if (candidates.length === 0) return; // nothing to activate
+
+    // Randomly activate 1 to min(3, candidates.length) of them
+    const toActivate = candidates.slice(0, randInt(1, candidates.length));
+
+    for (const farm of toActivate) {
+      await db.update(farmsTable)
+        .set({ status: "active" })
+        .where(eq(farmsTable.id, farm.id));
+      console.log(`[farm-growth] Activated farm #${farm.id}: ${farm.name}`);
+    }
+  } catch (e) {
+    console.warn("[scheduler] Farm growth error:", (e as Error)?.message);
   }
 }
 

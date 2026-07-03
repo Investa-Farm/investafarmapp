@@ -27,6 +27,7 @@ interface AdminStats {
   loansGivenCount: number; loansGivenKES: number;
   platformFarmers: number; platformInvestors: number; historicalFundingKES: number;
   platformTotalTx: number;
+  newInvestorsThisWeek?: number; newFarmersThisWeek?: number; newFarmsThisWeek?: number;
   recentUsers: Array<{ id: number; name: string; email: string; role: string; createdAt: string }>;
   recentLoans: Array<{ id: number; farmerName: string; amount: number; status: string; cropType: string; createdAt: string }>;
 }
@@ -1170,10 +1171,16 @@ export default function AdminDashboard() {
                   <div className="bg-white/10 rounded-xl p-3">
                     <p className="text-white font-black text-2xl leading-none">{(stats.totalFarmers ?? 0).toLocaleString()}</p>
                     <p className="text-white/70 text-[10px] font-semibold mt-1 uppercase tracking-wide">Registered Farmers</p>
+                    {(stats.newFarmersThisWeek ?? 0) > 0 && (
+                      <p className="text-green-300 text-[9px] font-bold mt-0.5">+{stats.newFarmersThisWeek} this week</p>
+                    )}
                   </div>
                   <div className="bg-white/10 rounded-xl p-3">
                     <p className="text-white font-black text-2xl leading-none">{(stats.totalInvestors ?? 0).toLocaleString()}</p>
                     <p className="text-white/70 text-[10px] font-semibold mt-1 uppercase tracking-wide">Active Investors</p>
+                    {(stats.newInvestorsThisWeek ?? 0) > 0 && (
+                      <p className="text-green-300 text-[9px] font-bold mt-0.5">+{stats.newInvestorsThisWeek} this week</p>
+                    )}
                   </div>
                   <div className="bg-white/10 rounded-xl p-3">
                     <p className="text-white font-black text-xl leading-none">{fmtKES(stats.totalInvested ?? 0)}</p>
@@ -1186,7 +1193,11 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-white/20">
                   <p className="text-white/60 text-[10px]">{(stats.totalTransactions ?? 0).toLocaleString()} transactions</p>
-                  <p className="text-white/60 text-[10px]">{(stats.activeFarms ?? 0).toLocaleString()} active farms · {fmtKES(stats.platformCash ?? 0)} cash</p>
+                  <p className="text-white/60 text-[10px]">
+                    {(stats.activeFarms ?? 0).toLocaleString()} active farms
+                    {(stats.newFarmsThisWeek ?? 0) > 0 && <span className="text-green-300 font-bold"> +{stats.newFarmsThisWeek}</span>}
+                    {" · "}{fmtKES(stats.platformCash ?? 0)} cash
+                  </p>
                 </div>
               </div>
 

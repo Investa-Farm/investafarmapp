@@ -568,7 +568,6 @@ export default function Login() {
                       { label: "Farmer", email: "john.farmer@investafarm.com", icon: "🌱" },
                       { label: "Investor", email: "david.investor@investafarm.com", icon: "📈" },
                       { label: "Demo Farmer", email: "demo.farmer@investafarm.com", icon: "👨‍🌾" },
-                      { label: "Demo Investor", email: "demo.investor@investafarm.com", icon: "💼" },
                       { label: "Sales Agent", email: "demo.agent@investafarm.com", icon: "🤝" },
                       { label: "Cooperative", email: "demo.coop@investafarm.com", icon: "🏘️" },
                     ].map(({ label, email: demoEmail, icon }) => (

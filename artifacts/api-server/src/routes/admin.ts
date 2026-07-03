@@ -625,6 +625,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     platformCashRow, activeFinancingRow,
     loansGivenCountRow, loansGivenAmountRow,
     recentUsers, recentLoans,
+    newInvestorsWeekRow, newFarmersWeekRow, newFarmsWeekRow,
   ] = await Promise.all([
     db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "farmer")),
     db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "investor")),
@@ -651,6 +652,10 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
       .from(loanApplicationsTable)
       .leftJoin(usersTable, eq(usersTable.id, loanApplicationsTable.farmerId))
       .orderBy(desc(loanApplicationsTable.createdAt)).limit(5),
+    // Weekly growth counts
+    db.select({ c: count() }).from(usersTable).where(sql`role = 'investor' AND created_at >= NOW() - INTERVAL '7 days'`),
+    db.select({ c: count() }).from(usersTable).where(sql`role = 'farmer' AND created_at >= NOW() - INTERVAL '7 days'`),
+    db.select({ c: count() }).from(farmsTable).where(sql`status = 'active' AND created_at >= NOW() - INTERVAL '7 days'`),
   ]);
 
   const totalFarmers     = Number(farmerRow[0]?.c ?? 0);
@@ -672,6 +677,9 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   const activeFinancingDB= Number(activeFinancingRow[0]?.total ?? 0);
   const loansGivenCount  = Number(loansGivenCountRow[0]?.c ?? 0);
   const loansGivenKES    = Number(loansGivenAmountRow[0]?.total ?? 0);
+  const newInvestorsThisWeek = Number(newInvestorsWeekRow[0]?.c ?? 0);
+  const newFarmersThisWeek   = Number(newFarmersWeekRow[0]?.c ?? 0);
+  const newFarmsThisWeek     = Number(newFarmsWeekRow[0]?.c ?? 0);
 
   const payload = {
     totalUsers,
@@ -697,6 +705,9 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     platformInvestors: totalInvestors,
     historicalFundingKES: totalInvested,
     platformTotalTx: totalTransactions,
+    newInvestorsThisWeek,
+    newFarmersThisWeek,
+    newFarmsThisWeek,
     recentUsers: recentUsers.map(u => ({
       id: u.id, name: u.name, email: u.email, role: u.role,
       createdAt: u.createdAt.toISOString(),
@@ -858,14 +869,34 @@ router.patch("/admin/users/:id/approve", async (req, res): Promise<void> => {
 router.get("/admin/kyc", async (req, res): Promise<void> => {
   const ok = await requireAdmin(req, res, true);
   if (!ok) return;
-  const docs = await db.select().from(kycDocumentsTable).orderBy(desc(kycDocumentsTable.createdAt));
-  const withUser = await Promise.all(
-    docs.map(async d => {
-      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, d.userId));
-      return { ...d, userName: user?.name ?? "Unknown", userEmail: user?.email ?? "" };
-    })
-  );
-  res.json(withUser);
+  try {
+    // Single JOIN query instead of N+1 — avoids 502 on large datasets
+    const rows = await db
+      .select({
+        id: kycDocumentsTable.id,
+        userId: kycDocumentsTable.userId,
+        docType: kycDocumentsTable.docType,
+        fileUrl: kycDocumentsTable.fileUrl,
+        status: kycDocumentsTable.status,
+        createdAt: kycDocumentsTable.createdAt,
+        reviewedAt: kycDocumentsTable.reviewedAt,
+        userName: usersTable.name,
+        userEmail: usersTable.email,
+      })
+      .from(kycDocumentsTable)
+      .leftJoin(usersTable, eq(kycDocumentsTable.userId, usersTable.id))
+      .orderBy(desc(kycDocumentsTable.createdAt))
+      .limit(500);
+
+    res.json(rows.map(r => ({
+      ...r,
+      userName: r.userName ?? "Unknown",
+      userEmail: r.userEmail ?? "",
+    })));
+  } catch (e) {
+    console.error("[admin/kyc]", e);
+    res.status(500).json({ error: "Failed to load KYC documents" });
+  }
 });
 
 router.patch("/admin/kyc/:id/approve", async (req, res): Promise<void> => {

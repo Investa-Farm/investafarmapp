@@ -279,10 +279,6 @@ export default function WealthAuth() {
                     {login.isPending && <Loader2 size={16} className="animate-spin" />}
                     {login.isPending ? "Signing in…" : "Sign In to Wealth Portal"}
                   </button>
-                  <button type="button" onClick={() => { setEmail("demo.investor@investafarm.com"); setPassword("password123"); }}
-                    className="w-full py-2.5 border border-indigo-200 rounded-xl text-indigo-700 text-xs font-semibold bg-indigo-50 active:scale-95 transition-transform flex items-center justify-center gap-1.5">
-                    💼 Try Demo Wealth Manager
-                  </button>
                   <p className="text-center text-muted-foreground text-xs">New here? <button type="button" onClick={() => setTab("register")} className="text-indigo-600 font-semibold">Create account</button></p>
                 </form>
               ) : (
