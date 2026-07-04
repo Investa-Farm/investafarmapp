@@ -617,29 +617,39 @@ export default function LoanApply() {
               className="bg-card w-full max-w-[430px] rounded-t-3xl overflow-hidden flex flex-col"
               style={{ maxHeight: "92dvh" }}>
 
-              {/* Header */}
-              <div className="px-5 pt-5 pb-4 border-b border-border flex-shrink-0">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
+              {/* Header — gradient green */}
+              <div className="flex-shrink-0 relative overflow-hidden"
+                style={{ background: modalStep === 6
+                  ? "linear-gradient(135deg,#052e16 0%,#15803d 60%,#22c55e 100%)"
+                  : "linear-gradient(135deg,#14532d 0%,#16a34a 70%,#22c55e 100%)" }}>
+
+                {/* Top row: back / title / close */}
+                <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                  <div className="flex items-center gap-2.5">
                     {modalStep > 1 && modalStep < 6 && (
-                      <button onClick={handleBack} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center -ml-1 mr-0.5">
-                        <ChevronLeft size={15} className="text-foreground" />
+                      <button onClick={handleBack}
+                        className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                        <ChevronLeft size={14} className="text-white" />
                       </button>
                     )}
                     <div>
-                      <p className="font-bold text-foreground text-sm">{STEP_LABELS[modalStep - 1]}</p>
-                      <p className="text-muted-foreground text-[10px]">Step {modalStep} of {TOTAL_STEPS}</p>
+                      <p className="font-bold text-white text-sm leading-tight">{STEP_LABELS[modalStep - 1]}</p>
+                      {modalStep < 6 && (
+                        <p className="text-white/60 text-[10px]">Step {modalStep} of {TOTAL_STEPS}</p>
+                      )}
                     </div>
                   </div>
                   {modalStep < 6 && (
-                    <button onClick={closeModal} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                      <X size={15} className="text-foreground" />
+                    <button onClick={closeModal}
+                      className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                      <X size={14} className="text-white" />
                     </button>
                   )}
                 </div>
-                {/* Visual step indicator — numbered circles + labels */}
+
+                {/* Step indicator */}
                 {modalStep < 6 ? (
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between px-5 pb-5">
                     {[
                       { n: 1, label: "Farm" },
                       { n: 2, label: "Costs" },
@@ -653,27 +663,28 @@ export default function LoanApply() {
                         <div key={n} className="flex flex-col items-center gap-1 flex-1">
                           <div className="relative flex items-center w-full justify-center">
                             {idx > 0 && (
-                              <div className={`absolute right-1/2 top-1/2 -translate-y-1/2 h-0.5 w-full transition-colors ${done || active ? "bg-primary" : "bg-muted"}`} style={{ right: "50%", left: 0 }} />
+                              <div className={`absolute top-1/2 -translate-y-1/2 h-0.5 w-full transition-colors ${done ? "bg-white" : "bg-white/25"}`}
+                                style={{ right: "50%", left: 0 }} />
                             )}
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold z-10 border-2 transition-all ${
-                              done ? "bg-primary border-primary text-white" :
-                              active ? "bg-white border-primary text-primary shadow-sm shadow-primary/20" :
-                              "bg-muted border-muted text-muted-foreground"
+                              done ? "bg-white border-white text-primary" :
+                              active ? "bg-white/20 border-white text-white shadow-lg" :
+                              "bg-white/10 border-white/30 text-white/50"
                             }`}>
                               {done ? "✓" : n}
                             </div>
                           </div>
-                          <span className={`text-[9px] font-semibold leading-tight text-center transition-colors ${
-                            active ? "text-primary" : done ? "text-primary/60" : "text-muted-foreground"
+                          <span className={`text-[9px] font-semibold leading-tight text-center ${
+                            active ? "text-white" : done ? "text-white/70" : "text-white/40"
                           }`}>{label}</span>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 px-5 pb-5">
                     {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-                      <div key={i} className="flex-1 h-1.5 rounded-full bg-primary" />
+                      <div key={i} className="flex-1 h-1.5 rounded-full bg-white/80" />
                     ))}
                   </div>
                 )}

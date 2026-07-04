@@ -401,7 +401,7 @@ export default function Portfolio() {
   // Auto-advance overview slides every 30 s, looping continuously
   useEffect(() => {
     if (activeTab !== "overview") return;
-    const t = setInterval(() => setOverviewSlide(s => (s + 1) % 3), 30_000);
+    const t = setInterval(() => setOverviewSlide(s => (s + 1) % 4), 30_000);
     return () => clearInterval(t);
   }, [activeTab]);
 
@@ -581,17 +581,17 @@ export default function Portfolio() {
           onTouchEnd={e => {
             if (overviewTouchX.current === null) return;
             const dx = (e.changedTouches[0]?.clientX ?? 0) - overviewTouchX.current;
-            if (Math.abs(dx) > 40) setOverviewSlide(s => Math.max(0, Math.min(2, s + (dx < 0 ? 1 : -1))));
+            if (Math.abs(dx) > 40) setOverviewSlide(s => Math.max(0, Math.min(3, s + (dx < 0 ? 1 : -1))));
             overviewTouchX.current = null;
           }}>
 
           {/* Slide nav dots */}
           <div className="flex items-center justify-between px-4 pt-1.5 pb-1 flex-shrink-0">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              {["Performance", "Risk Allocation", "vs Peers"][overviewSlide]}
+              {["Performance", "Risk Allocation", "vs Peers", "Bets & Safety"][overviewSlide]}
             </p>
             <div className="flex gap-1.5 items-center">
-              {[0, 1, 2].map(i => (
+              {[0, 1, 2, 3].map(i => (
                 <button key={i} onClick={() => setOverviewSlide(i)}
                   style={{ width: i === overviewSlide ? 18 : 6, height: 6, borderRadius: 99,
                     background: i === overviewSlide ? "#16a34a" : "#d1d5db",
@@ -895,64 +895,66 @@ export default function Portfolio() {
             );
           })()}
 
-          {/* My Bets section */}
-          <MyBetsStrip onNavigate={() => setLocation("/bets")} />
+                </motion.div>
+              )}
 
-          {/* Security status card */}
-          {(() => {
-            const u = getStoredUser() as any;
-            const hasMfa = !!(u?.mfaEnabled || u?.totpEnabled);
-            const score = hasMfa ? 85 : 55;
-            const scoreColor = score >= 80 ? "text-green-600" : score >= 60 ? "text-amber-600" : "text-red-500";
-            const scoreBg = score >= 80 ? "bg-green-50 border-green-200" : score >= 60 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
-            return (
-              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <ShieldCheck size={17} className="text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-foreground font-bold text-sm">Account Security</p>
-                      <p className="text-muted-foreground text-[10px]">Your protection status</p>
-                    </div>
-                  </div>
-                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-black ${scoreBg} ${scoreColor}`}>
-                    {score}/100
-                  </div>
-                </div>
+              {/* ── SLIDE 3: Bets & Safety ── */}
+              {overviewSlide === 3 && (
+                <motion.div key="s3"
+                  initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0 px-4 pb-4 overflow-y-auto flex flex-col gap-3">
 
-                {/* Score bar */}
-                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-700"
-                    style={{
-                      width: `${score}%`,
-                      background: score >= 80 ? "linear-gradient(90deg,#16a34a,#4ade80)"
-                        : score >= 60 ? "linear-gradient(90deg,#d97706,#fbbf24)"
-                        : "linear-gradient(90deg,#dc2626,#f87171)",
-                    }}
-                  />
-                </div>
+                  {/* Crop Bets */}
+                  <MyBetsStrip onNavigate={() => setLocation("/bets")} />
 
-                {/* Status rows */}
-                <div className="space-y-2">
-                  <SecurityRow icon={<BadgeCheck size={13} />} label="Email Verified" ok={!!(u?.emailVerified)} />
-                  <SecurityRow icon={<KeyRound size={13} />} label="Two-Factor Authentication (TOTP)" ok={hasMfa} action={hasMfa ? undefined : { label: "Enable", href: "/settings/security" }} />
-                  <SecurityRow icon={<Smartphone size={13} />} label="M-Pesa Wallet Linked" ok={true} />
-                  <SecurityRow icon={<Eye size={13} />} label="KYC Identity Verified" ok={u?.kycStatus === "approved"} />
-                </div>
-
-                {!hasMfa && (
-                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                    <AlertTriangle size={13} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-amber-800 text-[10px] font-medium leading-relaxed">Enable 2-factor authentication in Settings → Security to significantly boost your account protection.</p>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
+                  {/* Security status card */}
+                  {(() => {
+                    const u = getStoredUser() as any;
+                    const hasMfa = !!(u?.mfaEnabled || u?.totpEnabled);
+                    const score = hasMfa ? 85 : 55;
+                    const scoreColor = score >= 80 ? "text-green-600" : score >= 60 ? "text-amber-600" : "text-red-500";
+                    const scoreBg = score >= 80 ? "bg-green-50 border-green-200" : score >= 60 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
+                    return (
+                      <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                              <ShieldCheck size={17} className="text-primary" />
+                            </div>
+                            <div>
+                              <p className="text-foreground font-bold text-sm">Account Security</p>
+                              <p className="text-muted-foreground text-[10px]">Your protection status</p>
+                            </div>
+                          </div>
+                          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-black ${scoreBg} ${scoreColor}`}>
+                            {score}/100
+                          </div>
+                        </div>
+                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-700"
+                            style={{
+                              width: `${score}%`,
+                              background: score >= 80 ? "linear-gradient(90deg,#16a34a,#4ade80)"
+                                : score >= 60 ? "linear-gradient(90deg,#d97706,#fbbf24)"
+                                : "linear-gradient(90deg,#dc2626,#f87171)",
+                            }} />
+                        </div>
+                        <div className="space-y-2">
+                          <SecurityRow icon={<BadgeCheck size={13} />} label="Email Verified" ok={!!(u?.emailVerified)} />
+                          <SecurityRow icon={<KeyRound size={13} />} label="Two-Factor Auth (TOTP)" ok={hasMfa} action={hasMfa ? undefined : { label: "Enable", href: "/settings/security" }} />
+                          <SecurityRow icon={<Smartphone size={13} />} label="M-Pesa Wallet Linked" ok={true} />
+                          <SecurityRow icon={<Eye size={13} />} label="KYC Identity Verified" ok={u?.kycStatus === "approved"} />
+                        </div>
+                        {!hasMfa && (
+                          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                            <AlertTriangle size={13} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                            <p className="text-amber-800 text-[10px] font-medium leading-relaxed">Enable 2FA in Settings → Security to boost your account protection.</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </motion.div>
               )}
             </AnimatePresence>

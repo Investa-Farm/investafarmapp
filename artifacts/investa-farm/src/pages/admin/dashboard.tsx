@@ -1207,7 +1207,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { label: "Active Farms", val: stats.activeFarms ?? stats.totalFarms, icon: Tractor },
-                    { label: "Active Loans", val: (stats.loansGivenCount ?? 0) + (stats.completedLoans ?? 0), icon: DollarSign },
+                    { label: "Active Loans", val: stats.loansGivenCount ?? 0, icon: DollarSign },
                     { label: "Pending KYC", val: stats.pendingKyc, icon: FileText },
                     { label: "Pending Loans", val: stats.pendingLoans, icon: Clock },
                   ].map(({ label, val, icon: Icon }) => (

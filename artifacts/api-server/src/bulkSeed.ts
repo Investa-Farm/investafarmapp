@@ -95,10 +95,14 @@ function getInvestorEmail(idx: number): string {
 
 function getFarmName(farmerName: string, farmIdx: number): string {
   const parts = farmerName.split(" ");
-  const lastName = parts[1] ?? parts[0] ?? "Farm";
-  const crop = CROP_TYPES[farmIdx % CROP_TYPES.length]!;
+  const firstName = parts[0] ?? "Farm";
+  const lastName  = parts[1] ?? parts[0] ?? "Farm";
+  const crop   = CROP_TYPES[farmIdx % CROP_TYPES.length]!;
   const suffix = FARM_SUFFIXES[farmIdx % FARM_SUFFIXES.length]!;
-  return `${lastName} ${crop} ${suffix}`;
+  // Alternate between "FirstName Crop Suffix" and "LastName Crop Suffix" for more variety
+  const useFirst = farmIdx % 3 === 0;
+  const nameBase = useFirst ? firstName : lastName;
+  return `${nameBase} ${crop} ${suffix}`;
 }
 
 function getCounty(idx: number): string {

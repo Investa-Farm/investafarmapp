@@ -293,6 +293,31 @@ export default function InvestorAuth() {
                   <IPwField label="Password" value={password} set={setPassword} show={showPw} toggle={() => setShowPw(s => !s)} />
                   <a href="/forgot-password" className="w-full text-right text-xs text-primary font-medium -mt-2 pr-1 block">Forgot password?</a>
                   <SubmitBtn loading={login.isPending} label="Sign In" />
+                  <button type="button" onClick={() => {
+                    const demoEmail = "david.investor@investafarm.com";
+                    const demoPass  = "password123";
+                    setEmail(demoEmail); setPassword(demoPass); setError("");
+                    login.mutate({ data: { email: demoEmail, password: demoPass } }, {
+                      onSuccess: (data: any) => {
+                        if (data.totpRequired) { setTempToken(data.tempToken ?? ""); setTotpStep(true); return; }
+                        if (!data.user) { setError("Demo login failed"); return; }
+                        if (data.user.role !== "investor") { setError("Not an investor account"); return; }
+                        setToken(data.token); storeUser(data.user); setLocation("/market");
+                      },
+                      onError: (err: any) => {
+                        if (err?.data?.requiresOtp) {
+                          setToken(err.data.token); storeUser(err.data.user);
+                          setLocation(`/verify-otp?email=${encodeURIComponent(err.data.email ?? "david.investor@investafarm.com")}`);
+                          return;
+                        }
+                        setError("Demo account unavailable — try again shortly");
+                      },
+                    });
+                  }}
+                    className="w-full py-2.5 border border-green-200 rounded-xl text-green-700 text-xs font-semibold bg-green-50 active:scale-95 transition-transform flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    disabled={login.isPending}>
+                    📈 Try Demo Investor Account
+                  </button>
                   <p className="text-center text-muted-foreground text-xs">New here? <button type="button" onClick={() => setTab("register")} className="text-primary font-semibold">Create account</button></p>
                 </form>
               ) : (
