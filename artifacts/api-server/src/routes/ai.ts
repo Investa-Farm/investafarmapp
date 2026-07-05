@@ -375,4 +375,142 @@ Write exactly 1 sentence: a specific recommendation for this portfolio. Plain te
   }
 });
 
+// ─── POST /agent/score — AI-powered farm selection for the autonomous agent ───
+// Takes a list of live listings and returns a ranked selection with Groq reasoning.
+// Falls back to deterministic scoring when no GROQ_API_KEY is set.
+router.post("/agent/score", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { listings, risk, budget, maxFarms } = req.body as {
+    listings: any[];
+    risk: "low" | "medium" | "high";
+    budget: number;
+    maxFarms: number;
+  };
+
+  if (!Array.isArray(listings) || !risk || !budget || !maxFarms) {
+    res.status(400).json({ error: "Invalid parameters" }); return;
+  }
+
+  const RISK_CROP_PREFS: Record<string, string[]> = {
+    low:    ["maize", "beans", "kale", "wheat", "cassava", "sorghum"],
+    medium: ["coffee", "tea", "rice", "sunflower", "tomatoes", "sugarcane"],
+    high:   ["avocado", "coffee", "dairy", "poultry", "macadamia", "horticulture"],
+  };
+  const ROI_BANDS: Record<string, [number, number]> = {
+    low: [8, 15], medium: [15, 22], high: [20, 30],
+  };
+
+  const prefs = RISK_CROP_PREFS[risk] ?? RISK_CROP_PREFS["medium"]!;
+  const [roiMin, roiMax] = ROI_BANDS[risk] ?? [15, 22];
+
+  // Trim listings to relevant fields for the prompt (keep token count manageable)
+  const slim = listings.slice(0, 30).map((l: any) => ({
+    id: l.id,
+    farmName: l.farmName,
+    cropType: l.cropType,
+    location: l.location,
+    pricePerShare: l.pricePerShare,
+    sharesAvailable: l.sharesAvailable,
+    changePercent: l.changePercent ?? 0,
+    fundingProgress: l.fundingProgress ?? 0,
+    daysToHarvest: l.daysToHarvest ?? 180,
+  }));
+
+  let selected: Array<{ id: number; reason: string; confidence: number; suggestedShares: number; suggestedAmount: number }> = [];
+
+  const groqKey = process.env["GROQ_API_KEY"];
+  if (groqKey) {
+    try {
+      const prompt = `You are an autonomous AI investment agent for Investa Farm, a Kenyan agriculture investment platform.
+
+Investor parameters:
+- Budget: KES ${budget.toLocaleString()}
+- Risk profile: ${risk} (target ROI ${roiMin}–${roiMax}%)
+- Max farms: ${maxFarms}
+- Preferred crops: ${prefs.join(", ")}
+
+Available farm listings (JSON):
+${JSON.stringify(slim, null, 2)}
+
+Select the best ${maxFarms} farm(s) that match the investor's risk profile and maximise expected returns within the budget.
+For each selected farm, calculate the number of shares to buy (splitBudget/maxFarms ÷ pricePerShare, max sharesAvailable).
+
+Respond ONLY with a valid JSON array — no other text:
+[{"id": <farm_id>, "reason": "<1-sentence reason>", "confidence": <0-100>, "suggestedShares": <int>, "suggestedAmount": <int_kes>}]`;
+
+      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKey}` },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 600,
+          temperature: 0.3,
+        }),
+      });
+
+      if (resp.ok) {
+        const data = await resp.json() as { choices: Array<{ message: { content: string } }> };
+        const raw = data.choices[0]?.message?.content?.trim() ?? "";
+        // Extract JSON array from response (Groq may wrap in markdown)
+        const jsonMatch = raw.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsed)) {
+            selected = parsed.slice(0, maxFarms).map((item: any) => {
+              const listing = listings.find((l: any) => l.id === item.id);
+              const perFarm = Math.floor(budget / maxFarms);
+              const qty = listing
+                ? Math.min(Math.max(1, Math.floor(perFarm / listing.pricePerShare)), listing.sharesAvailable)
+                : item.suggestedShares ?? 1;
+              return {
+                id: item.id,
+                reason: item.reason ?? "Strong match for risk profile",
+                confidence: Math.min(99, Math.max(50, Number(item.confidence) || 75)),
+                suggestedShares: qty,
+                suggestedAmount: listing ? qty * listing.pricePerShare : item.suggestedAmount ?? perFarm,
+              };
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[agent/score] Groq error", (e as Error).message);
+    }
+  }
+
+  // Fallback: deterministic scoring if Groq unavailable or parse failed
+  if (selected.length === 0) {
+    const perFarm = Math.floor(budget / maxFarms);
+    const scored = slim
+      .map(l => {
+        const cropMatch = prefs.some(p => l.cropType?.toLowerCase().includes(p));
+        const trendScore = Math.min(30, Math.max(0, (l.changePercent ?? 0) * 5));
+        const liquidityScore = l.sharesAvailable > 50 ? 20 : 10;
+        const score = (cropMatch ? 40 : 0) + trendScore + liquidityScore;
+        return { ...l, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxFarms);
+
+    selected = scored.map(l => {
+      const qty = Math.min(Math.max(1, Math.floor(perFarm / l.pricePerShare)), l.sharesAvailable);
+      const cropMatch = prefs.some(p => l.cropType?.toLowerCase().includes(p));
+      return {
+        id: l.id,
+        reason: cropMatch
+          ? `${l.cropType} aligns with your ${risk} risk profile and shows +${(l.changePercent ?? 0).toFixed(1)}% trend.`
+          : `Diversification pick — strong liquidity with ${l.sharesAvailable} shares available.`,
+        confidence: cropMatch ? 82 : 65,
+        suggestedShares: qty,
+        suggestedAmount: qty * l.pricePerShare,
+      };
+    });
+  }
+
+  res.json({ selected, roiRange: [roiMin, roiMax] });
+});
+
 export default router;
