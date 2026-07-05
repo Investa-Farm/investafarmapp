@@ -14,11 +14,11 @@ packages = ["nano"]
 BASE_PATH = "/"
 VAPID_PUBLIC_KEY = "BMvL_bRQfKSLsOr_3bvjYNqc4t0GI5hZPXnIjV3O5ZquI0_J6RmjW8hAE6hNAanEk1b6edl3rt_bCsPJFXT5kio"
 STELLAR_ISSUER_PUBLIC_KEY = "GDCTQTPZKLTNAXD6LM6AH3IZSJEV6BFB34XQCS4SHTLBN4YWKBIXK3ZJ"
-ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://*.replit.dev,https://*.repl.co"
+ALLOWED_ORIGINS = "http://localhost:5000,http://localhost:3000,https://*.replit.dev,https://*.repl.co,https://*.replit.app"
 RESEND_FROM_EMAIL = "Investa Farm <onboarding@app.investafarm.com>"
 PORT = "8080"
 NODE_ENV = "development"
-APP_URL = "https://36582874-02b7-42fb-bb00-ea991c0e35d0-00-4vt8sbmirvno.worf.replit.dev"
+APP_URL = "https://43be661f-4d98-4336-bca3-f97a4a5e635b-00-3snw1q2tc1cpi.spock.replit.dev"
 STRIPE_PUBLIC_KEY = "pk_test_51TVQMRLI55Ea4b3BRaEqQo6wNr5CnzC4gGwjXqd8MgGSfeGDQrn2lkeShHPovpzjkYYWbiwVWnwRIGIG2QYyI8f100WDLxdgDa"
 
 [workflows]
