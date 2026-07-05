@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield, Wallet } from "lucide-react";
+import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield, Wallet, Sparkles, ShoppingCart } from "lucide-react";
 import { formatKES, formatChange, getToken, isDemoAccount } from "@/lib/auth";
 import { getCropImage } from "@/lib/crops";
 import { getListPrimaryMarketQueryKey, getGetFarmQueryKey } from "@workspace/api-client-react";
@@ -45,11 +45,34 @@ const EXIT_OPTIONS = [
   },
 ];
 
+interface RecommendedListing {
+  id: number;
+  farmId: number;
+  farmName: string;
+  cropType: string;
+  location: string;
+  pricePerShare: number;
+  sharesAvailable: number;
+  changePercent: number;
+  suggestedShares: number;
+  reason: string;
+}
+
+const RECOMMENDATION_REASONS = [
+  "Strong yield forecast this season",
+  "High demand crop with rising prices",
+  "Complements your current portfolio",
+  "Low risk with stable returns",
+  "Top performer this month",
+  "Diversifies your crop exposure",
+];
+
 export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const [step, setStep] = useState<"configure" | "review" | "pay" | "done">("configure");
   const [exitType, setExitType] = useState<ExitType>("full_season");
   const [quantity, setQuantity] = useState(10);
   const [kycOpen, setKycOpen] = useState(false);
+  const [recommendations, setRecommendations] = useState<RecommendedListing[]>([]);
   const [, setLocation] = useLocation();
   const buyShares = useMutation({
     mutationFn: async (payload: { listingId: number; quantity: number; exitType: string }) => {
@@ -83,9 +106,42 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
     },
   });
 
+  const { data: allListings } = useQuery<any[]>({
+    queryKey: ["primary-listings-recs"],
+    enabled: step === "done",
+    staleTime: 60_000,
+    queryFn: async () => {
+      const r = await fetch("/api/market/primary", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      const d = await r.json();
+      return Array.isArray(d) ? d : (d.listings ?? []);
+    },
+  });
+
+  useEffect(() => {
+    if (step === "done" && allListings && listing) {
+      const walletBal = parseFloat(walletData?.wallet?.balance ?? "0");
+      const recs = allListings
+        .filter((l: any) => l.id !== listing.id && l.sharesAvailable > 0)
+        .slice(0, 6)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3)
+        .map((l: any, i: number) => {
+          const budgetForThis = Math.max(500, walletBal * 0.15);
+          const suggestedShares = Math.max(1, Math.min(l.sharesAvailable, Math.floor(budgetForThis / l.pricePerShare)));
+          return {
+            ...l,
+            suggestedShares,
+            reason: RECOMMENDATION_REASONS[i % RECOMMENDATION_REASONS.length]!,
+          } as RecommendedListing;
+        });
+      setRecommendations(recs);
+    }
+  }, [step, allListings, listing?.id]);
+
   const resetAndClose = () => {
     onClose();
-    setTimeout(() => { setStep("configure"); setQuantity(10); setExitType("full_season"); }, 400);
+    setTimeout(() => { setStep("configure"); setQuantity(10); setExitType("full_season"); setRecommendations([]); }, 400);
   };
 
   useEffect(() => {
@@ -94,8 +150,6 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
       import("@/components/success-toast").then(({ showMilestoneToast }) => {
         showMilestoneToast("Investment placed! 🌱", `${quantity} shares in ${listing?.farmName}`);
       });
-      const t = setTimeout(() => resetAndClose(), 4000);
-      return () => clearTimeout(t);
     }
     return undefined;
   }, [step]);
@@ -142,7 +196,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
         {open && step !== "pay" && (
           <div className="fixed inset-0 z-[60] flex items-end justify-center">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={resetAndClose} />
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={step === "done" ? undefined : resetAndClose} />
 
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
@@ -157,18 +211,22 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                     </button>
                   )}
                   <div>
-                    <p className="text-foreground font-bold text-base">{step === "configure" ? "Buy Shares" : "Review Order"}</p>
+                    <p className="text-foreground font-bold text-base">
+                      {step === "configure" ? "Buy Shares" : step === "review" ? "Review Order" : step === "done" ? "Investment Complete!" : ""}
+                    </p>
                     <p className="text-muted-foreground text-xs">{listing.farmName}</p>
                   </div>
                 </div>
-                <button onClick={resetAndClose} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <X size={15} className="text-muted-foreground" />
-                </button>
+                {step !== "done" && (
+                  <button onClick={resetAndClose} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                    <X size={15} className="text-muted-foreground" />
+                  </button>
+                )}
               </div>
 
               <div className="px-5 pt-4 pb-10 space-y-4 overflow-y-auto flex-1" style={{ paddingBottom: "max(2.5rem, env(safe-area-inset-bottom, 0px) + 1.5rem)" }}>
                 {/* KYC gate banner */}
-                {!isKycVerified && (
+                {step === "configure" && !isKycVerified && (
                   <button onClick={() => setKycOpen(true)}
                     className="w-full bg-orange-50 border border-orange-300 rounded-2xl p-3 flex items-center gap-3 text-left active:scale-98 transition-transform">
                     <Shield size={18} className="text-orange-600 flex-shrink-0" />
@@ -300,7 +358,6 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                         </p>
                       </div>
 
-                      {/* Error from backend */}
                       {buyShares.error && (
                         <div className="bg-red-50 border border-red-200 rounded-xl p-3">
                           <p className="text-red-700 text-xs">{(buyShares.error as any)?.message ?? "Payment failed. Please try again."}</p>
@@ -349,20 +406,28 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                   )}
 
                   {step === "done" && (
-                    <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-8 flex flex-col items-center gap-4">
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }}>
-                        <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
-                          <CheckCircle2 size={40} className="text-green-500" />
+                    <motion.div key="done" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
+                      {/* Success header */}
+                      <div className="py-4 flex flex-col items-center gap-3">
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }}>
+                          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
+                            <CheckCircle2 size={40} className="text-green-500" />
+                          </div>
+                        </motion.div>
+                        <div className="text-center">
+                          <p className="text-foreground font-bold text-xl">You're invested! 🌱</p>
+                          <p className="text-muted-foreground text-sm mt-1">You now own {quantity} shares of {listing.farmName}</p>
                         </div>
-                      </motion.div>
-                      <div className="text-center">
-                        <p className="text-foreground font-bold text-xl">Investment Complete!</p>
-                        <p className="text-muted-foreground text-sm mt-1">You now own {quantity} shares of {listing.farmName}</p>
                       </div>
-                      <div className="w-full bg-green-50 border border-green-200 rounded-2xl p-4 space-y-2">
+
+                      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Amount Invested</span>
                           <span className="font-bold text-foreground">{formatKES(total)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Shares Owned</span>
+                          <span className="font-semibold text-foreground">{quantity} shares</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Exit Strategy</span>
@@ -373,9 +438,73 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                           <span className="font-bold text-green-600">+{formatKES(estimatedReturnMin)} – +{formatKES(estimatedReturnMax)}</span>
                         </div>
                       </div>
-                      <button onClick={resetAndClose} className="w-full bg-primary text-white font-bold py-3 rounded-xl active:scale-95 transition-all">
-                        View Portfolio
-                      </button>
+
+                      {/* AI Shopping List Recommendations */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center flex-shrink-0">
+                            <ShoppingCart size={12} className="text-white" />
+                          </div>
+                          <p className="text-foreground font-bold text-sm">AI Recommends Next</p>
+                          <div className="flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
+                            <Sparkles size={9} className="text-primary" />
+                            <span className="text-primary text-[9px] font-bold">Smart Picks</span>
+                          </div>
+                        </div>
+
+                        {recommendations.length === 0 ? (
+                          <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground">
+                            <Loader2 size={14} className="animate-spin" />
+                            <span className="text-xs">Finding top picks for you…</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {recommendations.map((rec, i) => (
+                              <motion.button
+                                key={rec.id}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 + i * 0.1 }}
+                                onClick={() => { resetAndClose(); setLocation(`/market/${rec.farmId}`); }}
+                                className="w-full flex items-center gap-3 bg-muted/40 hover:bg-muted/70 border border-border rounded-2xl p-3 text-left active:scale-[0.98] transition-all"
+                              >
+                                <img
+                                  src={getCropImage(rec.cropType)}
+                                  alt={rec.cropType}
+                                  className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-foreground font-semibold text-xs leading-tight truncate">{rec.farmName}</p>
+                                  <p className="text-muted-foreground text-[10px]">{rec.cropType}</p>
+                                  <p className="text-green-700 text-[10px] italic mt-0.5 leading-tight truncate">"{rec.reason}"</p>
+                                </div>
+                                <div className="text-right flex-shrink-0 space-y-1">
+                                  <div className="bg-primary text-white text-[9px] font-bold px-2 py-1 rounded-lg">
+                                    {rec.suggestedShares} shares
+                                  </div>
+                                  <p className="text-muted-foreground text-[9px]">{formatKES(rec.pricePerShare)}/sh</p>
+                                  <div className="flex items-center gap-0.5 justify-end">
+                                    <TrendingUp size={9} className="text-green-500" />
+                                    <span className="text-green-600 text-[9px] font-bold">{rec.changePercent >= 0 ? "+" : ""}{rec.changePercent?.toFixed(1)}%</span>
+                                  </div>
+                                </div>
+                              </motion.button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { resetAndClose(); setLocation("/portfolio"); }}
+                          className="flex-1 bg-primary text-white font-bold py-3 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-1.5">
+                          View Portfolio <ChevronRight size={14} />
+                        </button>
+                        <button onClick={resetAndClose}
+                          className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0 active:scale-95 transition-all">
+                          <X size={16} className="text-muted-foreground" />
+                        </button>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>

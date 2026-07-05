@@ -11,6 +11,7 @@ import { InvestorKycModal } from "@/components/investor-kyc-modal";
 import { NotificationStatusRow } from "@/components/notification-prompt";
 import { InlineMicBot } from "@/components/ai-assistant";
 import { AiMatchmaker } from "@/components/ai-matchmaker";
+import { AiAgentModal } from "@/components/ai-agent-modal";
 import { WalletModal } from "@/components/wallet-modal";
 import { RateAppModal } from "@/components/rate-app-modal";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,6 +29,7 @@ export default function Profile() {
   const [rateOpen, setRateOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [matcherOpen, setMatcherOpen] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
   const token = getToken();
   const stored = getStoredUser();
   const queryClient = useQueryClient();
@@ -399,42 +401,57 @@ export default function Profile() {
           </button>
         )}
 
-        {/* AI Smart Match card */}
-        <button
-          onClick={() => setMatcherOpen(true)}
-          className="w-full rounded-2xl overflow-hidden text-left active:scale-[0.98] transition-transform"
-          style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}
-        >
-          <div className="p-4">
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20 flex-shrink-0">
+        {/* AI Tools — two side-by-side cards */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* AI Smart Match card */}
+          <button
+            onClick={() => setMatcherOpen(true)}
+            className="rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform"
+            style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}
+          >
+            <div className="p-3.5">
+              <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20 mb-2.5">
                 <span className="text-xl">✨</span>
               </div>
-              <div className="flex-1">
-                <p className="text-white font-bold text-sm flex items-center gap-1.5">
-                  AI Smart Match
-                  <InlineMicBot section="portfolio" role={user?.role === "farmer" ? "farmer" : "investor"} />
-                </p>
-                <p className="text-green-200/70 text-[10px]">Tell us your goals · AI finds your best farms</p>
-              </div>
-            </div>
-            <div className="bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 mb-3">
-              <p className="text-green-100 text-xs leading-relaxed">
-                Our AI analyses risk tolerance, capital, and crop seasons to recommend the perfect farm portfolio for you.
-              </p>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex gap-1.5">
-                {["Low Risk", "High Yield", "Seasonal"].map(tag => (
-                  <span key={tag} className="text-[9px] font-bold bg-white/15 text-green-100 px-2 py-0.5 rounded-full">{tag}</span>
+              <p className="text-white font-bold text-sm leading-tight">AI Smart Match</p>
+              <p className="text-green-200/70 text-[10px] mt-0.5 leading-tight">AI finds your best farms</p>
+              <div className="mt-3 flex flex-wrap gap-1">
+                {["Low Risk", "High Yield"].map(tag => (
+                  <span key={tag} className="text-[8px] font-bold bg-white/15 text-green-100 px-1.5 py-0.5 rounded-full">{tag}</span>
                 ))}
               </div>
-              <div className="bg-white text-primary text-[10px] font-extrabold px-3 py-1.5 rounded-full flex-shrink-0">
+              <div className="mt-2.5 bg-white/20 text-white text-[10px] font-extrabold px-3 py-1.5 rounded-full text-center">
                 Match Me →
               </div>
             </div>
-          </div>
-        </button>
+          </button>
+
+          {/* AI Agent card */}
+          <button
+            onClick={() => setAgentOpen(true)}
+            className="rounded-2xl overflow-hidden text-left active:scale-[0.97] transition-transform"
+            style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #1d4ed8 60%, #6d28d9 100%)" }}
+          >
+            <div className="p-3.5">
+              <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center border border-white/20 mb-2.5">
+                <span className="text-xl">🤖</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-white font-bold text-sm leading-tight">AI Agent</p>
+                <span className="text-[8px] font-bold bg-white/20 text-blue-100 px-1.5 py-0.5 rounded-full">AUTO</span>
+              </div>
+              <p className="text-blue-200/70 text-[10px] mt-0.5 leading-tight">Invests for you automatically</p>
+              <div className="mt-3 flex flex-wrap gap-1">
+                {["Auto-invest", "Hands-free"].map(tag => (
+                  <span key={tag} className="text-[8px] font-bold bg-white/15 text-blue-100 px-1.5 py-0.5 rounded-full">{tag}</span>
+                ))}
+              </div>
+              <div className="mt-2.5 bg-white/20 text-white text-[10px] font-extrabold px-3 py-1.5 rounded-full text-center">
+                Run Agent →
+              </div>
+            </div>
+          </button>
+        </div>
 
         {/* Theme toggle */}
         <button onClick={toggleTheme}
@@ -610,6 +627,7 @@ export default function Profile() {
       </AnimatePresence>
 
       <AiMatchmaker open={matcherOpen} onClose={() => setMatcherOpen(false)} />
+      <AiAgentModal open={agentOpen} onClose={() => setAgentOpen(false)} />
 
       {/* ── MFA / TOTP Bottom Sheet ── */}
       <AnimatePresence>
