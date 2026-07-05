@@ -13,6 +13,7 @@ import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { CurrencyProvider } from "@/lib/currency";
 import { SecurityGuard } from "@/components/security-guard";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { CenterSuccessHost } from "@/components/center-success-modal";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
 import Landing from "@/pages/landing";
@@ -669,6 +670,7 @@ function App() {
             </WouterRouter>
             <Toaster />
             <SonnerToaster position="top-center" richColors={false} />
+            <CenterSuccessHost />
             <PriceAlertWatcher />
             <PushScheduler />
             <PwaInstallBanner />

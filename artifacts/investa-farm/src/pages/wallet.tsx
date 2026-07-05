@@ -111,8 +111,8 @@ export default function InvestorWallet() {
       setModal(null); setAmount(""); setPhone("");
       setSuccess("Withdrawal initiated to M-Pesa.");
       setTimeout(() => setSuccess(null), 4000);
-      import("@/components/transaction-notification").then(({ showCompletedTransactionFlow }) => {
-        showCompletedTransactionFlow({ type: "withdrawal", amount: vars.amt, label: "Withdrawal", subtitle: "Sending to M-Pesa" });
+      import("@/components/center-success-modal").then(({ showCenterSuccess }) => {
+        showCenterSuccess({ title: "Withdrawal Initiated ⬆️", subtitle: `KES ${vars.amt.toLocaleString("en-KE")} sending to M-Pesa` });
       });
     },
   });

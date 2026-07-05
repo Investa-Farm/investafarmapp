@@ -39,8 +39,8 @@ function CommissionWithdrawal({ token, agentCode, availableKes }: { token: strin
       if (r.ok) {
         setRefCode(data.referenceCode ?? `WDL-${agentCode}-${Date.now().toString(36).toUpperCase()}`);
         setStep("done");
-        import("@/components/success-toast").then(({ showSuccessToast }) => {
-          showSuccessToast("Withdrawal requested!", "Commission will arrive via M-Pesa shortly");
+        import("@/components/center-success-modal").then(({ showCenterSuccess }) => {
+          showCenterSuccess({ title: "Withdrawal Requested!", subtitle: "Commission will arrive via M-Pesa shortly" });
         });
       }
       else { setError(data.error ?? "Withdrawal request failed. Please try again."); }

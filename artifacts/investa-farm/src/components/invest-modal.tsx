@@ -147,11 +147,17 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   useEffect(() => {
     if (step === "done") {
       import("@/components/confetti-overlay").then(({ showConfetti }) => showConfetti(3500));
-      import("@/components/success-toast").then(({ showMilestoneToast }) => {
-        showMilestoneToast("Investment placed! 🌱", `${quantity} shares in ${listing?.farmName}`);
+      import("@/components/center-success-modal").then(({ showCenterSuccess }) => {
+        showCenterSuccess({
+          title: "Investment Placed! 🌱",
+          subtitle: `${quantity} shares in ${listing?.farmName}`,
+        });
       });
+      const t = setTimeout(() => resetAndClose(), 3200);
+      return () => clearTimeout(t);
     }
     return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   if (!listing) return null;
@@ -175,9 +181,6 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
         qc.invalidateQueries({ queryKey: ["wallet-balance"] });
         qc.invalidateQueries({ queryKey: ["portfolio-summary"] });
         localStorage.setItem("investa_first_investment", "1");
-        import("@/components/transaction-notification").then(({ showCompletedTransactionFlow }) => {
-          showCompletedTransactionFlow({ type: "investment", amount: total, label: "Investment", subtitle: listing.farmName });
-        });
         setStep("done");
       },
       onError: () => { haptic("error"); },

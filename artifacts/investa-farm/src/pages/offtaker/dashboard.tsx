@@ -119,8 +119,8 @@ export default function OfftakerDashboard() {
         setContracts(prev => [{ id: data.contractId, farmerName: selectedFarm.farmerName, cropType: selectedFarm.cropType, quantityTons: Number(orderTons), totalKes: data.totalKes, status: "pending", createdAt: new Date().toISOString(), referenceCode: data.referenceCode, pricePerKg: selectedFarm.pricePerKgKes }, ...prev]);
         setStats(s => s ? { ...s, activeContracts: s.activeContracts + 1 } : s);
         import("@/components/confetti-overlay").then(({ showConfetti }) => showConfetti(3000));
-        import("@/components/success-toast").then(({ showSuccessToast }) => {
-          showSuccessToast("Order placed! 🎉", `Ref: ${data.referenceCode}`);
+        import("@/components/center-success-modal").then(({ showCenterSuccess }) => {
+          showCenterSuccess({ title: "Order Placed! 🎉", subtitle: `Ref: ${data.referenceCode}` });
         });
       }
     } finally { setOrderSubmitting(false); }

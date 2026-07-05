@@ -529,7 +529,7 @@ export function WalletModal({ open, onClose }: Props) {
               onClose={() => setModal(null)}
               onSuccess={(amt) => {
                 setSuccess(`💰 KES ${amt.toLocaleString()} added to your wallet!`);
-                setTimeout(() => setSuccess(null), 4000);
+                setTimeout(() => { setSuccess(null); onClose(); }, 2200);
               }}
             />
 

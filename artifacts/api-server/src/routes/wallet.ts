@@ -17,6 +17,7 @@ import { sendWalletCreditEmail, sendWithdrawalConfirmationEmail } from "../lib/e
 import { isCircleConfigured, getKesUsdcRate, createPaymentIntent, getPaymentIntentStatus, getStaticUsdcAddress } from "../lib/circle";
 import { createPaymentIntent as stripeCreateIntent, retrievePaymentIntent, createMpesaPaymentIntent, isConfigured as isStripeConfigured, STRIPE_PUBLIC_KEY, constructWebhookEvent } from "../lib/stripe";
 import { initiateStkPush, queryStkStatus, isDarajaConfigured } from "../lib/daraja";
+import { getPolygonTxStatus } from "../lib/polygonscan";
 
 const router: IRouter = Router();
 
@@ -416,6 +417,18 @@ router.post("/wallet/circle/verify", financialRateLimit, async (req, res): Promi
   recordDeposit(user.id, amount);
   notifyUser(user.id, "wallet_credit", "💰 USDC Deposit Confirmed!", `KES ${amount.toLocaleString("en-KE")} added to your wallet via USDC.`, "/wallet").catch(() => {});
   res.json({ success: true });
+});
+
+// ─── GET /wallet/circle/tx-status ────────────────────────────────────────────
+// Live PolygonScan-based confirmation tracker so the client can show real-time
+// confirmation counts while a USDC transfer settles on-chain.
+router.get("/wallet/circle/tx-status", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const txHash = String(req.query.txHash ?? "");
+  if (!txHash.startsWith("0x")) { res.status(400).json({ error: "Invalid tx hash" }); return; }
+  const result = await getPolygonTxStatus(txHash);
+  res.json(result);
 });
 
 // ─── GET /security/limits ────────────────────────────────────────────────────

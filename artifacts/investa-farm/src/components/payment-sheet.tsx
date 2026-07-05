@@ -16,6 +16,8 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { getToken, getStoredUser, formatKES } from "@/lib/auth";
 import { WalletConnectModal } from "@/components/wallet-connect-modal";
+import { TxConfirmationTracker } from "@/components/tx-confirmation-tracker";
+import { showCenterSuccess } from "@/components/center-success-modal";
 
 const QUICK_AMOUNTS = [500, 1000, 5000, 10000, 25000];
 
@@ -85,6 +87,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const [circleConfirming, setCircleConfirming] = useState(false);
   const [circleTxHash, setCircleTxHash] = useState<string | null>(null);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
+  const [trackingTxHash, setTrackingTxHash] = useState<string | null>(null);
 
   // Success state
   const [success, setSuccess] = useState(false);
@@ -141,7 +144,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setMpesaCountdown(120);
     setStripeStep("idle"); setStripeIntentId(null); setStripeClientSecret(null); setCardError(null);
     stripeInstanceRef.current = null; stripeElementsRef.current = null;
-    setCircleIntentId(null); setCircleAmountUSDC(""); setCircleTxHash(null); setSuccess(false); setWalletModalOpen(false);
+    setCircleIntentId(null); setCircleAmountUSDC(""); setCircleTxHash(null); setSuccess(false); setWalletModalOpen(false); setTrackingTxHash(null);
   }
 
   // Retry from expired state — keeps phone + amount pre-filled
@@ -233,12 +236,10 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     qc.invalidateQueries({ queryKey: ["wallet"] });
     setSuccess(true);
     onSuccess(amt);
-    import("@/components/transaction-notification").then(({ showCompletedTransactionFlow }) => {
-      showCompletedTransactionFlow({ type: "deposit", amount: amt });
-    });
     import("@/components/confetti-overlay").then(({ showConfetti }) => showConfetti(3200));
-    import("@/components/success-toast").then(({ showSuccessToast }) => {
-      showSuccessToast("Wallet funded! 💰", `KES ${amt.toLocaleString("en-KE")} credited to your account`);
+    showCenterSuccess({
+      title: "Wallet Funded! 💰",
+      subtitle: `KES ${amt.toLocaleString("en-KE")} credited to your account`,
     });
     setTimeout(() => { setSuccess(false); onClose(); }, 2200);
   }
@@ -1071,18 +1072,24 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                           ← Back
                         </button>
                         <button
-                          onClick={() => confirmCircle()}
+                          onClick={() => {
+                            if (!circleInfo?.configured && circleTxHash) {
+                              setTrackingTxHash(circleTxHash);
+                            } else {
+                              confirmCircle();
+                            }
+                          }}
                           disabled={circleConfirming || (!circleInfo?.configured && !circleTxHash)}
                           className="text-white font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
                           style={{ background: "linear-gradient(135deg,#1652F0,#2D56FA)" }}>
                           {circleConfirming ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                          {circleInfo?.configured ? "I've Sent USDC" : "Verify On-Chain"}
+                          {circleInfo?.configured ? "I've Sent USDC" : "Track Confirmations"}
                         </button>
                       </div>
                       <p className="text-center text-muted-foreground text-[11px]">
                         {circleInfo?.configured
                           ? `After sending, tap "I've Sent USDC" — we'll verify via Circle and credit your wallet.`
-                          : `Use "Connect Wallet" to send automatically, or paste your tx hash above.`}
+                          : `Use "Connect Wallet" to send automatically, or paste your tx hash above, then track its confirmations live.`}
                       </p>
                     </div>
                   )}
@@ -1107,14 +1114,25 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       amountUSDC={circleAmountUSDC || usdcEstimate}
       chain={circleInfo?.chain ?? "Polygon (MATIC)"}
       memo={circleInfo?.memo}
-      onConnected={async (result) => {
+      onConnected={(result) => {
         setWalletModalOpen(false);
         if (result.txHash) {
           setCircleTxHash(result.txHash);
-          // Auto-confirm with the on-chain tx hash
-          await confirmCircle(result.txHash);
+          // Live-track confirmations, then auto-confirm once mined
+          setTrackingTxHash(result.txHash);
         }
       }}
+    />
+
+    <TxConfirmationTracker
+      open={!!trackingTxHash}
+      txHash={trackingTxHash ?? ""}
+      onConfirmed={() => {
+        const hash = trackingTxHash;
+        setTrackingTxHash(null);
+        void confirmCircle(hash ?? undefined);
+      }}
+      onClose={() => setTrackingTxHash(null)}
     />
     </>
   );

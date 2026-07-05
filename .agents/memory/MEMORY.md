@@ -58,3 +58,4 @@
 - [Agribusiness KYC page](agribusiness-kyc.md) — dedicated page at pages/agribusiness/kyc.tsx; business_registration added to kycDocTypeEnum in DB schema AND kyc.ts validator; route /agribusiness/kyc → AgribusinessKyc (not AgribusinessDashboard)
 - [Offtaker + sales agent colors](offtaker-colors.md) — offtaker header changed from violet gradient to grass-green (#052e16→#22c55e); all violet-* classes replaced with primary/*; sales agent/farmer_connector footer nav active color changed from amber to primary
 - [Crop proposal enum fix](loan-modal-purpose.md) — loan-modal.tsx submitInvestment was sending purpose:"investment_proposal" (invalid); fixed to "other" — valid values: seeds|fertilizer|equipment|irrigation|labour|other
+- [Center-success popups + tx tracker](center-success-popups.md) — use showCenterSuccess() (not success-toast.tsx/transaction-notification.tsx) for all transaction confirmations; PolygonScan tracker gates confirmCircle() until tx mines
