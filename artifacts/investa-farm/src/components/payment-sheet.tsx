@@ -83,6 +83,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const [circleAmountUSDC, setCircleAmountUSDC] = useState<string>("");
   const [usdcCopied, setUsdcCopied] = useState(false);
   const [circleConfirming, setCircleConfirming] = useState(false);
+  const [circleTxHash, setCircleTxHash] = useState<string | null>(null);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   // Success state
@@ -140,7 +141,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setMpesaCountdown(120);
     setStripeStep("idle"); setStripeIntentId(null); setStripeClientSecret(null); setCardError(null);
     stripeInstanceRef.current = null; stripeElementsRef.current = null;
-    setCircleIntentId(null); setCircleAmountUSDC(""); setSuccess(false); setWalletModalOpen(false);
+    setCircleIntentId(null); setCircleAmountUSDC(""); setCircleTxHash(null); setSuccess(false); setWalletModalOpen(false);
   }
 
   // Retry from expired state — keeps phone + amount pre-filled
@@ -361,14 +362,19 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     }
   }
 
-  async function confirmCircle() {
+  async function confirmCircle(txHash?: string) {
     if (!circleIntentId) return;
     setCircleConfirming(true);
+    setCardError(null);
     try {
       const r = await fetch("/api/wallet/circle/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ intentId: circleIntentId, amountKes: parseFloat(amount) }),
+        body: JSON.stringify({
+          intentId: circleIntentId,
+          amountKes: parseFloat(amount),
+          txHash: txHash ?? circleTxHash ?? undefined,
+        }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Not confirmed");
@@ -983,11 +989,15 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                         <div className="flex-1 h-px bg-border" />
                       </div>
                       <button
-                        onClick={() => setWalletModalOpen(true)}
+                        onClick={async () => {
+                          // Create intent first so we have a reference ID, then open wallet modal
+                          await createCircleIntent();
+                          setWalletModalOpen(true);
+                        }}
                         disabled={!amount || amt < 500}
                         className="w-full border-2 border-blue-300 text-blue-700 font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40 bg-blue-50">
                         <Wallet size={18} />
-                        Connect Wallet (Binance / MetaMask / Coinbase)
+                        Connect Wallet (MetaMask / Coinbase / Binance)
                       </button>
                     </>
                   ) : (
@@ -1026,19 +1036,54 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                         </div>
                       </div>
 
+                      {/* Tx hash — either captured from wallet or entered manually */}
+                      {circleTxHash ? (
+                        <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle2 size={13} className="text-green-600" />
+                            <p className="text-green-700 text-[11px] font-semibold">Transaction submitted via wallet</p>
+                          </div>
+                          <p className="text-green-600 font-mono text-[10px] break-all">{circleTxHash}</p>
+                        </div>
+                      ) : !circleInfo?.configured && (
+                        <div className="space-y-1.5">
+                          <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">Transaction Hash (required)</p>
+                          <input
+                            type="text"
+                            placeholder="0x… paste your Polygon tx hash"
+                            className="w-full border-2 border-border rounded-xl px-3 py-2.5 text-xs font-mono focus:outline-none focus:border-primary"
+                            onChange={e => setCircleTxHash(e.target.value.trim() || null)}
+                          />
+                          <p className="text-muted-foreground text-[10px]">After sending USDC, paste the transaction hash from your wallet to verify on-chain.</p>
+                        </div>
+                      )}
+
+                      {cardError && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                          <AlertCircle size={13} className="text-red-500 flex-shrink-0" />
+                          <p className="text-red-700 text-xs">{cardError}</p>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => { setCircleIntentId(null); setCircleAmountUSDC(""); }}
+                        <button onClick={() => { setCircleIntentId(null); setCircleAmountUSDC(""); setCircleTxHash(null); }}
                           className="border-2 border-border text-foreground font-semibold py-3 rounded-2xl text-sm active:scale-95">
                           ← Back
                         </button>
-                        <button onClick={confirmCircle} disabled={circleConfirming}
-                          className="text-white font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-60"
+                        <button
+                          onClick={() => confirmCircle()}
+                          disabled={circleConfirming || (!circleInfo?.configured && !circleTxHash)}
+                          className="text-white font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
                           style={{ background: "linear-gradient(135deg,#1652F0,#2D56FA)" }}>
                           {circleConfirming ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                          I've Sent USDC
+                          {circleInfo?.configured ? "I've Sent USDC" : "Verify On-Chain"}
                         </button>
                       </div>
-                      <p className="text-center text-muted-foreground text-[11px]">After sending, tap "I've Sent USDC" — we'll verify on-chain and credit your KES wallet.</p>
+                      <p className="text-center text-muted-foreground text-[11px]">
+                        {circleInfo?.configured
+                          ? `After sending, tap "I've Sent USDC" — we'll verify via Circle and credit your wallet.`
+                          : `Use "Connect Wallet" to send automatically, or paste your tx hash above.`}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1059,10 +1104,17 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       open={walletModalOpen}
       onClose={() => setWalletModalOpen(false)}
       depositAddress={circleInfo?.depositAddress ?? "0x742d35Cc6634C0532925a3b8D4C9E28E4b9A5bEf"}
-      amountUSDC={usdcEstimate}
+      amountUSDC={circleAmountUSDC || usdcEstimate}
       chain={circleInfo?.chain ?? "Polygon (MATIC)"}
       memo={circleInfo?.memo}
-      onConnected={() => {}}
+      onConnected={async (result) => {
+        setWalletModalOpen(false);
+        if (result.txHash) {
+          setCircleTxHash(result.txHash);
+          // Auto-confirm with the on-chain tx hash
+          await confirmCircle(result.txHash);
+        }
+      }}
     />
     </>
   );

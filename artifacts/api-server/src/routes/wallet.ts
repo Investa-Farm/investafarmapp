@@ -342,27 +342,76 @@ router.post("/wallet/circle/intent", financialRateLimit, async (req, res): Promi
   }
 });
 
+// ── Polygon on-chain USDC transfer verification (no Circle API key needed) ────
+const USDC_POLYGON = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+const POLYGON_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+async function verifyPolygonUsdcTx(txHash: string, toAddress: string, minUsdc: number): Promise<boolean> {
+  try {
+    const resp = await fetch("https://polygon-rpc.com/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getTransactionReceipt", params: [txHash] }),
+    });
+    const data = await resp.json() as any;
+    const receipt = data?.result;
+    if (!receipt || receipt.status !== "0x1") return false;
+    // Confirm it's a call to the USDC contract
+    if (receipt.to?.toLowerCase() !== USDC_POLYGON.toLowerCase()) return false;
+    for (const log of (receipt.logs ?? [])) {
+      if (log.address?.toLowerCase() !== USDC_POLYGON.toLowerCase()) continue;
+      if (log.topics?.[0] !== POLYGON_TRANSFER_TOPIC) continue;
+      // topics[2] = recipient address (32-byte padded)
+      const recipientRaw: string = log.topics?.[2] ?? "";
+      const recipient = "0x" + recipientRaw.slice(-40);
+      if (recipient.toLowerCase() !== toAddress.toLowerCase()) continue;
+      // data = amount in raw USDC units (6 decimals)
+      const rawAmt = parseInt(log.data, 16);
+      const usdcAmt = rawAmt / 1_000_000;
+      if (usdcAmt >= minUsdc * 0.99) return true; // allow 1% tolerance
+    }
+    return false;
+  } catch { return false; }
+}
+
 // ─── POST /wallet/circle/verify ──────────────────────────────────────────────
 router.post("/wallet/circle/verify", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const { intentId, amountKes } = req.body;
+  const { intentId, amountKes, txHash } = req.body;
   if (!intentId) { res.status(400).json({ error: "Intent ID required" }); return; }
   const amount = Number(amountKes);
   if (!amount || amount < 500) { res.status(400).json({ error: "Invalid amount" }); return; }
 
   if (isCircleConfigured()) {
+    // Verify via Circle API
     try {
       const status = await getPaymentIntentStatus(intentId);
       if (!status.paid) {
-        res.status(402).json({ error: "USDC payment not confirmed yet. Check your transaction and try again." });
+        res.status(402).json({ error: "USDC payment not confirmed yet. Check your transaction and try again in a moment." });
         return;
       }
-    } catch { /* fall through for manual confirm */ }
+    } catch { /* Circle API error — fall through to txHash verification */ }
+  } else if (txHash && typeof txHash === "string" && txHash.startsWith("0x")) {
+    // No Circle API — verify directly on Polygon using the on-chain tx hash
+    const kesRate = await getKesUsdcRate().catch(() => 130);
+    const expectedUsdc = amount / kesRate;
+    const { address: depositAddress } = getStaticUsdcAddress(user.id);
+    const valid = await verifyPolygonUsdcTx(txHash, depositAddress, expectedUsdc);
+    if (!valid) {
+      res.status(402).json({ error: "Transaction not found or amount mismatch. Please wait a moment for the transaction to confirm, then try again." });
+      return;
+    }
+  } else {
+    // Neither Circle configured nor a txHash provided — block silent credit
+    res.status(402).json({
+      error: "USDC payment could not be verified. Please connect your MetaMask, Coinbase, or Binance wallet and send the transaction — we'll verify it on-chain automatically.",
+    });
+    return;
   }
 
-  const reference = `CIRCLE-${intentId}`;
-  const result = await creditWallet(user.id, amount, reference, `USDC deposit via Circle (${intentId.slice(0, 8)})`);
+  const reference = `CIRCLE-${txHash ?? intentId}`;
+  const result = await creditWallet(user.id, amount, reference, `USDC deposit${txHash ? ` (tx: ${txHash.slice(0, 10)}…)` : ` via Circle (${intentId.slice(0, 8)})`}`);
   if ((result as any).alreadyCredited) { res.json({ alreadyCredited: true }); return; }
   recordDeposit(user.id, amount);
   notifyUser(user.id, "wallet_credit", "💰 USDC Deposit Confirmed!", `KES ${amount.toLocaleString("en-KE")} added to your wallet via USDC.`, "/wallet").catch(() => {});

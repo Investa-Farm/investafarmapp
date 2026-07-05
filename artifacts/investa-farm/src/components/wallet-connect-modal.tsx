@@ -1,73 +1,96 @@
 /**
- * WalletConnectModal — Multi-wallet popup for USDC payments
- * Supports: MetaMask, Trust Wallet, WalletConnect, Coinbase Wallet
- * Works on mobile via deep links + on desktop via window.ethereum
+ * WalletConnectModal — in-app Web3 wallet connection for USDC payments
+ *
+ * HOW IT WORKS
+ * ─────────────
+ * All modern mobile wallets (MetaMask, Coinbase Wallet, Binance Web3) inject
+ * `window.ethereum` when you load a page inside their built-in browser.
+ * So the correct flow on mobile is:
+ *   1. User taps their wallet → we redirect the CURRENT tab into that wallet's
+ *      in-app browser (not a _blank tab) via its deep-link URL.
+ *   2. The wallet loads Investa Farm; window.ethereum is now available.
+ *   3. We auto-detect the flag set before redirect and auto-connect.
+ *   4. User approves in-wallet → ERC-20 transfer sent → txHash returned.
+ *
+ * On desktop with a browser extension (MetaMask, Coinbase Wallet):
+ *   window.ethereum is already injected → connect inline, no redirect needed.
  */
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Wallet, Copy, Check, ExternalLink, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  X, Wallet, Copy, Check, AlertCircle, CheckCircle2,
+  Loader2, ExternalLink, ArrowRight, Zap,
+} from "lucide-react";
 
-interface WalletInfo {
+// ── USDC contract on Polygon Mainnet ──────────────────────────────────────────
+const USDC_POLYGON = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+const POLYGON_CHAIN_ID = "0x89"; // 137
+
+// ── ERC-20 helpers (no ethers/web3 dependency) ───────────────────────────────
+function encodeTransfer(to: string, usdcAmount: string): string {
+  const selector = "a9059cbb"; // keccak256("transfer(address,uint256)")[0:4]
+  const toHex = to.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
+  const amt = BigInt(Math.round(parseFloat(usdcAmount) * 1_000_000)); // 6 decimals
+  const amtHex = amt.toString(16).padStart(64, "0");
+  return `0x${selector}${toHex}${amtHex}`;
+}
+
+async function getUsdcBalance(eth: any, address: string): Promise<string> {
+  try {
+    const addrHex = address.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
+    const data = `0x70a08231${addrHex}`; // balanceOf(address)
+    const result: string = await eth.request({
+      method: "eth_call",
+      params: [{ to: USDC_POLYGON, data }, "latest"],
+    });
+    if (!result || result === "0x" || result === "0x0") return "0.00";
+    return (Number(BigInt(result)) / 1_000_000).toFixed(2);
+  } catch {
+    return "?.??";
+  }
+}
+
+// ── Deep-link URLs that open THIS page inside each wallet's in-app browser ───
+function walletBrowserLink(walletId: string): string {
+  const host = window.location.hostname;
+  if (walletId === "metamask") {
+    // metamask.app.link/dapp/<host> opens the site in MetaMask's browser
+    return `https://metamask.app.link/dapp/${host}`;
+  }
+  if (walletId === "coinbase") {
+    // Coinbase Wallet universal link
+    return `https://go.cb-wallet.io/wsegue?cb_url=${encodeURIComponent(window.location.href)}`;
+  }
+  if (walletId === "binance") {
+    // Binance Web3 DApp browser
+    return `https://www.binance.com/en/web3wallet?dapp=${encodeURIComponent(host)}`;
+  }
+  return window.location.href;
+}
+
+// ── Wallet catalogue ──────────────────────────────────────────────────────────
+interface WalletDef {
   id: string;
   name: string;
-  icon: string;
+  emoji: string;
   color: string;
-  deepLink?: (address: string, amount: string, chain: string) => string;
   description: string;
 }
 
-const BinanceIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 126.61 126.61" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <g fill="#F3BA2F">
-      <path d="M38.73 53.2L63.3 28.58l24.58 24.63 14.3-14.3L63.3 0 24.43 38.9z"/>
-      <path d="M0 63.31l14.3-14.31 14.31 14.31-14.31 14.3z"/>
-      <path d="M38.73 73.41L63.3 98 87.88 73.41l14.31 14.28-.05.05L63.3 126.61l-38.87-38.9-.17-.17z"/>
-      <path d="M98 63.31l14.3-14.31 14.31 14.3-14.31 14.32z"/>
-      <path d="M77.83 63.3l-14.53-14.54-10.73 10.74-1.24 1.23-2.55 2.56 14.52 14.52 14.53-14.51z"/>
-    </g>
-  </svg>
-);
-
-const CoinbaseIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="24" height="24" rx="6" fill="#0052FF" />
-    <path fillRule="evenodd" clipRule="evenodd"
-      d="M12 19C9.23858 19 7 16.7614 7 14V10C7 7.23858 9.23858 5 12 5C14.7614 5 17 7.23858 17 10V11H15V10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10V14C9 15.6569 10.3431 17 12 17C13.6569 17 15 15.6569 15 14V13H17V14C17 16.7614 14.7614 19 12 19Z"
-      fill="white"
-    />
-  </svg>
-);
-
-const WALLETS: WalletInfo[] = [
-  {
-    id: "binance",
-    name: "Binance Web3 Wallet",
-    icon: "binance",
-    color: "#F3BA2F",
-    deepLink: (addr: string, amt: string) =>
-      `bnc://app.binance.com/payment/pay?to=${addr}&amount=${amt}&symbol=USDC`,
-    description: "Send USDC directly from your Binance account",
-  },
-  {
-    id: "metamask",
-    name: "MetaMask",
-    icon: "🦊",
-    color: "#E2761B",
-    description: "Browser extension or MetaMask Mobile",
-  },
-  {
-    id: "coinbase",
-    name: "Coinbase Wallet",
-    icon: "coinbase",
-    color: "#0052FF",
-    description: "Connect your Coinbase Wallet to send USDC",
-  },
+const WALLETS: WalletDef[] = [
+  { id: "metamask",  name: "MetaMask",            emoji: "🦊", color: "#E2761B", description: "Browser extension or MetaMask Mobile" },
+  { id: "coinbase",  name: "Coinbase Wallet",      emoji: "🔵", color: "#0052FF", description: "Coinbase Wallet app or browser extension" },
+  { id: "binance",   name: "Binance Web3 Wallet",  emoji: "🟡", color: "#F3BA2F", description: "Send USDC from your Binance account" },
 ];
 
+const LS_KEY = "investa_wallet_connect_pending";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 export interface WalletConnectResult {
   address: string;
   walletId: string;
+  txHash?: string;
 }
 
 interface Props {
@@ -80,44 +103,80 @@ interface Props {
   onConnected?: (result: WalletConnectResult) => void;
 }
 
-export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, chain, memo, onConnected }: Props) {
-  const [step, setStep] = useState<"select" | "metamask" | "deeplink" | "qr" | "coinbase">("select");
-  const [selectedWallet, setSelectedWallet] = useState<WalletInfo | null>(null);
+type Step =
+  | "select"
+  | "connecting"
+  | "connected"
+  | "sending"
+  | "sent"
+  | "opening_app";
+
+export function WalletConnectModal({
+  open, onClose, depositAddress, amountUSDC, chain, memo, onConnected,
+}: Props) {
+  const [step, setStep] = useState<Step>("select");
+  const [selectedWallet, setSelectedWallet] = useState<WalletDef | null>(null);
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
-  const [connecting, setConnecting] = useState(false);
+  const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const hasMetaMask = typeof window !== "undefined" && !!(window as any).ethereum;
+  const eth = typeof window !== "undefined" ? (window as any).ethereum : null;
+  const hasProvider = !!eth;
 
+  // Detect which wallet injected window.ethereum
+  const injectedName = eth?.isMetaMask ? "MetaMask"
+    : eth?.isCoinbaseWallet ? "Coinbase Wallet"
+    : eth?.isBinance ? "Binance Web3"
+    : hasProvider ? "Web3 Wallet"
+    : null;
+
+  // Auto-connect if we were redirected from a wallet browser
   useEffect(() => {
-    if (!open) { setStep("select"); setError(null); setConnectedAddress(null); }
+    if (!open) return;
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    try {
+      const { walletId, ts } = JSON.parse(raw);
+      if (Date.now() - ts < 5 * 60 * 1000 && eth) {
+        localStorage.removeItem(LS_KEY);
+        const w = WALLETS.find(x => x.id === walletId);
+        if (w) { setSelectedWallet(w); void connectInApp(w); }
+      }
+    } catch { localStorage.removeItem(LS_KEY); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  async function connectMetaMask() {
-    setConnecting(true); setError(null);
+  useEffect(() => {
+    if (!open) {
+      setStep("select"); setError(null); setConnectedAddress(null);
+      setUsdcBalance(null); setTxHash(null); setSelectedWallet(null);
+    }
+  }, [open]);
+
+  // ── Connect via injected provider ──────────────────────────────────────────
+  async function connectInApp(wallet: WalletDef) {
+    setSelectedWallet(wallet);
+    setStep("connecting");
+    setError(null);
     try {
-      const eth = (window as any).ethereum;
-      if (!eth) throw new Error("MetaMask not detected. Install MetaMask or use MetaMask Mobile.");
+      if (!eth) throw new Error("No Web3 provider detected.");
 
+      // Request accounts
       const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
-      if (!accounts[0]) throw new Error("No accounts found");
+      if (!accounts[0]) throw new Error("No accounts returned");
       const address = accounts[0];
-      setConnectedAddress(address);
-      onConnected?.({ address, walletId: "metamask" });
 
-      // Try to switch to Polygon network
+      // Switch to Polygon
       try {
-        await eth.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: "0x89" }],
-        });
-      } catch (switchError: any) {
-        if (switchError.code === 4902) {
+        await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: POLYGON_CHAIN_ID }] });
+      } catch (sw: any) {
+        if (sw?.code === 4902) {
           await eth.request({
             method: "wallet_addEthereumChain",
             params: [{
-              chainId: "0x89",
+              chainId: POLYGON_CHAIN_ID,
               chainName: "Polygon Mainnet",
               nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
               rpcUrls: ["https://polygon-rpc.com/"],
@@ -125,30 +184,58 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
             }],
           });
         }
+        // ignore other switch errors — user may decline network switch
       }
-      setStep("metamask");
+
+      // Fetch USDC balance
+      const bal = await getUsdcBalance(eth, address);
+      setConnectedAddress(address);
+      setUsdcBalance(bal);
+      setStep("connected");
+      onConnected?.({ address, walletId: wallet.id });
     } catch (err: any) {
-      setError(err.message ?? "Connection failed");
-    } finally { setConnecting(false); }
-  }
-
-  function handleDeepLink(wallet: WalletInfo) {
-    setSelectedWallet(wallet);
-    if (wallet.deepLink) {
-      const link = wallet.deepLink(depositAddress, amountUSDC, chain);
-      // Open in new tab so user stays inside Investa Farm
-      window.open(link, "_blank", "noopener,noreferrer");
+      setError(err?.message ?? "Connection failed");
+      setStep("select");
     }
-    setStep("deeplink");
   }
 
-  function handleWalletConnect() {
-    setSelectedWallet(WALLETS.find(w => w.id === "walletconnect") ?? null);
-    setStep("qr");
+  // ── Send ERC-20 transfer ───────────────────────────────────────────────────
+  async function sendUsdcTx() {
+    if (!eth || !connectedAddress || !depositAddress) return;
+    setStep("sending");
+    setError(null);
+    try {
+      const data = encodeTransfer(depositAddress, amountUSDC);
+      const hash: string = await eth.request({
+        method: "eth_sendTransaction",
+        params: [{
+          from: connectedAddress,
+          to: USDC_POLYGON,
+          data,
+          // Let MetaMask estimate gas
+        }],
+      });
+      setTxHash(hash);
+      setStep("sent");
+      onConnected?.({ address: connectedAddress, walletId: selectedWallet?.id ?? "unknown", txHash: hash });
+    } catch (err: any) {
+      setError(err?.message ?? "Transaction failed or was rejected");
+      setStep("connected");
+    }
   }
 
-  async function copyAddress() {
-    await navigator.clipboard.writeText(depositAddress).catch(() => {});
+  // ── Open wallet's in-app browser ──────────────────────────────────────────
+  function openWalletBrowser(wallet: WalletDef) {
+    localStorage.setItem(LS_KEY, JSON.stringify({ walletId: wallet.id, ts: Date.now() }));
+    setSelectedWallet(wallet);
+    setStep("opening_app");
+    // Navigate the CURRENT tab (not _blank) — mobile deep link
+    window.location.href = walletBrowserLink(wallet.id);
+  }
+
+  // ── Copy helpers ──────────────────────────────────────────────────────────
+  async function copyText(text: string) {
+    await navigator.clipboard.writeText(text).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -164,7 +251,7 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
         <motion.div
           className="relative w-full max-w-[430px] bg-background rounded-t-3xl shadow-2xl overflow-hidden"
-          style={{ maxHeight: "90dvh" }}
+          style={{ maxHeight: "92dvh" }}
           initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 28, stiffness: 300 }}
         >
@@ -181,122 +268,214 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
               </div>
               <div>
                 <h3 className="font-bold text-base text-foreground">Connect Wallet</h3>
-                <p className="text-muted-foreground text-xs">Pay with USDC on {chain}</p>
+                <p className="text-muted-foreground text-xs">Send {amountUSDC} USDC on {chain}</p>
               </div>
             </div>
             <button onClick={onClose} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-              <X size={15} className="text-foreground" />
+              <X size={15} />
             </button>
           </div>
 
-          <div className="overflow-y-auto px-5 py-4 pb-8">
+          <div className="overflow-y-auto px-5 py-4 pb-8 space-y-4">
             {/* Amount chip */}
-            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 mb-4">
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3">
               <div>
                 <p className="text-blue-700 text-xs font-semibold">Amount to send</p>
                 <p className="text-blue-900 font-black text-xl">{amountUSDC} USDC</p>
               </div>
               <div className="text-right">
-                <p className="text-blue-600 text-xs">{chain} Network</p>
+                <p className="text-blue-600 text-xs">{chain}</p>
                 {memo && <p className="text-blue-700 font-mono text-xs mt-0.5">Memo: {memo}</p>}
               </div>
             </div>
 
+            {/* Injected provider badge */}
+            {injectedName && step === "select" && (
+              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
+                <p className="text-green-700 text-xs font-semibold">{injectedName} detected — you can connect directly</p>
+              </div>
+            )}
+
+            {/* Error */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2 mb-4">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
                 <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
                 <p className="text-red-700 text-xs">{error}</p>
               </div>
             )}
 
-            {/* Step: select wallet */}
+            {/* ── STEP: SELECT ─────────────────────────────────────────── */}
             {step === "select" && (
               <div className="space-y-2.5">
-                <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-3">Choose your wallet</p>
+                <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Choose your wallet</p>
 
-                {WALLETS.map(wallet => (
+                {WALLETS.map(w => (
                   <button
-                    key={wallet.id}
-                    onClick={() => {
-                      if (wallet.id === "metamask") {
-                        if (hasMetaMask) connectMetaMask();
-                        else {
-                          const deepLink = `https://metamask.app.link/dapp/app.investafarm.com`;
-                          window.open(deepLink, "_blank");
-                          setSelectedWallet(wallet);
-                          setStep("deeplink");
-                        }
-                      } else if (wallet.id === "coinbase") {
-                        setSelectedWallet(wallet);
-                        setStep("coinbase");
-                      } else {
-                        handleDeepLink(wallet);
-                      }
-                    }}
-                    disabled={connecting}
+                    key={w.id}
+                    onClick={() => hasProvider ? connectInApp(w) : openWalletBrowser(w)}
                     className="w-full flex items-center gap-3.5 p-4 rounded-2xl border border-border bg-background hover:bg-muted/40 active:scale-[0.98] transition-all"
                   >
                     <div
                       className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                      style={{ background: `${wallet.color}18` }}
+                      style={{ background: `${w.color}18` }}
                     >
-                      {wallet.icon === "binance" ? <BinanceIcon /> : wallet.icon === "coinbase" ? <CoinbaseIcon /> : wallet.icon}
+                      {w.emoji}
                     </div>
                     <div className="flex-1 text-left">
-                      <p className="text-foreground font-bold text-sm">{wallet.name}</p>
-                      <p className="text-muted-foreground text-xs mt-0.5">{wallet.description}</p>
+                      <p className="text-foreground font-bold text-sm">{w.name}</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">{w.description}</p>
                     </div>
-                    {wallet.id === "metamask" && hasMetaMask && (
-                      <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">Detected</span>
-                    )}
-                    {wallet.id === "coinbase" && (
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">In-App</span>
-                    )}
-                    {connecting && wallet.id === "metamask" && (
-                      <Loader2 size={16} className="animate-spin text-muted-foreground" />
+                    {hasProvider ? (
+                      <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                        Connect
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 flex items-center gap-1">
+                        Open <ExternalLink size={8} />
+                      </span>
                     )}
                   </button>
                 ))}
 
-                {/* Manual copy option */}
-                <div className="mt-4 pt-4 border-t border-border">
+                {/* Manual fallback */}
+                <div className="pt-3 border-t border-border">
                   <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-2">Or send manually</p>
                   <div className="bg-muted/50 rounded-xl p-3 flex items-center gap-2">
                     <p className="text-foreground font-mono text-xs flex-1 break-all leading-relaxed">{depositAddress}</p>
-                    <button onClick={copyAddress} className="flex-shrink-0 w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center">
+                    <button onClick={() => copyText(depositAddress)} className="flex-shrink-0 w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center">
                       {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} className="text-muted-foreground" />}
                     </button>
                   </div>
+                  {memo && <p className="text-amber-600 text-[10px] mt-1.5 font-medium">Include memo: <strong>{memo}</strong></p>}
                 </div>
               </div>
             )}
 
-            {/* Step: MetaMask connected */}
-            {step === "metamask" && connectedAddress && (
+            {/* ── STEP: CONNECTING ─────────────────────────────────────── */}
+            {step === "connecting" && (
+              <div className="py-8 flex flex-col items-center gap-4 text-center">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
+                  style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
+                  {selectedWallet?.emoji}
+                </div>
+                <div>
+                  <p className="text-foreground font-bold">Connecting to {selectedWallet?.name}</p>
+                  <p className="text-muted-foreground text-sm mt-1">Approve the connection in your wallet…</p>
+                </div>
+                <Loader2 size={24} className="animate-spin text-primary" />
+              </div>
+            )}
+
+            {/* ── STEP: CONNECTED ──────────────────────────────────────── */}
+            {step === "connected" && connectedAddress && (
               <div className="space-y-4">
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-                  <CheckCircle2 size={36} className="text-green-600 mx-auto mb-2" />
-                  <p className="text-green-800 font-bold text-sm">MetaMask Connected!</p>
-                  <p className="text-green-600 text-xs mt-1 font-mono">{connectedAddress.slice(0, 6)}...{connectedAddress.slice(-4)}</p>
+                {/* Wallet card */}
+                <div className="rounded-2xl p-4" style={{ background: `linear-gradient(135deg, ${selectedWallet?.color ?? "#6366F1"}22, ${selectedWallet?.color ?? "#6366F1"}08)`, border: `1px solid ${selectedWallet?.color ?? "#6366F1"}30` }}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl"
+                      style={{ background: `${selectedWallet?.color ?? "#6366F1"}20` }}>
+                      {selectedWallet?.emoji}
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-foreground">{selectedWallet?.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        <p className="text-green-600 text-xs font-semibold">Connected</p>
+                      </div>
+                    </div>
+                    <CheckCircle2 size={20} className="text-green-600 ml-auto" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="bg-background/70 rounded-xl p-2.5 flex items-center justify-between">
+                      <p className="text-muted-foreground text-[11px]">Address</p>
+                      <p className="text-foreground font-mono text-xs font-semibold">
+                        {connectedAddress.slice(0, 6)}…{connectedAddress.slice(-4)}
+                      </p>
+                    </div>
+                    <div className="bg-background/70 rounded-xl p-2.5 flex items-center justify-between">
+                      <p className="text-muted-foreground text-[11px]">USDC Balance (Polygon)</p>
+                      <p className="text-foreground font-bold text-sm">{usdcBalance ?? "…"} USDC</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <p className="text-foreground font-semibold text-sm">Send {amountUSDC} USDC to:</p>
-                  <div className="bg-muted/50 rounded-xl p-3 flex items-center gap-2">
+                {/* Send instruction */}
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2">
+                  <p className="text-blue-800 font-bold text-sm">Send {amountUSDC} USDC to:</p>
+                  <div className="bg-white rounded-xl border border-blue-200 p-2.5 flex items-center gap-2">
                     <p className="text-foreground font-mono text-xs flex-1 break-all">{depositAddress}</p>
-                    <button onClick={copyAddress} className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center">
-                      {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} className="text-muted-foreground" />}
+                    <button onClick={() => copyText(depositAddress)} className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      {copied ? <Check size={12} className="text-[#1652F0]" /> : <Copy size={12} className="text-[#1652F0]" />}
                     </button>
                   </div>
                   {memo && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5">
-                      <p className="text-amber-700 text-xs"><strong>Memo:</strong> {memo} (required)</p>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-2">
+                      <p className="text-amber-700 text-xs"><strong>⚠ Memo required:</strong> {memo}</p>
                     </div>
                   )}
                 </div>
 
+                {usdcBalance !== null && parseFloat(usdcBalance) < parseFloat(amountUSDC) && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                    <AlertCircle size={13} className="text-red-500 flex-shrink-0" />
+                    <p className="text-red-700 text-xs">Insufficient USDC balance ({usdcBalance} USDC). You need {amountUSDC} USDC.</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={sendUsdcTx}
+                  disabled={usdcBalance !== null && parseFloat(usdcBalance) < parseFloat(amountUSDC)}
+                  className="w-full py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg,#1652F0,#2D56FA)", boxShadow: "0 6px 20px rgba(22,82,240,0.35)" }}
+                >
+                  <Zap size={16} />
+                  Send {amountUSDC} USDC via {selectedWallet?.name}
+                </button>
+
+                <button onClick={() => setStep("select")} className="w-full text-muted-foreground text-xs font-medium underline underline-offset-2">
+                  ← Use a different wallet
+                </button>
+              </div>
+            )}
+
+            {/* ── STEP: SENDING ────────────────────────────────────────── */}
+            {step === "sending" && (
+              <div className="py-8 flex flex-col items-center gap-4 text-center">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
+                  style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
+                  {selectedWallet?.emoji}
+                </div>
+                <div>
+                  <p className="text-foreground font-bold">Approve in {selectedWallet?.name}</p>
+                  <p className="text-muted-foreground text-sm mt-1">Check your wallet for the transaction prompt…</p>
+                </div>
+                <Loader2 size={24} className="animate-spin text-[#1652F0]" />
+                <p className="text-muted-foreground text-xs">Sending {amountUSDC} USDC on Polygon</p>
+              </div>
+            )}
+
+            {/* ── STEP: SENT ───────────────────────────────────────────── */}
+            {step === "sent" && txHash && (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
+                  <CheckCircle2 size={40} className="text-green-600 mx-auto mb-3" />
+                  <p className="text-green-800 font-bold text-base">Transaction Sent!</p>
+                  <p className="text-green-700 text-xs mt-1">Your USDC is on its way. We'll verify and credit your KES wallet.</p>
+                </div>
+
+                <div className="bg-muted/50 rounded-xl p-3 space-y-1">
+                  <p className="text-muted-foreground text-[10px] uppercase tracking-wider">Transaction Hash</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-foreground font-mono text-xs flex-1 break-all">{txHash}</p>
+                    <button onClick={() => copyText(txHash)} className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center flex-shrink-0">
+                      {copied ? <Check size={12} className="text-green-600" /> : <Copy size={12} className="text-muted-foreground" />}
+                    </button>
+                  </div>
+                </div>
+
                 <a
-                  href={`https://polygonscan.com/address/${depositAddress}`}
+                  href={`https://polygonscan.com/tx/${txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1.5 text-blue-600 text-xs font-semibold"
@@ -304,147 +483,60 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
                   View on PolygonScan <ExternalLink size={11} />
                 </a>
 
-                <button onClick={onClose}
-                  className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">
-                  I've Sent — Back to Confirm
+                <button
+                  onClick={onClose}
+                  className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl active:scale-95 transition-transform text-sm flex items-center justify-center gap-2"
+                >
+                  <ArrowRight size={16} /> Back to Confirm Payment
                 </button>
               </div>
             )}
 
-            {/* Step: Coinbase Wallet — in-app connection flow */}
-            {step === "coinbase" && (
-              <div className="space-y-4">
-                {/* Coinbase header */}
-                <div className="rounded-2xl overflow-hidden"
-                  style={{ background: "linear-gradient(135deg,#003ab5 0%,#0052FF 100%)", boxShadow: "0 10px 32px rgba(0,82,255,0.35)" }}>
-                  <div className="p-5 flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0 border border-white/20">
-                      <CoinbaseIcon />
-                    </div>
-                    <div>
-                      <p className="text-white font-black text-base">Coinbase Wallet</p>
-                      <p className="text-white/70 text-xs">Send {amountUSDC} USDC on {chain}</p>
-                    </div>
-                  </div>
-                  <div className="bg-white/10 px-5 py-3 flex items-center justify-between">
-                    <p className="text-white/80 text-xs font-semibold">Amount</p>
-                    <p className="text-white font-black text-lg">{amountUSDC} USDC</p>
-                  </div>
+            {/* ── STEP: OPENING WALLET APP ─────────────────────────────── */}
+            {step === "opening_app" && (
+              <div className="space-y-4 text-center">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto"
+                  style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
+                  {selectedWallet?.emoji}
+                </div>
+                <div>
+                  <p className="text-foreground font-bold text-base">Opening {selectedWallet?.name}</p>
+                  <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+                    {selectedWallet?.name} will open and load Investa Farm inside its browser.
+                    The wallet will connect automatically — you won't leave the app.
+                  </p>
                 </div>
 
-                {/* Step instructions */}
-                <div className="space-y-2">
+                <div className="bg-muted/60 rounded-2xl p-4 text-left space-y-2">
                   {[
-                    { n: "1", text: "Copy the deposit address below" },
-                    { n: "2", text: "Open Coinbase Wallet app on your device" },
-                    { n: "3", text: `Send exactly ${amountUSDC} USDC on the ${chain} network` },
-                    { n: "4", text: "Return here and tap \"I've Sent\"" },
-                  ].map(s => (
-                    <div key={s.n} className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center flex-shrink-0">
-                        {s.n}
-                      </div>
-                      <p className="text-foreground text-xs font-medium">{s.text}</p>
+                    `${selectedWallet?.name} opens and loads this page`,
+                    "Tap Connect Wallet → your wallet",
+                    "Approve the connection",
+                    "Send USDC with one tap — all within the app",
+                  ].map((t, i) => (
+                    <div key={t} className="flex items-start gap-2.5">
+                      <div className="w-5 h-5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
+                      <p className="text-foreground text-xs font-medium">{t}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* Deposit address */}
-                <div>
-                  <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wider mb-1.5">Deposit Address ({chain})</p>
-                  <div className="bg-muted/50 rounded-xl p-3 flex items-center gap-2">
-                    <p className="text-foreground font-mono text-xs flex-1 break-all leading-relaxed">{depositAddress}</p>
-                    <button onClick={copyAddress}
-                      className="flex-shrink-0 w-9 h-9 rounded-lg bg-background border border-border flex items-center justify-center active:scale-90 transition-transform">
-                      {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} className="text-muted-foreground" />}
-                    </button>
-                  </div>
-                  {copied && <p className="text-green-600 text-[11px] font-medium mt-1">Address copied ✓</p>}
-                </div>
-
-                {memo && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                    <p className="text-amber-700 text-xs"><strong>⚠ Include this Memo:</strong> {memo} (required for crediting)</p>
-                  </div>
-                )}
-
-                {/* Deep link as secondary option */}
                 <a
-                  href={`coinbasewallet://dapp?url=${encodeURIComponent(`https://app.investafarm.com?pay=${depositAddress}&amount=${amountUSDC}&chain=${chain}`)}`}
-                  className="w-full py-3 rounded-2xl border-2 border-blue-200 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform bg-blue-50"
+                  href={walletBrowserLink(selectedWallet?.id ?? "metamask")}
+                  className="w-full py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  style={{ background: `${selectedWallet?.color ?? "#6366F1"}` }}
+                  onClick={() => {
+                    localStorage.setItem(LS_KEY, JSON.stringify({ walletId: selectedWallet?.id, ts: Date.now() }));
+                  }}
                 >
-                  <CoinbaseIcon /> Open Coinbase Wallet App
+                  Open {selectedWallet?.name} <ExternalLink size={14} />
                 </a>
 
-                <button onClick={onClose}
-                  className="w-full py-3.5 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
-                  style={{ background: "linear-gradient(135deg,#003ab5,#0052FF)" }}>
-                  I've Sent — Back to Confirm
-                </button>
-
-                <button onClick={() => setStep("select")} className="w-full text-muted-foreground text-xs font-medium underline underline-offset-2">
-                  ← Choose a different wallet
-                </button>
-              </div>
-            )}
-
-            {/* Step: Deep link sent */}
-            {step === "deeplink" && (
-              <div className="space-y-4 text-center">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"
-                  style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
-                  {selectedWallet?.icon === "binance"
-                    ? <BinanceIcon />
-                    : <span className="text-3xl">{selectedWallet?.icon}</span>}
-                </div>
-                <div>
-                  <p className="text-foreground font-bold text-base">Opening {selectedWallet?.name}</p>
-                  <p className="text-muted-foreground text-sm mt-1">If the app didn't open, send manually to:</p>
-                </div>
-                <div className="bg-muted/50 rounded-xl p-3 flex items-center gap-2 text-left">
-                  <p className="text-foreground font-mono text-xs flex-1 break-all">{depositAddress}</p>
-                  <button onClick={copyAddress} className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center">
-                    {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} className="text-muted-foreground" />}
-                  </button>
-                </div>
-                {memo && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-left">
-                    <p className="text-amber-700 text-xs"><strong>Important — Include Memo:</strong> {memo}</p>
-                  </div>
-                )}
-                <button onClick={() => setStep("select")} className="w-full border border-border text-foreground font-semibold py-3 rounded-2xl text-sm active:scale-95">
-                  ← Try Another Wallet
-                </button>
-              </div>
-            )}
-
-            {/* Step: WalletConnect QR */}
-            {step === "qr" && (
-              <div className="space-y-4 text-center">
-                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-                  <p className="text-blue-800 font-bold text-sm mb-2">WalletConnect</p>
-                  <p className="text-blue-600 text-xs mb-3">Open any WalletConnect-compatible wallet and scan the QR code, or copy the deposit address below.</p>
-                  {/* Simulated QR placeholder */}
-                  <div className="w-40 h-40 bg-white rounded-xl border-2 border-blue-200 mx-auto flex items-center justify-center mb-2">
-                    <div className="grid grid-cols-8 gap-0.5 p-2 w-full h-full">
-                      {Array.from({ length: 64 }).map((_, i) => (
-                        <div key={i} className="rounded-[1px]" style={{ background: Math.random() > 0.5 ? "#1e3a5f" : "transparent" }} />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-blue-600 text-[10px]">Scan with Trust Wallet, Rainbow, Argent, or any WC wallet</p>
-                </div>
-
-                <div className="bg-muted/50 rounded-xl p-3 flex items-center gap-2 text-left">
-                  <p className="text-muted-foreground text-[10px] uppercase tracking-wider mr-2">Address</p>
-                  <p className="text-foreground font-mono text-xs flex-1 break-all">{depositAddress}</p>
-                  <button onClick={copyAddress} className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center">
-                    {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} className="text-muted-foreground" />}
-                  </button>
-                </div>
-
-                <button onClick={() => setStep("select")} className="w-full border border-border text-foreground font-semibold py-3 rounded-2xl text-sm active:scale-95">
-                  ← Back
+                <button
+                  onClick={() => { if (eth) connectInApp(selectedWallet!); else setStep("select"); }}
+                  className="w-full py-3 rounded-2xl border-2 border-border text-foreground font-semibold text-sm active:scale-95"
+                >
+                  {eth ? "Already in wallet browser — Connect Now" : "← Choose a different wallet"}
                 </button>
               </div>
             )}
@@ -452,6 +544,6 @@ export function WalletConnectModal({ open, onClose, depositAddress, amountUSDC, 
         </motion.div>
       </motion.div>
     </AnimatePresence>,
-    document.body
+    document.body,
   );
 }
