@@ -11,15 +11,79 @@ import { getToken, formatKES } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RepayModal } from "@/components/repay-modal";
 import { AnimatePresence, motion } from "framer-motion";
+import { showCenterSuccess } from "@/components/center-success-modal";
+import { Wallet, Award, CircleDot } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
+type StatusHistoryEntry = { stage: string; at: string; note?: string };
+
 type LoanApp = {
   id: number; amount: number; purpose: string; purposeDetails: string;
   repaymentPeriodMonths: number; status: string; submittedAt?: string; createdAt: string;
   cropName?: string; acreage?: string; farmLocation?: string;
   expectedRevenue?: number; farmerShare?: number;
   costBreakdown?: CostBreakdown;
+  aiScore?: number | null; interestRate?: string | number; amountRepaid?: string | number;
+  nextRepaymentDueAt?: string | null; statusHistory?: StatusHistoryEntry[];
 };
+
+type CreditTier = { tier: "gold" | "silver" | "bronze"; interestRate: number; repaidCount: number; avgScore: number | null };
+
+const TIER_META: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
+  gold:   { label: "Gold Tier",   color: "text-amber-700",   bg: "bg-amber-50 border-amber-200",   emoji: "🥇" },
+  silver: { label: "Silver Tier", color: "text-slate-600",   bg: "bg-slate-50 border-slate-200",   emoji: "🥈" },
+  bronze: { label: "Bronze Tier", color: "text-orange-700",  bg: "bg-orange-50 border-orange-200", emoji: "🥉" },
+};
+
+const TIMELINE_STAGES: { key: string; label: string }[] = [
+  { key: "submitted", label: "Submitted" },
+  { key: "ai_scored", label: "AI Scored" },
+  { key: "under_review", label: "Reviewed" },
+  { key: "approved", label: "Approved" },
+  { key: "listed", label: "Listed" },
+];
+
+function LoanStatusTimeline({ app }: { app: LoanApp }) {
+  const history = app.statusHistory ?? [];
+  const historyMap = new Map(history.map(h => [h.stage, h]));
+  const isRejected = app.status === "rejected";
+  const rejectedEntry = historyMap.get("rejected");
+
+  if (isRejected) {
+    return (
+      <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+        <AlertCircle size={13} className="text-red-500 flex-shrink-0" />
+        <p className="text-red-700 text-[10px] leading-snug">
+          Rejected{rejectedEntry?.note ? ` — ${rejectedEntry.note}` : ""}
+        </p>
+      </div>
+    );
+  }
+
+  const currentIdx = TIMELINE_STAGES.reduce((acc, s, i) => (historyMap.has(s.key) ? i : acc), 0);
+
+  return (
+    <div className="flex items-center gap-0.5 overflow-x-auto pb-1">
+      {TIMELINE_STAGES.map((stage, i) => {
+        const reached = historyMap.has(stage.key) || i <= currentIdx;
+        const isLast = i === TIMELINE_STAGES.length - 1;
+        return (
+          <div key={stage.key} className="flex items-center flex-1 min-w-[52px]">
+            <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+              <div className={`w-4 h-4 rounded-full flex items-center justify-center ${reached ? "bg-primary" : "bg-muted border border-border"}`}>
+                {reached ? <CheckCircle2 size={10} className="text-white" /> : <CircleDot size={8} className="text-muted-foreground" />}
+              </div>
+              <span className={`text-[8px] font-semibold text-center leading-tight ${reached ? "text-foreground" : "text-muted-foreground/60"}`}>
+                {stage.label}
+              </span>
+            </div>
+            {!isLast && <div className={`h-0.5 flex-1 mx-0.5 mb-3.5 rounded-full ${i < currentIdx ? "bg-primary" : "bg-border"}`} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 type CostBreakdown = {
   landPrep: number; seeds: number; fertilizer: number; pesticides: number;
@@ -45,6 +109,10 @@ const COST_ITEMS: { key: keyof Omit<CostBreakdown, "contingency" | "total">; lab
   { key: "postHarvest", label: "Post-Harvest Handling",       emoji: "📦", hint: "Drying, storage, packaging, grading" },
   { key: "insurance",   label: "Crop Insurance",               emoji: "🛡️",  hint: "Weather & crop failure cover" },
 ];
+
+// Split the 10 cost items into two shorter steps
+const LAND_INPUT_COST_ITEMS = COST_ITEMS.filter(i => ["landPrep","seeds","fertilizer","pesticides"].includes(i.key));
+const LABOUR_LOGISTICS_COST_ITEMS = COST_ITEMS.filter(i => ["labour","equipment","irrigation","transport","postHarvest","insurance"].includes(i.key));
 
 const GUIDE_STEPS = [
   { icon: Shield,     title: "1. Get Verified",      body: "Upload National ID & Farm docs for KYC approval.",                color: "text-blue-600",   bg: "bg-blue-50"   },
@@ -226,12 +294,18 @@ export default function LoanApply() {
   // Template upload
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
-  // Auto-close on success (4s countdown)
+  // Auto-close fully on success (4s countdown) — closes modal, resets ALL state, and
+  // navigates to the farm listing so the flow doesn't just dump the farmer back on a
+  // half-reset form.
   useEffect(() => {
-    if (modalStep === 6 && submitDone) {
-      const t = setTimeout(() => { setShowModal(false); setModalStep(1); }, 4000);
+    if (modalStep === TOTAL_STEPS && submitDone) {
+      const t = setTimeout(() => {
+        closeModal();
+        setLocation("/farmer/farm-profile");
+      }, 4000);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [modalStep, submitDone]);
 
   const handleDownloadTemplate = () => {
@@ -300,6 +374,45 @@ export default function LoanApply() {
     },
   });
 
+  const { data: creditTier } = useQuery<CreditTier>({
+    queryKey: ["credit-tier"],
+    queryFn: async () => {
+      const r = await fetch("/api/loans/credit-tier", { headers: { Authorization: `Bearer ${token}` } });
+      return r.json();
+    },
+  });
+
+  const [quickPayLoanId, setQuickPayLoanId] = useState<number | null>(null);
+  const quickPay = useMutation({
+    mutationFn: async ({ id, amount }: { id: number; amount: number }) => {
+      const r = await fetch(`/api/loans/quick-pay/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message ?? data.error ?? "Payment failed");
+      return data as { message: string };
+    },
+    onMutate: ({ id }) => setQuickPayLoanId(id),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["loan-apps"] });
+      qc.invalidateQueries({ queryKey: ["credit-tier"] });
+      showCenterSuccess({ title: "Payment Sent", subtitle: data.message, emoji: "💸" });
+      setQuickPayLoanId(null);
+    },
+    onError: (e: Error) => {
+      showCenterSuccess({
+        title: "Payment Failed",
+        subtitle: e.message.includes("INSUFFICIENT") || e.message.toLowerCase().includes("balance")
+          ? "Insufficient wallet balance — top up to pay from wallet."
+          : e.message,
+        emoji: "⚠️",
+      });
+      setQuickPayLoanId(null);
+    },
+  });
+
   const { data: kycDocs = [] } = useQuery<any[]>({
     queryKey: ["kyc-docs"],
     queryFn: async () => {
@@ -325,7 +438,7 @@ export default function LoanApply() {
       qc.invalidateQueries({ queryKey: ["loan-apps"] });
       qc.invalidateQueries({ queryKey: ["farms"] });
       setSubmitDone(true);
-      setModalStep(6);
+      setModalStep(7);
     },
   });
 
@@ -339,24 +452,26 @@ export default function LoanApply() {
     setShowModal(true);
   };
 
+  // 7 shorter steps: Farm Basics → Land & Inputs → Labour & Logistics → Revenue → AI Score → Agreement → Done
   const canGoNext: Record<number, boolean> = {
     1: !!cropType && !!farmLocation,
-    2: totalAmount >= 10000,
-    3: (parseFloat(yieldKg) || 0) > 0 && (parseFloat(pricePerKg) || 0) > 0,
-    4: !aiScoring,
-    5: agreedToContract,
+    2: true, // land & input costs — optional per item
+    3: totalAmount >= 10000,
+    4: (parseFloat(yieldKg) || 0) > 0 && (parseFloat(pricePerKg) || 0) > 0,
+    5: !aiScoring,
+    6: agreedToContract,
   };
 
   const handleNext = async () => {
-    if (modalStep === 3) {
-      setModalStep(4);
+    if (modalStep === 4) {
+      setModalStep(5);
       setAiScoring(true);
-      await new Promise(r => setTimeout(r, 2400));
+      await new Promise(r => setTimeout(r, 2000));
       setAiScore(computeCreditScore(kycApproved, cropType, acreage, totalAmount, subtotal > 0, grossRevenue));
       setAiScoring(false);
       return;
     }
-    if (modalStep === 5) {
+    if (modalStep === 6) {
       const costBreakdown = { ...costs, contingency, total: totalAmount };
       apply.mutate({
         amount: totalAmount,
@@ -381,8 +496,8 @@ export default function LoanApply() {
   const handleBack = () => setModalStep(s => Math.max(1, s - 1));
   const closeModal = () => { setShowModal(false); setModalStep(1); };
 
-  const STEP_LABELS = ["Farm Details", "Cost Breakdown", "Revenue Projections", "AI Score", "Agreement", "Done!"];
-  const TOTAL_STEPS = 6;
+  const STEP_LABELS = ["Farm Details", "Land & Inputs", "Labour & Logistics", "Revenue Projections", "AI Score", "Agreement", "Done!"];
+  const TOTAL_STEPS = 7;
 
   return (
     <div className="app-shell pb-20 page-enter">
@@ -495,7 +610,17 @@ export default function LoanApply() {
 
         {/* Applications list */}
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-foreground">My Applications ({apps.length})</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">My Applications ({apps.length})</p>
+            {creditTier && (
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${TIER_META[creditTier.tier]!.bg}`}>
+                <Award size={11} className={TIER_META[creditTier.tier]!.color} />
+                <span className={`text-[10px] font-bold ${TIER_META[creditTier.tier]!.color}`}>
+                  {TIER_META[creditTier.tier]!.emoji} {TIER_META[creditTier.tier]!.label} · {creditTier.interestRate}% p.a.
+                </span>
+              </div>
+            )}
+          </div>
           {isLoading ? (
             <div className="text-center py-6 text-muted-foreground text-sm"><Loader2 size={20} className="animate-spin mx-auto" /></div>
           ) : apps.length === 0 ? (
@@ -518,6 +643,9 @@ export default function LoanApply() {
                   </div>
                   <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${cfg.cls}`}>{cfg.label}</span>
                 </div>
+
+                {/* Status timeline */}
+                <LoanStatusTimeline app={app} />
 
                 {/* Cost breakdown mini-view */}
                 {breakdown && (
@@ -558,28 +686,67 @@ export default function LoanApply() {
                 )}
 
                 {/* Revenue & repayment */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-muted/50 rounded-xl p-2.5">
-                    <p className="text-muted-foreground text-[10px]">Total owed (8% p.a.)</p>
-                    <p className="font-bold text-xs">{formatKES(app.amount * 1.08)}</p>
-                  </div>
-                  <div className="bg-muted/50 rounded-xl p-2.5">
-                    <p className="text-muted-foreground text-[10px]">Monthly</p>
-                    <p className="font-bold text-xs">{formatKES(app.amount * 1.08 / app.repaymentPeriodMonths)}</p>
-                  </div>
-                  {app.expectedRevenue != null && (
-                    <div className="bg-green-50 border border-green-100 rounded-xl p-2.5">
-                      <p className="text-green-700 text-[10px]">Projected Revenue</p>
-                      <p className="font-bold text-xs text-green-800">{formatKES(app.expectedRevenue)}</p>
+                {(() => {
+                  const rate = app.interestRate != null ? Number(app.interestRate) : 1.08;
+                  const totalOwed = app.amount * rate;
+                  const repaid = app.amountRepaid != null ? Number(app.amountRepaid) : 0;
+                  const remaining = Math.max(0, totalOwed - repaid);
+                  return (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-muted/50 rounded-xl p-2.5">
+                        <p className="text-muted-foreground text-[10px]">Total owed ({Math.round((rate - 1) * 100)}% p.a.)</p>
+                        <p className="font-bold text-xs">{formatKES(totalOwed)}</p>
+                      </div>
+                      <div className="bg-muted/50 rounded-xl p-2.5">
+                        <p className="text-muted-foreground text-[10px]">Monthly</p>
+                        <p className="font-bold text-xs">{formatKES(totalOwed / app.repaymentPeriodMonths)}</p>
+                      </div>
+                      {app.expectedRevenue != null && (
+                        <div className="bg-green-50 border border-green-100 rounded-xl p-2.5">
+                          <p className="text-green-700 text-[10px]">Projected Revenue</p>
+                          <p className="font-bold text-xs text-green-800">{formatKES(app.expectedRevenue)}</p>
+                        </div>
+                      )}
+                      {app.farmerShare != null && (
+                        <div className="bg-primary/5 border border-primary/10 rounded-xl p-2.5">
+                          <p className="text-primary text-[10px]">Your 55% Share</p>
+                          <p className="font-bold text-xs text-primary">{formatKES(app.farmerShare)}</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {app.farmerShare != null && (
-                    <div className="bg-primary/5 border border-primary/10 rounded-xl p-2.5">
-                      <p className="text-primary text-[10px]">Your 55% Share</p>
-                      <p className="font-bold text-xs text-primary">{formatKES(app.farmerShare)}</p>
+                  );
+                })()}
+
+                {/* Repayment due banner + one-tap wallet pay */}
+                {canRepay && app.nextRepaymentDueAt && (() => {
+                  const rate = app.interestRate != null ? Number(app.interestRate) : 1.08;
+                  const totalOwed = app.amount * rate;
+                  const repaid = app.amountRepaid != null ? Number(app.amountRepaid) : 0;
+                  const remaining = Math.max(0, totalOwed - repaid);
+                  const monthly = Math.min(remaining, totalOwed / app.repaymentPeriodMonths);
+                  const dueDate = new Date(app.nextRepaymentDueAt);
+                  const isOverdue = dueDate.getTime() < Date.now();
+                  return (
+                    <div className={`rounded-xl p-3 flex items-center gap-2.5 border ${isOverdue ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
+                      <Clock size={14} className={isOverdue ? "text-red-600 flex-shrink-0" : "text-amber-600 flex-shrink-0"} />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-[11px] font-bold leading-tight ${isOverdue ? "text-red-700" : "text-amber-700"}`}>
+                          {isOverdue ? "Payment overdue" : "Repayment due"} {dueDate.toLocaleDateString("en-KE")}
+                        </p>
+                        <p className="text-muted-foreground text-[10px] mt-0.5">{formatKES(monthly)} from your wallet</p>
+                      </div>
+                      <button
+                        onClick={() => quickPay.mutate({ id: app.id, amount: Math.round(monthly) })}
+                        disabled={quickPay.isPending && quickPayLoanId === app.id}
+                        className="flex items-center gap-1 bg-primary text-white font-bold text-[10px] px-3 py-1.5 rounded-lg active:scale-95 transition-transform flex-shrink-0 disabled:opacity-50">
+                        {quickPay.isPending && quickPayLoanId === app.id
+                          ? <Loader2 size={11} className="animate-spin" />
+                          : <Wallet size={11} />}
+                        Pay Now
+                      </button>
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
@@ -610,7 +777,7 @@ export default function LoanApply() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[300] flex items-end justify-center"
             style={{ background: "rgba(0,0,0,0.55)" }}
-            onClick={e => { if (e.target === e.currentTarget && modalStep < 6) closeModal(); }}>
+            onClick={e => { if (e.target === e.currentTarget && modalStep < TOTAL_STEPS) closeModal(); }}>
             <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
@@ -619,14 +786,14 @@ export default function LoanApply() {
 
               {/* Header — gradient green */}
               <div className="flex-shrink-0 relative overflow-hidden"
-                style={{ background: modalStep === 6
+                style={{ background: modalStep === TOTAL_STEPS
                   ? "linear-gradient(135deg,#052e16 0%,#15803d 60%,#22c55e 100%)"
                   : "linear-gradient(135deg,#14532d 0%,#16a34a 70%,#22c55e 100%)" }}>
 
                 {/* Top row: back / title / close */}
                 <div className="flex items-center justify-between px-5 pt-5 pb-3">
                   <div className="flex items-center gap-2.5">
-                    {modalStep > 1 && modalStep < 6 && (
+                    {modalStep > 1 && modalStep < TOTAL_STEPS && (
                       <button onClick={handleBack}
                         className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
                         <ChevronLeft size={14} className="text-white" />
@@ -634,12 +801,12 @@ export default function LoanApply() {
                     )}
                     <div>
                       <p className="font-bold text-white text-sm leading-tight">{STEP_LABELS[modalStep - 1]}</p>
-                      {modalStep < 6 && (
+                      {modalStep < TOTAL_STEPS && (
                         <p className="text-white/60 text-[10px]">Step {modalStep} of {TOTAL_STEPS}</p>
                       )}
                     </div>
                   </div>
-                  {modalStep < 6 && (
+                  {modalStep < TOTAL_STEPS && (
                     <button onClick={closeModal}
                       className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
                       <X size={14} className="text-white" />
@@ -648,14 +815,15 @@ export default function LoanApply() {
                 </div>
 
                 {/* Step indicator */}
-                {modalStep < 6 ? (
+                {modalStep < TOTAL_STEPS ? (
                   <div className="flex items-start justify-between px-5 pb-5">
                     {[
                       { n: 1, label: "Farm" },
-                      { n: 2, label: "Costs" },
-                      { n: 3, label: "Revenue" },
-                      { n: 4, label: "AI Score" },
-                      { n: 5, label: "Sign" },
+                      { n: 2, label: "Land" },
+                      { n: 3, label: "Labour" },
+                      { n: 4, label: "Revenue" },
+                      { n: 5, label: "AI Score" },
+                      { n: 6, label: "Sign" },
                     ].map(({ n, label }, idx) => {
                       const done = n < modalStep;
                       const active = n === modalStep;
@@ -743,16 +911,45 @@ export default function LoanApply() {
                   </div>
                 )}
 
-                {/* ── STEP 2: Cost Breakdown ── */}
+                {/* ── STEP 2: Land & Input Costs ── */}
                 {modalStep === 2 && (
                   <div className="space-y-3">
                     <div className="text-center mb-1">
-                      <div className="text-3xl mb-1">💰</div>
-                      <h3 className="font-bold text-foreground text-base">Full Cost Breakdown</h3>
-                      <p className="text-muted-foreground text-xs mt-0.5">Enter every cost from land prep to harvest. Leave at 0 if not applicable.</p>
+                      <div className="text-3xl mb-1">🌱</div>
+                      <h3 className="font-bold text-foreground text-base">Land & Input Costs</h3>
+                      <p className="text-muted-foreground text-xs mt-0.5">Land prep, seeds & crop protection. Leave at 0 if not applicable.</p>
                     </div>
 
-                    {COST_ITEMS.map(item => (
+                    {LAND_INPUT_COST_ITEMS.map(item => (
+                      <KesInput
+                        key={item.key}
+                        label={item.label}
+                        hint={item.hint}
+                        emoji={item.emoji}
+                        value={costs[item.key] ?? 0}
+                        onChange={v => setCosts(prev => ({ ...prev, [item.key]: v }))}
+                      />
+                    ))}
+
+                    <div className="bg-muted/40 rounded-xl p-3 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Running subtotal</span>
+                      <span className="font-bold text-foreground">
+                        {formatKES(LAND_INPUT_COST_ITEMS.reduce((s, i) => s + (costs[i.key] ?? 0), 0))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── STEP 3: Labour & Logistics Costs ── */}
+                {modalStep === 3 && (
+                  <div className="space-y-3">
+                    <div className="text-center mb-1">
+                      <div className="text-3xl mb-1">🚛</div>
+                      <h3 className="font-bold text-foreground text-base">Labour & Logistics Costs</h3>
+                      <p className="text-muted-foreground text-xs mt-0.5">Labour, equipment, transport & storage. Leave at 0 if not applicable.</p>
+                    </div>
+
+                    {LABOUR_LOGISTICS_COST_ITEMS.map(item => (
                       <KesInput
                         key={item.key}
                         label={item.label}
@@ -785,8 +982,8 @@ export default function LoanApply() {
                   </div>
                 )}
 
-                {/* ── STEP 3: Revenue Projections ── */}
-                {modalStep === 3 && (
+                {/* ── STEP 4: Revenue Projections ── */}
+                {modalStep === 4 && (
                   <div className="space-y-4">
                     <div className="text-center mb-2">
                       <div className="text-3xl mb-1">📈</div>
@@ -879,8 +1076,8 @@ export default function LoanApply() {
                   </div>
                 )}
 
-                {/* ── STEP 4: AI Score ── */}
-                {modalStep === 4 && (
+                {/* ── STEP 5: AI Score ── */}
+                {modalStep === 5 && (
                   <div className="space-y-5">
                     <div className="text-center">
                       <div className="text-3xl mb-1">🤖</div>
@@ -933,8 +1130,8 @@ export default function LoanApply() {
                   </div>
                 )}
 
-                {/* ── STEP 5: Agreement ── */}
-                {modalStep === 5 && (
+                {/* ── STEP 6: Agreement ── */}
+                {modalStep === 6 && (
                   <div className="space-y-4">
                     <div className="text-center mb-2">
                       <div className="text-3xl mb-1"><ScrollText size={32} className="mx-auto text-primary" /></div>
@@ -976,8 +1173,8 @@ export default function LoanApply() {
                   </div>
                 )}
 
-                {/* ── STEP 6: Done ── */}
-                {modalStep === 6 && (
+                {/* ── STEP 7: Done ── */}
+                {modalStep === 7 && (
                   <div className="space-y-5 py-2">
                     {/* Hero success banner */}
                     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
@@ -1059,7 +1256,7 @@ export default function LoanApply() {
               </div>
 
               {/* Footer — Next button */}
-              {modalStep < 6 && (
+              {modalStep < TOTAL_STEPS && (
                 <div className="px-5 py-4 border-t border-border flex-shrink-0">
                   <button
                     onClick={handleNext}
@@ -1067,15 +1264,15 @@ export default function LoanApply() {
                     className="w-full bg-primary text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40">
                     {apply.isPending ? (
                       <><Loader2 size={18} className="animate-spin" /> Submitting Proposal…</>
-                    ) : modalStep === 5 ? (
+                    ) : modalStep === 6 ? (
                       <><CheckCircle2 size={18} /> Submit Proposal</>
-                    ) : modalStep === 3 ? (
+                    ) : modalStep === 4 ? (
                       <><Calculator size={18} /> Run AI Assessment</>
                     ) : (
                       <>Continue <ChevronRight size={18} /></>
                     )}
                   </button>
-                  {modalStep === 2 && totalAmount >= 10000 && (
+                  {modalStep === 3 && totalAmount >= 10000 && (
                     <p className="text-center text-muted-foreground text-[10px] mt-2">
                       Requesting {formatKES(totalAmount)} · {COST_ITEMS.filter(i => (costs[i.key] ?? 0) > 0).length} cost items + 10% contingency
                     </p>

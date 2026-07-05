@@ -1,14 +1,44 @@
 import { Router, type IRouter } from "express";
 import { db, loanApplicationsTable, farmsTable, marketListingsTable, kycDocumentsTable, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { z } from "zod";
 import { sendFundingApplicationEmail, sendFundingVoucherEmail } from "../lib/email";
 import { notifyUser } from "../lib/push";
+import { debitWallet } from "../lib/walletOps";
 
 const router: IRouter = Router();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
+// ── Credit tiers ─────────────────────────────────────────────────────────────
+export const CREDIT_TIERS = [
+  { tier: "gold",   label: "Gold",   emoji: "🥇", minRepaid: 3, minScore: 80, interestRate: 1.04, color: "#ca8a04" },
+  { tier: "silver", label: "Silver", emoji: "🥈", minRepaid: 2, minScore: 70, interestRate: 1.06, color: "#64748b" },
+  { tier: "bronze", label: "Bronze", emoji: "🥉", minRepaid: 0, minScore: 0,  interestRate: 1.08, color: "#b45309" },
+] as const;
+
+export async function getFarmerCreditTier(farmerId: number) {
+  const loans = await db.select().from(loanApplicationsTable).where(eq(loanApplicationsTable.farmerId, farmerId));
+  const repaidLoans = loans.filter(l => l.status === "disbursed" && Number(l.amountRepaid) >= Number(l.amount) * Number(l.interestRate) * 0.95);
+  const scored = loans.filter(l => l.aiScore != null);
+  const avgScore = scored.length > 0 ? scored.reduce((s, l) => s + (l.aiScore ?? 0), 0) / scored.length : 0;
+  const repaidCount = repaidLoans.length;
+
+  const tier = CREDIT_TIERS.find(t => repaidCount >= t.minRepaid && avgScore >= t.minScore) ?? CREDIT_TIERS[CREDIT_TIERS.length - 1];
+  const nextTier = CREDIT_TIERS.find(t => t.tier !== tier.tier && (t.minRepaid > repaidCount || t.minScore > avgScore) && t.interestRate < tier.interestRate);
+
+  return {
+    tier: tier.tier, label: tier.label, emoji: tier.emoji, color: tier.color,
+    interestRate: tier.interestRate,
+    repaidCount, avgScore: Math.round(avgScore),
+    nextTier: nextTier ? {
+      label: nextTier.label, emoji: nextTier.emoji, interestRate: nextTier.interestRate,
+      loansNeeded: Math.max(0, nextTier.minRepaid - repaidCount),
+      scoreNeeded: Math.max(0, nextTier.minScore - avgScore),
+    } : null,
+  };
+}
 
 // ── Cost breakdown schema ────────────────────────────────────────────────────
 const CostBreakdownSchema = z.object({
@@ -87,6 +117,11 @@ function formatLoan(a: typeof loanApplicationsTable.$inferSelect, cropType?: str
     farmerShare: a.farmerShare ? Number(a.farmerShare) : undefined,
     voucherCode: a.status === "disbursed" ? voucherCode : undefined,
     voucherExpiry: a.status === "disbursed" ? voucherExpiry.toISOString() : undefined,
+    aiScore: a.aiScore ?? undefined,
+    interestRate: Number(a.interestRate) || 1.08,
+    amountRepaid: Number(a.amountRepaid) || 0,
+    nextRepaymentDueAt: a.nextRepaymentDueAt?.toISOString(),
+    statusHistory: Array.isArray(a.statusHistory) ? a.statusHistory : [],
   };
 }
 
@@ -254,6 +289,13 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
   const resolvedLocation = location ?? "Nairobi, Kenya";
   const detailsWithCrop = `[crop:${resolvedCrop}] ${purposeDetails}`;
 
+  const creditTier = await getFarmerCreditTier(user.id);
+
+  const submittedAt = new Date();
+  const statusHistory: { stage: string; at: string; note?: string }[] = [
+    { stage: "submitted", at: submittedAt.toISOString() },
+  ];
+
   const aiResult = await aiScoreLoan({
     cropType: resolvedCrop,
     amount,
@@ -266,6 +308,12 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
     costBreakdown: costBreakdown as Record<string, number> | undefined,
   }).catch(() => ({ score: 65, summary: "AI score unavailable" }));
 
+  statusHistory.push({ stage: "ai_scored", at: new Date().toISOString(), note: `Score ${aiResult.score}/100` });
+  statusHistory.push({ stage: "approved", at: new Date().toISOString(), note: `${creditTier.label} tier — ${((creditTier.interestRate - 1) * 100).toFixed(0)}% interest` });
+
+  const dueAt = new Date(submittedAt);
+  dueAt.setMonth(dueAt.getMonth() + repaymentPeriodMonths);
+
   const [app] = await db.insert(loanApplicationsTable).values({
     farmerId: user.id,
     amount: String(amount),
@@ -275,8 +323,11 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
     status: "approved",
     farmId: farmId ?? null,
     groupId: groupId ?? null,
-    submittedAt: new Date(),
+    submittedAt,
     reviewNotes: `AI Score: ${aiResult.score}/100 — ${aiResult.summary}`,
+    aiScore: aiResult.score,
+    interestRate: creditTier.interestRate.toFixed(3),
+    nextRepaymentDueAt: dueAt,
     cropName: resolvedCrop,
     acreage: acreage ?? null,
     farmLocation: resolvedLocation,
@@ -286,6 +337,7 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
     expectedPricePerKg: expectedPricePerKg ?? null,
     expectedRevenue: expectedRevenue ? String(expectedRevenue) : null,
     farmerShare: farmerShare ? String(farmerShare) : null,
+    statusHistory,
   }).returning();
 
   const resolvedFarmName = farmName ?? `${user.name.split(" ")[0]}'s ${resolvedCrop} Farm`;
@@ -296,6 +348,9 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
   const newFarmId = await autoCreateFarmAndListing(
     user.id, app.id, amount, resolvedCrop, resolvedFarmName, resolvedLocation, proposalDescription
   );
+
+  statusHistory.push({ stage: "listed", at: new Date().toISOString(), note: `Farm #${newFarmId} live on marketplace` });
+  await db.update(loanApplicationsTable).set({ statusHistory }).where(eq(loanApplicationsTable.id, app.id));
 
   sendFundingApplicationEmail(user.email, user.name, {
     amount,
@@ -316,8 +371,73 @@ router.post("/loans/apply", async (req, res): Promise<void> => {
     "/farmer/farm-profile"
   ).catch(() => {});
 
-  res.status(201).json({ ...formatLoan(app, resolvedCrop), newFarmId, aiScore: aiResult.score });
+  res.status(201).json({ ...formatLoan({ ...app, statusHistory }, resolvedCrop), newFarmId, aiScore: aiResult.score, creditTier: creditTier.tier });
 });
+
+// ── GET /loans/credit-tier ───────────────────────────────────────────────────
+router.get("/loans/credit-tier", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const tier = await getFarmerCreditTier(user.id);
+  res.json(tier);
+});
+
+type RepayLoanResult =
+  | { error: string; code: number }
+  | { loan: typeof loanApplicationsTable.$inferSelect; isFullRepayment: boolean; totalOwed: number; remaining: number };
+
+async function repayLoanInternal(loanId: number, userId: number, amount: number): Promise<RepayLoanResult> {
+  const [loan] = await db.select().from(loanApplicationsTable)
+    .where(eq(loanApplicationsTable.id, loanId));
+  if (!loan) return { error: "Loan not found", code: 404 };
+  if (loan.farmerId !== userId) return { error: "Forbidden", code: 403 };
+
+  const principal = Number(loan.amount);
+  const rate = Number(loan.interestRate) || 1.08;
+  const totalOwed = principal * rate;
+  const alreadyPaid = Number(loan.amountRepaid) || 0;
+  const newAmountRepaid = alreadyPaid + amount;
+  const isFullRepayment = newAmountRepaid >= totalOwed * 0.95;
+
+  const statusHistory = Array.isArray(loan.statusHistory) ? [...(loan.statusHistory as { stage: string; at: string; note?: string }[])] : [];
+  if (isFullRepayment) statusHistory.push({ stage: "disbursed", at: new Date().toISOString(), note: "Loan fully repaid" });
+
+  await db.update(loanApplicationsTable)
+    .set({
+      status: isFullRepayment ? "disbursed" : loan.status,
+      amountRepaid: String(newAmountRepaid),
+      nextRepaymentDueAt: isFullRepayment ? null : loan.nextRepaymentDueAt,
+      statusHistory,
+    })
+    .where(eq(loanApplicationsTable.id, loanId));
+
+  return {
+    loan, isFullRepayment, totalOwed,
+    remaining: isFullRepayment ? 0 : totalOwed - newAmountRepaid,
+  } as const;
+}
+
+async function sendRepaymentSuccessSideEffects(userEmail: string, userName: string, loan: typeof loanApplicationsTable.$inferSelect) {
+  const voucherCode = [
+    "IFV",
+    String(loan.id).padStart(4, "0"),
+    loan.purpose.slice(0, 3).toUpperCase(),
+    Math.random().toString(36).slice(2, 6).toUpperCase(),
+  ].join("-");
+  const farmName = loan.cropName ? `${loan.cropName} Farm` : "Your Farm";
+  sendFundingVoucherEmail(
+    userEmail, userName,
+    Number(loan.amount), farmName,
+    voucherCode,
+    Math.round(Number(loan.amount) * 0.6),
+  ).catch(() => {});
+  notifyUser(
+    loan.farmerId, "loan_disbursed",
+    "🎉 Voucher Ready!",
+    `Your funding voucher ${voucherCode} for ${farmName} is now available.`,
+    "/farmer/farm-profile"
+  ).catch(() => {});
+}
 
 // ── POST /loans/repay/:id ────────────────────────────────────────────────────
 router.post("/loans/repay/:id", async (req, res): Promise<void> => {
@@ -328,46 +448,59 @@ router.post("/loans/repay/:id", async (req, res): Promise<void> => {
   const parsed = RepayLoanBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const { amount } = parsed.data;
-  const [loan] = await db.select().from(loanApplicationsTable)
-    .where(eq(loanApplicationsTable.id, loanId));
-  if (!loan) { res.status(404).json({ error: "Loan not found" }); return; }
-  if (loan.farmerId !== user.id) { res.status(403).json({ error: "Forbidden" }); return; }
-  const principal = Number(loan.amount);
-  const totalOwed = principal * 1.08;
-  const isFullRepayment = amount >= totalOwed * 0.95;
-  await db.update(loanApplicationsTable)
-    .set({ status: isFullRepayment ? "disbursed" : loan.status })
-    .where(eq(loanApplicationsTable.id, loanId));
 
-  if (isFullRepayment) {
-    const voucherCode = [
-      "IFV",
-      String(loan.id).padStart(4, "0"),
-      loan.purpose.slice(0, 3).toUpperCase(),
-      Math.random().toString(36).slice(2, 6).toUpperCase(),
-    ].join("-");
-    const farmName = loan.cropName ? `${loan.cropName} Farm` : "Your Farm";
-    sendFundingVoucherEmail(
-      user.email, user.name,
-      Number(loan.amount), farmName,
-      voucherCode,
-      Math.round(Number(loan.amount) * 0.6),
-    ).catch(() => {});
-    notifyUser(
-      user.id, "loan_disbursed",
-      "🎉 Voucher Ready!",
-      `Your funding voucher ${voucherCode} for ${farmName} is now available.`,
-      "/farmer/farm-profile"
-    ).catch(() => {});
-  }
+  const result = await repayLoanInternal(loanId, user.id, amount);
+  if ("error" in result) { res.status(result.code).json({ error: result.error }); return; }
+
+  if (result.isFullRepayment) await sendRepaymentSuccessSideEffects(user.email, user.name, result.loan);
 
   res.json({
     success: true,
     loanId,
     amountPaid: amount,
-    remaining: isFullRepayment ? 0 : totalOwed - amount,
-    status: isFullRepayment ? "cleared" : "partial",
-    message: isFullRepayment ? "Loan fully repaid! Your account is clear." : `Partial payment of KES ${amount.toLocaleString()} received.`,
+    remaining: result.remaining,
+    status: result.isFullRepayment ? "cleared" : "partial",
+    message: result.isFullRepayment ? "Loan fully repaid! Your account is clear." : `Partial payment of KES ${amount.toLocaleString()} received.`,
+  });
+});
+
+// ── POST /loans/quick-pay/:id — one-tap pay-from-wallet ─────────────────────
+router.post("/loans/quick-pay/:id", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const loanId = parseInt(req.params.id, 10);
+  if (isNaN(loanId)) { res.status(400).json({ error: "Invalid loan ID" }); return; }
+  const parsed = RepayLoanBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const { amount } = parsed.data;
+
+  const [loan] = await db.select().from(loanApplicationsTable).where(eq(loanApplicationsTable.id, loanId));
+  if (!loan) { res.status(404).json({ error: "Loan not found" }); return; }
+  if (loan.farmerId !== user.id) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  try {
+    await debitWallet(user.id, amount, {
+      type: "fee",
+      description: `Loan repayment — ${loan.cropName ?? "Farm"} loan #${loanId}`,
+      reference: `loan-repay-${loanId}-${Date.now()}`,
+    });
+  } catch (e) {
+    res.status(400).json({ error: "INSUFFICIENT_FUNDS", message: e instanceof Error ? e.message : "Insufficient wallet balance" });
+    return;
+  }
+
+  const result = await repayLoanInternal(loanId, user.id, amount);
+  if ("error" in result) { res.status(result.code).json({ error: result.error }); return; }
+
+  if (result.isFullRepayment) await sendRepaymentSuccessSideEffects(user.email, user.name, result.loan);
+
+  res.json({
+    success: true,
+    loanId,
+    amountPaid: amount,
+    remaining: result.remaining,
+    status: result.isFullRepayment ? "cleared" : "partial",
+    message: result.isFullRepayment ? "Loan fully repaid from wallet! Your account is clear." : `KES ${amount.toLocaleString()} paid from wallet.`,
   });
 });
 
