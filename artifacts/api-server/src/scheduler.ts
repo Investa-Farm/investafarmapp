@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable, orderBookTable, watchlistTable, roiProjectionsTable, platformRevenueTable } from "@workspace/db";
-import { eq, inArray, lt, and, lte, asc } from "drizzle-orm";
+import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable, orderBookTable, watchlistTable, roiProjectionsTable, platformRevenueTable, loanApplicationsTable } from "@workspace/db";
+import { eq, inArray, lt, and, lte, asc, gte, isNotNull } from "drizzle-orm";
 import { creditWallet, debitWallet, ensureWallet } from "./lib/walletOps";
 import { sendOpportunityDigest } from "./lib/email";
 import { notifyMany, notifyUser } from "./lib/push";
@@ -52,6 +52,7 @@ export function startScheduler(): void {
   scheduleDailyRandom("Dividend payouts",       1,  4, runDividendPayouts);
   scheduleDailyRandom("Rainfall alerts",        5,  8, runRainfallAlerts);
   scheduleDailyRandom("ROI snapshots",          0,  3, runDailyRoiSnapshots);
+  scheduleDailyRandom("Loan repayment reminders", 7, 9, runLoanRepaymentReminders);
 
   // Farm growth — activate 1-3 pending/draft farms every 30 minutes so active count rises naturally
   cron.schedule("*/30 * * * *", () => runFarmGrowth(), { timezone: "Africa/Nairobi" });
@@ -662,6 +663,62 @@ async function runDailyRoiSnapshots(): Promise<void> {
     console.log(`[scheduler] ROI snapshots saved for ${snapped}/${investments.length} investments`);
   } catch (e) {
     console.warn("[scheduler] ROI snapshot error:", (e as Error)?.message);
+  }
+}
+
+// ─── Loan Repayment Reminders ────────────────────────────────────────────────
+// Notifies farmers 3 days before (and daily while overdue on) their next
+// installment due date, with a one-tap "Pay Now" deep link. Skips loans
+// already reminded today to avoid duplicate notifications.
+async function runLoanRepaymentReminders(): Promise<void> {
+  try {
+    const loans = await db.select().from(loanApplicationsTable)
+      .where(and(
+        inArray(loanApplicationsTable.status, ["approved", "disbursed"]),
+        isNotNull(loanApplicationsTable.nextRepaymentDueAt),
+      ));
+
+    const now = new Date();
+    const threeDaysOut = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const today = now.toISOString().split("T")[0]!;
+
+    let reminded = 0;
+    for (const loan of loans) {
+      try {
+        if (loan.status === "disbursed") continue; // already fully repaid & vouchered
+        const dueAt = loan.nextRepaymentDueAt;
+        if (!dueAt) continue;
+
+        const principal = Number(loan.amount);
+        const rate = Number(loan.interestRate) || 1.08;
+        const totalOwed = principal * rate;
+        const alreadyPaid = Number(loan.amountRepaid) || 0;
+        const remaining = totalOwed - alreadyPaid;
+        if (remaining <= totalOwed * 0.05) continue; // effectively cleared
+
+        const isDueSoon = dueAt <= threeDaysOut;
+        if (!isDueSoon) continue;
+
+        const lastReminderDay = loan.lastReminderAt?.toISOString().split("T")[0];
+        if (lastReminderDay === today) continue; // already reminded today
+
+        const isOverdue = dueAt < now;
+        const farmLabel = loan.cropName ? `${loan.cropName} loan` : "farm loan";
+        const title = isOverdue ? "⏰ Repayment overdue" : "💰 Repayment due soon";
+        const body = isOverdue
+          ? `Your ${farmLabel} of KES ${remaining.toLocaleString()} is overdue. Pay now from your wallet to avoid disruption.`
+          : `Your ${farmLabel} installment of KES ${remaining.toLocaleString()} is due ${dueAt.toLocaleDateString("en-KE")}. Tap to pay from your wallet.`;
+
+        await notifyUser(loan.farmerId, "loan_repayment_due", title, body, "/farmer/loan-apply");
+        await db.update(loanApplicationsTable)
+          .set({ lastReminderAt: now })
+          .where(eq(loanApplicationsTable.id, loan.id));
+        reminded++;
+      } catch { /* skip this loan */ }
+    }
+    console.log(`[scheduler] Loan repayment reminders sent to ${reminded}/${loans.length} loans`);
+  } catch (e) {
+    console.warn("[scheduler] Loan repayment reminder error:", (e as Error)?.message);
   }
 }
 

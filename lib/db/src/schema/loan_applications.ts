@@ -27,6 +27,13 @@ export const loanApplicationsTable = pgTable("loan_applications", {
   expectedPricePerKg: text("expected_price_per_kg"),
   expectedRevenue: numeric("expected_revenue", { precision: 15, scale: 2 }),
   farmerShare: numeric("farmer_share", { precision: 15, scale: 2 }),
+  // Credit scoring, repayment tracking & status timeline
+  aiScore: integer("ai_score"),
+  interestRate: numeric("interest_rate", { precision: 5, scale: 3 }).default("1.080").notNull(),
+  amountRepaid: numeric("amount_repaid", { precision: 15, scale: 2 }).default("0").notNull(),
+  nextRepaymentDueAt: timestamp("next_repayment_due_at"),
+  lastReminderAt: timestamp("last_reminder_at"),
+  statusHistory: jsonb("status_history"), // [{ stage: "submitted"|"ai_scored"|"approved"|"rejected"|"listed"|"disbursed", at: ISOString, note?: string }]
 });
 
 export type LoanApplication = typeof loanApplicationsTable.$inferSelect;
