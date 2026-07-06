@@ -1411,7 +1411,17 @@ export default function AdminDashboard() {
               </div>
             </>
           ) : (
-            <div className="text-center py-12 text-muted-foreground text-sm">Failed to load stats</div>
+            <div className="text-center py-12 text-muted-foreground text-sm space-y-3">
+              <p>Couldn't load dashboard stats. Your session may have expired.</p>
+              <div className="flex items-center justify-center gap-2">
+                <button onClick={fetchStats} className="px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold">
+                  Retry
+                </button>
+                <button onClick={handleLogout} className="px-4 py-2 rounded-lg bg-muted text-foreground text-xs font-semibold">
+                  Log in again
+                </button>
+              </div>
+            </div>
           )
         )}
 

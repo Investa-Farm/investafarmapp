@@ -17,6 +17,7 @@ import { getCropImage, CROP_IMAGES } from "@/lib/crops";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { InlineMicBot } from "@/components/ai-assistant";
 import { AppTour } from "@/components/app-tour";
+import { SpotlightTour } from "@/components/spotlight-tour";
 import { NewsAiBot } from "@/components/news-ai-bot";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { useCurrency } from "@/lib/currency";
@@ -727,7 +728,7 @@ export default function MarketHome() {
 
 
         {/* Ticker — rich with KES commodity prices + market insights */}
-        <div className="relative overflow-hidden rounded-xl mb-0 border-t border-border" style={{ background: "rgba(0,0,0,0.03)" }}>
+        <div data-tour="market-ticker" className="relative overflow-hidden rounded-xl mb-0 border-t border-border" style={{ background: "rgba(0,0,0,0.03)" }}>
           <div className="flex ticker-track whitespace-nowrap py-2">
             {tickerItems.map((item, i) => (
               item.type === "price" ? (
@@ -1151,6 +1152,7 @@ export default function MarketHome() {
                                               <BellRing size={11} className="text-muted-foreground" />
                                             </button>
                                             <button
+                                              data-tour={idx === 0 ? "buy-btn" : undefined}
                                               className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform shadow-sm shadow-primary/30"
                                               onClick={(e) => handleBuyClick(e, listing as Listing)}
                                             >
@@ -1815,6 +1817,18 @@ export default function MarketHome() {
 
       <BottomNav role="investor" />
       <AppTour role="investor" onAskAI={q => { setAiQuestion(q); }} />
+      <SpotlightTour
+        storageKey="investa_spotlight_investor_v1"
+        active={!aiQuestion}
+        startDelayMs={2600}
+        steps={[
+          { selector: '[data-tour="market-header"]', title: "Live Market", emoji: "📈", body: "This is your home screen — browse real, verified Kenyan farms open for investment right now." },
+          { selector: '[data-tour="wallet-btn"]', title: "Your Wallet", emoji: "💰", body: "Tap here anytime to top up via M-Pesa or card, or check your balance." },
+          { selector: '[data-tour="market-ticker"]', title: "Live Price Ticker", emoji: "📊", body: "Track live commodity prices and market-moving news as it happens." },
+          { selector: '[data-tour="buy-btn"]', title: "Buy Shares", emoji: "💳", body: "Found a farm you like? Tap BUY to purchase fractional shares in seconds." },
+          { selector: '[data-tour="nav-portfolio"]', title: "Your Portfolio", emoji: "💼", body: "All your holdings, returns, and exit options live here." },
+        ]}
+      />
 
       <NotificationPrompt storageKey="investor_notif_v1" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />

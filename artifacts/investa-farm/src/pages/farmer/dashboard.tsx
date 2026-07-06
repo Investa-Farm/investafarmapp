@@ -24,6 +24,7 @@ import { NotificationPrompt } from "@/components/notification-prompt";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { InlineMicBot } from "@/components/ai-assistant";
 import { AppTour } from "@/components/app-tour";
+import { SpotlightTour } from "@/components/spotlight-tour";
 
 const ALL_CROP_SLIDES = [heroImg1, heroImg2, heroImg3, heroImg4, heroImg5, heroImg6, heroImg7, heroImg8];
 
@@ -621,6 +622,15 @@ export default function FarmerDashboard() {
       <NotificationPrompt storageKey="farmer_notif_v1" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <AppTour role="farmer" />
+      <SpotlightTour
+        storageKey="investa_spotlight_farmer_v1"
+        active={true}
+        startDelayMs={2600}
+        steps={[
+          { selector: '[data-tour="kyc-prompt"]', title: "Verify Your Identity", emoji: "🛡️", body: "Complete this step first — it unlocks funding applications and gets your farm listed to investors." },
+          { selector: '[data-tour="nav-portfolio"]', title: "Track Everything", emoji: "📊", body: "Use the bottom nav to check your wallet, funding progress, and post field updates." },
+        ]}
+      />
     </div>
   );
 }
