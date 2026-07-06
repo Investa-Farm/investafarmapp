@@ -752,8 +752,8 @@ router.get("/wallet/pending-exits", async (req, res): Promise<void> => {
   const rows = await db
     .select({
       investmentId: investmentsTable.id,
-      shares: investmentsTable.shares,
-      totalAmount: investmentsTable.totalAmount,
+      shares: investmentsTable.quantity,
+      purchasePrice: investmentsTable.purchasePrice,
       exitType: investmentsTable.exitType,
       exitDate: investmentsTable.exitDate,
       farmName: farmsTable.name,
@@ -766,7 +766,7 @@ router.get("/wallet/pending-exits", async (req, res): Promise<void> => {
       eq(investmentsTable.status, "exit_requested"),
     ));
 
-  const total = rows.reduce((sum, r) => sum + Number(r.totalAmount ?? 0), 0);
+  const total = rows.reduce((sum, r) => sum + r.shares * Number(r.purchasePrice ?? 0), 0);
 
   res.json({
     pendingTotal: total,
@@ -776,7 +776,7 @@ router.get("/wallet/pending-exits", async (req, res): Promise<void> => {
       farmName: r.farmName ?? "Unknown Farm",
       cropType: r.cropType ?? "",
       shares: r.shares,
-      amount: Number(r.totalAmount ?? 0),
+      amount: r.shares * Number(r.purchasePrice ?? 0),
       exitType: r.exitType ?? "full_season",
       exitDate: r.exitDate ? new Date(r.exitDate).toISOString() : null,
     })),

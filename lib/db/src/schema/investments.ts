@@ -12,6 +12,8 @@ export const investmentsTable = pgTable("investments", {
   purchasePrice: numeric("purchase_price", { precision: 15, scale: 2 }).notNull(),
   exitType: text("exit_type").notNull(),
   exitDate: timestamp("exit_date"),
+  exitRequestedAt: timestamp("exit_requested_at"),
+  exitStatus: text("exit_status").default("pending"),
   status: text("status").default("active").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

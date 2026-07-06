@@ -11,6 +11,10 @@ const router = Router();
 const SUPPORT_EMAIL = "investafarm@proton.me";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "investafarm@proton.me";
 
+function param(v: string | string[] | undefined): string {
+  return Array.isArray(v) ? (v[0] ?? "") : (v ?? "");
+}
+
 // ─── USER ROUTES ─────────────────────────────────────────────────────────────
 
 // POST /support/tickets — submit a new ticket
@@ -154,7 +158,7 @@ router.patch("/admin/support-tickets/:id", async (req, res): Promise<void> => {
   const ok = await requireAdmin(req, res);
   if (!ok) return;
 
-  const ticketId = parseInt(req.params["id"] ?? "0", 10);
+  const ticketId = parseInt(param(req.params["id"]) || "0", 10);
   const { adminReply, status } = req.body as { adminReply?: string; status?: string };
   const validStatuses = ["open", "in_progress", "resolved", "closed"];
   const newStatus = validStatuses.includes(status ?? "") ? status : undefined;
@@ -201,7 +205,7 @@ router.post("/admin/support-tickets/:id/credit", financialRateLimit, async (req,
   const ok = await requireAdmin(req, res);
   if (!ok) return;
 
-  const ticketId = parseInt(req.params["id"] ?? "0", 10);
+  const ticketId = parseInt(param(req.params["id"]) || "0", 10);
   const { amountKES, note } = req.body as { amountKES: number; note?: string };
   if (!amountKES || amountKES <= 0 || amountKES > 500000) {
     res.status(400).json({ error: "Amount must be between KES 1 and KES 500,000" }); return;
@@ -225,6 +229,7 @@ router.post("/admin/support-tickets/:id/credit", financialRateLimit, async (req,
   const newBal = parseFloat(wallet.balance ?? "0") + amountKES;
   await db.update(walletsTable).set({ balance: String(newBal) }).where(eq(walletsTable.id, wallet.id));
   await db.insert(walletTransactionsTable).values({
+    walletId: wallet.id,
     userId,
     type: "deposit",
     amount: String(amountKES),
@@ -269,7 +274,7 @@ router.post("/admin/wallet/:userId/credit", financialRateLimit, async (req, res)
   const ok = await requireAdmin(req, res);
   if (!ok) return;
 
-  const userId = parseInt(req.params["userId"] ?? "0", 10);
+  const userId = parseInt(param(req.params["userId"]) || "0", 10);
   const { amountKES, reference, note } = req.body as { amountKES: number; reference?: string; note?: string };
 
   if (!userId || !amountKES || amountKES <= 0 || amountKES > 500000) {
@@ -287,6 +292,7 @@ router.post("/admin/wallet/:userId/credit", financialRateLimit, async (req, res)
   const newBal = parseFloat(wallet.balance ?? "0") + amountKES;
   await db.update(walletsTable).set({ balance: String(newBal) }).where(eq(walletsTable.id, wallet.id));
   await db.insert(walletTransactionsTable).values({
+    walletId: wallet.id,
     userId,
     type: "deposit",
     amount: String(amountKES),

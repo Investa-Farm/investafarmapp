@@ -314,7 +314,7 @@ router.get("/admin/export/:type", async (req, res): Promise<void> => {
         id: r.loan.id, date: r.loan.createdAt?.toISOString().split("T")[0],
         farmerName: r.user?.name ?? "", farmerEmail: r.user?.email ?? "",
         amountKES: Number(r.loan.amount), purpose: r.loan.purpose ?? "",
-        status: r.loan.status, cropType: r.loan.cropType ?? "",
+        status: r.loan.status, cropType: r.loan.cropName ?? "",
       }));
       const csv = toCSV(rows, ["id", "date", "farmerName", "farmerEmail", "amountKES", "purpose", "status", "cropType"]);
       res.setHeader("Content-Type", "text/csv");
@@ -1801,7 +1801,7 @@ router.post("/admin/support-tickets/:id/credit", async (req, res): Promise<void>
   const newBalance = Number(wallet.balance) + amountKES;
   await db.update(walletsTable).set({ balance: String(newBalance), updatedAt: new Date() }).where(eq(walletsTable.userId, ticket.userId));
   await db.insert(walletTransactionsTable).values({
-    userId: ticket.userId, type: "deposit", amount: String(amountKES),
+    walletId: wallet.id, userId: ticket.userId, type: "deposit", amount: String(amountKES),
     balanceAfter: String(newBalance), status: "completed",
     description: note?.trim() || `Support credit — Ticket #${id}`,
     reference: `SUPPORT-${id}-${Date.now()}`,
@@ -1843,7 +1843,7 @@ router.post("/admin/wallet/:userId/credit", async (req, res): Promise<void> => {
   const newBalance = Number(wallet.balance) + amountKES;
   await db.update(walletsTable).set({ balance: String(newBalance), updatedAt: new Date() }).where(eq(walletsTable.userId, userId));
   await db.insert(walletTransactionsTable).values({
-    userId, type: "deposit", amount: String(amountKES),
+    walletId: wallet.id, userId, type: "deposit", amount: String(amountKES),
     balanceAfter: String(newBalance), status: "completed",
     description: note?.trim() || "Admin direct credit",
     reference: reference?.trim() || `ADMIN-CREDIT-${Date.now()}`,

@@ -30,7 +30,7 @@ function scheduleDailyRandom(
     console.log(`[scheduler] ${label} → next run at ${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")} EAT`);
     cron.schedule(`${m} ${h} * * *`, () => {
       fn();
-    }, { timezone: "Africa/Nairobi", scheduled: true });
+    }, { timezone: "Africa/Nairobi" });
   }
   // Schedule immediately so the first run is at a random time today/tomorrow
   fireNext();

@@ -9,9 +9,8 @@
  */
 
 import { pool } from "@workspace/db";
+import type { PoolClient } from "@workspace/db";
 import { logger } from "./logger";
-
-type PoolClient = Awaited<ReturnType<(typeof pool)["connect"]>>;
 
 async function col(client: PoolClient, table: string, column: string, definition: string) {
   try {
@@ -67,6 +66,7 @@ export async function ensureSchema(): Promise<void> {
     await col(client, "users", "credit_limit_kes",   "NUMERIC(15,2)");
     await col(client, "users", "max_deposit_kes",    "NUMERIC(15,2)");
     await col(client, "users", "max_withdrawal_kes", "NUMERIC(15,2)");
+    await col(client, "users", "metadata",           "JSONB");
 
     // ── farms — newer columns ──────────────────────────────────────────────────
     await col(client, "farms", "change_percent", "NUMERIC(8,4) NOT NULL DEFAULT 0");
