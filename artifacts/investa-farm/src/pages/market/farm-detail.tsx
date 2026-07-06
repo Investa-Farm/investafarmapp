@@ -1323,7 +1323,7 @@ export default function FarmDetail() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-bold text-base text-foreground">Choose a Farm to Compare</h3>
-                    <p className="text-muted-foreground text-xs mt-0.5">Side-by-side vs <span className="font-semibold text-foreground">{farm?.farmName}</span></p>
+                    <p className="text-muted-foreground text-xs mt-0.5">Side-by-side vs <span className="font-semibold text-foreground">{farm?.name}</span></p>
                   </div>
                   <button onClick={() => setComparePickerOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                     <ChevronUp size={14} className="text-muted-foreground" />

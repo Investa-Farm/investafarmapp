@@ -1,0 +1,1 @@
+- [Render deploys need extra frontend fixes](render-deploy-frontend-fixes.md) — Render's strict build enforces typecheck + all workspace builds; Replit's dev flow tolerates issues that must be fixed for external hosts.

@@ -147,7 +147,7 @@ export default function FarmMap() {
 
   const mapRef    = useRef<HTMLDivElement>(null);
   const mapInst   = useRef<L.Map | null>(null);
-  const layersRef = useRef<Map<number, { polygon: L.Polygon; marker: L.Marker }>>(new Map());
+  const layersRef = useRef<Map<number, { polygon: L.Polygon; marker: L.Marker }>>(new globalThis.Map());
   const sentimentLayersRef = useRef<L.CircleMarker[]>([]);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
 

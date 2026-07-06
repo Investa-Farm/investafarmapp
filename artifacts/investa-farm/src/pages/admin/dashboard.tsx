@@ -980,7 +980,7 @@ export default function AdminDashboard() {
     { id: "users",     label: "Users",     icon: <Users size={18} />,      color: "text-blue-600",    bg: "bg-blue-50" },
     { id: "proposals", label: "Proposals", icon: <Sprout size={18} />,     color: "text-green-600",   bg: "bg-green-50",  badge: proposals.length },
   ];
-  const SECONDARY_TABS: { id: Tab; label: string; icon: React.ReactNode; color: string; bg: string; badge?: number; masterOnly?: boolean }[] = [
+  const SECONDARY_TABS_ALL: { id: Tab; label: string; icon: React.ReactNode; color: string; bg: string; badge?: number; masterOnly?: boolean }[] = [
     { id: "transactions", label: "Transactions", icon: <Activity size={18} />,      color: "text-purple-600",  bg: "bg-purple-50" },
     { id: "farms",        label: "Farms",        icon: <Tractor size={18} />,       color: "text-teal-600",    bg: "bg-teal-50" },
     { id: "payouts",      label: "Payouts",      icon: <DollarSign size={18} />,    color: "text-orange-600",  bg: "bg-orange-50" },
@@ -990,7 +990,8 @@ export default function AdminDashboard() {
     { id: "support",      label: "Support",      icon: <Ticket size={18} />,        color: "text-rose-600",    bg: "bg-rose-50",     badge: supportTickets.filter(t => t.status === "open").length, masterOnly: true },
     { id: "reviews",      label: "Reviews",      icon: <Star size={18} />,          color: "text-amber-600",   bg: "bg-amber-50" },
     { id: "settings",     label: "Settings",     icon: <Settings size={18} />,      color: "text-gray-600",    bg: "bg-gray-100",   masterOnly: true },
-  ].filter(t => !t.masterOnly || isMasterAdmin || (!isViewer && !kycOnly));
+  ];
+  const SECONDARY_TABS = SECONDARY_TABS_ALL.filter(t => !t.masterOnly || isMasterAdmin || (!isViewer && !kycOnly));
   const ALL_TABS = [...PRIMARY_TABS, ...SECONDARY_TABS];
   const activeTabMeta = ALL_TABS.find(t => t.id === tab);
 
