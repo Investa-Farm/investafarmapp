@@ -2,7 +2,6 @@
 
 # compiled output
 dist
-build
 tmp
 out-tsc
 *.tsbuildinfo
@@ -45,21 +44,6 @@ Thumbs.db
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
-# Replit internals
+# Replit
 .cache/
 .local/
-
-# Dependencies (each workspace manages its own)
-node_modules
-**/node_modules
-
-# Build outputs — only ignore compiled output, NOT the source code in artifacts/
-dist/
-artifacts/*/dist
-artifacts/*/.next
-artifacts/*/.turbo
-
-# Secrets
-.env
-.env.local
-.env.production
