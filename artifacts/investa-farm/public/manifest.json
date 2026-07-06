@@ -1,0 +1,61 @@
+{
+  "name": "Investa Farm",
+  "short_name": "InvestaFarm",
+  "description": "Farm investment platform — buy and sell agricultural shares in Kenya",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#052e16",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "categories": ["finance", "business"],
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Investor Market",
+      "short_name": "Market",
+      "description": "Browse farm investment opportunities",
+      "url": "/market",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Portfolio",
+      "short_name": "Portfolio",
+      "description": "View your investment portfolio",
+      "url": "/portfolio",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

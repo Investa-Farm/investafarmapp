@@ -1,0 +1,438 @@
+Investa Farm – Farmer App Market Screen
+Objective
+
+Build a premium marketplace where farmers can:
+
+View active buyer offers.
+Compare prices from multiple buyers.
+Accept contracts.
+Track existing contracts.
+See demand trends.
+Connect directly with verified buyers.
+
+The design should feel like a mix of:
+
+Stripe Dashboard
+Airbnb Mobile
+Monzo Banking App
+
+with Investa Farm's green branding.
+
+Screen Structure
+Header
+Market
+Find verified buyers for your produce
+
+Top right:
+
+Notification icon
+Filter icon
+Segmented Tabs
+[ Buyer Offers ] [ My Contracts ]
+
+Active tab highlighted in dark green.
+
+Section 1: Market Insights Card
+
+Large hero card.
+
+Background:
+
+Gradient green
+
+Contents:
+
+Demand Level:
+🔥 High Demand
+
+Crop:
+Tomatoes
+
+Average Market Price:
+$430/Ton
+
+Price Trend:
++8% This Week
+
+Best Region:
+Nairobi
+
+CTA:
+View Analytics →
+
+
+---
+
+# Section 2: Live Buyer Offers
+
+Title:
+
+
+Live Buyer Offers
+
+
+Scrollable cards.
+
+---
+
+## Offer Card
+
+
+Green Harvest Ltd.
+Verified Buyer ✓
+
+Price:
+$450/Ton
+
+Quantity Needed:
+50 Tons
+
+Location:
+Nairobi
+
+Contract Duration:
+60 Days
+
+Button:
+[ View Offer ]
+
+
+Card design:
+- White background
+- Soft shadow
+- Rounded 20px
+
+---
+
+## Offer Card 2
+
+
+FreshLink Traders
+
+Price:
+$435/Ton
+
+Quantity:
+80 Tons
+
+Location:
+Kisumu
+
+Button:
+View Offer
+
+
+---
+
+## Offer Card 3
+
+
+Agri Export Co.
+
+Price:
+$470/Ton
+
+Quantity:
+120 Tons
+
+Location:
+Mombasa
+
+Button:
+View Offer
+
+
+Highest price offer should get:
+
+
+BEST PRICE
+
+
+badge.
+
+---
+
+# Section 3: Recommended Buyers
+
+AI Recommendation Section.
+
+Title:
+
+
+Recommended For Your Farm
+
+
+Based on:
+- Crop type
+- Location
+- Yield projection
+
+Cards:
+
+
+Buyer Name
+Match Score: 96%
+Expected Revenue
+
+
+Button:
+
+
+Connect
+
+
+---
+
+# Section 4: Demand Forecast
+
+Mini chart.
+
+Show:
+
+
+Current Demand
+Next 30 Days Forecast
+
+
+Graph:
+
+- Green line
+- Upward trend
+
+Metrics:
+
+
+Demand Score: 87/100
+Expected Price Increase: +12%
+
+
+---
+
+# My Contracts Tab
+
+When user taps My Contracts.
+
+---
+
+## Active Contract Card
+
+
+Contract #INV-2401
+
+Buyer:
+Agri Export Co.
+
+Crop:
+Tomatoes
+
+Quantity:
+12.5 Tons
+
+Price:
+$470/Ton
+
+Status:
+Active
+
+
+Green status pill.
+
+Button:
+
+
+View Details
+
+
+---
+
+## Contract Progress Tracker
+
+Visual timeline.
+
+
+Contract Signed ✓
+Harvest Started ✓
+Collection Scheduled ✓
+Delivery Pending
+Payment Pending
+
+
+---
+
+## Revenue Projection
+
+Card:
+
+
+Expected Revenue
+
+$5,875
+
+
+Breakdown:
+
+
+Farmer Share
+Investor Share
+Platform Fee
+
+
+Use donut chart.
+
+---
+
+# Buyer Details Screen
+
+When farmer taps offer.
+
+---
+
+## Buyer Profile
+
+
+Green Harvest Ltd.
+
+Verified Buyer
+4.9 Rating
+
+Contracts Completed:
+1,248
+
+On-time Payments:
+99%
+
+
+---
+
+## Contract Terms
+
+
+Price Per Ton
+Required Quantity
+Delivery Window
+Quality Requirements
+
+
+---
+
+## Revenue Calculator
+
+Slider:
+
+
+Quantity
+
+
+Auto calculate:
+
+
+Expected Revenue
+Farmer Share
+Investor Share
+
+
+---
+
+## CTA Section
+
+Primary Button:
+
+
+Accept Contract
+
+
+Secondary:
+
+
+Negotiate Terms
+
+
+---
+
+# Design System
+
+Colors
+
+Primary Green:
+#0B6B3A
+
+Secondary Green:
+#22A45D
+
+Background:
+#F8FAF8
+
+Card:
+#FFFFFF
+
+Text:
+#111827
+
+Secondary Text:
+#6B7280
+
+---
+
+# UX Requirements
+
+- Smooth animations
+- Pull to refresh
+- Real-time buyer updates
+- Skeleton loaders
+- Empty states
+- Dark mode support
+- Responsive mobile layout
+- Bottom navigation persistent
+
+---
+
+# Bottom Navigation
+
+
+Home
+My Farm
+Market
+Earnings
+More
+
+
+Market tab active with green highlight.
+
+---
+
+# Advanced Features
+
+Add:
+
+### AI Price Prediction
+
+
+Predicted Price Next Week:
+$465/Ton
+Confidence:
+92%
+
+
+### Instant Contract Matching
+
+
+3 Buyers Match Your Harvest
+
+
+### Verified Buyer Badges
+
+Green checkmark verification.
+
+### Chat With Buyer
+
+Floating action button:
+
+
+💬
+
+
+Opens buyer conversation.
+
+---
+
+The final screen should feel premium, investor-grade, and modern enough to be shown in fundrai

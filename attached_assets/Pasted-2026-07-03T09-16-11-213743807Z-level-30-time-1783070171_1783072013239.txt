@@ -1,0 +1,50 @@
+2026-07-03T09:16:11.213743807Z {"level":30,"time":1783070171213,"pid":52,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-7c669699bf-pgxrk","req":{"id":80,"method":"POST","url":"/api/auth/login"},"res":{"statusCode":200},"responseTime":4400,"msg":"request completed"}
+2026-07-03T09:16:13.609286506Z {"level":30,"time":1783070173608,"pid":52,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-7c669699bf-pgxrk","req":{"id":81,"method":"GET","url":"/api/kyc/status"},"res":{"statusCode":304},"responseTime":1492,"msg":"request completed"}
+2026-07-03T09:16:43.811611922Z 
+2026-07-03T09:16:43.811651142Z <--- Last few GCs --->
+2026-07-03T09:16:43.811656143Z 
+2026-07-03T09:16:43.811661223Z [52:0x21affc00]  1206783 ms: Mark-Compact 253.0 (258.7) -> 252.8 (258.7) MB, 2788.61 / 0.00 ms  (average mu = 0.564, current mu = 0.033) allocation failure; scavenge might not succeed
+2026-07-03T09:16:43.811665543Z [52:0x21affc00]  1209886 ms: Mark-Compact 253.8 (258.7) -> 253.7 (260.5) MB, 3101.39 / 0.00 ms  (average mu = 0.341, current mu = 0.000) allocation failure; scavenge might not succeed
+2026-07-03T09:16:43.811669163Z 
+2026-07-03T09:16:43.811672723Z 
+2026-07-03T09:16:43.811676563Z <--- JS stacktrace --->
+2026-07-03T09:16:43.811680073Z 
+2026-07-03T09:16:43.811684463Z FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+2026-07-03T09:16:43.811689703Z ----- Native stack trace -----
+2026-07-03T09:16:43.811693374Z 
+2026-07-03T09:16:43.812232636Z  1: 0xb78db3 node::OOMErrorHandler(char const*, v8::OOMDetails const&) [node]
+2026-07-03T09:16:43.812613215Z  2: 0xee8300 v8::Utils::ReportOOMFailure(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [node]
+2026-07-03T09:16:43.813033855Z  3: 0xee85e7 v8::internal::V8::FatalProcessOutOfMemory(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [node]
+2026-07-03T09:16:43.813494106Z  4: 0x10fb205  [node]
+2026-07-03T09:16:43.813975468Z  5: 0x1113088 v8::internal::Heap::CollectGarbage(v8::internal::AllocationSpace, v8::internal::GarbageCollectionReason, v8::GCCallbackFlags) [node]
+2026-07-03T09:16:43.814451469Z  6: 0x10e91f1 v8::internal::HeapAllocator::AllocateRawWithLightRetrySlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [node]
+2026-07-03T09:16:43.814954831Z  7: 0x10ea385 v8::internal::HeapAllocator::AllocateRawWithRetryOrFailSlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [node]
+2026-07-03T09:16:43.815491504Z  8: 0x10c78d6 v8::internal::Factory::NewFillerObject(int, v8::internal::AllocationAlignment, v8::internal::AllocationType, v8::internal::AllocationOrigin) [node]
+2026-07-03T09:16:43.816128139Z  9: 0x15247d6 v8::internal::Runtime_AllocateInYoungGeneration(int, unsigned long*, v8::internal::Isolate*) [node]
+2026-07-03T09:16:43.816718493Z 10: 0x195e476  [node]
+2026-07-03T09:16:51.860433159Z ==> Running 'node --enable-source-maps artifacts/api-server/dist/index.mjs'
+2026-07-03T09:16:56.96899584Z {"level":30,"time":1783070216968,"pid":52,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-7c669699bf-pgxrk","port":10000,"msg":"Server listening"}
+2026-07-03T09:16:56.970038535Z [EMAIL] Resend API configured — emails will use Resend (HTTP, no SMTP needed)
+2026-07-03T09:16:57.060142444Z (node:52) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+2026-07-03T09:16:57.060167714Z In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-07-03T09:16:57.060170394Z 
+2026-07-03T09:16:57.060173324Z To prepare for this change:
+2026-07-03T09:16:57.060175954Z - If you want the current behavior, explicitly use 'sslmode=verify-full'
+2026-07-03T09:16:57.060177964Z - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+2026-07-03T09:16:57.060179744Z 
+2026-07-03T09:16:57.060182334Z See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+2026-07-03T09:16:57.060184225Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-07-03T09:16:57.566876411Z {"level":30,"time":1783070217566,"pid":52,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-7c669699bf-pgxrk","msg":"[migrate] Applying runtime schema migrations…"}
+2026-07-03T09:17:00.444847739Z {"level":30,"time":1783070220444,"pid":52,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-7c669699bf-pgxrk","msg":"[migrate] Runtime schema migrations complete ✓"}
+2026-07-03T09:17:07.867175075Z [scheduler] Monthly digest: 1st of each month at 08:00 EAT
+2026-07-03T09:17:07.86738699Z [scheduler] Verification reminders → next run at 09:22 EAT
+2026-07-03T09:17:07.870883973Z [scheduler] Dividend payouts → next run at 04:02 EAT
+2026-07-03T09:17:07.958647006Z [scheduler] Rainfall alerts → next run at 05:02 EAT
+2026-07-03T09:17:07.961483793Z [scheduler] ROI snapshots → next run at 03:22 EAT
+2026-07-03T09:17:07.96514435Z [scheduler] Price simulation & alerts: every 5 minutes
+2026-07-03T09:17:07.96515986Z [scheduler] Watchlist price alerts: every 5 minutes
+2026-07-03T09:17:07.965176101Z [scheduler] Order matching engine: every 2 minutes
+2026-07-03T09:17:07.965196321Z [scheduler] Daily jobs: randomised times within safe windows
+2026-07-03T09:17:12.814296113Z {"level":30,"time":1783070232813,"pid":52,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-7c669699bf-pgxrk","req":{"id":1,"method":"GET","url":"/api/notifications"},"res":{"statusCode":200},"responseTime":202,"msg":"request completed"}
+2026-07-03T09:17:16.071266215Z {"level":30,"time":1783070236071,"pid":52,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-7c669699bf-pgxrk","msg":"[bulk] Synthetic data already present (250,060 farmers) — skipping"}
+2026-07-03T09:17:21.706340031Z {"level":30,"time":1783070241706,"pid":52,"hostname":"srv-cguieliut4mcfriqthkg-hibernate-7c669699bf-pgxrk","req":{"id":2,"method":"HEAD","url":"/"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}

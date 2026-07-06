@@ -1,0 +1,129 @@
+Table: farms
+Stores static farm information and current season parameters.
+
+Column	Type	Description
+id	SERIAL PRIMARY KEY	Unique farm ID
+name	VARCHAR	e.g., "Kilimo Bora Maize"
+location	VARCHAR	Region, GPS coordinates
+crop_type	VARCHAR	e.g., "maize", "beans"
+season_start	DATE	Planting date
+season_end	DATE	Expected harvest date
+capital_needed	DECIMAL(12,2)	K in USD (e.g., 15000.00)
+forecast_revenue	DECIMAL(12,2)	Updated daily by AI
+farmer_share	DECIMAL(5,4)	β (0.45–0.65)
+investor_share	DECIMAL(5,4)	α (0.10–0.30) – can be computed or stored
+platform_share	DECIMAL(5,4)	γ = 1-α-β
+total_shares	INTEGER	N
+share_price_primary	DECIMAL(10,2)	P0 in USD
+risk_score	SMALLINT	1–10, updated daily by AI
+p_max	DECIMAL(5,4)	0.4 (default, can vary by crop)
+loss_given_default	DECIMAL(5,4)	0.8
+risk_free_rate	DECIMAL(5,4)	0.10
+Table: share_orders
+Tracks secondary market bids and asks (order book).
+
+Column	Type	Description
+id	SERIAL PRIMARY KEY	
+farm_id	INTEGER REFERENCES farms(id)	
+order_type	VARCHAR	'buy' or 'sell'
+quantity	INTEGER	number of shares
+limit_price	DECIMAL(10,2)	USD per share (optional, if market order use formula)
+status	VARCHAR	'open', 'filled', 'cancelled'
+created_at	TIMESTAMP	
+Table: price_history
+Logs daily fair values for audit and charting.
+
+Column	Type	Description
+id	SERIAL PRIMARY KEY	
+farm_id	INTEGER REFERENCES farms(id)	
+date	DATE	
+fair_value_secondary	DECIMAL(10,2)	Computed seller price (without fees)
+closing_price	DECIMAL(10,2)	Last executed trade price
+volume	INTEGER	Number of shares traded
+2. API Endpoint Design (REST)
+Base URL: https://api.investafarm.com/v1
+
+2.1 Get Primary Market Price (pre‑launch / during issuance)
+GET /farms/{farm_id}/primary-price
+
+Response (example for farm with capital_needed=15000, total_shares=1500):
+
+json
+{
+  "farm_id": 101,
+  "share_price": 10.00,
+  "currency": "USD",
+  "total_shares": 1500,
+  "investor_share_alpha": 0.20,
+  "forecast_revenue": 100000.00,
+  "risk_score": 7,
+  "days_to_harvest": 90,
+  "fair_value_check": {
+    "alpha_required_given_K": 0.198,
+    "status": "viable"
+  }
+}
+2.2 Get Current Secondary Market Price (live)
+GET /farms/{farm_id}/secondary-price
+
+Query params: ?side=seller|buyer (default seller)
+
+Response:
+
+json
+{
+  "farm_id": 101,
+  "seller_price": 8.35,
+  "buyer_price": 8.60,
+  "trading_fee": 0.01,
+  "mid_price": 8.475,
+  "order_book_summary": {
+    "total_bid_quantity": 2000,
+    "total_ask_quantity": 1000,
+    "imbalance_factor": 1.02
+  },
+  "breakdown": {
+    "expected_dividend": 20.00,
+    "time_discount": 1.0158,
+    "risk_discount": 0.1067,
+    "liquidity_discount": 0.02,
+    "demand_multiplier": 1.02
+  },
+  "updated_at": "2026-06-14T10:30:00Z"
+}
+2.3 Place Secondary Market Order
+POST /orders
+
+Request body:
+
+json
+{
+  "farm_id": 101,
+  "order_type": "sell",
+  "quantity": 100,
+  "limit_price": null   // null means market order (use current formula)
+}
+Response:
+
+json
+{
+  "order_id": 5001,
+  "status": "open",
+  "estimated_execution_price": 8.35,
+  "fee": 0.0835
+}
+2.4 Get No‑Arbitrage Check
+GET /farms/{farm_id}/arbitrage-check
+
+Compares current market price to fair value.
+
+Response:
+
+json
+{
+  "fair_value_no_arb": 9.12,
+  "current_market_price_seller": 8.35,
+  "deviation_percent": -8.44,
+  "arbitrage_opportunity": false,
+  "alert": "Price below fair value – buying opportunity"
+}

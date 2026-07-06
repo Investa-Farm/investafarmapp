@@ -10,7 +10,23 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: process.env.NODE_ENV === "production" ? 25 : 8,
+  min: process.env.NODE_ENV === "production" ? 4 : 1,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 15_000,
+  allowExitOnIdle: false,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10_000,
+});
+
+pool.on("error", (err) => {
+  console.error("[db] Unexpected pool client error", err.message);
+});
+
 export const db = drizzle(pool, { schema });
+
+export type PoolClient = pg.PoolClient;
 
 export * from "./schema";
