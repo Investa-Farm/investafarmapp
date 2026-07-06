@@ -37,15 +37,6 @@ feature/xyz  ──PR──▶  staging  ──PR──▶  main
                 (test here)          (production)
 ```
 
-## Branch protection
-
-For this workflow to be enforced, `main` should be configured (in your GitHub repository settings) with branch protection rules, for example:
-
-- Require a pull request before merging (no direct pushes to `main`).
-- Require the PR to come from `staging` (or at minimum, require PR review + passing checks).
-- Optionally require status checks (typecheck/build) to pass before merging.
-
-> **Note:** Branch protection rules must be configured directly in your GitHub repository's settings (Settings → Branches → Branch protection rules). This is a GitHub-side setting and cannot be configured from within this workspace.
 
 ## Before opening a PR
 
