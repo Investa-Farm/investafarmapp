@@ -26,18 +26,31 @@ A farm investment PWA where farmers raise capital by listing farm shares (like a
 
 - `artifacts/investa-farm/` — React PWA frontend
   - `src/pages/onboarding.tsx` — 3-slide splash/onboarding
-  - `src/pages/login.tsx`, `register.tsx` — auth pages
-  - `src/pages/market/` — investor market views (home, primary, secondary, farm detail)
-  - `src/pages/portfolio.tsx`, `activity.tsx`, `profile.tsx` — investor views
-  - `src/pages/farmer/` — farmer dashboard, operations, market, updates
+  - `src/pages/login.tsx`, `register.tsx`, `farmer-auth.tsx`, `investor-auth.tsx`, `cooperative-auth.tsx`, `wealth-auth.tsx` — role-specific auth pages
+  - `src/pages/market/` — investor market: `index.tsx` (home), `primary.tsx`, `secondary.tsx`, `farm-detail.tsx`, `farm-map.tsx`, `farm-exchange.tsx` (peer-to-peer negotiated exchange), `community-portfolios.tsx` (copy/mirror investing), `fund-dashboard.tsx` (wealth/fund manager view)
+  - `src/pages/portfolio.tsx`, `activity.tsx`, `profile.tsx`, `wallet.tsx`, `notifications.tsx` — investor views
+  - `src/pages/farmer/` — dashboard, operations, market, updates, loan-apply, farm-profile, crop-proposal, group-setup, health, kyc, news, notifications, totp, vouchers, wallet
+  - `src/pages/cooperative/` — cooperative dashboard + profile
+  - `src/pages/agribusiness/` — dashboard, kyc, network, orders, profile
+  - `src/pages/sales-agent/dashboard.tsx`, `src/pages/offtaker/dashboard.tsx` — dedicated role dashboards
+  - `src/pages/wealth/dashboard.tsx` — fund manager dashboard
+  - `src/pages/syndicates/index.tsx` — pooled group investing
+  - `src/pages/bets/index.tsx` — crop outcome prediction market
+  - `src/pages/admin/dashboard.tsx`, `login.tsx` — admin console (users/KYC/txns/farms/payouts/settings/fraud/support tabs)
+  - `src/pages/architecture.tsx` — static architecture documentation page (no backend)
   - `src/lib/auth.ts` — localStorage token helpers, KES formatter
+  - `src/lib/currency.tsx` — multi-currency display (KES/USD/etc.), `CurrencyProvider`
   - `src/components/bottom-nav.tsx` — role-aware bottom nav
   - `src/components/sparkline.tsx` — Recharts sparkline component
-- `artifacts/api-server/src/routes/` — Express API (auth, farms, market, portfolio, farmer)
-- `lib/db/src/schema.ts` — Drizzle schema (users, farms, market_listings, investments, transactions, farm_updates)
+  - `src/components/spotlight-tour.tsx` — first-run guided tour highlighting real UI elements per role
+- `artifacts/api-server/src/routes/` — Express API: `auth`, `farms`, `market`, `portfolio`, `portfolio-manager`, `portfolio-roi`, `farmer`, `farmer-health`, `admin`, `agribusiness`, `groups`, `syndicates`, `bets`, `orders`, `wallet`, `stellar`, `harvest`, `dividends` (in `harvest.ts`), `kyc`, `ai`, `ai-kyc`, `ai-chat`, `news`, `crop-prices`, `crop-images`, `investor-feed`, `notifications`, `price-alerts`, `watchlist`, `reinvestment`, `rainfall`, `reviews`, `support`, `totp`, `transactions`, `loans`, `upload`, `health`
+- `lib/db/src/schema/` — Drizzle schema, split by domain: `users` (role enum: farmer/investor/cooperative/agribusiness/admin), `farms`, `market_listings`, `investments`, `transactions`, `wallet_transactions`, `farm_updates`, `dividends`, `reinvestment_rules`, `investor_portfolio_subscriptions`, and more (see directory for full list)
 - `lib/api-spec/src/openapi.yaml` — OpenAPI source of truth
 - `lib/api-client-react/src/generated/api.ts` — Generated React Query hooks
 - `lib/api-zod/src/generated/api.ts` — Generated Zod schemas
+- `ROADMAP.md` — audited list of what's built vs. planned next
+- `BUGS.md` — known bugs and feature degradations (esp. from missing API keys)
+- `CONTRIBUTING.md` — git workflow (feature branch → staging → main)
 
 ## Architecture decisions
 
@@ -49,11 +62,19 @@ A farm investment PWA where farmers raise capital by listing farm shares (like a
 
 ## Product
 
-- **Onboarding**: 3-slide animated splash with real farm data previews
-- **Farmers**: List farms for investment, track funding progress, post field updates, view earnings
-- **Investors**: Browse live market with sparklines + price ticker, buy shares (primary/secondary), manage portfolio, request exit (Wide Season 30-60d or Full Season ~6mo), view transaction history
-- **Agribusinesses / Sales Agents / Offtakers**: Separate KYC flow with business registration, ID, selfie, and financial statements
+- **Onboarding**: 3-slide animated splash with real farm data previews; role-aware `SpotlightTour` highlights real UI elements on first run (investor: market header, wallet, ticker, buy button, portfolio nav, KYC prompt; farmer: dashboard equivalents)
+- **Farmers**: List farms for investment (loan application + contract flow), track funding progress, post field updates, view weather/NDVI, view earnings, manage vouchers, request loans
+- **Investors**: Browse live market with sparklines + price ticker, buy shares (primary/secondary + order book), manage portfolio, request exit (Wide Season 30-60d or Full Season ~6mo), view transaction history, set price alerts/watchlist, enable auto-reinvestment
+- **Cooperatives**: Dedicated dashboard for group/bulk procurement and member farmer management
+- **Agribusinesses / Sales Agents / Offtakers**: Separate KYC flow with business registration, ID, selfie, and financial statements; agribusiness gets a network view of connected farmers + commission tracking; offtakers get a bulk-commodity procurement dashboard
+- **Wealth / Fund managers**: Dedicated dashboard for AUM tracking, farm portfolio allocation, and client management (client list is currently local-only — see `ROADMAP.md`)
+- **Syndicates**: Farmers/investors pool resources into a group to fund shared inputs or larger farm listings
+- **Crop Bets**: Prediction market where users stake on farm outcomes (ROI, yield, price direction)
+- **Community Portfolios**: Copy/mirror another investor's portfolio strategy
+- **Admin**: Full oversight — users, KYC approval, transactions, farms, harvest/dividend triggers, fraud flags, broadcast messaging, support tickets; separate KYC-only sub-admin login
+- **AI features**: Chat assistant + farm insights via Groq (falls back to heuristic canned replies without `GROQ_API_KEY`), AI-assisted KYC review, news + crop sentiment feed
 - **Demo accounts**: `john.kamau.farm@gmail.com` / `password123` (farmer), `david.mwangi.inv@gmail.com` / `password123` (investor)
+- See `ROADMAP.md` for what's partial/planned and `BUGS.md` for known issues
 
 ## Investment Math
 
@@ -250,3 +271,6 @@ localhost, 127.0.0.1, app.investafarm.com, investa-farm.onrender.com
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See `ROADMAP.md` for what's built vs. partial vs. planned
+- See `BUGS.md` for known bugs (incl. `pnpm run typecheck` failures) and feature degradations from missing API keys
+- See `CONTRIBUTING.md` for the git branching/PR workflow
