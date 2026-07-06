@@ -1,0 +1,28 @@
+2026-07-06T16:40:27.331588257Z ==> Cloning from https://github.com/Investa-Farm/investafarmapp
+2026-07-06T16:40:33.119360635Z ==> Checking out commit 487bae96d483298d38617d9fefd2f9d8a4eea145 in branch main
+2026-07-06T16:40:35.395770431Z ==> Using Node.js version 24.14.1 (default)
+2026-07-06T16:40:35.395780331Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-07-06T16:40:35.442363301Z ==> Running build command 'pnpm install --frozen-lockfile; pnpm run build'...
+2026-07-06T16:40:44.4981739Z 
+2026-07-06T16:40:44.498214901Z > workspace@0.0.0 build /opt/render/project/src
+2026-07-06T16:40:44.498220191Z > pnpm run typecheck && pnpm -r --if-present run build
+2026-07-06T16:40:44.498222341Z 
+2026-07-06T16:40:44.81417824Z 
+2026-07-06T16:40:44.81419439Z > workspace@0.0.0 typecheck /opt/render/project/src
+2026-07-06T16:40:44.8141979Z > pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+2026-07-06T16:40:44.81420128Z 
+2026-07-06T16:40:45.140995463Z 
+2026-07-06T16:40:45.141014554Z > workspace@0.0.0 typecheck:libs /opt/render/project/src
+2026-07-06T16:40:45.141017624Z > tsc --build
+2026-07-06T16:40:45.141020084Z 
+2026-07-06T16:41:29.72267178Z ==> Uploading build...
+2026-07-06T16:41:47.146920508Z ==> Uploaded in 12.6s. Compression took 4.9s
+2026-07-06T16:41:47.249974828Z ==> Build successful 🎉
+2026-07-06T16:41:49.844187116Z ==> Deploying...
+2026-07-06T16:41:49.933595572Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-07-06T16:42:20.658856298Z ==> Running './start.sh'
+2026-07-06T16:42:20.748871656Z bash: line 1: ./start.sh: No such file or directory
+2026-07-06T16:42:22.478365156Z ==> Exited with status 127
+2026-07-06T16:42:22.480739665Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+2026-07-06T16:42:27.082354472Z ==> Running './start.sh'
+2026-07-06T16:42:27.088423328Z bash: line 1: ./start.sh: No such file or directory
