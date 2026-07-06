@@ -47,3 +47,7 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Secrets - never commit generated key material
+.vapid-keys.json
+**/.vapid-keys.json
