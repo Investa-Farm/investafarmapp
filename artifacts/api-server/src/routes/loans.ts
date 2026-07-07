@@ -252,9 +252,16 @@ const RepayLoanBody = z.object({
 router.get("/loans/applications", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const apps = await db.select().from(loanApplicationsTable)
-    .where(eq(loanApplicationsTable.farmerId, user.id));
-  res.json(apps.map(a => formatLoan(a)));
+  try {
+    const apps = await db.select().from(loanApplicationsTable)
+      .where(eq(loanApplicationsTable.farmerId, user.id));
+    res.json(apps.map(a => {
+      try { return formatLoan(a); } catch { return null; }
+    }).filter(Boolean));
+  } catch (err) {
+    console.error("[loans/applications] DB query failed:", (err as Error).message);
+    res.status(500).json({ error: "Failed to load loan applications. The database schema may need a migration — run `pnpm --filter @workspace/db run push` against the production database." });
+  }
 });
 
 const DEMO_FARMER_EMAILS = new Set([

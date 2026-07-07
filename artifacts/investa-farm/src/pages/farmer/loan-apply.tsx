@@ -370,6 +370,7 @@ export default function LoanApply() {
     queryKey: ["loan-apps"],
     queryFn: async () => {
       const r = await fetch("/api/loans/applications", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
       return r.json();
     },
   });
@@ -378,6 +379,7 @@ export default function LoanApply() {
     queryKey: ["credit-tier"],
     queryFn: async () => {
       const r = await fetch("/api/loans/credit-tier", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return undefined;
       return r.json();
     },
   });
@@ -417,6 +419,7 @@ export default function LoanApply() {
     queryKey: ["kyc-docs"],
     queryFn: async () => {
       const r = await fetch("/api/kyc/documents", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
       return r.json();
     },
   });

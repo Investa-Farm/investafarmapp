@@ -79,6 +79,7 @@ export default function FarmerVouchers() {
     queryKey: ["loan-apps"],
     queryFn: async () => {
       const r = await fetch("/api/loans/applications", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
       return r.json();
     },
   });

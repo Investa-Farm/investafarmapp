@@ -194,6 +194,7 @@ export default function FarmerKyc() {
     queryKey: ["kyc-docs"],
     queryFn: async () => {
       const r = await fetch("/api/kyc/documents", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
       return r.json();
     },
   });
