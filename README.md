@@ -82,3 +82,13 @@ Because Render builds the entire workspace (not just the artifacts that matter f
 - **Dynamic pricing engine:** `scheduler.ts` simulates market prices every 5 minutes using a DCF model adjusted by crop risk score and order-book demand/supply imbalance.
 - **Auth & security:** JWT-based auth with role-specific guards, multi-tiered rate limiting (global/auth/financial/AI-specific), progressive lockout backoff, and a 7-day grace period for email verification.
 - **Scheduler jobs:** randomized windows for sensitive jobs (dividend payouts, rainfall alerts) to avoid predictable timing; high-frequency jobs (price simulation, order matching) run on fixed short intervals.
+- **DB migrations:** schema changes must be manually pushed to production after deploy — run `pnpm --filter @workspace/db run push` against the production `DATABASE_URL`. The production database is Neon (serverless PostgreSQL).
+
+## Team docs
+
+| File | Purpose |
+|------|---------|
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Dev setup, branch naming, coding conventions, PR process |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System diagram, key packages, how to add routes/tables |
+| [ROADMAP.md](./ROADMAP.md) | What's built, what's in progress, what's planned |
+| [BUGS.md](./BUGS.md) | Active bugs, recently fixed issues, how to investigate production errors |
