@@ -12,6 +12,9 @@ This file tracks active bugs, recently fixed issues, and workarounds. Update it 
 | BUG-005 | M-Pesa | STK Push top-up is not connected to Safaricom Daraja — Paystack is the only live payment method | High | Use Paystack card top-up instead |
 | BUG-006 | Notifications | Web push silently fails when VAPID keys are not set in the Render env vars | Medium | Set `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in Render dashboard |
 | BUG-007 | Secondary market | Order book matching runs on a 30-second interval — matched orders may take up to 30s to reflect | Low | Refresh the page after placing an order |
+| BUG-008 | Help Centre | Support query submission returns an Internal Server Error on both Farmer and Investor accounts, preventing users from submitting support requests | High | None |
+| BUG-009 | Farmer dashboard | Empty-state metrics display `null%` and `NaN% funded` instead of user-friendly values when no farm or funding data is available | Low | None |
+| BUG-010 | Partner Portal | Offtaker / Buyer account option has low visibility on the account selection screen due to insufficient colour contrast | Low | Select the Offtaker / Buyer option manually |
 
 ---
 
