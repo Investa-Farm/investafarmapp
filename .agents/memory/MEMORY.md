@@ -1,0 +1,11 @@
+- [Render deploys need extra frontend fixes](render-deploy-frontend-fixes.md) — Render's strict build enforces typecheck + all workspace builds; Replit's dev flow tolerates issues that must be fixed for external hosts.
+- [DB schema migrations](db-migrations.md) — production Neon DB requires manual `pnpm --filter @workspace/db run push` after every schema change; DATABASE_URL in Replit IS the production Neon DB — run push directly from Replit to sync prod.
+- [VAPID key security](vapid-security.md) — initVapid() throws on boot in production if VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY not set; dev-only fallback writes .vapid-keys.json (gitignored); never restart dev workflow after deleting or it regenerates and auto-checkpoint recommits it.
+- [Fetch safety pattern](fetch-safety.md) — all queryFn fetch calls must check r.ok before r.json(); missing check causes non-array error bodies to override default values and crash array methods like .some(); affects all farmer pages.
+- [Error boundary routing](error-boundary-routing.md) — ErrorBoundary reads role from localStorage to redirect to the correct role dashboard; getRoleHome() helper pattern used in both error-boundary.tsx and not-found.tsx.
+- [Cross-tab storage sync pitfall](cross-tab-storage-sync.md) — a `storage` event handler must re-derive state from localStorage, not from this tab's current DOM/state, or the "sync" silently no-ops.
+- [Investa Farm mobile viewport unit](investa-farm-viewport-unit.md) — dvh fix note + why background-scroll-lock must use CSS `:has()` not a MutationObserver (caused jank on every screen).
+- [Investa Farm delete/export/modal patterns](investa-farm-delete-export-patterns.md) — soft-delete for financial history, hard-delete for notifications, client-side CSV export, sticky-footer fix for scrollable action sheets.
+- [Pricing engine v2 design decisions](pricing-engine-v2.md) — Groq risk scoring anchor+fallback pattern, revenue-forecast uncertainty tuning, and intentionally deferred v2 spec scope.
+- [PesaPal payment integration](pesapal-integration.md) — replaced Daraja + Stripe with PesaPal v3; PESAPAL_CONSUMER_KEY/SECRET are Replit secrets; IPN auto-registers on first order.
+- [Dual-database failover](dual-db-failover.md) — Neon primary + Supabase standby; Replit can't reach Supabase port 5432 (network blocked); schema push must run from Render/local.

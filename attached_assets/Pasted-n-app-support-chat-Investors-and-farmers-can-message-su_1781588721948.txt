@@ -1,0 +1,193 @@
+n-app support chat	Investors and farmers can message support	🟡 High
+FAQ & Knowledge base	Articles on how investing, trading, and harvest payouts work	🟡 High
+Dispute resolution process	What happens when farmer claims drought but satellite shows good health?	🟡 High
+Automated notifications	Email/SMS for: harvest payout, commitment expiry, portfolio update	🟡 High
+Admin dashboard	Platform ops view all farms, users, trades, fees	🟢 Medium
+8. Analytics & Reporting
+Feature	What It Does	Priority
+Investor portfolio performance	ROI per farm, per portfolio, overall	🔴 Critical
+Farm performance history	Past seasons' yields, returns, risk scores	🔴 Critical
+Fee summary	Investor sees all fees paid (trading, management, withdrawal)	🟡 High
+Tax report generator	Capital gains/losses for tax year in PDF	🟡 High
+Platform analytics	Total volume, active investors, popular farms, fee revenue	🟢 Medium
+9. Technology & Infrastructure
+Item	What It Is	Priority
+Database backups	Automated daily backups with point-in-time recovery	🔴 Critical
+API rate limiting	Prevent abuse	🔴 Critical
+Stellar horizon node	You can use public Horizon or run your own for reliability	🟡 High
+Monitoring & alerting	Uptime monitoring, error tracking (e.g., Sentry)	🟡 High
+Disaster recovery plan	What happens if Stellar network is slow or your database corrupts?	🟢 Medium
+Load testing	Simulate 1,000+ concurrent investors	🟢 Medium
+10. What to Tell Replit (Final Prioritised Sprint)
+Since Replit has capacity limits, here is a 3-sprint roadmap you can paste:
+
+Sprint 1 (MVP Launch – 2 weeks)
+
+Legal: Farmer agreements + Investor TOS (as plain text, lawyer review later)
+
+Farmer onboarding: KYC, GPS capture, bank/M-Pesa details
+
+Payment: M-Pesa Paybill integration (deposit only)
+
+Wallet: Cash wallet + share holdings (database only, no Stellar yet)
+
+Primary market: Farm listing, investor purchase, capital disbursement to farmer
+
+Admin dashboard: Basic farm and user management
+
+Sprint 2 (Secondary Market + Stellar – 2 weeks)
+
+Stellar integration: Investor trustlines, asset issuance for each farm
+
+Order book + matching engine (limit orders)
+
+Secondary trading with path payments
+
+Harvest payouts as claimable balances (30-day time lock)
+
+Withdrawals to M-Pesa
+
+Sprint 3 (Portfolio Managers + Automation – 2 weeks)
+
+Qualification pop-up for $5,000+ investors
+
+AI portfolio builder (optimisation function)
+
+Copy trading + management fee engine
+
+Satellite + weather automation (using existing GPS from KYC)
+
+Transaction history + portfolio performance charts
+
+Fee transparency dashboard for investors
+
+This gives you a complete, actionable roadmap. Which sprint do you want me to detail first with exact Replit code?
+
+This response is AI-generated, for reference only.
+how can i use mongod as dataase
+Using MongoDB for Investa Farm is an excellent choice. It fits perfectly with your evolving data structures (farms, portfolios, wallets, transactions) because MongoDB is schema‑flexible – you won't need to run migrations every time you add a feature.
+
+Below is how to structure your MongoDB database, plus the exact instructions to give Replit.
+
+1. Why MongoDB Works for Investa Farm
+Feature	Relational (SQL)	MongoDB
+Schema changes	Run migrations (slow, risky)	Just add new fields (instant)
+Wallet transactions	Multiple JOINs	Embedded array inside investor document
+Portfolio holdings	Separate join table	Embedded array of farm references
+Investor dashboard	3-5 queries per page	1-2 document reads
+Scaling	Vertical (bigger server)	Horizontal (shard by investor_id)
+For a fast‑moving fintech, MongoDB is ideal.
+
+2. Database Schema (Collections & Documents)
+Here are the collections you need, with example documents.
+
+Collection 1: investors
+json
+{
+  "_id": ObjectId("67a1b2c3d4e5f6a7b8c9d0e1"),
+  "email": "investor@example.com",
+  "phone": "+254712345678",
+  "kyc_status": "verified",
+  "total_invested_usd": 5200.00,
+  "qualified_portfolio_manager": true,
+  "stellar_address": "GC3...XYZ",
+  "trustlines_established": ["FARM_101", "FARM_102"],
+  "created_at": ISODate("2026-06-01T10:00:00Z")
+}
+Collection 2: farmers
+json
+{
+  "_id": ObjectId("67b2c3d4e5f6a7b8c9d0e2f3"),
+  "name": "John Kimani",
+  "phone": "+254722123456",
+  "id_number": "12345678",
+  "gps_coordinates": {
+    "type": "Point",
+    "coordinates": [36.8219, -1.2921]  // [longitude, latitude]
+  },
+  "land_size_hectares": 2.5,
+  "bank_details": {
+    "account_name": "John Kimani",
+    "account_number": "0123456789",
+    "bank_code": "01"
+  },
+  "created_at": ISODate("2026-06-01T10:00:00Z")
+}
+Collection 3: farms
+json
+{
+  "_id": ObjectId("67c3d4e5f6a7b8c9d0e3f4g5"),
+  "farm_code": "FARM_101",
+  "farmer_id": ObjectId("67b2c3d4e5f6a7b8c9d0e2f3"),
+  "crop_type": "maize",
+  "capital_needed_usd": 15000.00,
+  "total_shares": 1500,
+  "share_price_usd": 10.00,
+  "investor_share_alpha": 0.20,
+  "farmer_share_beta": 0.55,
+  "platform_share_gamma": 0.25,
+  "status": "active",  // active, fully_subscribed, harvested, completed
+  "forecast_revenue_usd": 100000.00,
+  "risk_score": 7,
+  "ndvi_last_updated": ISODate("2026-06-10T08:00:00Z"),
+  "ndvi_average": 0.72,
+  "created_at": ISODate("2026-06-01T10:00:00Z"),
+  "harvest_date": ISODate("2026-09-30T00:00:00Z")
+}
+Collection 4: holdings (Shares Owned)
+json
+{
+  "_id": ObjectId("67d4e5f6a7b8c9d0e4f5g6h7"),
+  "investor_id": ObjectId("67a1b2c3d4e5f6a7b8c9d0e1"),
+  "farm_id": ObjectId("67c3d4e5f6a7b8c9d0e3f4g5"),
+  "quantity": 50.5,
+  "average_price_usd": 10.00,
+  "last_updated": ISODate("2026-06-15T14:30:00Z")
+}
+Collection 5: transactions (Immutable Ledger)
+json
+{
+  "_id": ObjectId("67e5f6a7b8c9d0e5f6g7h8i9"),
+  "investor_id": ObjectId("67a1b2c3d4e5f6a7b8c9d0e1"),
+  "type": "investment",  // deposit, withdrawal, investment, divestment, dividend, fee
+  "from_ledger": "cash_wallet",
+  "to_ledger": "share_holdings",
+  "amount_usd": 500.00,
+  "fee_usd": 7.50,
+  "farm_id": ObjectId("67c3d4e5f6a7b8c9d0e3f4g5"),
+  "stellar_tx_hash": "abc123...",
+  "status": "completed",
+  "created_at": ISODate("2026-06-15T14:30:00Z"),
+  "completed_at": ISODate("2026-06-15T14:31:00Z")
+}
+Collection 6: order_book (Secondary Market)
+json
+{
+  "_id": ObjectId("67f6a7b8c9d0e6f7g8h9i0j1"),
+  "farm_id": ObjectId("67c3d4e5f6a7b8c9d0e3f4g5"),
+  "investor_id": ObjectId("67a1b2c3d4e5f6a7b8c9d0e1"),
+  "side": "sell",  // buy or sell
+  "quantity": 10,
+  "limit_price_usd": 9.50,
+  "status": "open",  // open, filled, cancelled
+  "created_at": ISODate("2026-06-15T10:00:00Z"),
+  "filled_at": null
+}
+Collection 7: portfolios
+json
+{
+  "_id": ObjectId("67a7b8c9d0e7f8g9h0i1j2k3"),
+  "manager_investor_id": ObjectId("67a1b2c3d4e5f6a7b8c9d0e1"),
+  "name": "Mega Maize Growth",
+  "strategy": "high_growth",
+  "target_risk": 8,
+  "management_fee_percent": 1.0,
+  "is_published": true,
+  "follower_count": 45,
+  "holdings": [
+    { "farm_id": ObjectId("67c3d4e5f6a7b8c9d0e3f4g5"), "weight": 0.60 },
+    { "farm_id": ObjectId("67d4e5f6a7b8c9d0e4f5g6h7"), "weight": 0.40 }
+  ],
+  "created_at": ISODate("2026-06-10T08:00:00Z"),
+  "last_rebalanced_at": ISODate("2026-06-10T08:00:00Z")
+}

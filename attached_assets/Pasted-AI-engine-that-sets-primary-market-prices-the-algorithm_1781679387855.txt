@@ -1,0 +1,282 @@
+AI engine that sets primary market prices – the algorithm that determines how much a farm share costs and what revenue split investors get. This is the core intelligence that makes Investa Farm dynamic, fair, and data‑driven.
+
+Below is a complete blueprint for this AI engine, including the models, inputs, logic, and how to implement it in Replit.
+
+1. What the AI Must Output
+For each new farm listing, the AI produces:
+
+Output	Description
+Forecast revenue (R̂)	Expected total harvest revenue in USD
+Risk score (S)	1–10, where 10 = lowest risk
+Investor revenue share (α)	Between 10% and 30%
+Primary share price (P₀)	Price per share (e.g., $10)
+Total shares (N)	Number of shares issued
+Platform share (γ)	Automatically derived as 1 - α - β (β set by farmer)
+All of these must satisfy the primary market consistency equation:
+
+K
+=
+α
+⋅
+R
+^
+⋅
+1
+−
+λ
+(
+1
++
+r
+f
+)
+T
+/
+365
+K=α⋅ 
+R
+^
+ ⋅ 
+(1+r 
+f
+​
+ ) 
+T/365
+ 
+1−λ
+​
+ 
+where 
+λ
+λ is the risk discount derived from 
+S
+S.
+
+2. Input Data Sources
+The AI ingests both static and real‑time data:
+
+Data Type	Source	Used For
+Farmer profile	KYC (experience, land size, equipment)	Risk adjustment
+GPS coordinates	Collected during KYC	Satellite image retrieval
+Satellite NDVI history	Sentinel‑2 (free)	Yield prediction (trend)
+Weather forecast & history	Open‑Meteo (free)	Yield prediction & risk
+Crop type & planting date	Farmer input	Yield model
+Regional commodity prices	Local exchange / public data	Revenue forecast
+Historical yields (platform data)	Past seasons from Investa Farm	Model training
+Farmer’s desired β (45–65%)	Farmer input	Set β; derive γ
+3. AI Models (Three Core Components)
+Model A: Yield Prediction (kg/ha)
+Uses a Random Forest Regressor trained on historical NDVI, weather, and yield data.
+
+Features:
+
+Average NDVI over growing season (weekly)
+
+Cumulative rainfall
+
+Average temperature
+
+Soil moisture (if available)
+
+Days to harvest
+
+Crop type (one‑hot encoded)
+
+Farmer experience (years)
+
+Land size
+
+Training data: Historical farm data (once you have enough seasons). For initial launch, use public crop yield models for Kenya (e.g., from FAO or CGIAR) as a fallback.
+
+Output: Predicted yield (kg/ha) → multiply by land size → total production (kg).
+
+Model B: Price Forecasting ($/kg at harvest)
+Uses a Time Series model (e.g., Prophet or LSTM) to forecast commodity prices.
+
+Features:
+
+Historical monthly prices (local exchange)
+
+Global market trends (e.g., maize futures)
+
+Seasonality (harvest months typically have lower prices)
+
+Current market sentiment (from social sentiment analysis)
+
+Output: Predicted price per kg at expected harvest date.
+
+Revenue forecast:
+
+R
+^
+=
+predicted yield (kg)
+×
+predicted price ($/kg)
+×
+quality factor
+R
+^
+ =predicted yield (kg)×predicted price ($/kg)×quality factor
+Model C: Risk Score (1–10)
+A Logistic Regression or Gradient Boosting model that estimates the probability of crop failure (loss > 30% of expected yield).
+
+Features:
+
+Historical yield variability in the region
+
+Weather extremes forecast (drought/flood probability)
+
+Pest/disease risk (based on regional alerts)
+
+Farmer’s past performance (if available)
+
+NDVI deviation from historical average
+
+Risk discount:
+
+λ
+=
+10
+−
+S
+9
+×
+p
+max
+⁡
+×
+L
+λ= 
+9
+10−S
+​
+ ×p 
+max
+​
+ ×L
+where 
+p
+max
+⁡
+=
+0.4
+p 
+max
+​
+ =0.4 (max loss probability) and 
+L
+=
+0.8
+L=0.8 (loss given default). So a lower 
+S
+S increases 
+λ
+λ, reducing the present value investors are willing to pay.
+
+4. Primary Pricing Logic (The AI Decision Engine)
+Given 
+K
+K (capital needed) and the farmer’s chosen 
+β
+β, the AI does the following:
+
+Compute 
+R
+^
+R
+^
+  from Models A & B.
+
+Compute 
+S
+S from Model C.
+
+Compute 
+d
+d (risk‑adjusted discount factor):
+
+d
+=
+1
+−
+λ
+(
+1
++
+r
+f
+)
+T
+/
+365
+d= 
+(1+r 
+f
+​
+ ) 
+T/365
+ 
+1−λ
+​
+ 
+Determine the required 
+α
+α:
+
+α
+req
+=
+K
+R
+^
+⋅
+d
+α 
+req
+​
+ = 
+R
+^
+ ⋅d
+K
+​
+ 
+Check viability:
+
+If 
+α
+req
+<
+0.10
+α 
+req
+​
+ <0.10 → the farm is very profitable; you could lower 
+α
+α to 10% (minimum) and raise more capital than needed (oversubscribe). But the farmer only needs K, so you can set α = 0.10 and the actual capital raised = 0.10 × R̂ × d which might exceed K – you can then reduce the number of shares (increase price per share) to still raise K. Actually better: set α = max(0.10, α_req) if α_req ≤ 0.30, else the farm is too risky – reject or adjust K/β.
+
+If 
+α
+req
+>
+0.30
+α 
+req
+​
+ >0.30 → too risky; suggest farmer reduce K, increase β (but β max 0.65), or improve risk score.
+
+Set 
+α
+α = clamp(α_req, 0.10, 0.30). If clamped, the platform may need to adjust K (i.e., not all capital is raised) or accept oversubscription.
+
+Set 
+N
+N = choose a nice number to make P₀ = K/N a round number (e.g., $10, $5, $1).
+Or you can first decide \(P_0\) (e.g., $10) and compute N = K / P₀.
+
+Set 
+γ
+γ = 1 - α - β (platform share). Ensure it's ≥ 5% (minimum platform fee).
+
+Output all parameters for the farm listing.

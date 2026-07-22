@@ -1,0 +1,30 @@
+build programmatic animated demo videos — agency-quality motion graphics that reproduce the investor UI and walk through each step with smooth animations, transitions, phone mockups, and voiceover-style captions. Think polished product-demo style, not a raw screen recording.
+
+Here's what I can do and how I'd structure it:
+
+What the videos would look like
+
+Rendered in a phone mockup frame (375px mobile viewport)
+Real UI cloned from your app's actual screens (colors, components, typography)
+Animated touch indicators (tap ripples, scroll gestures)
+Step-by-step captions with smooth fade/slide transitions
+Music bed optional; captions carry the narration
+Proposed investor-side video breakdown
+
+Video	Flow	~Length
+1 — Sign Up	Registration → phone number → OTP verification → welcome screen	45 sec
+2 — Browse & Pick a Farm	Market listing → farm detail → funding progress → share price	50 sec
+3 — Invest in a Farm	Select shares → wallet payment → confirmation → portfolio update	50 sec
+4 — Track Portfolio	Portfolio tab → live ROI → dividend history → farm updates feed	45 sec
+5 — Top Up Wallet	Wallet screen → M-Pesa STK push → funds credited	40 sec
+6 — Secondary Market	Browse listed shares → buy from another investor → trade confirmation	45 sec
+Each can be exported as a standalone clip or I can merge them into one ~4 min full walkthrough.
+
+What makes them good
+
+Authentic UI — I pull the real screen designs (not mockups) so colors, fonts, and component shapes are pixel-accurate
+Timing — each action pauses ~1.5s so viewers can read, then cuts on motion
+Touch feedback — animated press rings show where "the user" is tapping
+Data feels real — I use realistic Kenyan farm names, KES amounts, and phone numbers already in the app
+Captions — bold step labels ("Step 2: Choose your investment amount") so it works without sound
+Want me to go ahead and build these? I'd start with whichever video is most useful — either the full sign-up + first investment flow, or all six in parallel. Just say which.

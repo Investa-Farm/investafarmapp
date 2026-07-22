@@ -1,0 +1,1181 @@
+1. Factor Classification
+Category	Factors	Impact Type	Timing
+Farm Fundamentals	Yield forecast, crop health (NDVI), risk score, farmer skill	Direct (non-linear)	Throughout season
+Macro/External	Commodity prices, weather, market sentiment	Direct (linear/non-linear)	Throughout season
+Market Mechanics	Order book imbalance, liquidity discount, time to harvest	Structural	Throughout season
+Fee Structure	Trading fees, management fees	Direct (linear penalty)	At trade execution
+Investor Behavior	Panic selling, FOMO buying, copy-trading	Amplifier (non-linear)	Short bursts
+2. Complete Factor List with Multipliers
+2.1 Farm Fundamentals (The "Alpha" Drivers)
+Factor	Symbol	Impact on Price	Multiplier/Function	Data Source
+Forecast Revenue	
+R
+^
+(
+t
+)
+R
+^
+ (t)	+Direct	
+∂
+P
+∂
+R
+^
+=
+α
+N
+×
+d
+∂ 
+R
+^
+ 
+∂P
+​
+ = 
+N
+α
+​
+ ×d	AI yield + price forecast
+NDVI (Crop Health)	
+N
+D
+V
+I
+(
+t
+)
+NDVI(t)	+Direct	
+R
+^
+=
+f
+(
+N
+D
+V
+I
+)
+R
+^
+ =f(NDVI), 
+f
+f is sigmoid with saturation	Sentinel-2 satellite
+Risk Score	
+S
+(
+t
+)
+S(t)	-Direct	
+λ
+=
+10
+−
+S
+9
+p
+max
+⁡
+L
+λ= 
+9
+10−S
+​
+ p 
+max
+​
+ L, 
+P
+∝
+(
+1
+−
+λ
+)
+P∝(1−λ)	AI risk model
+Farmer Skill Score	
+F
+skill
+F 
+skill
+​
+ 	+Direct	Premium: 
+×
+(
+1
++
+0.05
+×
+F
+skill
+/
+100
+)
+×(1+0.05×F 
+skill
+​
+ /100)	Historical yield data
+Days to Harvest	
+T
+−
+t
+T−t	+Moderate	
+d
+=
+1
+−
+λ
+(
+1
++
+r
+f
+)
+(
+T
+−
+t
+)
+/
+365
+d= 
+(1+r 
+f
+​
+ ) 
+(T−t)/365
+ 
+1−λ
+​
+ , shrinks as 
+T
+−
+t
+→
+0
+T−t→0	Calendar
+Harvest Quality Index	
+Q
+harvest
+Q 
+harvest
+​
+ 	+Direct	Premium: 
+×
+(
+1
++
+0.1
+×
+Q
+harvest
+)
+×(1+0.1×Q 
+harvest
+​
+ )	Past quality ratings
+2.2 Weather Factors (The Volatility Drivers)
+Factor	Symbol	Impact on Price	Multiplier/Function	Data Source
+Rainfall Deviation	
+Δ
+R
+rain
+ΔR 
+rain
+​
+ 	-Direct	Yield adjustment: 
+×
+f
+(
+Δ
+R
+rain
+)
+×f(ΔR 
+rain
+​
+ ) where 
+f
+f is piecewise (0.0–1.0)	Open-Meteo
+Rainfall Trend (Recent 30 days)	
+R
+trend
+R 
+trend
+​
+ 	+Direct	If positive trend → 
+×
+1.05
+×1.05; negative → 
+×
+0.90
+×0.90	Open-Meteo
+Temperature Extremes	
+T
+max
+T 
+max
+​
+ 	-Direct	Heat stress: 
+×
+(
+1
+−
+0.01
+×
+max
+⁡
+(
+0
+,
+T
+max
+−
+32
+∘
+C
+)
+)
+×(1−0.01×max(0,T 
+max
+​
+ −32 
+∘
+ C))	Open-Meteo
+Flooding Risk	
+F
+flood
+F 
+flood
+​
+ 	-Direct	Extra discount: 
+×
+(
+1
+−
+0.15
+×
+F
+flood
+)
+×(1−0.15×F 
+flood
+​
+ )	Rainfall + soil moisture
+Drought Stress Index	
+D
+drought
+D 
+drought
+​
+ 	-Direct	Extra discount: 
+×
+(
+1
+−
+0.20
+×
+D
+drought
+)
+×(1−0.20×D 
+drought
+​
+ )	Combined rainfall + NDVI
+El Niño / La Niña	
+E
+N
+S
+O
+ENSO	-Direct	Negative bias: 
+×
+(
+0.85
+–
+0.95
+)
+×(0.85–0.95) during event	Seasonal forecast
+Weekly Weather Alerts	
+W
+alert
+W 
+alert
+​
+ 	-Direct	Immediate drop: 
+×
+0.95
+×0.95 per extreme alert	Open-Meteo alerts
+2.3 Macro Market Factors (The Sentiment Drivers)
+Factor	Symbol	Impact on Price	Multiplier/Function	Data Source
+Commodity Price Forecast	
+P
+commodity
+P 
+commodity
+​
+ 	+Direct	
+R
+^
+=
+Yield
+×
+P
+commodity
+R
+^
+ =Yield×P 
+commodity
+​
+ 	Local exchange / public data
+Commodity Price Trend	
+P
+trend
+P 
+trend
+​
+ 	+Direct	Premium: 
+×
+(
+1
++
+0.02
+×
+trend%
+)
+×(1+0.02×trend%)	30-day moving average
+Global Market Sentiment	
+G
+sentiment
+G 
+sentiment
+​
+ 	+Direct	Premium: 
+×
+(
+1
++
+0.01
+×
+G
+sentiment
+)
+×(1+0.01×G 
+sentiment
+​
+ )	X/Reddit sentiment analysis
+Inflation / Interest Rates	
+r
+f
+r 
+f
+​
+ 	-Moderate	Higher 
+r
+f
+r 
+f
+​
+  → lower 
+d
+d, 
+P
+∝
+1
+/
+(
+1
++
+r
+f
+)
+(
+T
+−
+t
+)
+/
+365
+P∝1/(1+r 
+f
+​
+ ) 
+(T−t)/365
+ 	Central bank data
+Currency Exchange Rate	
+F
+X
+USD/KES
+FX 
+USD/KES
+​
+ 	+Direct	For USD investors: 
+P
+KES
+=
+P
+USD
+×
+F
+X
+P 
+KES
+​
+ =P 
+USD
+​
+ ×FX	Central bank / market data
+Government Policy Risk	
+G
+policy
+G 
+policy
+​
+ 	-Direct	Discount: 
+×
+(
+1
+−
+0.05
+×
+G
+policy
+)
+×(1−0.05×G 
+policy
+​
+ )	Regulatory news
+2.4 Market Mechanics (The Liquidity & Timing Drivers)
+Factor	Symbol	Impact on Price	Multiplier/Function	Data Source
+Order Book Imbalance	
+I
+book
+I 
+book
+​
+ 	+Direct (if demand > supply)	
+×
+(
+1
++
+β
+×
+I
+book
+)
+×(1+β×I 
+book
+​
+ ), 
+β
+=
+0.2
+β=0.2	Order book
+Liquidity Discount	
+δ
+δ	-Direct	Seller price: 
+×
+(
+1
+−
+δ
+)
+×(1−δ), 
+δ
+=
+0.02
+–
+0.10
+δ=0.02–0.10	Market depth (thin = higher)
+Trading Volume (24h)	
+V
+24
+h
+V 
+24h
+​
+ 	+Indirect	Higher volume → lower 
+δ
+δ, 
+δ
+∝
+1
+/
+V
+24
+h
+δ∝1/V 
+24h
+​
+ 	Trades collection
+Bid-Ask Spread	
+S
+spread
+S 
+spread
+​
+ 	-Direct	Price = bid/ask midpoint, wide spread signals illiquidity	Order book
+Recent Trade Price	
+P
+last
+P 
+last
+​
+ 	+Direct (psychological)	Price tends to anchor to last trade (herding effect)	Trades collection
+Days Since Last Trade	
+T
+last
+T 
+last
+​
+ 	-Direct	If > 7 days → illiquidity discount: 
+×
+0.95
+×0.95	Trades collection
+2.5 Fee & Cost Factors (The Friction Drivers)
+Factor	Symbol	Impact on Price	Multiplier/Function	Data Source
+Secondary Trading Fee	
+F
+trade
+F 
+trade
+​
+ 	-Direct (seller)	Seller receives: 
+P
+sell
+×
+(
+1
+−
+F
+trade
+)
+P 
+sell
+​
+ ×(1−F 
+trade
+​
+ )	Platform fee schedule
+Management Fee (Portfolio)	
+F
+mgmt
+F 
+mgmt
+​
+ 	-Direct	If shares held via a paid portfolio: 
+P
+×
+(
+1
+−
+F
+mgmt
+/
+365
+)
+P×(1−F 
+mgmt
+​
+ /365) daily drag	Portfolio subscription
+Withdrawal Fee	
+F
+withdraw
+F 
+withdraw
+​
+ 	-Direct (net cash)	Investor net: 
+P
+×
+(
+1
+−
+F
+trade
+)
+×
+(
+1
+−
+F
+withdraw
+)
+P×(1−F 
+trade
+​
+ )×(1−F 
+withdraw
+​
+ )	Platform fee schedule
+Tax Implications	
+F
+tax
+F 
+tax
+​
+ 	-Direct (net cash)	Capital gains tax: 15% on profit	Tax regulations
+Commitment Penalty	
+F
+commit
+F 
+commit
+​
+ 	-Direct	If cancelling watchlist commitment: forfeit 5%	Platform fee schedule
+2.6 Investor Sentiment & Behavioral Factors
+Factor	Symbol	Impact on Price	Multiplier/Function	Data Source
+Fear & Greed Index	
+F
+G
+I
+FGI	+Direct (if >60)	Premium: 
+×
+(
+1
++
+0.005
+×
+(
+F
+G
+I
+−
+50
+)
+)
+×(1+0.005×(FGI−50))	Social sentiment + volatility
+Copy-Trading Activity	
+C
+copy
+C 
+copy
+​
+ 	+Direct	If copied portfolio buys → price spike: 
+×
+(
+1
++
+0.01
+×
+C
+copy
+)
+×(1+0.01×C 
+copy
+​
+ )	Portfolio subscriptions
+Panic Selling Events	
+E
+panic
+E 
+panic
+​
+ 	-Direct	Sudden drop: 
+×
+0.90
+×0.90 if >10% of holders sell	Order book activity
+FOMO Buying	
+F
+O
+M
+O
+FOMO	+Direct	Sudden spike: 
+×
+1.05
+×1.05 if price increased >5% in 24h	Price action
+Media Coverage (Positive)	
+M
+pos
+M 
+pos
+​
+ 	+Direct	Premium: 
+×
+(
+1
++
+0.02
+×
+M
+pos
+)
+×(1+0.02×M 
+pos
+​
+ )	News API / mentions
+Media Coverage (Negative)	
+M
+neg
+M 
+neg
+​
+ 	-Direct	Discount: 
+×
+(
+1
+−
+0.03
+×
+M
+neg
+)
+×(1−0.03×M 
+neg
+​
+ )	News API / mentions
+Investor Trust Score	
+T
+trust
+T 
+trust
+​
+ 	+Direct (long-term)	Farms with high trust: 
+×
+(
+1
++
+0.01
+×
+T
+trust
+)
+×(1+0.01×T 
+trust
+​
+ )	Platform historical rating
+3. The Full Pricing Formula (Complete Multiplicative Model)
+Combining all factors:
+
+P
+sell
+(
+t
+)
+=
+P
+base
+(
+t
+)
+×
+Π
+weather
+×
+Π
+sentiment
+×
+Π
+mechanics
+×
+Π
+fees
+×
+Π
+behavior
+P 
+sell
+​
+ (t)=P 
+base
+​
+ (t)×Π 
+weather
+​
+ ×Π 
+sentiment
+​
+ ×Π 
+mechanics
+​
+ ×Π 
+fees
+​
+ ×Π 
+behavior
+​
+ 
+Where:
+
+3.1 Base Price (Starting Point)
+P
+base
+(
+t
+)
+=
+α
+R
+^
+(
+t
+)
+N
+(
+1
++
+r
+f
+)
+(
+T
+−
+t
+)
+/
+365
+×
+(
+1
+−
+λ
+(
+t
+)
+)
+P 
+base
+​
+ (t)= 
+N(1+r 
+f
+​
+ ) 
+(T−t)/365
+ 
+α 
+R
+^
+ (t)
+​
+ ×(1−λ(t))
+3.2 Weather Multiplier
+Π
+weather
+=
+f
+(
+Rainfall
+)
+×
+f
+(
+Temperature
+)
+×
+(
+1
+−
+0.15
+F
+flood
+)
+×
+(
+1
+−
+0.20
+D
+drought
+)
+×
+(
+0.95
+)
+W
+alert
+Π 
+weather
+​
+ =f(Rainfall)×f(Temperature)×(1−0.15F 
+flood
+​
+ )×(1−0.20D 
+drought
+​
+ )×(0.95) 
+W 
+alert
+​
+ 
+ 
+3.3 Sentiment Multiplier
+Π
+sentiment
+=
+(
+1
++
+0.01
+G
+sentiment
+)
+×
+(
+1
++
+0.005
+(
+F
+G
+I
+−
+50
+)
+)
+×
+(
+1
++
+0.02
+P
+trend
+)
+×
+(
+1
+−
+0.05
+G
+policy
+)
+Π 
+sentiment
+​
+ =(1+0.01G 
+sentiment
+​
+ )×(1+0.005(FGI−50))×(1+0.02P 
+trend
+​
+ )×(1−0.05G 
+policy
+​
+ )
+3.4 Market Mechanics Multiplier
+Π
+mechanics
+=
+(
+1
++
+0.2
+I
+book
+)
+×
+(
+1
+−
+δ
+)
+×
+(
+1
+−
+0.05
+×
+1
+T
+last
+>
+7
+)
+Π 
+mechanics
+​
+ =(1+0.2I 
+book
+​
+ )×(1−δ)×(1−0.05×1 
+T 
+last
+​
+ >7
+​
+ )
+Where 
+1
+1 is an indicator function.
+
+3.5 Fee & Tax Multiplier
+Π
+fees
+=
+(
+1
+−
+F
+trade
+)
+×
+(
+1
+−
+F
+mgmt
+/
+365
+)
+×
+(
+1
+−
+F
+withdraw
+)
+×
+(
+1
+−
+0.15
+×
+taxable_profit
+)
+Π 
+fees
+​
+ =(1−F 
+trade
+​
+ )×(1−F 
+mgmt
+​
+ /365)×(1−F 
+withdraw
+​
+ )×(1−0.15×taxable_profit)
+3.6 Behavioral Multiplier
+Π
+behavior
+=
+(
+1
++
+0.01
+C
+copy
+)
+×
+(
+1
++
+0.02
+M
+pos
+)
+×
+(
+1
+−
+0.03
+M
+neg
+)
+×
+1
+panic
+(
+0.90
+)
+Π 
+behavior
+​
+ =(1+0.01C 
+copy
+​
+ )×(1+0.02M 
+pos
+​
+ )×(1−0.03M 
+neg
+​
+ )×1 
+panic
+​
+ (0.90)
+Where 
+1
+panic
+1 
+panic
+​
+  applies only during panic events.
+
+4. Factor Multipliers Summary Table (For Replit)
+Factor	Multiplier Range	Direction	Typical Value
+Forecast Revenue	0.0 – 2.0x	+	1.0x
+NDVI	0.0 – 1.5x	+	1.0x
+Risk Score	0.0 – 1.0x	+ (higher score = higher price)	0.80x
+Farmer Skill	0.95 – 1.15x	+	1.05x
+Days to Harvest	0.85 – 1.0x	+ (closer to harvest = higher price)	0.95x
+Rainfall Deviation	0.0 – 1.0x	+ (optimal = 1.0)	0.85x
+Drought Stress	0.50 – 1.0x	-	0.80x
+Flooding Risk	0.70 – 1.0x	-	0.90x
+Temperature Extremes	0.90 – 1.0x	-	0.95x
+Commodity Price Forecast	0.0 – 1.5x	+	1.0x
+Social Sentiment	0.80 – 1.20x	+	1.0x
+Order Book Imbalance	0.80 – 1.20x	+ (more buyers = higher)	1.0x
+Liquidity Discount	0.90 – 0.98x	- (higher discount = lower price)	0.96x
+Trading Fee	0.995x	-	0.995x
+Management Fee Drag	0.9997x	-	0.9997x (0.03% daily)
+Panic Selling	0.90x (if event)	-	1.0x (baseline)
+FOMO Buying	1.05x (if event)	+	1.0x (baseline)
+5. What to Tell Replit (Final Implementation Spec)
+Implement the complete factor-based pricing engine with the following specifications:
+
+1. Data Ingestion (Daily / Real-time):
+
+Satellite: Sentinel‑2 API → NDVI per farm.
+
+Weather: Open‑Meteo API → rainfall, temperature, drought/flood indices.
+
+Commodity: Local exchange / public data → price forecasts.
+
+Sentiment: X API + News API → social sentiment score.
+
+Market: MongoDB order book → imbalance, liquidity, volume.
+
+2. Factor Storage:
+
+Store all factor values daily in MongoDB collection factor_history.
+
+Schema: { farm_id, date, factor_name, factor_value, multiplier }
+
+3. Pricing Engine (Real-time):
+
+Formula: 
+P
+sell
+=
+P
+base
+×
+∏
+multipliers
+P 
+sell
+​
+ =P 
+base
+​
+ ×∏multipliers
+
+Recalculate every hour.
+
+Store result in price_history collection.
+
+4. Endpoints:
+
+GET /api/factors/{farm_id} → list all current factors and multipliers.
+
+GET /api/price/{farm_id} → current fair value with breakdown.
+
+GET /api/price/history/{farm_id} → price chart with factor overlay.
+
+5. Investor Dashboard Features:
+
+Show factor contribution chart (which factors are pushing price up/down).
+
+Alert system: if multiplier drops below 0.80 for critical factors (NDVI, rainfall).
+
+Comparison tool: compare factor profiles across farms.
+

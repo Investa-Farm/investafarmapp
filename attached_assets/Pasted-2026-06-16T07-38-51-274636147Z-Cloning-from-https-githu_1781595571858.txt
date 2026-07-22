@@ -1,0 +1,26 @@
+2026-06-16T07:38:51.274636147Z ==> Cloning from https://github.com/MosesOchieng/investafarmapp
+2026-06-16T07:38:53.001031584Z ==> Checking out commit 7385407c31bc19ce8bf4a3d830ef6a4a9d47f449 in branch main
+2026-06-16T07:38:54.294561389Z ==> Using Node.js version 14.17.0 (default)
+2026-06-16T07:38:54.294568749Z ==> Node.js version 14.17.0 has reached end-of-life.
+2026-06-16T07:38:54.294572219Z ==> Upgrade to a maintained version to receive important security updates.
+2026-06-16T07:38:54.294575699Z ==> Information on maintained Node.js versions: https://nodejs.org/en/about/previous-releases
+2026-06-16T07:38:54.294578199Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-06-16T07:38:54.294754843Z ==> Installing Node.js version 14.17.0...
+2026-06-16T07:38:55.432984641Z ==> Running build command 'npm install'...
+2026-06-16T07:38:55.773710824Z 
+2026-06-16T07:38:55.773734274Z > workspace@0.0.0 preinstall /opt/render/project/src
+2026-06-16T07:38:55.773740835Z > sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+2026-06-16T07:38:55.773747285Z 
+2026-06-16T07:38:55.781125864Z Use pnpm instead
+2026-06-16T07:38:55.791950802Z npm ERR! code ELIFECYCLE
+2026-06-16T07:38:55.792104455Z npm ERR! errno 1
+2026-06-16T07:38:55.79666448Z npm ERR! workspace@0.0.0 preinstall: `sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'`
+2026-06-16T07:38:55.796720531Z npm ERR! Exit status 1
+2026-06-16T07:38:55.796749382Z npm ERR! 
+2026-06-16T07:38:55.796796813Z npm ERR! Failed at the workspace@0.0.0 preinstall script.
+2026-06-16T07:38:55.796800783Z npm ERR! This is probably not a problem with npm. There is likely additional logging output above.
+2026-06-16T07:38:55.79929483Z 
+2026-06-16T07:38:55.799321581Z npm ERR! A complete log of this run can be found in:
+2026-06-16T07:38:55.799367942Z npm ERR!     /opt/render/.cache/_logs/2026-06-16T07_38_55_797Z-debug.log
+2026-06-16T07:38:55.83641212Z ==> Build failed 😞
+2026-06-16T07:38:55.836429001Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

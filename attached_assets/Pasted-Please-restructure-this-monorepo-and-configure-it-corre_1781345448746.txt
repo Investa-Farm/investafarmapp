@@ -1,0 +1,138 @@
+Please restructure this monorepo and configure it correctly for Vercel deployment.
+
+### CURRENT ISSUE
+
+The project is a monorepo with:
+
+* Frontend: artifacts/investa-farm (React 19 + Vite 7 PWA)
+* Backend: artifacts/api-server (Express 5 API server)
+
+Vercel is currently misconfigured and attempting to build the backend, which is causing deployment failures (no public/output directory, server not compatible with Vercel runtime).
+
+---
+
+## REQUIRED RESTRUCTURE
+
+### 1. FRONTEND (Vercel deployment target)
+
+Ensure the frontend is the ONLY Vercel-deployable app:
+
+Path:
+
+```
+artifacts/investa-farm
+```
+
+Confirm:
+
+* It has a Vite build system
+* package.json includes:
+  "build": "vite build"
+* Output directory is: dist
+
+---
+
+### 2. BACKEND (NOT deployed on Vercel as Express server)
+
+Keep backend as:
+
+```
+artifacts/api-server
+```
+
+But ensure:
+
+* It is NOT included in Vercel build
+* It remains a separate deployable service (Railway/Render/Replit Deployments recommended)
+* Remove any assumption that it runs in Vercel serverless environment unless explicitly converted
+
+---
+
+## 3. CREATE ROOT vercel.json (IMPORTANT)
+
+Create a correct root-level `vercel.json` that ONLY deploys the frontend:
+
+```json
+{
+  "version": 2,
+  "projects": {
+    "frontend": {
+      "rootDirectory": "artifacts/investa-farm",
+      "buildCommand": "pnpm run build",
+      "outputDirectory": "dist"
+    }
+  }
+}
+```
+
+If projects block is not supported, use this fallback format:
+
+```json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "artifacts/investa-farm/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## 4. ENVIRONMENT VARIABLES
+
+Ensure frontend uses:
+
+```
+VITE_API_URL=https://<backend-url>
+```
+
+Ensure backend uses:
+
+```
+DATABASE_URL
+GROQ_API_KEY
+PAYSTACK_SECRET_KEY
+PAYSTACK_PUBLIC_KEY
+SESSION_SECRET
+```
+
+No secrets must be hardcoded anywhere in the repo.
+
+---
+
+## 5. .gitignore CLEANUP
+
+Ensure:
+
+```
+node_modules
+dist
+build
+artifacts/**/dist
+.env
+.env.local
+```
+
+---
+
+## 6. FINAL GOAL
+
+After changes:
+
+* Vercel deploys ONLY frontend (React/Vite PWA)
+* Backend is deployed separately (NOT Vercel Express server)
+* No build errors
+* No missing public directory errors
+* No secrets in Git history or node_modules
+
+Return:
+
+* final folder structure
+* final vercel.json
+* correct Vercel settings (root directory, build command, output directory)

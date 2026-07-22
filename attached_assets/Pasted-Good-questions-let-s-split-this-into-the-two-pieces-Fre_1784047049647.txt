@@ -1,0 +1,42 @@
+Good questions — let's split this into the two pieces.
+
+## Free Sentinel-2 / NDVI APIs
+
+| Source | What it gives you | Notes |
+|---|---|---|
+| **Copernicus Data Space Ecosystem** | Raw Sentinel-2 imagery + API access (successor to the old Copernicus Open Access Hub) | Recommended as the provider of all Sentinels' free updated satellite imagery, though still described as being in a testing/early phase for the new ecosystem. This is the authoritative free source — good for raw bands, you compute NDVI yourself. |
+| **Sentinel Hub (by Planet/Sinergise)** | Process API + Statistical API — lets you request pre-computed NDVI for a polygon/date range without downloading raw imagery | NDVI for Sentinel-2 is computed as the normalized difference between bands B8 (NIR) and B4 (red), and Sentinel Hub gives you a ready custom script for this. Free tier exists but has request limits — good for MVP/Replit prototyping, you'd outgrow the free tier at scale. |
+| **Google Earth Engine (GEE)** | Full Sentinel-2 archive + free compute for NDVI time series, completely free for research/nonprofit use, and has a commercial tier now too | Register at earthengine.google.com/signup with a Gmail account; NDVI is computed via `image.normalizedDifference(['B8', 'B4'])` on the `COPERNICUS/S2_SR` collection. This is probably your best bet for an MVP — it's free, handles cloud filtering, and you can run scheduled scripts. |
+| **NDVI Max Service (Sentinel Hub / Geoville)** | Cloud-filtered composite NDVI — scans the archive and returns the least-cloudy pixel values | Reduces cloud contamination by scanning the whole available archive in a timeframe and returning the highest NDVI pixel values of the stack — useful in regions where cloud cover is a recurring problem (e.g. parts of East Africa during rainy season). |
+| **USGS EarthExplorer (Landsat)** | Backup/longer historical baseline if Sentinel-2 is cloud-blocked | Landsat imagery dates back to 1972, over 50 years of continuous earth observation — lower resolution (30m vs Sentinel's 10m) but useful for historical yield baselines per region. |
+
+**For Replit specifically:** Google Earth Engine's Python API is the most practical — free, well-documented, and you can run a scheduled Python job (weekly cron) that pulls median NDVI per farm polygon and writes it to your Postgres table. Sentinel Hub's Statistical API is the alternative if you want NDVI as a simple REST call without managing GEE auth.
+
+**Weather (to pair with NDVI):** You're already using Open-Meteo, which is a good free choice. NASA POWER is another free option providing daily meteorological data — temperature, rainfall — at roughly 0.5° resolution globally, useful as a cross-check or backup if Open-Meteo has gaps for a specific region.
+
+---
+
+## KYC & Compliance for Farmer Onboarding
+
+Since you're Nairobi-based, here's what applies if Kenya is your first market (much of this generalizes to other African markets too, just swap the regulator):
+
+**Legal basis:** Kenya's POCAMLA 2009 is the foundational AML law, enforced by the Financial Reporting Centre and the Central Bank of Kenya, and requires a risk-based KYC programme covering four pillars: customer identification, customer due diligence, ongoing monitoring, and suspicious activity reporting. This isn't optional — the AML/CTF Amendment Act 2025, signed into law in June 2025, introduced stricter KYC requirements, tougher penalties, and mandatory enhanced due diligence for high-risk clients.
+
+**What you need to collect per farmer (individual KYC):**
+- **Government ID** — accepted documents include National ID, the new Maisha Card, passport, driver's licence, Alien ID, and KRA PIN.
+- **Proof of address** — recent documentation, typically within the last 3 months. This is often the hardest one for rural farmers — many platforms substitute a local chief's letter, land title, or utility bill where formal addresses don't exist.
+- **KRA PIN** — confirms tax compliance and is needed for most financial activities.
+- **Selfie + liveness check** — CBK now requires ID and selfie verification for digital lenders, with biometric checks widely used as part of strong customer authentication.
+- **Land documentation** — not a formal KYC requirement, but you'll need this anyway for the "farm application" (title deed, lease, or community land certificate) to validate land size/ownership claims feeding into your risk model.
+
+**Compliance layers on top of basic ID:**
+- **AML/PEP/sanctions screening** — every reporting institution must conduct customer due diligence before onboarding, and the 2025 amendment mandates enhanced due diligence for high-risk clients and politically exposed persons.
+- **Record retention** — POCAMLA requires KYC records to be retained for a minimum of 7 years (note: an earlier source said 5 years for digital credit providers specifically — worth confirming which regime applies to your licensing category with a lawyer, since investment platforms vs. lending platforms may fall under different rules).
+- **Data protection** — the Data Protection Act requires a Data Protection Impact Assessment before deploying biometric processing at scale, demonstrating necessity and proportionality and documenting mitigation measures. Since you're capturing selfies/biometrics for KYC, this applies to you directly.
+- **Digital ID shift worth watching**: Maisha Namba, Kenya's new lifecycle digital ID, is interoperable and IPRS-linked, consolidating previously fragmented identifiers into a single verifiable reference point — worth building your ID verification flow to support this from the start rather than bolting it on later.
+
+**Licensing question you'll need to nail down early:** Investa Farm sits in an unusual spot — it's not quite a digital lender (farmers aren't borrowing from you directly in the traditional sense, they're getting capital against future revenue share) and not quite a securities exchange (though the Stellar share-token mechanism looks a lot like one). The CBK regulates banks, POCAMLA/CDD compliance, and licensing, while the Capital Markets Authority regulates AML for listed entities and CMA-licensed entities — a revenue-share investment product with tradeable tokens plausibly touches CMA's jurisdiction too. This is genuinely a question for a Kenyan fintech/securities lawyer before you scale past pilot, not something to guess at from documentation.
+
+**Practical build note for Replit:** Rather than building ID verification in-house, most Kenyan fintechs integrate a third-party KYC API (Smile ID, Dojah, VerifyAfrica, Signzy are commonly used in the region) that bundles ID OCR + liveness + AML screening into one API call — fintech platforms using SDK-based onboarding detect nearly twice as much fraud as those relying on standard APIs, and it's far faster to integrate than building document-forgery detection yourself.
+
+Want me to add a `farmer_kyc` table schema and a KYC-flow spec to the pricing engine files, so the human-review trigger I built earlier can also check KYC completion status before a farm goes live?

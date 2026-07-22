@@ -1,0 +1,30 @@
+2026-07-17T13:50:29.11235007Z ==> Downloading cache...
+2026-07-17T13:50:29.149959818Z ==> Cloning from https://github.com/Investa-Farm/investafarmapp
+2026-07-17T13:50:36.002048751Z ==> Checking out commit 210dc2d214c72899aa479565cb9cb2d0139788e7 in branch main
+2026-07-17T13:50:45.659253027Z ==> Downloaded 105MB in 2s. Extraction took 8s.
+2026-07-17T13:50:48.505187922Z ==> Using Node.js version 24.14.1 (default)
+2026-07-17T13:50:48.505197352Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-07-17T13:50:48.552509915Z ==> Running build command 'pnpm install --frozen-lockfile; pnpm run build'...
+2026-07-17T13:50:51.205754931Z 
+2026-07-17T13:50:51.205782961Z > workspace@0.0.0 build /opt/render/project/src
+2026-07-17T13:50:51.205790181Z > pnpm run typecheck && pnpm -r --if-present run build
+2026-07-17T13:50:51.205794091Z 
+2026-07-17T13:50:51.560854041Z 
+2026-07-17T13:50:51.560875201Z > workspace@0.0.0 typecheck /opt/render/project/src
+2026-07-17T13:50:51.560880581Z > pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+2026-07-17T13:50:51.560887371Z 
+2026-07-17T13:50:51.941159554Z 
+2026-07-17T13:50:51.941186085Z > workspace@0.0.0 typecheck:libs /opt/render/project/src
+2026-07-17T13:50:51.941191205Z > tsc --build
+2026-07-17T13:50:51.941195065Z 
+2026-07-17T13:50:53.824621517Z lib/db/src/index.ts(127,18): error TS2352: Conversion of type 'Pool' to type 'Record<string | symbol, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+2026-07-17T13:50:53.824643217Z   Index signature for type 'string' is missing in type 'Pool'.
+2026-07-17T13:50:53.824751439Z lib/db/src/index.ts(165,18): error TS2352: Conversion of type 'PoolClient' to type 'Record<string | symbol, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+2026-07-17T13:50:53.824758479Z   Index signature for type 'string' is missing in type 'PoolClient'.
+2026-07-17T13:50:53.824762679Z lib/db/src/index.ts(229,16): error TS2352: Conversion of type 'NodePgDatabase<typeof import("/opt/render/project/src/lib/db/src/schema/index")> & { $client: Pool; }' to type 'Record<string | symbol, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+2026-07-17T13:50:53.824766199Z   Index signature for type 'string' is missing in type 'NodePgDatabase<typeof import("/opt/render/project/src/lib/db/src/schema/index")> & { $client: Pool; }'.
+2026-07-17T13:50:55.56598349Z  ELIFECYCLE  Command failed with exit code 2.
+2026-07-17T13:50:55.620372397Z  ELIFECYCLE  Command failed with exit code 2.
+2026-07-17T13:50:55.661044521Z  ELIFECYCLE  Command failed with exit code 2.
+2026-07-17T13:50:55.736032414Z ==> Build failed 😞
+2026-07-17T13:50:55.736059334Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

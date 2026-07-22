@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Investa Farm — Agricultural Investment Platform in Kenya</title>
+    <meta name="description" content="Investa Farm: Invest in Kenyan farms, buy and sell agricultural shares, earn dividends from real crops. Connecting investors with verified farmers across Kenya." />
+    <meta name="keywords" content="Investa Farm, farm investment Kenya, agricultural shares Kenya, invest in farms, crop investment, Kenya agribusiness, farm crowdfunding, agricultural crowdfunding Kenya, buy farm shares, farm dividends Kenya" />
+    <meta name="author" content="Investa Farm" />
+    <meta name="theme-color" content="#1a5c2a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Investa Farm" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://investafarm.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:site_name" content="Investa Farm" />
+    <meta property="og:title" content="Investa Farm — Agricultural Investment Platform in Kenya" />
+    <meta property="og:description" content="Invest in Kenyan farms, buy and sell agricultural shares, and earn dividends from real crops. Connecting investors with verified farmers across Kenya." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://investafarm.com/" />
+    <meta property="og:image" content="https://investafarm.com/opengraph.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_KE" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@investafarm" />
+    <meta name="twitter:title" content="Investa Farm — Agricultural Investment Platform in Kenya" />
+    <meta name="twitter:description" content="Invest in Kenyan farms, buy and sell agricultural shares, and earn dividends from real crops." />
+    <meta name="twitter:image" content="https://investafarm.com/opengraph.jpg" />
+
+    <!-- Structured Data: Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Investa Farm",
+      "url": "https://investafarm.com",
+      "logo": "https://investafarm.com/logo.png",
+      "description": "Agricultural investment platform connecting investors with verified Kenyan farmers. Buy and sell farm shares, earn dividends from real crop harvests.",
+      "foundingLocation": {
+        "@type": "Country",
+        "name": "Kenya"
+      },
+      "areaServed": "KE",
+      "sameAs": []
+    }
+    </script>
+
+    <!-- Structured Data: WebSite (enables Google Sitelinks Search Box) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Investa Farm",
+      "url": "https://investafarm.com",
+      "description": "Farm investment platform — buy and sell agricultural shares in Kenya",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://investafarm.com/market?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/logo.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/logo.png" />
+    <link rel="apple-touch-icon" sizes="120x120" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <meta name="msapplication-TileImage" content="/logo.png" />
+    <meta name="msapplication-TileColor" content="#052e16" />
+    <!-- Blocking dark-mode init — synchronous, before fonts/CSS to prevent flash for dark-mode users -->
+    <script>
+      (function() {
+        try {
+          // Theme is account-scoped: read user ID from sessionStorage, look up
+          // their preference in localStorage under investa_theme_<id>
+          var _raw = sessionStorage.getItem("investa_user");
+          var _uid = _raw ? JSON.parse(_raw).id : null;
+          var _key = _uid ? "investa_theme_" + _uid : null;
+          if (_key && localStorage.getItem(_key) === "dark") {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <!-- App loading splash — shown until React mounts (covers Render cold-start delay) -->
+    <div id="app-loader" style="
+      position:fixed;inset:0;z-index:99999;
+      background:linear-gradient(160deg,#052e16 0%,#14532d 50%,#16a34a 100%);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      font-family:'Inter',sans-serif;transition:opacity .4s ease;
+    ">
+      <img src="/logo.png" alt="Investa Farm"
+        style="width:72px;height:72px;border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.35);margin-bottom:20px;" />
+      <p style="color:#fff;font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 4px;">Investa Farm</p>
+      <p style="color:rgba(255,255,255,.6);font-size:13px;margin:0 0 32px;">Farm investment, simplified</p>
+      <div style="width:48px;height:48px;position:relative;">
+        <div style="
+          position:absolute;inset:0;border-radius:50%;
+          border:3px solid rgba(255,255,255,.2);
+          border-top-color:#fff;
+          animation:spin .8s linear infinite;
+        "></div>
+      </div>
+      <p id="loader-status" style="color:rgba(255,255,255,.5);font-size:11px;margin-top:20px;">Loading…</p>
+    </div>
+    <style>
+      @keyframes spin { to { transform:rotate(360deg); } }
+    </style>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Show "waking up" message after 4s (Render cold start)
+      var loaderStatus = document.getElementById('loader-status');
+      setTimeout(function() {
+        if (loaderStatus) loaderStatus.textContent = 'Waking up server…';
+      }, 4000);
+      setTimeout(function() {
+        if (loaderStatus) loaderStatus.textContent = 'Almost ready…';
+      }, 10000);
+      // Hide loader once React root renders — #root now exists in DOM
+      var rootEl = document.getElementById('root');
+      var observer = new MutationObserver(function() {
+        if (rootEl && rootEl.children.length > 0) {
+          var el = document.getElementById('app-loader');
+          if (el) { el.style.opacity = '0'; setTimeout(function(){ if(el) el.remove(); }, 450); }
+          observer.disconnect();
+        }
+      });
+      if (rootEl) {
+        observer.observe(rootEl, { childList: true, subtree: false });
+      }
+    </script>
+  </body>
+</html>

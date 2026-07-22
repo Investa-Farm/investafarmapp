@@ -1,0 +1,720 @@
+Core Assumptions
+A farm season has a total number of shares 
+N
+N, each originally sold at price 
+P
+0
+P 
+0
+​
+ .
+
+The investor pool is entitled to a fixed percentage 
+α
+α of harvest revenue (after farmer’s share).
+Example: 
+α
+=
+0.50
+α=0.50 if investors get 50% of revenue.
+
+At harvest, total revenue 
+R
+R is unknown but can be forecasted.
+
+Each share pays a dividend at harvest:
+
+D
+=
+α
+R
+N
+D= 
+N
+αR
+​
+ 
+The current time is 
+t
+t (in days) from planting, with total season length 
+T
+T (days until harvest).
+Remaining time = 
+T
+−
+t
+T−t.
+
+1. Fundamental value (expected payoff)
+Let 
+R
+^
+(
+t
+)
+R
+^
+ (t) be the AI‑based forecast of total harvest revenue at time 
+t
+t.
+Then the expected dividend per share is:
+
+D
+^
+(
+t
+)
+=
+α
+ 
+R
+^
+(
+t
+)
+N
+D
+^
+ (t)= 
+N
+α 
+R
+^
+ (t)
+​
+ 
+If there were no risk and no time preference, a share’s fair price would be 
+D
+^
+(
+t
+)
+D
+^
+ (t).
+But investors discount for:
+
+Time value of money (opportunity cost)
+
+Risk (yield, price, weather, pest)
+
+Illiquidity (if secondary market is thin)
+
+2. Discounted expected value
+The classic pricing model for a future cash flow is:
+
+P
+fair
+(
+t
+)
+=
+D
+^
+(
+t
+)
+(
+1
++
+r
+)
+(
+T
+−
+t
+)
+/
+365
+×
+(
+1
+−
+λ
+)
+P 
+fair
+​
+ (t)= 
+(1+r) 
+(T−t)/365
+ 
+D
+^
+ (t)
+​
+ ×(1−λ)
+Where:
+
+r
+r = annual risk‑free rate (e.g., 10% for M‑Pesa savings? Or use a higher discount for agri risk)
+
+(
+T
+−
+t
+)
+/
+365
+(T−t)/365 = remaining years
+
+λ
+λ = total risk discount (0 to 1), derived from AI risk score.
+
+3. Risk discount from AI scoring
+Let the farm’s AI risk score be 
+S
+∈
+[
+1
+,
+10
+]
+S∈[1,10], where 10 = lowest risk, 1 = highest.
+Define a loss probability 
+p
+loss
+p 
+loss
+​
+  based on historical data:
+
+p
+loss
+=
+max
+⁡
+(
+0
+,
+min
+⁡
+(
+1
+,
+10
+−
+S
+9
+×
+p
+max
+⁡
+)
+)
+p 
+loss
+​
+ =max(0,min(1, 
+9
+10−S
+​
+ ×p 
+max
+​
+ ))
+Where 
+p
+max
+⁡
+p 
+max
+​
+  is the maximum loss probability when 
+S
+=
+1
+S=1 (e.g., 0.40 for 40% chance of significant crop failure).
+Then the risk discount:
+
+λ
+=
+p
+loss
+×
+L
+λ=p 
+loss
+​
+ ×L
+Where 
+L
+L is the expected loss given default (e.g., 0.80 means you lose 80% of expected dividend if failure occurs).
+Thus:
+
+λ
+=
+10
+−
+S
+9
+×
+p
+max
+⁡
+×
+L
+λ= 
+9
+10−S
+​
+ ×p 
+max
+​
+ ×L
+Example: 
+S
+=
+7
+S=7, 
+p
+max
+⁡
+=
+0.4
+p 
+max
+​
+ =0.4, 
+L
+=
+0.8
+L=0.8 → 
+λ
+=
+(
+3
+/
+9
+)
+×
+0.4
+×
+0.8
+=
+0.1067
+λ=(3/9)×0.4×0.8=0.1067. So 10.7% discount.
+
+4. Incorporating market dynamics (bid‑ask spread, liquidity premium)
+In a secondary market, price also depends on supply/demand. Let:
+
+Q
+buy
+Q 
+buy
+​
+  = total buy orders (number of shares wanted)
+
+Q
+sell
+Q 
+sell
+​
+  = total sell orders
+
+A simple clearing price 
+P
+market
+P 
+market
+​
+  is:
+
+P
+market
+=
+P
+fair
+×
+(
+1
++
+β
+⋅
+Q
+buy
+−
+Q
+sell
+Q
+total
+)
+P 
+market
+​
+ =P 
+fair
+​
+ ×(1+β⋅ 
+Q 
+total
+​
+ 
+Q 
+buy
+​
+ −Q 
+sell
+​
+ 
+​
+ )
+Where 
+β
+β is a sensitivity parameter (e.g., 0.2), and 
+Q
+total
+Q 
+total
+​
+  = total shares outstanding.
+This pushes price above fair when demand exceeds supply, and below fair when supply exceeds demand.
+
+Additionally, a liquidity discount 
+δ
+δ (e.g., 0.02 for 2%) is applied if the market is thin:
+
+P
+execution
+=
+P
+market
+×
+(
+1
+−
+δ
+)
+P 
+execution
+​
+ =P 
+market
+​
+ ×(1−δ)
+This is the price a seller actually receives (or buyer pays, with an ask premium symmetric).
+
+5. Complete pricing formula for a seller
+For a seller wanting to list a share at time 
+t
+t:
+
+P
+sell
+=
+α
+R
+^
+(
+t
+)
+N
+(
+1
++
+r
+)
+(
+T
+−
+t
+)
+/
+365
+×
+(
+1
+−
+10
+−
+S
+9
+p
+max
+⁡
+L
+)
+×
+(
+1
++
+β
+Q
+buy
+−
+Q
+sell
+Q
+total
+)
+×
+(
+1
+−
+δ
+)
+P 
+sell
+​
+ = 
+N(1+r) 
+(T−t)/365
+ 
+α 
+R
+^
+ (t)
+​
+ ×(1− 
+9
+10−S
+​
+ p 
+max
+​
+ L)×(1+β 
+Q 
+total
+​
+ 
+Q 
+buy
+​
+ −Q 
+sell
+​
+ 
+​
+ )×(1−δ)
+​
+ 
+And the buyer’s price would be 
+P
+sell
+/
+(
+1
+−
+δ
+)
+P 
+sell
+​
+ /(1−δ) if platform takes no spread, but typically a small trading fee is added.
+
+6. Worked example
+α
+=
+0.50
+α=0.50, 
+N
+=
+10,000
+N=10,000 shares
+
+R
+^
+(
+t
+)
+=
+2,000,000
+R
+^
+ (t)=2,000,000 KES forecast revenue
+
+T
+−
+t
+=
+60
+T−t=60 days, 
+r
+=
+0.10
+r=0.10 annual → 
+(
+1
++
+r
+)
+60
+/
+365
+=
+1.10
+0.1644
+≈
+1.0158
+(1+r) 
+60/365
+ =1.10 
+0.1644
+ ≈1.0158
+
+S
+=
+7
+S=7, 
+p
+max
+⁡
+=
+0.4
+p 
+max
+​
+ =0.4, 
+L
+=
+0.8
+L=0.8 → 
+λ
+=
+(
+3
+/
+9
+)
+×
+0.4
+×
+0.8
+=
+0.1067
+λ=(3/9)×0.4×0.8=0.1067
+
+Q
+buy
+=
+2,000
+Q 
+buy
+​
+ =2,000, 
+Q
+sell
+=
+1,000
+Q 
+sell
+​
+ =1,000, 
+Q
+total
+=
+10,000
+Q 
+total
+​
+ =10,000 → imbalance = 
+(
+2000
+−
+1000
+)
+/
+10000
+=
+0.10
+(2000−1000)/10000=0.10
+
+β
+=
+0.2
+β=0.2 → multiplier = 
+1
++
+0.2
+×
+0.10
+=
+1.02
+1+0.2×0.10=1.02
+
+δ
+=
+0.02
+δ=0.02 (2% liquidity discount)
+
+First, expected dividend = 
+(
+0.5
+×
+2
+M
+)
+/
+10
+k
+=
+100
+(0.5×2M)/10k=100 KES.
+Discounted = 
+100
+/
+1.0158
+≈
+98.44
+100/1.0158≈98.44 KES.
+Risk discount = 
+98.44
+×
+(
+1
+−
+0.1067
+)
+=
+87.94
+98.44×(1−0.1067)=87.94 KES.
+Demand/supply adjustment = 
+87.94
+×
+1.02
+=
+89.70
+87.94×1.02=89.70 KES.
+Liquidity discount = 
+89.70
+×
+0.98
+=
+87.91
+89.70×0.98=87.91 KES.
+
+Final seller price ≈ 87.91 KES (original 
+P
+0
+P 
+0
+​
+  might have been 50 KES, so this is a premium).
+
+7. Practical implementation notes
+The AI model updates 
+R
+^
+(
+t
+)
+R
+^
+ (t) and 
+S
+S daily – price changes accordingly.
+
+The platform can show a fair value range (bid/ask) instead of a single price.
+
+To prevent manipulation, order book imbalances are smoothed over 1 hour.
+
+For extreme situations (e.g., drought), 
+p
+max
+⁡
+p 
+max
+​
+  may increase dynamically.
+
+This model gives investors confidence that prices reflect real information, while still allowing emotional trading (fear, greed) via the demand/supply term.

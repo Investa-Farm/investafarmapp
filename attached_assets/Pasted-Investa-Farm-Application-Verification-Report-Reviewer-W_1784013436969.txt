@@ -1,0 +1,94 @@
+Investa Farm Application Verification Report
+Reviewer: Wendie Devoter
+ Date: 13 July 2026
+Objective
+This verification review was conducted to confirm the functionality, usability and stability of the Investa Farm application following the implementation of previously reported fixes.
+Testing focused on verifying that identified issues had been resolved and documenting any remaining functional issues.
+
+Farmer Account Review
+Modules Reviewed
+Home
+Applications
+Profile
+My Farm
+Wallet
+Help Centre
+Observations
+The Farmer account was reviewed after the latest application updates.
+The following modules functioned correctly:
+Home
+Applications
+Profile
+My Farm
+Wallet
+The previously reported issue involving invalid NaN and null% values on the dashboard has been resolved.
+Help Centre
+The Help Centre loaded successfully and all support categories were accessible.
+A support query was submitted using a test account. The form accepted the input successfully. However, upon submission, the application displayed the following message:
+"Could not save your ticket. Please try again or email us at investafarm@proton.me."
+The support request was not created successfully.
+Status: Issue Identified
+Remaining Issue
+Minor interface glitching/flickering was observed during application use.
+Farmer Account Status: Working as Expected with Minor Issues
+
+Investor Account Review
+Modules Reviewed
+Market
+Portfolio
+Activity
+Profile
+AI Smart Match
+AI Investment Agent
+Help Centre
+Observations
+All reviewed modules loaded successfully and functioned as expected.
+Verified functionality included:
+Market
+Portfolio
+Activity
+Profile
+AI Smart Match
+AI Investment Agent
+Help Centre
+The Help Centre was accessible. Query submission was also tested and produced the same result observed on the Farmer account, where the application was unable to save the support ticket.
+Status: Issue Identified
+Remaining Issue
+Minor interface glitching/flickering was observed during application use.
+Investor Account Status: Working as Expected with Minor Issues
+
+Agribusiness Account Review
+Modules Reviewed
+Farmers Connect
+Input Providers
+Sales Agent
+Offtaker / Buyer
+Observations
+The following account types functioned correctly:
+Farmers Connect
+Input Providers
+Sales Agent
+Offtaker / Buyer
+Navigation within each account worked correctly and no functional issues were identified after accessing the modules.
+Remaining Issue
+The Offtaker / Buyer account option on the Partner Portal account selection screen remains difficult to identify due to insufficient colour contrast with the background.
+Once selected, the account functions as expected.
+Agribusiness Account Status: Working as Expected with Minor UI Issue
+
+Summary of Verification
+Successfully Verified
+Farmer dashboard NaN and null% values have been resolved.
+Core application functionality is stable across the Farmer, Investor and Agribusiness accounts.
+Navigation across all reviewed modules functions correctly.
+AI Smart Match and AI Investment Agent continue to operate as expected.
+Outstanding Issues
+Help Centre query submission fails to create a support ticket and displays the message:
+ "Could not save your ticket. Please try again or email us at investafarm@proton.me."
+Minor application glitching/flickering remains during normal use.
+The Offtaker / Buyer account option on the Partner Portal account selection screen has a visibility issue due to insufficient colour contrast.
+
+Overall Conclusion
+The application remains stable across the Farmer, Investor and Agribusiness accounts, with most previously reported issues successfully resolved. The invalid dashboard values have been corrected and the core functionality continues to perform reliably.
+However, the Help Centre query submission feature is still not fully functional, as support tickets cannot be created successfully despite the improved error handling. Minor application glitching/flickering also persists, and the Offtaker / Buyer account option on the Partner Portal account selection screen continues to have a visibility issue.
+Overall, the application is stable and suitable for use, with only a few remaining issues requiring further attention.
+

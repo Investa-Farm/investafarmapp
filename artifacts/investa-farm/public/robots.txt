@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+Allow: /market
+Allow: /market/preview
+Allow: /register
+Allow: /login
+Allow: /farmer-auth
+Allow: /investor-auth
+Allow: /forgot-password
+
+# Block private/authenticated routes from indexing
+Disallow: /admin
+Disallow: /admin/
+Disallow: /farmer/
+Disallow: /investor/
+Disallow: /market/fund
+Disallow: /cooperative/
+Disallow: /agribusiness/
+Disallow: /wealth/
+Disallow: /api/
+Disallow: /verify-otp
+Disallow: /onboarding
+
+Sitemap: https://investafarm.com/sitemap.xml

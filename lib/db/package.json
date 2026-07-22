@@ -1,0 +1,30 @@
+{
+  "name": "@workspace/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./supabase-init": "./src/supabase-init.ts"
+  },
+  "scripts": {
+    "push": "drizzle-kit push --config ./drizzle.config.ts",
+    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
+    "push:supabase": "DB_TARGET=supabase drizzle-kit push --config ./drizzle.config.ts",
+    "push-force:supabase": "DB_TARGET=supabase drizzle-kit push --force --config ./drizzle.config.ts",
+    "push:both": "pnpm run push && (DB_TARGET=supabase drizzle-kit push --config ./drizzle.config.ts || echo '[warn] Supabase push failed — will bootstrap on next server start')",
+    "gen:supabase-init": "drizzle-kit generate --config ./drizzle.config.ts && node scripts/gen-supabase-init.js"
+  },
+  "dependencies": {
+    "drizzle-orm": "catalog:",
+    "drizzle-zod": "^0.8.3",
+    "pg": "^8.22.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "^8.20.0",
+    "drizzle-kit": "^0.31.10"
+  }
+}

@@ -1,0 +1,32 @@
+Here's what I found — grouped by severity:
+
+🔴 Critical (breaks functionality or readability)
+1. Dark mode broken on auth pages — landing.tsx, login.tsx, register.tsx all have bg-white hardcoded. Toggling dark mode has no effect on these screens. Users who enable dark mode and then go to log in get blinded by a white screen.
+
+2. Error banners invisible in dark mode — The red error card on login/register uses bg-red-50 border-red-200 which disappears on dark backgrounds.
+
+3. Labels not linked to inputs — Every form label uses <label className="..."> without a htmlFor attribute. Tapping the label text on mobile doesn't focus the input — a standard accessibility/UX requirement.
+
+4. "Forgot password?" causes full-page reload — It uses <a href="/forgot-password"> instead of the SPA router <Link>. The whole app re-bootstraps unnecessarily.
+
+5. TOTP entry can't be submitted with Enter — The 6-digit code inputs have no surrounding <form>. Pressing Enter after typing the last digit does nothing — users have to find and tap the button.
+
+6. Agribusiness profile has no dark mode toggle — The dashboard has one (added earlier), but the profile page doesn't, so switching between them causes a jarring light/dark flash.
+
+🟡 High (poor UX patterns)
+7. Logout button is a one-tap destructive action — The LogOut icon sits directly in the hero header on farmer and investor dashboards with no confirmation. A scroll-slip can instantly log someone out mid-flow.
+
+8. Email input uses type="text" not type="email" — Login and register both use type="text" inputMode="email". On iOS, this suppresses the @ shortcut on the keyboard until the user starts typing an email pattern.
+
+9. Dark mode toggle state is per-page, not shared — Each dashboard reads document.documentElement.classList.contains("dark") independently on mount. If one page's toggle gets out of sync, the icon shows the wrong state.
+
+10. Missing skeleton loaders on key pages — The farmer dashboard shows a blank wallet card and empty farm section during initial data load (typically 0.5–1.5s). No skeleton or placeholder.
+
+🟢 Medium (polish)
+11. Notification filter tabs have no unread counts — The "Unread", "Payouts", "Alerts" tabs show no number badge, so users can't tell if it's worth switching.
+
+12. Agribusiness profile "Save" only saves name, phone, county to the API — businessDesc is only written to localStorage, so it's lost if the user clears storage or switches browsers.
+
+13. Password strength checker missing on change-password screen — It exists on Register but the Profile settings panel where users change passwords has no live strength indicator.
+
+14. Market ticker shows "Live Balance" tag on wallet but hardcoded prices in ticker — The crop prices in the ticker strip are static strings — Maize always 4,200, Coffee always 680 — but the widget implies real-time data

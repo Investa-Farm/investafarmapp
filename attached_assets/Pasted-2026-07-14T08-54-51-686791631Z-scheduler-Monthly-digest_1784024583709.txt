@@ -1,0 +1,50 @@
+2026-07-14T08:54:51.686791631Z [scheduler] Monthly digest: 1st of each month at 08:00 EAT
+2026-07-14T08:54:51.686947921Z [scheduler] Verification reminders → next run at 08:02 EAT
+2026-07-14T08:54:51.687415813Z [scheduler] Dividend payouts → next run at 01:14 EAT
+2026-07-14T08:54:51.688257371Z [scheduler] Rainfall alerts → next run at 07:12 EAT
+2026-07-14T08:54:51.688725182Z [scheduler] ROI snapshots → next run at 00:25 EAT
+2026-07-14T08:54:51.689392178Z [scheduler] Loan repayment reminders → next run at 08:27 EAT
+2026-07-14T08:54:51.690440679Z [scheduler] Farm growth: activating pending farms every 30 minutes
+2026-07-14T08:54:51.69045122Z [scheduler] Price simulation & alerts: every 5 minutes
+2026-07-14T08:54:51.69045959Z [scheduler] Watchlist price alerts: every 5 minutes
+2026-07-14T08:54:51.690462981Z [scheduler] Order matching engine: every 2 minutes
+2026-07-14T08:54:51.690498903Z [scheduler] Daily jobs: randomised times within safe windows
+2026-07-14T08:55:01.384705593Z [arb-alert] Meru Macadamia Plantation: P_exec=5.90 P_time=7.72 dev=23.5% rf=0.06 S=1
+2026-07-14T08:55:01.445982519Z [pricing] Meru Macadamia Plantation (macadamia): rainfall=176mm factor=0.06 S=1 λ=0.320 P_fair=5.25
+2026-07-14T08:55:01.751150922Z [arb-alert] Wanjiru Banana Plantation: P_exec=5.61 P_time=6.83 dev=17.8% rf=0.06 S=3
+2026-07-14T08:55:01.785542125Z {"level":30,"time":1784019301785,"pid":70,"hostname":"srv-d95si07aqgkc73fi3r3g-hibernate-74d6f654c7-d9cr9","req":{"id":3,"method":"GET","url":"/"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+2026-07-14T08:55:01.813867095Z [pricing] Wanjiru Banana Plantation (maize): rainfall=176mm factor=0.06 S=3 λ=0.249 P_fair=5.13
+2026-07-14T08:55:02.063044153Z [arb-alert] Kipkemoi Tea & Flowers: P_exec=7.41 P_time=9.46 dev=21.7% rf=0.08 S=2
+2026-07-14T08:55:02.123974924Z [pricing] Kipkemoi Tea & Flowers (tea): rainfall=464mm factor=0.08 S=2 λ=0.284 P_fair=6.77
+2026-07-14T08:55:02.387282596Z [arb-alert] Wanjiku Fresh Tomatoes: P_exec=13.70 P_time=17.89 dev=23.4% rf=0.15 S=1
+2026-07-14T08:55:02.44810879Z [pricing] Wanjiku Fresh Tomatoes (tomatoes): rainfall=271mm factor=0.15 S=1 λ=0.320 P_fair=12.16
+2026-07-14T08:55:02.697616221Z [arb-alert] Otieno Rice Fields: P_exec=5.01 P_time=6.20 dev=19.2% rf=0.06 S=2
+2026-07-14T08:55:02.758526161Z [pricing] Otieno Rice Fields (rice): rainfall=226mm factor=0.06 S=2 λ=0.284 P_fair=4.44
+2026-07-14T08:55:03.008576688Z [arb-alert] Narok Sunflower Collective: P_exec=9.97 P_time=12.99 dev=23.2% rf=0.11 S=1
+2026-07-14T08:55:03.069405673Z [pricing] Narok Sunflower Collective (sorghum): rainfall=146mm factor=0.11 S=1 λ=0.320 P_fair=8.83
+2026-07-14T08:55:03.357538215Z [arb-alert] Akinyi Dairy & Kale Farm: P_exec=7.57 P_time=10.13 dev=25.3% rf=0.08 S=1
+2026-07-14T08:55:03.418827471Z [pricing] Akinyi Dairy & Kale Farm (kale): rainfall=226mm factor=0.08 S=1 λ=0.320 P_fair=6.89
+2026-07-14T08:55:05.23147958Z [arb-alert] Mwangi Wheat Estate: P_exec=7.31 P_time=9.41 dev=22.3% rf=0.08 S=2
+2026-07-14T08:55:05.296484669Z [pricing] Mwangi Wheat Estate (wheat): rainfall=174mm factor=0.08 S=2 λ=0.284 P_fair=6.73
+2026-07-14T08:55:07.866913462Z [arb-alert] Kamau Coffee Estate: P_exec=5.06 P_time=6.59 dev=23.2% rf=0.05 S=1
+2026-07-14T08:55:07.927640119Z [pricing] Kamau Coffee Estate (coffee): rainfall=271mm factor=0.05 S=1 λ=0.320 P_fair=4.48
+2026-07-14T08:55:08.159990531Z [arb-alert] Rift Valley Maize Farms: P_exec=5.82 P_time=6.85 dev=15.1% rf=0.06 S=3
+2026-07-14T08:55:08.221196371Z [pricing] Rift Valley Maize Farms (maize): rainfall=174mm factor=0.06 S=3 λ=0.249 P_fair=5.15
+2026-07-14T08:55:08.471299313Z [arb-alert] Kirinyaga Tea Cooperative: P_exec=6.52 P_time=8.14 dev=19.9% rf=0.07 S=2
+2026-07-14T08:55:08.532127888Z [pricing] Kirinyaga Tea Cooperative (tea): rainfall=399mm factor=0.07 S=2 λ=0.284 P_fair=5.83
+2026-07-14T08:55:09.182621571Z [arb-alert] Laikipia Avocado Orchards: P_exec=5.56 P_time=7.28 dev=23.7% rf=0.06 S=1
+2026-07-14T08:55:09.243568313Z [pricing] Laikipia Avocado Orchards (avocado): rainfall=157mm factor=0.06 S=1 λ=0.320 P_fair=4.95
+2026-07-14T08:55:09.5179621Z [arb-alert] Hassan Coastal Cassava: P_exec=8.80 P_time=10.70 dev=17.7% rf=0.10 S=3
+2026-07-14T08:55:09.594185764Z [pricing] Hassan Coastal Cassava (cassava): rainfall=231mm factor=0.10 S=3 λ=0.249 P_fair=8.03
+2026-07-14T08:55:09.827109625Z [arb-alert] Janeth's Wheat Farm: P_exec=54.95 P_time=74.08 dev=25.8% rf=0.11 S=3
+2026-07-14T08:55:09.887877055Z [pricing] Janeth's Wheat Farm (wheat): rainfall=231mm factor=0.11 S=3 λ=0.249 P_fair=55.64
+2026-07-14T08:55:10.120307852Z [arb-alert] Chebet Highlands Coffee: P_exec=4.10 P_time=5.49 dev=25.4% rf=0.04 S=1
+2026-07-14T08:55:10.180927023Z [pricing] Chebet Highlands Coffee (coffee): rainfall=231mm factor=0.04 S=1 λ=0.320 P_fair=3.74
+2026-07-14T08:55:10.428966874Z [arb-alert] Croplead limited's Tomatoes Farm: P_exec=8.14 P_time=12.18 dev=33.2% rf=0.10 S=1
+2026-07-14T08:55:10.489696752Z [pricing] Croplead limited's Tomatoes Farm (tomatoes): rainfall=185mm factor=0.10 S=1 λ=0.320 P_fair=8.29
+2026-07-14T08:55:10.720735244Z [arb-alert] Croplead's Other Farm: P_exec=13.52 P_time=20.26 dev=33.3% rf=0.08 S=1
+2026-07-14T08:55:10.781676807Z [pricing] Croplead's Other Farm (other): rainfall=231mm factor=0.08 S=1 λ=0.320 P_fair=13.78
+2026-07-14T08:55:11.014155437Z [arb-alert] Omondi Homa Bay Fish Farm: P_exec=7.47 P_time=10.13 dev=26.2% rf=0.08 S=1
+2026-07-14T08:55:11.075141833Z [pricing] Omondi Homa Bay Fish Farm (dairy): rainfall=231mm factor=0.08 S=1 λ=0.320 P_fair=6.89
+2026-07-14T08:55:11.076002861Z [scheduler] Dynamic pricing updated 18 farms (rainfall-adjusted)
+2026-07-14T08:55:33.82483139Z {"level":30,"time":1784019333824,"pid":70,"hostname":"srv-d95si07aqgkc73fi3r3g-hibernate-74d6f654c7-d9cr9","req":{"id":4,"method":"GET","url":"/api/notifications"},"res":{"statusCode":304},"responseTime":126,"msg":"request completed"}

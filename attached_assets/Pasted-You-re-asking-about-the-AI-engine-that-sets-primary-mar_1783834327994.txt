@@ -1,0 +1,322 @@
+You're asking about the AI engine that sets primary market prices – the algorithm that determines how much a farm share costs and what revenue split investors get. This is the core intelligence that makes Investa Farm dynamic, fair, and data‑driven.
+
+Below is a complete blueprint for this AI engine, including the models, inputs, logic, and how to implement it in Replit.
+
+---
+
+1. What the AI Must Output
+
+For each new farm listing, the AI produces:
+
+Output Description
+Forecast revenue (R̂) Expected total harvest revenue in USD
+Risk score (S) 1–10, where 10 = lowest risk
+Investor revenue share (α) Between 10% and 30%
+Primary share price (P₀) Price per share (e.g., $10)
+Total shares (N) Number of shares issued
+Platform share (γ) Automatically derived as 1 - α - β (β set by farmer)
+
+All of these must satisfy the primary market consistency equation:
+
+K = \alpha \cdot \hat{R} \cdot \frac{1 - \lambda}{(1 + r_f)^{T/365}}
+
+where \lambda is the risk discount derived from S.
+
+---
+
+2. Input Data Sources
+
+The AI ingests both static and real‑time data:
+
+Data Type Source Used For
+Farmer profile KYC (experience, land size, equipment) Risk adjustment
+GPS coordinates Collected during KYC Satellite image retrieval
+Satellite NDVI history Sentinel‑2 (free) Yield prediction (trend)
+Weather forecast & history Open‑Meteo (free) Yield prediction & risk
+Crop type & planting date Farmer input Yield model
+Regional commodity prices Local exchange / public data Revenue forecast
+Historical yields (platform data) Past seasons from Investa Farm Model training
+Farmer’s desired β (45–65%) Farmer input Set β; derive γ
+
+---
+
+3. AI Models (Three Core Components)
+
+Model A: Yield Prediction (kg/ha)
+
+Uses a Random Forest Regressor trained on historical NDVI, weather, and yield data.
+
+Features:
+
+· Average NDVI over growing season (weekly)
+· Cumulative rainfall
+· Average temperature
+· Soil moisture (if available)
+· Days to harvest
+· Crop type (one‑hot encoded)
+· Farmer experience (years)
+· Land size
+
+Training data: Historical farm data (once you have enough seasons). For initial launch, use public crop yield models for Kenya (e.g., from FAO or CGIAR) as a fallback.
+
+Output: Predicted yield (kg/ha) → multiply by land size → total production (kg).
+
+Model B: Price Forecasting ($/kg at harvest)
+
+Uses a Time Series model (e.g., Prophet or LSTM) to forecast commodity prices.
+
+Features:
+
+· Historical monthly prices (local exchange)
+· Global market trends (e.g., maize futures)
+· Seasonality (harvest months typically have lower prices)
+· Current market sentiment (from social sentiment analysis)
+
+Output: Predicted price per kg at expected harvest date.
+
+Revenue forecast:
+
+\hat{R} = \text{predicted yield (kg)} \times \text{predicted price (\$/kg)} \times \text{quality factor}
+
+Model C: Risk Score (1–10)
+
+A Logistic Regression or Gradient Boosting model that estimates the probability of crop failure (loss > 30% of expected yield).
+
+Features:
+
+· Historical yield variability in the region
+· Weather extremes forecast (drought/flood probability)
+· Pest/disease risk (based on regional alerts)
+· Farmer’s past performance (if available)
+· NDVI deviation from historical average
+
+Risk discount:
+
+\lambda = \frac{10 - S}{9} \times p_{\max} \times L
+
+where p_{\max} = 0.4 (max loss probability) and L = 0.8 (loss given default). So a lower S increases \lambda, reducing the present value investors are willing to pay.
+
+---
+
+4. Primary Pricing Logic (The AI Decision Engine)
+
+Given K (capital needed) and the farmer’s chosen \beta, the AI does the following:
+
+1. Compute \hat{R} from Models A & B.
+2. Compute S from Model C.
+3. Compute d (risk‑adjusted discount factor):
+
+d = \frac{1 - \lambda}{(1 + r_f)^{T/365}}
+
+4. Determine the required \alpha:
+
+\alpha_{\text{req}} = \frac{K}{\hat{R} \cdot d}
+
+5. Check viability:
+   · If \alpha_{\text{req}} < 0.10 → the farm is very profitable; you could lower \alpha to 10% (minimum) and raise more capital than needed (oversubscribe). But the farmer only needs K, so you can set α = 0.10 and the actual capital raised = 0.10 × R̂ × d which might exceed K – you can then reduce the number of shares (increase price per share) to still raise K. Actually better: set α = max(0.10, α_req) if α_req ≤ 0.30, else the farm is too risky – reject or adjust K/β.
+   · If \alpha_{\text{req}} > 0.30 → too risky; suggest farmer reduce K, increase β (but β max 0.65), or improve risk score.
+6. Set \alpha = clamp(α_req, 0.10, 0.30). If clamped, the platform may need to adjust K (i.e., not all capital is raised) or accept oversubscription.
+7. Set N = choose a nice number to make P₀ = K/N a round number (e.g., $10, $5, $1).
+   Or you can first decide P_0 (e.g., $10) and compute N = K / P₀.
+8. Set \gamma = 1 - α - β (platform share). Ensure it's ≥ 5% (minimum platform fee).
+9. Output all parameters for the farm listing.
+
+---
+
+5. Implementation in Replit (Python)
+
+Here’s a simplified version of the AI engine you can paste into Replit. For production, you’d replace placeholder models with actual ML.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+# --- Placeholder Models (replace with real ML later) ---
+def predict_yield(crop, ndvi_history, weather_forecast, farmer_exp):
+    # Dummy: yield = base + ndvi factor
+    base = {'maize': 2000, 'beans': 1200, 'coffee': 800}
+    ndvi_avg = np.mean(ndvi_history) if ndvi_history else 0.7
+    return base.get(crop, 1500) * (0.8 + 0.4 * ndvi_avg)  # kg/ha
+
+def predict_price(crop, harvest_date):
+    # Dummy: price from historical average
+    prices = {'maize': 0.30, 'beans': 0.50, 'coffee': 3.00}
+    return prices.get(crop, 0.30)  # $/kg
+
+def compute_risk_score(farmer_data, weather_risk, ndvi_volatility):
+    # Simple heuristic: start with 5, adjust
+    score = 5
+    if farmer_data.get('experience_years', 0) > 5:
+        score += 1
+    if weather_risk < 0.2:
+        score += 1
+    if ndvi_volatility < 0.1:
+        score += 1
+    # Clamp to 1-10
+    return max(1, min(10, score))
+
+# --- Main AI Pricing Engine ---
+def ai_primary_pricing(farmer_input):
+    """
+    farmer_input: dict with keys:
+        - capital_needed_usd (K)
+        - crop
+        - land_size_ha
+        - planting_date
+        - harvest_date (expected)
+        - farmer_experience_years
+        - ndvi_history (list of floats)
+        - weather_risk (0-1)
+        - desired_farmer_share (beta, 0.45-0.65)
+        - risk_free_rate (default 0.10)
+        - p_max (default 0.4)
+        - loss_given_default (default 0.8)
+    """
+    # Extract
+    K = farmer_input['capital_needed_usd']
+    crop = farmer_input['crop']
+    land = farmer_input['land_size_ha']
+    T = (farmer_input['harvest_date'] - farmer_input['planting_date']).days
+    beta = farmer_input.get('desired_farmer_share', 0.55)
+    r_f = farmer_input.get('risk_free_rate', 0.10)
+    p_max = farmer_input.get('p_max', 0.4)
+    L = farmer_input.get('loss_given_default', 0.8)
+
+    # 1. Yield prediction
+    yield_kg_ha = predict_yield(crop, farmer_input.get('ndvi_history', []), 
+                                farmer_input.get('weather_forecast', {}),
+                                farmer_input.get('farmer_experience_years', 0))
+    total_yield_kg = yield_kg_ha * land
+
+    # 2. Price prediction
+    price_per_kg = predict_price(crop, farmer_input['harvest_date'])
+    R_hat = total_yield_kg * price_per_kg
+
+    # 3. Risk score
+    S = compute_risk_score(farmer_input, farmer_input.get('weather_risk', 0.5),
+                           farmer_input.get('ndvi_volatility', 0.15))
+
+    # 4. Risk discount
+    loss_prob = ((10 - S) / 9.0) * p_max
+    lambda_risk = loss_prob * L
+    time_factor = (1 + r_f) ** (T / 365.0)
+    d = (1 - lambda_risk) / time_factor
+
+    # 5. Required alpha
+    alpha_req = K / (R_hat * d)
+
+    # 6. Clamp alpha
+    if alpha_req < 0.10:
+        alpha = 0.10
+        # In this case, the farm is very profitable; we could raise more capital than K.
+        # For simplicity, we keep alpha at 0.10 and set K_actual = alpha * R_hat * d,
+        # then adjust N to make P0 round.
+        K_actual = alpha * R_hat * d
+        # But the farmer only needs K, so we might oversubscribe. Let's keep K as is and
+        # let the platform decide to limit the number of shares.
+    elif alpha_req > 0.30:
+        alpha = 0.30
+        # Farm is too risky; we could ask farmer to reduce K or increase beta.
+        # Raise warning.
+        K_actual = alpha * R_hat * d
+        if K_actual < K:
+            # Not enough capital can be raised at max alpha -> farm not viable.
+            return {"status": "not_viable", "reason": f"Max capital at α=30% is {K_actual:.2f}, need {K}"}
+    else:
+        alpha = alpha_req
+        K_actual = K  # exactly matched
+
+    # Platform share gamma
+    gamma = 1 - alpha - beta
+    if gamma < 0.05:
+        # Not enough platform margin; either adjust beta or alpha
+        # For MVP, set gamma to 0.05 and reduce beta
+        gamma = 0.05
+        beta = 1 - alpha - gamma
+        # Recompute
+        if beta < 0.45:
+            return {"status": "not_viable", "reason": f"Beta would be {beta:.2f}, below 45%"}
+
+    # 7. Determine N and P0
+    # Choose a round P0 (e.g., $5, $10, $20) based on K
+    if K_actual >= 10000:
+        target_price = 10
+    elif K_actual >= 5000:
+        target_price = 5
+    else:
+        target_price = 1
+    N = int(K_actual / target_price)
+    P0 = K_actual / N
+
+    # 8. Output
+    return {
+        "status": "viable",
+        "forecast_revenue_usd": round(R_hat, 2),
+        "risk_score": S,
+        "alpha": round(alpha, 4),
+        "beta": round(beta, 4),
+        "gamma": round(gamma, 4),
+        "total_shares": N,
+        "share_price_usd": round(P0, 2),
+        "capital_raised_usd": round(K_actual, 2),
+        "risk_discount": round(lambda_risk, 4),
+        "discount_factor_d": round(d, 4)
+    }
+
+# --- Example usage ---
+if __name__ == "__main__":
+    farmer_data = {
+        'capital_needed_usd': 15000,
+        'crop': 'maize',
+        'land_size_ha': 2.5,
+        'planting_date': datetime(2026, 6, 1),
+        'harvest_date': datetime(2026, 9, 30),
+        'farmer_experience_years': 6,
+        'ndvi_history': [0.65, 0.70, 0.72, 0.68],
+        'weather_risk': 0.3,
+        'ndvi_volatility': 0.08,
+        'desired_farmer_share': 0.55,
+        'risk_free_rate': 0.10,
+        'p_max': 0.4,
+        'loss_given_default': 0.8
+    }
+    result = ai_primary_pricing(farmer_data)
+    print(result)
+```
+
+---
+
+6. What to Tell Replit (Final Copy‑Paste)
+
+Build an AI Primary Pricing Engine for Investa Farm with the following specifications:
+
+Inputs: Farmer’s capital needed (USD), crop type, land size, planting/harvest dates, farmer experience, NDVI history (weekly), weather risk, desired farmer share (β).
+
+Models:
+
+· Yield Prediction – Use a Random Forest trained on NDVI + weather. For MVP, use a heuristic function based on crop type and average NDVI.
+· Price Prediction – Use a time‑series model (Prophet/LSTM) on historical commodity prices. MVP: use current market price adjusted for seasonal trend.
+· Risk Score – Heuristic combining farmer experience, weather risk, NDVI volatility; output 1–10.
+
+Pricing Formula:
+
+\alpha_{\text{req}} = \frac{K}{\hat{R} \cdot d}
+
+
+where d = \frac{1 - \lambda}{(1 + r_f)^{T/365}} and \lambda = \frac{10 - S}{9} \times p_{\max} \times L.
+
+Logic:
+
+· Clamp α between 10% and 30%.
+· If α_req < 10%, set α = 10% (oversubscription possible).
+· If α_req > 30%, reject farm or reduce K.
+· Compute γ = 1 - α - β; ensure γ ≥ 5%.
+· Choose a round share price ($1, $5, $10) and compute N = K / P₀.
+
+Output: forecast_revenue, risk_score, α, β, γ, total_shares, share_price, capital_raised, risk_discount, discount_factor.
+
+Implementation: Use Python with scikit‑learn (when models are trained), but start with heuristics for MVP. Store all inputs and outputs in MongoDB for each farm. Provide a REST endpoint /farm/price that accepts farm data and returns pricing.
+
+---
+
+This AI engine ensures that every farm is priced fairly, risks are reflected, and the platform earns a sustainable margin – all automatically. Let me know if you want the actual model training code or the Flask endpoint to expose this.
