@@ -357,10 +357,12 @@ router.post("/auth/logout", async (_req, res): Promise<void> => {
 // ─── OAUTH HELPERS ────────────────────────────────────────────────────────────
 
 function getAppUrl(): string {
-  return (
+  const raw =
     process.env.APP_URL ??
-    (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:8080")
-  );
+    (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:8080");
+  // Strip any trailing slash so callback URLs like /api/auth/google/callback
+  // are never doubled (https://app.investafarm.com//api/...)
+  return raw.replace(/\/+$/, "");
 }
 
 async function findOrCreateOAuthUser(email: string, name: string, defaultRole: string) {

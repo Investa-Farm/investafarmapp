@@ -247,17 +247,9 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       const trackId = d.orderTrackingId as string;
       setPayRef(trackId);
       setConfigured(d.configured !== false);
-      if (d.configured === false) {
-        // Demo mode — no real redirect, just poll
-        setPayStep("push_sent");
-        startPesapalPolling(trackId, amt);
-        return;
-      }
-      // PesaPal requires the user to visit the hosted page first —
-      // that page then triggers the M-Pesa STK push to their phone.
-      setPayTabUrl(d.redirectUrl);
-      window.open(d.redirectUrl, "_blank", "noopener,noreferrer");
-      setPayStep("new_tab");
+      // PesaPal triggers the STK push directly to the phone when
+      // payment_method + account_number are set — no redirect needed.
+      setPayStep("push_sent");
       startPesapalPolling(trackId, amt);
     } catch (err) {
       setPayError((err as Error).message);

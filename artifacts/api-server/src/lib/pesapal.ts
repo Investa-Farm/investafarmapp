@@ -100,6 +100,10 @@ export async function submitOrder(opts: {
   if (!isConfigured()) throw new Error("PesaPal not configured — set PESAPAL_CONSUMER_KEY and PESAPAL_CONSUMER_SECRET");
   const token = await getAccessToken();
 
+  // PesaPal expects phone numbers without the leading '+' in account_number
+  // for direct STK push (e.g. "254745092523" not "+254745092523")
+  const phonePlain = (opts.phone ?? "").replace(/^\+/, "");
+
   const body: Record<string, unknown> = {
     id: opts.reference,
     currency: opts.currency,
@@ -109,9 +113,9 @@ export async function submitOrder(opts: {
     notification_id: opts.ipnId,
     billing_address: {
       email_address: opts.email,
-      phone_number: opts.phone ?? "",
-      // account_number pre-fills the phone field on PesaPal's mobile money checkout
-      account_number: opts.phone ?? "",
+      phone_number: phonePlain,
+      // account_number is the phone PesaPal sends the STK push / USSD prompt to
+      account_number: phonePlain,
       country_code: "",
       first_name: opts.firstName ?? "",
       last_name: opts.lastName ?? "",
@@ -123,9 +127,10 @@ export async function submitOrder(opts: {
     },
   };
 
-  // Pass payment method hint so PesaPal auto-selects without showing the picker
+  // PesaPal direct-push codes: MPESA (KE/TZ/MZ), MTN, Airtel
+  // Uppercase is required — lowercase "mpesa" only pre-selects on hosted checkout
   if (opts.paymentMethodCode) {
-    body["payment_method"] = opts.paymentMethodCode;
+    body["payment_method"] = opts.paymentMethodCode.toUpperCase();
   }
 
   const res = await fetch(`${BASE}/api/Transactions/SubmitOrderRequest`, {
