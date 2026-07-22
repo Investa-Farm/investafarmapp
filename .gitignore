@@ -55,3 +55,5 @@ attached_assets/client_secret_*.json
 attached_assets/client_secret_*.json
 attached_assets/client_secret_*.json
 .env
+attached_assets/client_secret_*.json
+.env
