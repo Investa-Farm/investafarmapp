@@ -121,6 +121,9 @@ export default function FarmerAuth() {
           setToken(err.data.token); storeUser(err.data.user);
           setLocation(`/verify-otp?email=${encodeURIComponent(err.data.email ?? email)}`); return;
         }
+        const msg = err?.data?.error ?? "";
+        if (msg === "conflict:google") { setError("This email was signed up with Google. Please use the Google button to sign in."); return; }
+        if (msg === "conflict:linkedin") { setError("This email was signed up with LinkedIn. Please use the LinkedIn button to sign in."); return; }
         setError("Invalid email or password.");
       },
     });
@@ -175,7 +178,12 @@ export default function FarmerAuth() {
         setToken(data.token); storeUser(data.user);
         setLocation(`/verify-otp?email=${encodeURIComponent(email)}`);
       },
-      onError: () => setError("Registration failed. Email may already be in use."),
+      onError: (err: any) => {
+        const msg = err?.data?.error ?? "";
+        if (msg === "conflict:google") { setError("This email was signed up with Google. Please use the Google button to sign in."); return; }
+        if (msg === "conflict:linkedin") { setError("This email was signed up with LinkedIn. Please use the LinkedIn button to sign in."); return; }
+        setError("Registration failed. Email may already be in use.");
+      },
     });
   };
 

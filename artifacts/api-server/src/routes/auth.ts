@@ -95,6 +95,13 @@ router.post("/auth/register", authRateLimit, async (req, res): Promise<void> => 
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (existing) {
+    const existingProvider = (existing.metadata as Record<string, unknown> | null)?.authProvider as string | undefined;
+    if (existingProvider === "google") {
+      res.status(400).json({ error: "conflict:google" }); return;
+    }
+    if (existingProvider === "linkedin") {
+      res.status(400).json({ error: "conflict:linkedin" }); return;
+    }
     res.status(400).json({ error: "Email already registered" });
     return;
   }
@@ -105,6 +112,7 @@ router.post("/auth/register", authRateLimit, async (req, res): Promise<void> => 
     ...(phone ? { phone } : {}),
     ...(country ? { country } : {}),
     ...(isDemo ? { emailVerified: true } : {}),
+    metadata: { authProvider: "email" },
   }).returning();
   const token = signToken(user.id);
 
@@ -245,6 +253,14 @@ router.post("/auth/login", authRateLimit, async (req, res): Promise<void> => {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
+
+  // If this email was created via OAuth, tell them to use the correct provider
+  const authProvider = (user.metadata as Record<string, unknown> | null)?.authProvider as string | undefined;
+  if (authProvider === "google" || authProvider === "linkedin") {
+    res.status(401).json({ error: `conflict:${authProvider}` });
+    return;
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     recordFailedAuth(`email:${email}`);
@@ -365,20 +381,36 @@ function getAppUrl(): string {
   return raw.replace(/\/+$/, "");
 }
 
-async function findOrCreateOAuthUser(email: string, name: string, defaultRole: string) {
+async function findOrCreateOAuthUser(email: string, name: string, defaultRole: string, provider: "google" | "linkedin") {
   let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (!user) {
+    // Brand new user — create and tag with the OAuth provider
     [user] = await db.insert(usersTable).values({
       email,
       name,
       passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), 10),
       role: (defaultRole as "farmer" | "investor" | "cooperative" | "agribusiness"),
       emailVerified: true,
+      metadata: { authProvider: provider },
     }).returning();
     // Create wallet for new OAuth user
     await db.insert(walletsTable).values({ userId: user.id, balance: "0", currency: "KES" }).catch(() => {});
-  } else if (!user.emailVerified) {
-    await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.id, user.id));
+  } else {
+    // Existing user — check for auth provider conflict
+    const existingProvider = (user.metadata as Record<string, unknown> | null)?.authProvider as string | undefined;
+    if (existingProvider && existingProvider !== provider) {
+      // Conflict: this email belongs to a different auth method
+      throw Object.assign(new Error("auth_conflict"), { conflictProvider: existingProvider });
+    }
+    // Stamp the provider on legacy accounts (no metadata yet) so future checks work
+    if (!existingProvider) {
+      await db.update(usersTable)
+        .set({ metadata: { ...(user.metadata as object ?? {}), authProvider: provider } })
+        .where(eq(usersTable.id, user.id));
+    }
+    if (!user.emailVerified) {
+      await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.id, user.id));
+    }
   }
   return user;
 }
@@ -414,15 +446,15 @@ router.get("/auth/google", (req, res): void => {
 router.get("/auth/google/callback", async (req, res): Promise<void> => {
   const { code, error, state } = req.query as Record<string, string>;
   const appUrl = getAppUrl();
+  const loginPath = (state === "farmer" || state === "cooperative") ? "/farmer-auth" : "/investor-auth";
   if (error || !code) {
-    res.redirect(`${appUrl}/?oauth_error=${encodeURIComponent(error ?? "cancelled")}`); return;
+    res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(error ?? "cancelled")}&login_path=${encodeURIComponent(loginPath)}`); return;
   }
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID!;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
     const redirectUri = `${appUrl}/api/auth/google/callback`;
 
-    // Exchange code for tokens
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -431,7 +463,6 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     const tokens = await tokenRes.json() as any;
     if (!tokenRes.ok) throw new Error(tokens.error_description ?? "Token exchange failed");
 
-    // Get user info
     const userRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
@@ -442,11 +473,15 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     const name = (profile.name ?? profile.given_name ?? email.split("@")[0]) as string;
     const role = state ?? "investor";
 
-    const user = await findOrCreateOAuthUser(email, name, role);
+    const user = await findOrCreateOAuthUser(email, name, role, "google");
     oauthRedirect(res, user);
-  } catch (err) {
+  } catch (err: any) {
     console.error("[Google OAuth]", err);
-    res.redirect(`${appUrl}/?oauth_error=${encodeURIComponent("Google sign-in failed. Please try again.")}`);
+    if (err.conflictProvider) {
+      res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(`conflict:${err.conflictProvider}`)}&login_path=${encodeURIComponent(loginPath)}`);
+    } else {
+      res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent("Google sign-in failed. Please try again.")}&login_path=${encodeURIComponent(loginPath)}`);
+    }
   }
 });
 
@@ -469,15 +504,15 @@ router.get("/auth/linkedin", (req, res): void => {
 router.get("/auth/linkedin/callback", async (req, res): Promise<void> => {
   const { code, error, state } = req.query as Record<string, string>;
   const appUrl = getAppUrl();
+  const loginPath = (state === "farmer" || state === "cooperative") ? "/farmer-auth" : "/investor-auth";
   if (error || !code) {
-    res.redirect(`${appUrl}/?oauth_error=${encodeURIComponent(error ?? "cancelled")}`); return;
+    res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(error ?? "cancelled")}&login_path=${encodeURIComponent(loginPath)}`); return;
   }
   try {
     const clientId = process.env.LINKEDIN_CLIENT_ID!;
     const clientSecret = process.env.LINKEDIN_CLIENT_SECRET!;
     const redirectUri = `${appUrl}/api/auth/linkedin/callback`;
 
-    // Exchange code for tokens
     const tokenRes = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -486,7 +521,6 @@ router.get("/auth/linkedin/callback", async (req, res): Promise<void> => {
     const tokens = await tokenRes.json() as any;
     if (!tokenRes.ok) throw new Error(tokens.error_description ?? "Token exchange failed");
 
-    // Get user info via OpenID Connect
     const userRes = await fetch("https://api.linkedin.com/v2/userinfo", {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
@@ -497,11 +531,15 @@ router.get("/auth/linkedin/callback", async (req, res): Promise<void> => {
     const name = (profile.name ?? profile.given_name ?? email.split("@")[0]) as string;
     const role = state ?? "investor";
 
-    const user = await findOrCreateOAuthUser(email, name, role);
+    const user = await findOrCreateOAuthUser(email, name, role, "linkedin");
     oauthRedirect(res, user);
-  } catch (err) {
+  } catch (err: any) {
     console.error("[LinkedIn OAuth]", err);
-    res.redirect(`${appUrl}/?oauth_error=${encodeURIComponent("LinkedIn sign-in failed. Please try again.")}`);
+    if (err.conflictProvider) {
+      res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(`conflict:${err.conflictProvider}`)}&login_path=${encodeURIComponent(loginPath)}`);
+    } else {
+      res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent("LinkedIn sign-in failed. Please try again.")}&login_path=${encodeURIComponent(loginPath)}`);
+    }
   }
 });
 
