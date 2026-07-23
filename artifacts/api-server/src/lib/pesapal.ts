@@ -104,6 +104,20 @@ export async function submitOrder(opts: {
   // for direct STK push (e.g. "254745092523" not "+254745092523")
   const phonePlain = (opts.phone ?? "").replace(/^\+/, "");
 
+  // Derive ISO 3166-1 alpha-2 country code from phone prefix — required for PesaPal routing
+  const DIAL_TO_COUNTRY: Record<string, string> = {
+    "254": "KE", "255": "TZ", "256": "UG", "250": "RW",
+    "258": "MZ", "233": "GH", "260": "ZM", "251": "ET",
+    "234": "NG", "27": "ZA", "263": "ZW", "265": "MW",
+    "249": "SD", "252": "SO", "257": "BI", "253": "DJ",
+    "1": "US", "44": "GB", "971": "AE", "49": "DE",
+    "33": "FR", "31": "NL",
+  };
+  let countryCode = "";
+  for (const [prefix, code] of Object.entries(DIAL_TO_COUNTRY)) {
+    if (phonePlain.startsWith(prefix)) { countryCode = code; break; }
+  }
+
   const body: Record<string, unknown> = {
     id: opts.reference,
     currency: opts.currency,
@@ -113,10 +127,12 @@ export async function submitOrder(opts: {
     notification_id: opts.ipnId,
     billing_address: {
       email_address: opts.email,
+      // PesaPal accepts phone_number with or without + but account_number must be plain digits
       phone_number: phonePlain,
       // account_number is the phone PesaPal sends the STK push / USSD prompt to
       account_number: phonePlain,
-      country_code: "",
+      // country_code (ISO 3166-1 alpha-2) is required for correct network routing
+      country_code: countryCode,
       first_name: opts.firstName ?? "",
       last_name: opts.lastName ?? "",
       line_1: "",

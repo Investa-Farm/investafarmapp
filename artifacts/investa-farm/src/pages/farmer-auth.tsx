@@ -3,7 +3,7 @@ import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Eye, EyeOff, Loader2, Leaf, Lock, Mail,
-  User, Phone, MapPin, CheckSquare, CheckCircle2, ShieldCheck, Smartphone, Linkedin,
+  User, Phone, MapPin, CheckSquare, CheckCircle2, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { useLogin, useRegister } from "@workspace/api-client-react";
 import { setToken, storeUser } from "@/lib/auth";
@@ -101,10 +101,6 @@ export default function FarmerAuth() {
 
   function handleGoogleAuth() {
     window.location.href = "/api/auth/google?role=farmer";
-  }
-
-  function handleLinkedInAuth() {
-    window.location.href = "/api/auth/linkedin?role=farmer";
   }
 
   const handleLogin = (e: React.FormEvent) => {
@@ -380,21 +376,12 @@ export default function FarmerAuth() {
               )}
 
               {/* ── Social Auth Buttons ── */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <motion.button type="button" whileTap={{ scale: 0.97 }}
-                  onClick={handleGoogleAuth}
-                  className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-semibold text-sm active:scale-95 transition-all hover:border-gray-300 hover:bg-gray-50 shadow-sm">
-                  <GoogleLogo />
-                  Google
-                </motion.button>
-                <motion.button type="button" whileTap={{ scale: 0.97 }}
-                  onClick={handleLinkedInAuth}
-                  className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-white font-semibold text-sm active:scale-95 transition-all shadow-sm"
-                  style={{ background: "linear-gradient(135deg, #0077b5, #0a66c2)", borderColor: "#0077b5" }}>
-                  <Linkedin size={18} />
-                  LinkedIn
-                </motion.button>
-              </div>
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                onClick={handleGoogleAuth}
+                className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-semibold text-sm active:scale-95 transition-all hover:border-gray-300 hover:bg-gray-50 shadow-sm">
+                <GoogleLogo />
+                Continue with Google
+              </motion.button>
 
               {/* Divider */}
               <div className="flex items-center gap-3 my-1">

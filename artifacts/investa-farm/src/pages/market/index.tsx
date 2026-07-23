@@ -990,8 +990,8 @@ export default function MarketHome() {
                             onClick={() => { setSelectedListing(listing); setInvestOpen(true); }}
                             className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
                             style={{ background: isFirst ? "linear-gradient(160deg,#78350f 0%,#b45309 50%,#fbbf24 100%)" : "linear-gradient(160deg,#052e16 0%,#14532d 50%,#16a34a 100%)" }}>
-                            <img src={getCropImage(listing.cropType, listing.imageUrl)}
-                              className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-luminosity" alt={listing.cropType} />
+                            <img src="/investor-bg.jpg"
+                              className="absolute inset-0 w-full h-full object-cover opacity-35 mix-blend-luminosity" alt={listing.cropType} />
                             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.7) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
                             <div className="relative h-full flex flex-col justify-between p-3">
                               <div>
@@ -1016,8 +1016,8 @@ export default function MarketHome() {
                           <Link href="/market/primary">
                             <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
                               style={{ background: "linear-gradient(160deg, #78350f 0%, #b45309 50%, #fbbf24 100%)" }}>
-                              <img src={getCropImage("avocado")} alt="Avocado"
-                                className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-luminosity" />
+                              <img src="/investor-bg.jpg" alt="Investment"
+                                className="absolute inset-0 w-full h-full object-cover opacity-35 mix-blend-luminosity" />
                               <div className="relative h-full flex flex-col justify-between p-3">
                                 <div>
                                   <span className="text-yellow-100 text-[8px] font-bold uppercase tracking-widest bg-yellow-600/40 px-1.5 py-0.5 rounded-full">Premium</span>
@@ -1036,8 +1036,8 @@ export default function MarketHome() {
                           <Link href="/market/primary">
                             <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
                               style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
-                              <img src={getCropImage("maize")} alt="Maize"
-                                className="absolute inset-0 w-full h-full object-cover opacity-25 mix-blend-luminosity" />
+                              <img src="/investor-bg.jpg" alt="Investment"
+                                className="absolute inset-0 w-full h-full object-cover opacity-35 mix-blend-luminosity" />
                               <div className="relative h-full flex flex-col justify-between p-3">
                                 <div>
                                   <span className="text-green-200 text-[8px] font-bold uppercase tracking-widest bg-green-600/30 px-1.5 py-0.5 rounded-full">Low Risk</span>

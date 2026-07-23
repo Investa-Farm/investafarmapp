@@ -383,7 +383,10 @@ function getAppUrl(): string {
 
 async function findOrCreateOAuthUser(email: string, name: string, defaultRole: string, provider: "google" | "linkedin") {
   let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  let isNew = false;
+
   if (!user) {
+    isNew = true;
     // Brand new user — create and tag with the OAuth provider
     [user] = await db.insert(usersTable).values({
       email,
@@ -395,6 +398,8 @@ async function findOrCreateOAuthUser(email: string, name: string, defaultRole: s
     }).returning();
     // Create wallet for new OAuth user
     await db.insert(walletsTable).values({ userId: user.id, balance: "0", currency: "KES" }).catch(() => {});
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(email, name, defaultRole).catch(() => {});
   } else {
     // Existing user — check for auth provider conflict
     const existingProvider = (user.metadata as Record<string, unknown> | null)?.authProvider as string | undefined;
@@ -412,17 +417,17 @@ async function findOrCreateOAuthUser(email: string, name: string, defaultRole: s
       await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.id, user.id));
     }
   }
-  return user;
+  return { user, isNew };
 }
 
-function oauthRedirect(res: any, user: Awaited<ReturnType<typeof findOrCreateOAuthUser>>) {
+function oauthRedirect(res: any, user: Awaited<ReturnType<typeof findOrCreateOAuthUser>>["user"], isNew: boolean) {
   const token = signToken(user.id);
   const userJson = encodeURIComponent(JSON.stringify({
     id: user.id, email: user.email, name: user.name,
     role: user.role, emailVerified: true,
   }));
   const appUrl = getAppUrl();
-  res.redirect(`${appUrl}/auth-callback?token=${token}&user=${userJson}`);
+  res.redirect(`${appUrl}/auth-callback?token=${token}&user=${userJson}&is_new=${isNew ? "1" : "0"}`);
 }
 
 // ─── GOOGLE OAUTH ─────────────────────────────────────────────────────────────
@@ -473,8 +478,8 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     const name = (profile.name ?? profile.given_name ?? email.split("@")[0]) as string;
     const role = state ?? "investor";
 
-    const user = await findOrCreateOAuthUser(email, name, role, "google");
-    oauthRedirect(res, user);
+    const { user, isNew } = await findOrCreateOAuthUser(email, name, role, "google");
+    oauthRedirect(res, user, isNew);
   } catch (err: any) {
     console.error("[Google OAuth]", err);
     if (err.conflictProvider) {
@@ -531,8 +536,8 @@ router.get("/auth/linkedin/callback", async (req, res): Promise<void> => {
     const name = (profile.name ?? profile.given_name ?? email.split("@")[0]) as string;
     const role = state ?? "investor";
 
-    const user = await findOrCreateOAuthUser(email, name, role, "linkedin");
-    oauthRedirect(res, user);
+    const { user, isNew } = await findOrCreateOAuthUser(email, name, role, "linkedin");
+    oauthRedirect(res, user, isNew);
   } catch (err: any) {
     console.error("[LinkedIn OAuth]", err);
     if (err.conflictProvider) {
