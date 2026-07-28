@@ -2,7 +2,7 @@ import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
-import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, ArrowUpRight, Loader2, CheckCircle2, ExternalLink, ChevronDown, CreditCard, Copy, Check, Phone, Plus, Shield } from "lucide-react";
+import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, ArrowUpRight, Loader2, CheckCircle2, ExternalLink, ChevronDown, CreditCard, Copy, Check, Phone, Plus, Shield, Settings2 } from "lucide-react";
 import { PaymentSheet } from "@/components/payment-sheet";
 import { WalletPinGate } from "@/components/wallet-pin-gate";
 import { WalletPinSetup } from "@/components/wallet-pin-setup";
@@ -28,7 +28,79 @@ const TX_ICONS: Record<string, { emoji: string; isCredit: boolean }> = {
   transfer:     { emoji: "↔️",  isCredit: true  },
   dividend_paid:{ emoji: "🌾",  isCredit: true  },
   wallet_credit:{ emoji: "✅",  isCredit: true  },
+  pension_absa: { emoji: "🏦",  isCredit: false },
 };
+
+// ── ABSA Pension Card ─────────────────────────────────────────────────────────
+function PensionCard({ totalEarned, formatKES }: { totalEarned: number; formatKES: (n: number) => string }) {
+  const [open, setOpen] = useState(false);
+  const [rate, setRate] = useState(() => parseFloat(localStorage.getItem("investa_pension_rate") ?? "0.05"));
+
+  function pickRate(r: number) {
+    setRate(r);
+    localStorage.setItem("investa_pension_rate", String(r));
+  }
+
+  const pensionAmount = totalEarned * rate;
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-2xl mt-3 overflow-hidden">
+      {/* Main row */}
+      <div className="p-3 flex items-center gap-3">
+        {/* ABSA brand swatch */}
+        <div className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center"
+          style={{ background: "linear-gradient(135deg,#c8102e,#e63946)" }}>
+          <span className="text-white text-[10px] font-black tracking-tighter leading-none text-center">ABSA</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-amber-800 font-semibold text-xs">ABSA Pension Fund ({Math.round(rate * 100)}%)</p>
+            <button onClick={() => setOpen(o => !o)}
+              className="flex items-center gap-1 text-[9px] font-bold text-amber-700 bg-amber-200 hover:bg-amber-300 px-2 py-0.5 rounded-full transition-colors">
+              <Settings2 size={9} />
+              {open ? "Done" : "Configure"}
+            </button>
+          </div>
+          <p className="text-amber-700 text-[10px] mt-0.5 leading-snug">
+            <strong>{formatKES(pensionAmount)}</strong> saved · Forwarded to ABSA on each offtaker payment
+          </p>
+        </div>
+      </div>
+
+      {/* Expandable rate picker */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden border-t border-amber-200">
+            <div className="px-3 pb-3 pt-2 space-y-2">
+              <p className="text-amber-700 text-[10px] font-semibold">Choose contribution rate (% of each offtaker payment):</p>
+              <div className="flex gap-1.5">
+                {[5, 6, 7, 8, 9, 10].map(pct => (
+                  <button key={pct} onClick={() => pickRate(pct / 100)}
+                    className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all active:scale-95 ${
+                      Math.round(rate * 100) === pct
+                        ? "bg-amber-500 text-white shadow-sm"
+                        : "bg-white border border-amber-200 text-amber-700"
+                    }`}>
+                    {pct}%
+                  </button>
+                ))}
+              </div>
+              <div className="bg-white border border-amber-100 rounded-xl px-3 py-2 space-y-1">
+                <p className="text-amber-800 text-[10px] font-semibold">What is this?</p>
+                <p className="text-amber-700 text-[10px] leading-relaxed">
+                  When an offtaker repays your farm, {Math.round(rate * 100)}% of your share is automatically forwarded
+                  to your ABSA pension account — building your retirement savings with every harvest.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 /** Returns the date of the next Friday (or today if already Friday) */
 function getNextFriday(): Date {
@@ -266,8 +338,8 @@ export default function FarmerWallet() {
             <p className="text-muted-foreground text-[10px] mt-0.5">Total Received</p>
           </div>
           <div className="p-3 text-center border-r border-border">
-            <p className="text-amber-600 font-bold text-sm">{formatAmount(totalEarned * 0.03)}</p>
-            <p className="text-muted-foreground text-[10px] mt-0.5">Pension Saved</p>
+            <p className="text-amber-600 font-bold text-sm">{formatAmount(totalEarned * (parseFloat(localStorage.getItem("investa_pension_rate") ?? "0.05")))}</p>
+            <p className="text-muted-foreground text-[10px] mt-0.5">Pension (ABSA)</p>
           </div>
           <div className="p-3 text-center">
             <p className="text-foreground font-bold text-sm">{txs.length}</p>
@@ -275,19 +347,9 @@ export default function FarmerWallet() {
           </div>
         </div>
 
-        {/* Pension savings info */}
+        {/* Pension savings info — ABSA */}
         {totalEarned > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl mt-3 p-3 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <span className="text-lg">🏦</span>
-            </div>
-            <div className="flex-1">
-              <p className="text-amber-800 font-semibold text-xs">Pension Savings (3% of Revenue)</p>
-              <p className="text-amber-700 text-[10px] mt-0.5">
-                KES {formatKES(totalEarned * 0.03)} automatically saved for your future from total earnings
-              </p>
-            </div>
-          </div>
+          <PensionCard totalEarned={totalEarned} formatKES={formatKES} />
         )}
 
         {/* Interactive Currency Selector */}

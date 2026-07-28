@@ -3,7 +3,48 @@ import { useLocation } from "wouter";
 import { useGetFarmerDashboard } from "@workspace/api-client-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, isDemoAccount, getToken } from "@/lib/auth";
-import { Leaf, Droplets, Sun, CheckCircle2, Clock, Plus, X, Tag, Copy, Check, ShoppingCart, ChevronRight, AlertTriangle, Search, Loader2, MapPin, DollarSign, BarChart3, TrendingUp, Wallet, ArrowRight, BarChart2, FileText } from "lucide-react";
+import { Leaf, Droplets, Sun, CheckCircle2, Clock, Plus, X, Tag, Copy, Check, ShoppingCart, ChevronRight, AlertTriangle, Search, Loader2, MapPin, DollarSign, BarChart3, TrendingUp, Wallet, ArrowRight, BarChart2, FileText, Satellite } from "lucide-react";
+
+// ── Demo data shown for demo accounts ────────────────────────────────────────
+const DEMO_LOANS: any[] = [
+  {
+    id: 9001,
+    amount: 120000,
+    purpose: "seeds",
+    purposeDetails: "Certified maize seeds and fertilizer [crop:Maize]",
+    cropName: "Maize",
+    cropType: "Maize",
+    farmLocation: "Nakuru",
+    status: "approved",
+    repaymentPeriodMonths: 6,
+    submittedAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString(),
+    voucherCode: "IF-2026-SEE9001-DEM0",
+    voucherExpiry: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(),
+    aiScore: 82,
+    interestRate: 1.08,
+    amountRepaid: 0,
+    farmerShare: 66000,
+    expectedRevenue: 168000,
+    statusHistory: [
+      { stage: "submitted", at: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString() },
+      { stage: "approved", at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), note: "Gold tier — 8% interest" },
+      { stage: "listed", at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), note: "Farm #101 live on marketplace" },
+    ],
+  },
+];
+
+const DEMO_VOUCHERS: any[] = [
+  {
+    id: 9001,
+    amount: 120000,
+    purpose: "seeds",
+    cropName: "Maize",
+    farmLocation: "Nakuru",
+    voucherCode: "IF-2026-SEE9001-DEM0",
+    status: "approved",
+  },
+];
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RepayModal } from "@/components/repay-modal";
 import { motion, AnimatePresence } from "framer-motion";
@@ -363,9 +404,10 @@ function VoucherOrderModal({ voucher, token, onClose }: { voucher: any; token: s
 
 function VoucherSection() {
   const token = getToken();
+  const isDemo = isDemoAccount();
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [orderVoucher, setOrderVoucher] = useState<any | null>(null);
-  const { data: vouchers = [], isLoading } = useQuery<any[]>({
+  const { data: realVouchers = [], isLoading } = useQuery<any[]>({
     queryKey: ["farmer-vouchers"],
     queryFn: async () => {
       const r = await fetch("/api/farmer/vouchers", { headers: { Authorization: `Bearer ${token}` } });
@@ -373,7 +415,9 @@ function VoucherSection() {
       return r.json();
     },
     staleTime: 60_000,
+    enabled: !isDemo,
   });
+  const vouchers = isDemo ? DEMO_VOUCHERS : realVouchers;
 
   const handleCopy = async (code: string, id: number) => {
     await navigator.clipboard.writeText(code).catch(() => {});
@@ -494,7 +538,7 @@ export default function FarmerOperations() {
   const [repayLoan, setRepayLoan] = useState<any>(null);
   const [repayOpen, setRepayOpen] = useState(false);
 
-  const { data: loans = [] } = useQuery<any[]>({
+  const { data: realLoans = [] } = useQuery<any[]>({
     queryKey: ["loan-apps"],
     queryFn: async () => {
       const r = await fetch("/api/loans/applications", { headers: { Authorization: `Bearer ${token}` } });
@@ -502,8 +546,9 @@ export default function FarmerOperations() {
       return r.json();
     },
     staleTime: 60_000,
-    enabled: !!token,
+    enabled: !!token && !isDemo,
   });
+  const loans = isDemo ? DEMO_LOANS : realLoans;
 
   const activeLoans = loans.filter((l: any) => ["approved","disbursed","submitted","under_review"].includes(l.status));
   const clearedLoans = loans.filter((l: any) => ["repaid","settled","completed"].includes(l.status));
@@ -985,6 +1030,20 @@ export default function FarmerOperations() {
 
         {/* Voucher Section */}
         <VoucherSection />
+
+        {/* Satellite View shortcut */}
+        <button
+          onClick={() => setLocation("/farmer/health")}
+          className="w-full flex items-center gap-3 bg-gradient-to-r from-sky-900 to-blue-900 border border-sky-700/40 rounded-2xl px-4 py-3.5 active:scale-[0.98] transition-all shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center flex-shrink-0">
+            <Satellite size={18} className="text-sky-300" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-white font-semibold text-sm">Satellite Farm View</p>
+            <p className="text-sky-300/80 text-[11px]">Live NDVI · crop health · weather data</p>
+          </div>
+          <ChevronRight size={15} className="text-sky-400 flex-shrink-0" />
+        </button>
       </div>
 
       {/* Harvest Report Modal */}

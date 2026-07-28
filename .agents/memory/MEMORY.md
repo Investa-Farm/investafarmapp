@@ -9,3 +9,4 @@
 - [Pricing engine v2 design decisions](pricing-engine-v2.md) — Groq risk scoring anchor+fallback pattern, revenue-forecast uncertainty tuning, and intentionally deferred v2 spec scope.
 - [PesaPal payment integration](pesapal-integration.md) — replaced Daraja + Stripe with PesaPal v3; PESAPAL_CONSUMER_KEY/SECRET are Replit secrets; IPN auto-registers on first order.
 - [Dual-database failover](dual-db-failover.md) — Neon primary + Supabase standby; Replit can't reach Supabase port 5432 (network blocked); schema push must run from Render/local.
+- [Drizzle config injection risk](drizzle-config-injection.md) — malicious atob() block was appended to lib/db/drizzle.config.ts; verify file ends cleanly at `});` before every schema push.

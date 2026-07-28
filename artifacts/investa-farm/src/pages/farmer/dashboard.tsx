@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
-import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, ArrowUpRight, Globe2, ShoppingBag, Package } from "lucide-react";
+import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, ArrowUpRight, Globe2, ShoppingBag, Package, Satellite } from "lucide-react";
 import { useCurrency, CURRENCIES, type CurrencyCode } from "@/lib/currency";
 import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
 import { WalletModal } from "@/components/wallet-modal";
@@ -406,8 +406,8 @@ export default function FarmerDashboard() {
         )}
 
 
-        {/* Agribusiness Voucher — shown when farmer has a disbursed loan */}
-        {loans.some((l: any) => l.status === "disbursed") && (
+        {/* Agribusiness Voucher — shown when farmer has an approved or disbursed loan */}
+        {(isDemo || loans.some((l: any) => ["approved", "disbursed"].includes(l.status))) && (
           <button
             onClick={() => setLocation("/farmer/vouchers")}
             className="w-full bg-green-50 border border-green-300 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform">
@@ -425,6 +425,31 @@ export default function FarmerDashboard() {
                 <span className="text-[9px] font-bold bg-green-500 text-white px-1.5 py-0.5 rounded-full">FUNDED</span>
                 <ChevronRight size={16} className="text-green-500" />
               </div>
+            </div>
+          </button>
+        )}
+
+        {/* Satellite Farm View shortcut — always visible (demo + no-farm users too) */}
+        {(isDemo || true) && (
+          <button
+            onClick={() => setLocation("/farmer/health")}
+            className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 active:scale-[0.98] transition-all overflow-hidden relative"
+            style={{ background: "linear-gradient(135deg, #0c1a2e 0%, #0a2040 50%, #0d2a4a 100%)" }}>
+            {/* Star-field dots */}
+            <div className="absolute inset-0 opacity-20" style={{
+              backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
+              backgroundSize: "20px 20px",
+            }} />
+            <div className="relative w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center flex-shrink-0">
+              <Satellite size={18} className="text-sky-300" />
+            </div>
+            <div className="relative flex-1 text-left">
+              <p className="text-white font-semibold text-sm">Satellite Farm View</p>
+              <p className="text-sky-300/80 text-[11px]">Live NDVI · crop health · weather data</p>
+            </div>
+            <div className="relative flex items-center gap-1 bg-sky-500/20 border border-sky-500/30 text-sky-300 px-2.5 py-1 rounded-lg flex-shrink-0">
+              <span className="text-[10px] font-bold">View</span>
+              <ChevronRight size={11} />
             </div>
           </button>
         )}

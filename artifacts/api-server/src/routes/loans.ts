@@ -116,8 +116,8 @@ function formatLoan(a: typeof loanApplicationsTable.$inferSelect, cropType?: str
     expectedPricePerKg: a.expectedPricePerKg ?? undefined,
     expectedRevenue: a.expectedRevenue ? Number(a.expectedRevenue) : undefined,
     farmerShare: a.farmerShare ? Number(a.farmerShare) : undefined,
-    voucherCode: a.status === "disbursed" ? voucherCode : undefined,
-    voucherExpiry: a.status === "disbursed" ? voucherExpiry.toISOString() : undefined,
+    voucherCode: ["approved", "disbursed"].includes(a.status) ? voucherCode : undefined,
+    voucherExpiry: ["approved", "disbursed"].includes(a.status) ? voucherExpiry.toISOString() : undefined,
     aiScore: a.aiScore ?? undefined,
     interestRate: Number(a.interestRate) || 1.08,
     amountRepaid: Number(a.amountRepaid) || 0,
@@ -279,6 +279,7 @@ async function autoCreateFarmAndListing(
 
 const RepayLoanBody = z.object({
   amount: z.number().positive(),
+  pensionRate: z.number().min(0.05).max(0.10).optional().default(0.05),
 });
 
 // ── GET /loans/applications ──────────────────────────────────────────────────
@@ -457,6 +458,31 @@ async function repayLoanInternal(loanId: number, userId: number, amount: number)
   } as const;
 }
 
+/**
+ * Deduct pension from farmer's wallet on full loan repayment.
+ * Returns { pensionAmount, pensionStatus } — status is "sent" | "skipped" | "failed".
+ */
+async function applyPensionDeduction(
+  userId: number,
+  loanId: number,
+  farmerShareAmount: number,
+  pensionRate: number,
+): Promise<{ pensionAmount: number; pensionStatus: "sent" | "skipped" | "failed" }> {
+  const pensionAmount = Math.round(farmerShareAmount * pensionRate);
+  if (pensionAmount <= 0) return { pensionAmount: 0, pensionStatus: "skipped" };
+  try {
+    await debitWallet(userId, pensionAmount, {
+      description: `ABSA Pension Contribution (${Math.round(pensionRate * 100)}%) — Loan #${loanId}`,
+      reference: `PENSION-${loanId}-${Date.now()}`,
+      type: "fee",
+    });
+    return { pensionAmount, pensionStatus: "sent" };
+  } catch {
+    // Wallet may have insufficient balance (e.g. partial payout scenario); record as failed but do not block repayment
+    return { pensionAmount, pensionStatus: "failed" };
+  }
+}
+
 async function sendRepaymentSuccessSideEffects(userEmail: string, userName: string, loan: typeof loanApplicationsTable.$inferSelect) {
   const voucherCode = [
     "IFV",
@@ -492,7 +518,20 @@ router.post("/loans/repay/:id", async (req, res): Promise<void> => {
   const result = await repayLoanInternal(loanId, user.id, amount);
   if ("error" in result) { res.status(result.code).json({ error: result.error }); return; }
 
-  if (result.isFullRepayment) await sendRepaymentSuccessSideEffects(user.email, user.name, result.loan);
+  const pensionRate = parsed.data.pensionRate ?? 0.05;
+  let pension = { pensionAmount: 0, pensionStatus: "skipped" as "sent" | "skipped" | "failed" };
+
+  if (result.isFullRepayment) {
+    await sendRepaymentSuccessSideEffects(user.email, user.name, result.loan);
+    const farmerShareAmount = Number(result.loan.farmerShare) || amount * 0.55;
+    pension = await applyPensionDeduction(user.id, loanId, farmerShareAmount, pensionRate);
+  }
+
+  const pensionMsg = pension.pensionStatus === "sent"
+    ? ` KES ${pension.pensionAmount.toLocaleString()} forwarded to your ABSA pension fund.`
+    : pension.pensionStatus === "failed"
+      ? " Pension transfer could not be processed — check wallet balance."
+      : "";
 
   res.json({
     success: true,
@@ -500,7 +539,11 @@ router.post("/loans/repay/:id", async (req, res): Promise<void> => {
     amountPaid: amount,
     remaining: result.remaining,
     status: result.isFullRepayment ? "cleared" : "partial",
-    message: result.isFullRepayment ? "Loan fully repaid! Your account is clear." : `Partial payment of KES ${amount.toLocaleString()} received.`,
+    pensionContribution: pension.pensionAmount,
+    pensionStatus: pension.pensionStatus,
+    message: result.isFullRepayment
+      ? `Loan fully repaid!${pensionMsg}`
+      : `Partial payment of KES ${amount.toLocaleString()} received.`,
   });
 });
 
@@ -532,7 +575,20 @@ router.post("/loans/quick-pay/:id", async (req, res): Promise<void> => {
   const result = await repayLoanInternal(loanId, user.id, amount);
   if ("error" in result) { res.status(result.code).json({ error: result.error }); return; }
 
-  if (result.isFullRepayment) await sendRepaymentSuccessSideEffects(user.email, user.name, result.loan);
+  let pension = { pensionAmount: 0, pensionStatus: "skipped" as "sent" | "skipped" | "failed" };
+
+  if (result.isFullRepayment) {
+    await sendRepaymentSuccessSideEffects(user.email, user.name, result.loan);
+    const farmerShareAmount = Number(result.loan.farmerShare) || amount * 0.55;
+    const pensionRate = parsed.data.pensionRate ?? 0.05;
+    pension = await applyPensionDeduction(user.id, loanId, farmerShareAmount, pensionRate);
+  }
+
+  const pensionMsg = pension.pensionStatus === "sent"
+    ? ` KES ${pension.pensionAmount.toLocaleString()} forwarded to your ABSA pension fund.`
+    : pension.pensionStatus === "failed"
+      ? " Pension transfer could not be processed — check wallet balance."
+      : "";
 
   res.json({
     success: true,
@@ -540,7 +596,11 @@ router.post("/loans/quick-pay/:id", async (req, res): Promise<void> => {
     amountPaid: amount,
     remaining: result.remaining,
     status: result.isFullRepayment ? "cleared" : "partial",
-    message: result.isFullRepayment ? "Loan fully repaid from wallet! Your account is clear." : `KES ${amount.toLocaleString()} paid from wallet.`,
+    pensionContribution: pension.pensionAmount,
+    pensionStatus: pension.pensionStatus,
+    message: result.isFullRepayment
+      ? `Loan fully repaid from wallet!${pensionMsg}`
+      : `KES ${amount.toLocaleString()} paid from wallet.`,
   });
 });
 

@@ -43,10 +43,11 @@ export function RepayModal({ open, onClose, loan }: RepayModalProps) {
     setStep("processing");
     setError(null);
     try {
+      const pensionRate = parseFloat(localStorage.getItem("investa_pension_rate") ?? "0.05");
       const r = await fetch(`/api/loans/repay/${loan.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ amount: payAmount }),
+        body: JSON.stringify({ amount: payAmount, pensionRate }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Repayment failed");
