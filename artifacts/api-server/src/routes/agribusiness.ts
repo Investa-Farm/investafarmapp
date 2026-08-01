@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, voucherOrdersTable, usersTable, loanApplicationsTable, farmsTable, walletsTable, walletTransactionsTable, kycDocumentsTable, cooperativeMembersTable, agribusinessConnectionsTable, agribizProductsTable } from "@workspace/db";
+import { db, voucherOrdersTable, usersTable, loanApplicationsTable, farmsTable, walletsTable, walletTransactionsTable, kycDocumentsTable, cooperativeMembersTable, agribusinessConnectionsTable, agribizProductsTable, partnerApiKeysTable } from "@workspace/db";
 import { eq, desc, inArray, count, sql, and } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { logger } from "../lib/logger";
@@ -995,6 +995,58 @@ router.delete("/agribusiness/products/:id", async (req, res): Promise<void> => {
   } catch (e) {
     logger.error({ err: e }, "[AGRIBUSINESS] Failed to delete product");
     res.status(500).json({ error: "Failed to delete product" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PARTNER API KEYS (cooperative + agribusiness)
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.get("/partner/api-keys", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const keys = await db.select().from(partnerApiKeysTable)
+      .where(eq(partnerApiKeysTable.userId, user.id))
+      .orderBy(desc(partnerApiKeysTable.createdAt));
+    res.json(keys);
+  } catch (e) {
+    logger.error({ err: e }, "[PARTNER] Failed to fetch API keys");
+    res.status(500).json({ error: "Failed to fetch keys" });
+  }
+});
+
+router.post("/partner/api-keys", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { name } = req.body as { name?: string };
+  if (!name?.trim()) { res.status(400).json({ error: "name is required" }); return; }
+  try {
+    const keyValue = `ifv_live_${Buffer.from(`${user.id}_${Date.now()}`).toString("base64url")}_${Math.random().toString(36).slice(2, 10)}`;
+    const [key] = await db.insert(partnerApiKeysTable).values({
+      userId: user.id,
+      name: String(name).slice(0, 100),
+      keyValue,
+    }).returning();
+    res.status(201).json(key);
+  } catch (e) {
+    logger.error({ err: e }, "[PARTNER] Failed to generate API key");
+    res.status(500).json({ error: "Failed to generate key" });
+  }
+});
+
+router.delete("/partner/api-keys/:id", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const keyId = parseInt(req.params.id as string);
+  if (isNaN(keyId)) { res.status(400).json({ error: "Invalid id" }); return; }
+  try {
+    await db.delete(partnerApiKeysTable)
+      .where(and(eq(partnerApiKeysTable.id, keyId), eq(partnerApiKeysTable.userId, user.id)));
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error({ err: e }, "[PARTNER] Failed to delete API key");
+    res.status(500).json({ error: "Failed to delete key" });
   }
 });
 

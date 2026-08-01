@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRight, LogOut, BarChart3, Globe, Phone, Camera, Package, ShoppingCart, Truck, Star, TrendingUp, Key, RefreshCw, Plus, Trash2, Upload, UserPlus, Handshake, Link, QrCode, Search, CheckCircle2, XCircle, Clock, ScanLine, AlertTriangle, MapPin, Leaf, Bell, User } from "lucide-react";
+import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRight, LogOut, BarChart3, Globe, Phone, Camera, Package, ShoppingCart, Truck, Star, TrendingUp, Key, RefreshCw, Plus, Trash2, Upload, UserPlus, Handshake, Link, QrCode, Search, CheckCircle2, XCircle, Clock, ScanLine, AlertTriangle, MapPin, Leaf, Bell, User, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clearToken, getStoredUser, getToken } from "@/lib/auth";
 import { NotificationsPanel } from "@/components/notifications-panel";
@@ -601,13 +601,66 @@ export default function CooperativeDashboard() {
   const [copiedSnippet, setCopiedSnippet] = useState<"rest" | "excel" | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "api" | "farmers" | "orders" | "coinvest" | "delivery">("overview");
 
-  // API Keys state
-  const [apiKeys, setApiKeys] = useState<Array<{ key: string; name: string; createdAt: string }>>(() => {
-    try { return JSON.parse(localStorage.getItem("investa_api_keys") ?? "[]"); } catch { return []; }
+  const qc = useQueryClient();
+
+  // KYC gate
+  const { data: kycDocs = [] } = useQuery<any[]>({
+    queryKey: ["coop-kyc-docs"],
+    queryFn: async () => {
+      const r = await fetch("/api/kyc/documents", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!token,
   });
+  const kycBlocked = kycDocs.length === 0;
+  const kycApproved = kycDocs.filter((d: any) => d.status === "approved").length;
+  const kycUnderReview = kycDocs.length > 0 && kycApproved === 0;
+
+  // API Keys — DB-backed
   const [newKeyName, setNewKeyName] = useState("");
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const { data: apiKeys = [] } = useQuery<Array<{ id: number; keyValue: string; name: string; createdAt: string }>>({
+    queryKey: ["partner-api-keys"],
+    queryFn: async () => {
+      const r = await fetch("/api/partner/api-keys", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!token,
+  });
+
+  const generateKeyMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const r = await fetch("/api/partner/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name }),
+      });
+      if (!r.ok) throw new Error("Failed to generate key");
+      return r.json() as Promise<{ id: number; keyValue: string; name: string; createdAt: string }>;
+    },
+    onSuccess: (newKey) => {
+      setRevealedKey(newKey.keyValue);
+      qc.invalidateQueries({ queryKey: ["partner-api-keys"] });
+    },
+  });
+
+  const revokeKeyMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/partner/api-keys/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Failed to revoke key");
+    },
+    onSuccess: () => {
+      setRevealedKey(null);
+      qc.invalidateQueries({ queryKey: ["partner-api-keys"] });
+    },
+  });
 
   // CSV import state
   const csvRef = useRef<HTMLInputElement>(null);
@@ -640,19 +693,12 @@ export default function CooperativeDashboard() {
 
   const generateKey = () => {
     if (!newKeyName.trim()) return;
-    const newKey = { key: generateApiKey(user?.id ?? 0), name: newKeyName.trim(), createdAt: new Date().toISOString() };
-    const updated = [...apiKeys, newKey];
-    setApiKeys(updated);
-    localStorage.setItem("investa_api_keys", JSON.stringify(updated));
-    setRevealedKey(newKey.key);
+    generateKeyMutation.mutate(newKeyName.trim());
     setNewKeyName("");
   };
 
-  const revokeKey = (key: string) => {
-    const updated = apiKeys.filter(k => k.key !== key);
-    setApiKeys(updated);
-    localStorage.setItem("investa_api_keys", JSON.stringify(updated));
-    if (revealedKey === key) setRevealedKey(null);
+  const revokeKey = (id: number) => {
+    revokeKeyMutation.mutate(id);
   };
 
   const copyKey = async (key: string) => {
@@ -798,6 +844,54 @@ export default function CooperativeDashboard() {
   return (
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-background pb-24">
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+
+      {/* ── KYC Hard Block ── */}
+      {kycBlocked && (
+        <div className="fixed inset-0 z-[70] bg-black/60 flex items-end justify-center">
+          <motion.div
+            initial={{ y: "100%" }} animate={{ y: 0 }}
+            className="w-full max-w-[430px] bg-background rounded-t-3xl p-6 pb-10 shadow-2xl"
+          >
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-orange-100 border-4 border-orange-300 flex items-center justify-center text-3xl">📋</div>
+              <div>
+                <h2 className="font-extrabold text-xl text-foreground mb-1">Verification Required</h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Upload your organisation's documents before accessing the partner dashboard and receiving payments.
+                </p>
+              </div>
+              <div className="w-full bg-orange-50 border border-orange-200 rounded-2xl p-3 text-left space-y-1.5">
+                {["Registration Certificate", "Chairman's National ID (front & back)", "Financial Statement"].map(d => (
+                  <div key={d} className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0" />
+                    <span className="text-orange-800 text-xs">{d}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setLocation("/cooperative/kyc")}
+                className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-primary/20"
+              >
+                <ShieldCheck size={16} /> Upload Documents Now
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* KYC Under Review banner */}
+      {kycUnderReview && (
+        <div className="mx-4 mt-3 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0 text-base">🔍</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-blue-800 font-bold text-xs">Documents Under Review</p>
+            <p className="text-blue-600 text-[11px]">Approval within 24–48 hours. You can still browse the dashboard.</p>
+          </div>
+          <button onClick={() => setLocation("/cooperative/kyc")}
+            className="text-blue-600 text-[10px] font-bold flex-shrink-0">View →</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="hero-header rounded-b-3xl px-5 pt-12 pb-5 text-white overflow-hidden relative">
         <div className="flex items-center justify-between mb-4 relative z-10">
@@ -970,19 +1064,19 @@ export default function CooperativeDashboard() {
               ) : (
                 <div className="space-y-2">
                   {apiKeys.map(k => (
-                    <div key={k.key} className="flex items-center gap-3 bg-muted/50 rounded-xl p-3">
+                    <div key={k.id} className="flex items-center gap-3 bg-muted/50 rounded-xl p-3">
                       <div className="w-8 h-8 rounded-lg bg-[#16a34a]/10 flex items-center justify-center flex-shrink-0">
                         <Key size={13} className="text-[#16a34a]" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-foreground text-xs font-semibold">{k.name}</p>
-                        <p className="text-muted-foreground text-[9px] font-mono">{k.key.slice(0, 20)}••••</p>
+                        <p className="text-muted-foreground text-[9px] font-mono">{k.keyValue.slice(0, 24)}••••</p>
                       </div>
-                      <button onClick={() => copyKey(k.key)}
+                      <button onClick={() => copyKey(k.keyValue)}
                         className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center">
-                        {copiedKey === k.key ? <Check size={11} className="text-[#16a34a]" /> : <Copy size={11} className="text-muted-foreground" />}
+                        {copiedKey === k.keyValue ? <Check size={11} className="text-[#16a34a]" /> : <Copy size={11} className="text-muted-foreground" />}
                       </button>
-                      <button onClick={() => revokeKey(k.key)}
+                      <button onClick={() => revokeKey(k.id)}
                         className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center">
                         <Trash2 size={11} className="text-red-500" />
                       </button>
