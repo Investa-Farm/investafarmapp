@@ -8,8 +8,50 @@ import {
   BarChart2, Bug, Calendar, CalendarDays, ChevronRight, Droplet, CloudSun, CloudSnow,
   Satellite, ExternalLink, Map,
 } from "lucide-react";
-import { getToken } from "@/lib/auth";
+import { getToken, isDemoAccount } from "@/lib/auth";
 import { BottomNav } from "@/components/bottom-nav";
+
+// ── Demo health data (shown when no real farm exists) ─────────────────────────
+const DEMO_HEALTH = {
+  hasFarm: true,
+  farm: {
+    id: 9001,
+    name: "Demo Maize Farm",
+    cropType: "Maize",
+    location: "Nakuru County",
+    stage: "growing",
+    ageDays: 47,
+  },
+  coords: { lat: -0.3031, lng: 36.0800 },
+  healthScore: 78,
+  ndvi: 0.68,
+  breakdown: { rainfall: 24, funding: 22, market: 18, ndvi: 14 },
+  recommendations: [
+    "Apply top-dressing nitrogen fertilizer (CAN) at 6 weeks — your maize is at the critical stage.",
+    "Rainfall outlook is favourable this week. Hold off on irrigation to save costs.",
+    "Scout for Fall Armyworm in whorls — risk is moderate given the warm nights recorded.",
+    "Estimated harvest window: 8–10 weeks. Plan offtaker logistics now to avoid post-harvest losses.",
+  ],
+  pestRisks: [
+    { risk: "Fall Armyworm", severity: "medium", tip: "Check leaf whorls early morning. Apply Emamectin Benzoate at first sign of infestation." },
+    { risk: "Rust (Puccinia)", severity: "low", tip: "Conditions are not ideal for rust this week. Monitor if humidity rises above 80%." },
+  ],
+  rainfall: {
+    seasonalTotalMm: 312,
+    optimalRangeMin: 250,
+    optimalRangeMax: 500,
+    riskColor: "green",
+    riskLevel: "Optimal",
+    yieldAdjustmentPercent: 5,
+    criticalDrought: false,
+    floodRisk: false,
+    extremeDays: 0,
+    dailyMm: [2, 0, 8, 15, 3, 0, 0, 22, 5, 1, 0, 18, 7, 0],
+    dailyDates: Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - 13 + i); return d.toISOString();
+    }),
+  },
+};
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import "leaflet/dist/leaflet.css";
 
@@ -185,11 +227,13 @@ const RISK_COLORS: Record<string, { bg: string; border: string; text: string; la
 export default function FarmerHealth() {
   const [, setLocation] = useLocation();
   const [refreshTs, setRefreshTs] = useState(Date.now());
+  const isDemo = isDemoAccount();
 
-  // ─── Farm health API ────────────────────────────────────────────────────────
-  const { data: health, isLoading: healthLoading, refetch } = useQuery<any>({
+  // ─── Farm health API (skipped for demo — use static data) ───────────────────
+  const { data: apiHealth, isLoading: healthLoading, refetch } = useQuery<any>({
     queryKey: ["farmer-health", refreshTs],
     staleTime: 5 * 60 * 1000,
+    enabled: !isDemo,
     queryFn: async () => {
       const r = await fetch("/api/farmer/health", {
         headers: { Authorization: `Bearer ${getToken()}` },
@@ -198,13 +242,15 @@ export default function FarmerHealth() {
       return r.json();
     },
   });
+  const health = isDemo ? DEMO_HEALTH : apiHealth;
 
   // ─── Live weather (Open-Meteo, no API key) ──────────────────────────────────
   const lat = health?.coords?.lat ?? -1.2921;
   const lng = health?.coords?.lng ?? 36.8219;
   const { data: wx, isLoading: wxLoading } = useQuery<WeatherRes>({
     queryKey: ["farm-weather", lat.toFixed(3), lng.toFixed(3)],
-    enabled: !!health?.hasFarm,
+    // Always enable for demo; for real users only once farm data is loaded
+    enabled: isDemo || !!health?.hasFarm,
     staleTime: 30 * 60 * 1000,
     queryFn: async () => {
       const url = [
@@ -219,7 +265,7 @@ export default function FarmerHealth() {
     },
   });
 
-  const loading = healthLoading;
+  const loading = !isDemo && healthLoading;
   const farm    = health?.farm;
   const score   = health?.healthScore ?? 0;
   const rainfall = health?.rainfall;

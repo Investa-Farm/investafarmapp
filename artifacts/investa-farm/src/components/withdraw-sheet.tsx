@@ -156,8 +156,8 @@ export function WithdrawSheet({ open, onClose, balance }: Props) {
     qc.invalidateQueries({ queryKey: ["wallet-balance"] });
     setSuccess(true); setStep("done");
     showCenterSuccess({
-      title: "Withdrawal Initiated ⬆️",
-      subtitle: `KES ${a.toLocaleString("en-KE")} sending to your account`,
+      title: "Withdrawal Requested ⬆️",
+      subtitle: `KES ${a.toLocaleString("en-KE")} · arrives in 1–2 business days`,
     });
     setTimeout(() => { setSuccess(false); onClose(); }, 2400);
   }

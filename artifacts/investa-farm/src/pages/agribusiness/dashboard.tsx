@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getStoredUser, getToken, clearToken, formatKES } from "@/lib/auth";
 import { useLocation, Link } from "wouter";
 import { Bell, LogOut, Package, Handshake, TrendingUp, Users, ShieldCheck, ChevronRight, MapPin, Star, Copy, Check, Plus, Trash2, ExternalLink, Home, Share2, DollarSign, UserCircle, Briefcase, Moon, Sun } from "lucide-react";
@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/hooks/use-theme";
 import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog";
 
-type Product = { id: string; name: string; unit: string; price: number; category: string };
+type Product = { id: number; name: string; unit: string; price: number; category: string };
 
 export default function AgribusinessDashboard() {
   const user = getStoredUser();
@@ -23,12 +23,44 @@ export default function AgribusinessDashboard() {
   const isInputSupplier = agribizType === "input_supplier";
   const isSalesAgent = agribizType === "sales_agent";
 
-  // Catalogue state (persisted in localStorage)
-  const [products, setProducts] = useState<Product[]>(() => {
-    try { return JSON.parse(localStorage.getItem("investa_catalogue") ?? "[]"); } catch { return []; }
-  });
+  const qc = useQueryClient();
   const [newProduct, setNewProduct] = useState({ name: "", unit: "kg", price: "", category: "Seeds" });
   const [addingProduct, setAddingProduct] = useState(false);
+
+  // Catalogue — DB-backed
+  const { data: products = [] } = useQuery<Product[]>({
+    queryKey: ["agribiz-products"],
+    queryFn: async () => {
+      const r = await fetch("/api/agribusiness/products", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!token && isInputSupplier,
+  });
+
+  const addProductMutation = useMutation({
+    mutationFn: async (p: Omit<Product, "id">) => {
+      const r = await fetch("/api/agribusiness/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(p),
+      });
+      if (!r.ok) throw new Error("Failed to add product");
+      return r.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["agribiz-products"] }),
+  });
+
+  const removeProductMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/agribusiness/products/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Failed to delete product");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["agribiz-products"] }),
+  });
 
   // Referral state
   const [refCopied, setRefCopied] = useState(false);
@@ -43,19 +75,12 @@ export default function AgribusinessDashboard() {
 
   const saveProduct = () => {
     if (!newProduct.name || !newProduct.price) return;
-    const p: Product = { id: Date.now().toString(), name: newProduct.name, unit: newProduct.unit, price: parseFloat(newProduct.price), category: newProduct.category };
-    const updated = [...products, p];
-    setProducts(updated);
-    localStorage.setItem("investa_catalogue", JSON.stringify(updated));
+    addProductMutation.mutate({ name: newProduct.name, unit: newProduct.unit, price: parseFloat(newProduct.price), category: newProduct.category });
     setNewProduct({ name: "", unit: "kg", price: "", category: "Seeds" });
     setAddingProduct(false);
   };
 
-  const removeProduct = (id: string) => {
-    const updated = products.filter(p => p.id !== id);
-    setProducts(updated);
-    localStorage.setItem("investa_catalogue", JSON.stringify(updated));
-  };
+  const removeProduct = (id: number) => removeProductMutation.mutate(id);
 
   const { data: notifications = [] } = useQuery<any[]>({
     queryKey: ["notifications"],

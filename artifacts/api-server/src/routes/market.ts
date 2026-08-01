@@ -494,8 +494,8 @@ router.post("/market/buy", financialRateLimit, requireNonce, async (req, res): P
             farmer.id,
             "farm_fully_funded",
             "🎉 Farm Fully Funded!",
-            `"${farm?.name ?? "Your farm"}" has been fully funded by investors! Your voucher code has been sent to ${farmer.email}.`,
-            "/farmer"
+            `"${farm?.name ?? "Your farm"}" is 100% funded! 🎉 Your voucher: ${vCode}. Redeem at your agribusiness partner.`,
+            "/farmer/operations"
           ).catch(() => {});
           // SMS: fully-funded announcement then voucher code
           if (farmer.phone) {

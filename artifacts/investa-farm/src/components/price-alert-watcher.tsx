@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { getToken, getStoredUser } from "@/lib/auth";
 import { showRichNotification, RichNotifType } from "@/components/rich-push-notification";
+import { showFarmFundedBanner, extractVoucherCode } from "@/components/farm-funded-banner";
 
 type Notification = {
   id: number;
@@ -121,6 +122,16 @@ export function PriceAlertWatcher() {
         for (const n of toShow) {
           const richType = richTypeFromNotif(n.type);
           const amount = extractAmount(n.body);
+
+          // Full-screen celebration banner for the farmer when their farm is 100% funded
+          if (n.type === "farm_fully_funded" && (user as any)?.role === "farmer") {
+            const farmNameMatch = n.body.match(/"([^"]+)"/);
+            showFarmFundedBanner({
+              farmName: farmNameMatch?.[1] ?? n.title,
+              voucherCode: extractVoucherCode(n.body),
+              amount: amount > 0 ? amount : undefined,
+            });
+          }
 
           showRichNotification({
             type: richType,

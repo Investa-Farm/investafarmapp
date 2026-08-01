@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, voucherOrdersTable, usersTable, loanApplicationsTable, farmsTable, walletsTable, walletTransactionsTable, kycDocumentsTable, cooperativeMembersTable, agribusinessConnectionsTable } from "@workspace/db";
+import { db, voucherOrdersTable, usersTable, loanApplicationsTable, farmsTable, walletsTable, walletTransactionsTable, kycDocumentsTable, cooperativeMembersTable, agribusinessConnectionsTable, agribizProductsTable } from "@workspace/db";
 import { eq, desc, inArray, count, sql, and } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import { logger } from "../lib/logger";
@@ -942,6 +942,59 @@ router.patch("/agribusiness/voucher-orders/:id/status", async (req, res): Promis
   } catch (e) {
     logger.error({ err: e }, "[AGRIBUSINESS] Failed to update order status");
     res.status(500).json({ error: "Failed to update order" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCT CATALOGUE (input suppliers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.get("/agribusiness/products", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const products = await db.select().from(agribizProductsTable)
+      .where(eq(agribizProductsTable.agribusinessId, user.id))
+      .orderBy(desc(agribizProductsTable.createdAt));
+    res.json(products.map(p => ({ ...p, price: Number(p.price) })));
+  } catch (e) {
+    logger.error({ err: e }, "[AGRIBUSINESS] Failed to fetch products");
+    res.status(500).json({ error: "Failed to fetch products" });
+  }
+});
+
+router.post("/agribusiness/products", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { name, unit, price, category } = req.body as { name?: string; unit?: string; price?: number; category?: string };
+  if (!name || !price) { res.status(400).json({ error: "name and price are required" }); return; }
+  try {
+    const [product] = await db.insert(agribizProductsTable).values({
+      agribusinessId: user.id,
+      name: String(name).slice(0, 200),
+      unit: unit ?? "kg",
+      price: String(price),
+      category: category ?? "Other",
+    }).returning();
+    res.status(201).json({ ...product, price: Number(product!.price) });
+  } catch (e) {
+    logger.error({ err: e }, "[AGRIBUSINESS] Failed to add product");
+    res.status(500).json({ error: "Failed to add product" });
+  }
+});
+
+router.delete("/agribusiness/products/:id", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const productId = parseInt(req.params.id as string);
+  if (isNaN(productId)) { res.status(400).json({ error: "Invalid id" }); return; }
+  try {
+    await db.delete(agribizProductsTable)
+      .where(and(eq(agribizProductsTable.id, productId), eq(agribizProductsTable.agribusinessId, user.id)));
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error({ err: e }, "[AGRIBUSINESS] Failed to delete product");
+    res.status(500).json({ error: "Failed to delete product" });
   }
 });
 

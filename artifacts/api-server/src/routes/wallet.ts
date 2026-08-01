@@ -193,7 +193,7 @@ router.post("/wallet/withdraw", financialRateLimit, requireNonce, async (req, re
   await db.insert(walletTransactionsTable).values({
     walletId: wallet.id, userId: user.id, type: "withdrawal",
     amount: String(amount), balanceAfter: String(parseFloat(wallet.balance) - amount),
-    description: `Withdraw to mobile money${phoneDisplay}`.trim(), reference: ref, status: "completed",
+    description: `Withdraw to mobile money${phoneDisplay}`.trim(), reference: ref, status: "pending",
   });
   if (fee > 0) {
     await db.insert(walletTransactionsTable).values({

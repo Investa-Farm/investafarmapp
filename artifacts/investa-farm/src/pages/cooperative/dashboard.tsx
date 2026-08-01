@@ -232,12 +232,6 @@ type Delivery = {
   status: DeliveryStatus; agent?: string; eta?: string; createdAt: string;
 };
 
-const MOCK_DELIVERIES: Delivery[] = [
-  { id: 1, voucherCode: "IFV-2026-MAI-011", farmerName: "Grace Wanjiku", farmerPhone: "+254712345678", location: "Nakuru, Rift Valley", items: "50kg DAP Fertilizer, 10kg Maize Seed", amountKes: 8500, status: "in_transit", agent: "James Mwangi", eta: "Today 3:00 PM", createdAt: new Date(Date.now() - 3600000).toISOString() },
-  { id: 2, voucherCode: "IFV-2026-TOM-019", farmerName: "Peter Kamau", farmerPhone: "+254798765432", location: "Kiambu, Central", items: "Pesticide Spray (5L), Stakes x200", amountKes: 4200, status: "pending", createdAt: new Date(Date.now() - 7200000).toISOString() },
-  { id: 3, voucherCode: "IFV-2026-WHT-007", farmerName: "Sarah Achieng", farmerPhone: "+254756789012", location: "Trans Nzoia, Western", items: "100kg CAN Fertilizer, 20kg Wheat Seed", amountKes: 12000, status: "delivered", agent: "David Otieno", createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 4, voucherCode: "IFV-2026-POT-003", farmerName: "John Muthuri", farmerPhone: "+254733456789", location: "Meru, Eastern", items: "Potato Seed (50kg)", amountKes: 6000, status: "pending", createdAt: new Date(Date.now() - 10800000).toISOString() },
-];
 
 const DELIVERY_AGENTS = ["James Mwangi", "David Otieno", "Alice Njeri", "Samuel Odhiambo", "Faith Wafula"];
 
