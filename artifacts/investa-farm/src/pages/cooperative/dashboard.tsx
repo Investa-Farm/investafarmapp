@@ -5,6 +5,7 @@ import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRig
 import { motion, AnimatePresence } from "framer-motion";
 import { clearToken, getStoredUser, getToken } from "@/lib/auth";
 import { NotificationsPanel } from "@/components/notifications-panel";
+import CooperativeKyc from "@/pages/cooperative/kyc";
 
 
 type LiveVoucher = { id: number; voucherCode: string; amount: number; items: string | null; status: string; farmerName: string; farmerPhone: string | null; createdAt: string };
@@ -600,6 +601,7 @@ export default function CooperativeDashboard() {
   const token = getToken();
   const [copiedSnippet, setCopiedSnippet] = useState<"rest" | "excel" | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "api" | "farmers" | "orders" | "coinvest" | "delivery">("overview");
+  const [kycOpen, setKycOpen] = useState(false);
 
   const qc = useQueryClient();
 
@@ -844,6 +846,7 @@ export default function CooperativeDashboard() {
   return (
     <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-background pb-24">
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <CooperativeKyc open={kycOpen} onClose={() => setKycOpen(false)} />
 
       {/* ── KYC Hard Block ── */}
       {kycBlocked && (
@@ -869,7 +872,7 @@ export default function CooperativeDashboard() {
                 ))}
               </div>
               <button
-                onClick={() => setLocation("/cooperative/kyc")}
+                onClick={() => setKycOpen(true)}
                 className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-primary/20"
               >
                 <ShieldCheck size={16} /> Upload Documents Now
@@ -887,7 +890,7 @@ export default function CooperativeDashboard() {
             <p className="text-blue-800 font-bold text-xs">Documents Under Review</p>
             <p className="text-blue-600 text-[11px]">Approval within 24–48 hours. You can still browse the dashboard.</p>
           </div>
-          <button onClick={() => setLocation("/cooperative/kyc")}
+          <button onClick={() => setKycOpen(true)}
             className="text-blue-600 text-[10px] font-bold flex-shrink-0">View →</button>
         </div>
       )}

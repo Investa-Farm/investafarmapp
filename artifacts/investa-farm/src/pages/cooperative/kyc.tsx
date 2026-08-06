@@ -2,10 +2,9 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getToken, getStoredUser, isDemoAccount } from "@/lib/auth";
-import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, ShieldCheck, Upload, CheckCircle2, Clock, X,
+  ShieldCheck, Upload, CheckCircle2, Clock, X,
   FileText, AlertCircle, Loader2, Star, Eye,
   ChevronRight, Lock, BadgeCheck, FileImage, ExternalLink,
 } from "lucide-react";
@@ -87,7 +86,7 @@ function DocViewerModal({ doc, onClose }: { doc: KycDoc; onClose: () => void }) 
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[90] bg-black/85 flex flex-col"
+        className="fixed inset-0 z-[110] bg-black/85 flex flex-col"
         onClick={onClose}
       >
         <div className="flex items-center justify-between px-4 py-3 bg-black/90 flex-shrink-0" onClick={e => e.stopPropagation()}>
@@ -134,10 +133,14 @@ function DocViewerModal({ doc, onClose }: { doc: KycDoc; onClose: () => void }) 
   );
 }
 
-export default function CooperativeKyc() {
+interface CooperativeKycProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function CooperativeKyc({ open, onClose }: CooperativeKycProps) {
   const token = getToken();
   const user = getStoredUser();
-  const [, setLocation] = useLocation();
   const qc = useQueryClient();
 
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
@@ -154,6 +157,7 @@ export default function CooperativeKyc() {
       if (!r.ok) return [];
       return r.json();
     },
+    enabled: open,
   });
 
   const uploadedTypes = new Set(kycDocs.map(d => d.docType));
@@ -228,11 +232,12 @@ export default function CooperativeKyc() {
   const orgDocs = DOC_TYPES.filter(d => d.category === "org");
   const otherDocs = DOC_TYPES.filter(d => d.category === "other");
 
+  // Upload sheet portal
   const uploadSheet = activeUploadType ? createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm flex items-end justify-center"
+        className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-end justify-center"
         onClick={() => { setActiveUploadType(null); setError(null); }}
       >
         <motion.div
@@ -318,177 +323,247 @@ export default function CooperativeKyc() {
     document.body
   ) : null;
 
-  if (isDemo) return createPortal(
-    <motion.div
-      initial={{ x: "100%", opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ type: "spring", damping: 30, stiffness: 350 }}
-      className="fixed inset-0 z-[70] bg-background flex flex-col items-center justify-center px-6 text-center"
-    >
-      <div className="w-20 h-20 rounded-3xl bg-green-100 flex items-center justify-center mb-6">
-        <BadgeCheck size={40} className="text-green-600" />
-      </div>
-      <h2 className="text-2xl font-extrabold text-foreground mb-3">KYC Not Required</h2>
-      <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mb-2">
-        This is a <span className="text-primary font-bold">demo account</span> with pre-verified
-        status. Real cooperative accounts must submit KYC documents before accessing all platform features.
-      </p>
-      <p className="text-muted-foreground/60 text-xs mb-8">Document uploads are disabled in demo mode.</p>
-      <button
-        onClick={() => setLocation("/cooperative/dashboard")}
-        className="h-12 px-8 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform shadow-md shadow-primary/25"
-      >
-        Back to Dashboard
-      </button>
-    </motion.div>,
-    document.body
-  );
-
   return createPortal(
-    <motion.div
-      initial={{ x: "100%", opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ type: "spring", damping: 30, stiffness: 350 }}
-      className="fixed inset-0 z-[70] overflow-y-auto pb-10"
-      style={{ background: "#f8faf8" }}
-    >
-      {uploadSheet}
-      {viewingDoc && <DocViewerModal doc={viewingDoc} onClose={() => setViewingDoc(null)} />}
+    <AnimatePresence>
+      {open && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            key="coop-kyc-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm"
+            onClick={onClose}
+          />
 
-      {/* Hero header */}
-      <div className="relative overflow-hidden" style={{ minHeight: 200 }}>
-        <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 45%, #15803d 80%, #16a34a 100%)" }} />
-        <div className="absolute inset-0 opacity-[0.07]"
-          style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
-        <div className="absolute -bottom-8 -right-8 w-48 h-48 rounded-full bg-green-400/20 blur-3xl" />
-
-        <div className="relative z-10 pt-12 px-5 pb-6">
-          <div className="flex items-center gap-3 mb-5">
-            <button onClick={() => setLocation("/cooperative/dashboard")}
-              className="w-9 h-9 rounded-full bg-white/15 border border-white/25 flex items-center justify-center active:scale-90 transition-transform">
-              <ArrowLeft size={16} className="text-white" />
-            </button>
-            <div className="flex-1">
-              <p className="text-white/60 text-[10px] font-medium uppercase tracking-widest">Organisation Verification</p>
-              <h1 className="text-white font-extrabold text-xl leading-tight">KYC Documents</h1>
-            </div>
-            <img src={logoSrc} alt="Investa" className="h-8 opacity-85" style={{ filter: "brightness(0) invert(1)" }} />
-          </div>
-
-          <div className="grid grid-cols-4 gap-2 mb-4">
-            {[
-              { label: "Uploaded", val: kycDocs.length, color: "text-white", bg: "bg-white/10" },
-              { label: "Pending",  val: pendingCount,   color: "text-amber-200",  bg: "bg-amber-400/20" },
-              { label: "Approved", val: approvedCount,  color: "text-green-200",  bg: "bg-green-400/20" },
-              { label: "Rejected", val: rejectedCount,  color: "text-red-200",    bg: "bg-red-400/20" },
-            ].map(s => (
-              <div key={s.label} className={`${s.bg} rounded-2xl p-2.5 text-center border border-white/10`}>
-                <p className={`font-extrabold text-lg leading-none ${s.color}`}>{s.val}</p>
-                <p className="text-white/50 text-[9px] mt-0.5 font-medium">{s.label}</p>
+          {/* Demo account bypass screen */}
+          {isDemo ? (
+            <motion.div
+              key="coop-kyc-demo"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed inset-x-0 bottom-0 z-[95] mx-auto w-full max-w-[430px] bg-background rounded-t-3xl shadow-2xl p-8 text-center"
+            >
+              <div className="flex justify-center mb-1 pt-1">
+                <div className="w-10 h-1 bg-border rounded-full" />
               </div>
-            ))}
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-white/70 text-[10px] font-semibold">Verification Progress</p>
-              <p className="text-white text-[10px] font-bold">{requiredUploaded}/{requiredDocs.length} required docs</p>
-            </div>
-            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-              <motion.div className="h-full bg-white rounded-full"
-                initial={{ width: 0 }} animate={{ width: `${progressPct}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }} />
-            </div>
-            {allApproved && (
-              <div className="mt-2 flex items-center gap-1.5">
-                <BadgeCheck size={14} className="text-green-300" />
-                <p className="text-green-300 text-[10px] font-bold">All required documents approved! ✨</p>
+              <div className="flex flex-col items-center gap-4 mt-4">
+                <div className="w-20 h-20 rounded-3xl bg-green-100 flex items-center justify-center">
+                  <BadgeCheck size={40} className="text-green-600" />
+                </div>
+                <h2 className="text-2xl font-extrabold text-foreground">KYC Not Required</h2>
+                <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
+                  This is a <span className="text-primary font-bold">demo account</span> with pre-verified
+                  status. Real cooperative accounts must submit KYC documents before accessing all platform features.
+                </p>
+                <p className="text-muted-foreground/60 text-xs">Document uploads are disabled in demo mode.</p>
+                <button
+                  onClick={onClose}
+                  className="w-full h-12 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform shadow-md shadow-primary/25"
+                >
+                  Close
+                </button>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
+            </motion.div>
+          ) : (
+            /* Main KYC popup — bottom sheet */
+            <motion.div
+              key="coop-kyc-modal"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed inset-x-0 bottom-0 z-[95] mx-auto w-full max-w-[430px] bg-background rounded-t-3xl shadow-2xl flex flex-col"
+              style={{ maxHeight: "92dvh" }}
+              onClick={e => e.stopPropagation()}
+            >
+              {uploadSheet}
+              {viewingDoc && <DocViewerModal doc={viewingDoc} onClose={() => setViewingDoc(null)} />}
 
-      <div className="px-4 pt-4 space-y-4">
-        <AnimatePresence>
-          {submitDone && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="bg-green-50 border border-green-200 rounded-2xl p-3.5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 size={18} className="text-green-600" />
+              {/* Drag handle */}
+              <div className="flex justify-center pt-3 flex-shrink-0">
+                <div className="w-10 h-1 bg-border rounded-full" />
               </div>
-              <div>
-                <p className="text-green-800 font-bold text-sm">Document submitted!</p>
-                <p className="text-green-600 text-xs">Our team will review within 24–48 hours.</p>
+
+              {/* Hero header */}
+              <div className="relative overflow-hidden rounded-t-2xl flex-shrink-0 mx-0" style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 45%, #15803d 80%, #16a34a 100%)" }}>
+                <div className="absolute inset-0 opacity-[0.07]"
+                  style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+                <div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-green-400/20 blur-3xl" />
+
+                <div className="relative z-10 px-5 pt-5 pb-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-white/60 text-[10px] font-medium uppercase tracking-widest">Organisation Verification</p>
+                      <h1 className="text-white font-extrabold text-xl leading-tight">KYC Documents</h1>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <img src={logoSrc} alt="Investa" className="h-7 opacity-85" style={{ filter: "brightness(0) invert(1)" }} />
+                      <button
+                        onClick={onClose}
+                        className="w-8 h-8 rounded-full bg-white/15 border border-white/25 flex items-center justify-center active:scale-90 transition-transform"
+                      >
+                        <X size={14} className="text-white" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2 mb-4">
+                    {[
+                      { label: "Uploaded", val: kycDocs.length,  color: "text-white",       bg: "bg-white/10" },
+                      { label: "Pending",  val: pendingCount,    color: "text-amber-200",   bg: "bg-amber-400/20" },
+                      { label: "Approved", val: approvedCount,   color: "text-green-200",   bg: "bg-green-400/20" },
+                      { label: "Rejected", val: rejectedCount,   color: "text-red-200",     bg: "bg-red-400/20" },
+                    ].map(s => (
+                      <div key={s.label} className={`${s.bg} rounded-2xl p-2.5 text-center border border-white/10`}>
+                        <p className={`font-extrabold text-lg leading-none ${s.color}`}>{s.val}</p>
+                        <p className="text-white/50 text-[9px] mt-0.5 font-medium">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-white/70 text-[10px] font-semibold">Verification Progress</p>
+                      <p className="text-white text-[10px] font-bold">{requiredUploaded}/{requiredDocs.length} required docs</p>
+                    </div>
+                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                      <motion.div className="h-full bg-white rounded-full"
+                        initial={{ width: 0 }} animate={{ width: `${progressPct}%` }}
+                        transition={{ duration: 0.8, ease: "easeOut" }} />
+                    </div>
+                    {allApproved && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <BadgeCheck size={14} className="text-green-300" />
+                        <p className="text-green-300 text-[10px] font-bold">All required documents approved! ✨</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto px-4 pt-4 pb-8 space-y-4">
+                <AnimatePresence>
+                  {submitDone && (
+                    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      className="bg-green-50 border border-green-200 rounded-2xl p-3.5 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                        <CheckCircle2 size={18} className="text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-green-800 font-bold text-sm">Document submitted!</p>
+                        <p className="text-green-600 text-xs">Our team will review within 24–48 hours.</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* What you need */}
+                <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
+                      <Star size={15} className="text-blue-600" />
+                    </div>
+                    <p className="font-bold text-sm text-foreground">What You Need</p>
+                  </div>
+                  <div className="space-y-2">
+                    {[
+                      { icon: "🪪", label: "Chairman's National ID (front & back)" },
+                      { icon: "🤳", label: "Selfie holding the ID" },
+                      { icon: "📋", label: "Cooperative registration certificate" },
+                      { icon: "💰", label: "Bank statement (last 3 months)" },
+                    ].map(item => (
+                      <div key={item.label} className="flex items-center gap-2.5">
+                        <span className="text-base">{item.icon}</span>
+                        <p className="text-foreground text-xs font-medium">{item.label}</p>
+                        <ChevronRight size={11} className="text-muted-foreground ml-auto" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Identity Documents */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <div className="w-1 h-4 bg-blue-500 rounded-full" />
+                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">Identity Documents</p>
+                  </div>
+                  <div className="space-y-2.5">
+                    {identityDocs.map(doc => (
+                      <DocCard
+                        key={doc.value}
+                        doc={doc}
+                        kycDoc={docStatusFor(doc.value)}
+                        staged={staged[doc.value]}
+                        isUploading={uploadingDoc === doc.value}
+                        onView={setViewingDoc}
+                        onOpenSheet={setActiveUploadType}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Organisation Documents */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <div className="w-1 h-4 bg-green-500 rounded-full" />
+                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">Organisation Documents</p>
+                  </div>
+                  <div className="space-y-2.5">
+                    {orgDocs.map(doc => (
+                      <DocCard
+                        key={doc.value}
+                        doc={doc}
+                        kycDoc={docStatusFor(doc.value)}
+                        staged={staged[doc.value]}
+                        isUploading={uploadingDoc === doc.value}
+                        onView={setViewingDoc}
+                        onOpenSheet={setActiveUploadType}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Optional */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <div className="w-1 h-4 bg-gray-400 rounded-full" />
+                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">Optional</p>
+                  </div>
+                  <div className="space-y-2.5">
+                    {otherDocs.map(doc => (
+                      <DocCard
+                        key={doc.value}
+                        doc={doc}
+                        kycDoc={docStatusFor(doc.value)}
+                        staged={staged[doc.value]}
+                        isUploading={uploadingDoc === doc.value}
+                        onView={setViewingDoc}
+                        onOpenSheet={setActiveUploadType}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Security note */}
+                <div className="bg-muted/60 rounded-2xl p-4 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                    <Lock size={14} className="text-muted-foreground" />
+                  </div>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Your documents are encrypted in transit and at rest. They are only accessed by our verified compliance team and are never shared with third parties.
+                  </p>
+                </div>
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
-
-        <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Star size={15} className="text-blue-600" />
-            </div>
-            <p className="font-bold text-sm text-foreground">What You Need</p>
-          </div>
-          <div className="space-y-2">
-            {[
-              { icon: "🪪", label: "Chairman's National ID (front & back)" },
-              { icon: "🤳", label: "Selfie holding the ID" },
-              { icon: "📋", label: "Cooperative registration certificate" },
-              { icon: "💰", label: "Bank statement (last 3 months)" },
-            ].map(item => (
-              <div key={item.label} className="flex items-center gap-2.5">
-                <span className="text-base">{item.icon}</span>
-                <p className="text-foreground text-xs font-medium">{item.label}</p>
-                <ChevronRight size={11} className="text-muted-foreground ml-auto" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center gap-2 mb-2.5">
-            <div className="w-1 h-4 bg-blue-500 rounded-full" />
-            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Identity Documents</p>
-          </div>
-          <div className="space-y-2.5">
-            {identityDocs.map(doc => <DocCard key={doc.value} doc={doc} kycDoc={docStatusFor(doc.value)} staged={staged[doc.value]} isUploading={uploadingDoc === doc.value} onView={setViewingDoc} onOpenSheet={setActiveUploadType} />)}
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center gap-2 mb-2.5">
-            <div className="w-1 h-4 bg-green-500 rounded-full" />
-            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Organisation Documents</p>
-          </div>
-          <div className="space-y-2.5">
-            {orgDocs.map(doc => <DocCard key={doc.value} doc={doc} kycDoc={docStatusFor(doc.value)} staged={staged[doc.value]} isUploading={uploadingDoc === doc.value} onView={setViewingDoc} onOpenSheet={setActiveUploadType} />)}
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center gap-2 mb-2.5">
-            <div className="w-1 h-4 bg-gray-400 rounded-full" />
-            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Optional</p>
-          </div>
-          <div className="space-y-2.5">
-            {otherDocs.map(doc => <DocCard key={doc.value} doc={doc} kycDoc={docStatusFor(doc.value)} staged={staged[doc.value]} isUploading={uploadingDoc === doc.value} onView={setViewingDoc} onOpenSheet={setActiveUploadType} />)}
-          </div>
-        </div>
-
-        <div className="bg-muted/60 rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-            <Lock size={14} className="text-muted-foreground" />
-          </div>
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            Your documents are encrypted in transit and at rest. They are only accessed by our verified compliance team and are never shared with third parties.
-          </p>
-        </div>
-        <div className="h-4" />
-      </div>
-    </motion.div>,
+        </>
+      )}
+    </AnimatePresence>,
     document.body
   );
 }

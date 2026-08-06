@@ -68,7 +68,6 @@ import AgribusinessOrders from "@/pages/agribusiness/orders";
 import AgribusinessNetwork from "@/pages/agribusiness/network";
 import AgribusinessProfile from "@/pages/agribusiness/profile";
 import AgribusinessKyc from "@/pages/agribusiness/kyc";
-import CooperativeKyc from "@/pages/cooperative/kyc";
 import FundManagerDashboard from "@/pages/market/fund-dashboard";
 import WealthAuth from "@/pages/wealth-auth";
 import WealthDashboard from "@/pages/wealth/dashboard";
@@ -410,9 +409,7 @@ function Router() {
       <Route path="/agribusiness/kyc">
         <AuthGuard role="agribusiness"><AgribusinessKyc /></AuthGuard>
       </Route>
-      <Route path="/cooperative/kyc">
-        <AuthGuard role="cooperative"><CooperativeKyc /></AuthGuard>
-      </Route>
+
 
       {/* Bets — prediction market for investors */}
       <Route path="/bets">
