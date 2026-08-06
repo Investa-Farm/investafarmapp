@@ -9,6 +9,8 @@ import { randomUUID } from "crypto";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { securityHeaders, frontendSecurityHeaders, globalRateLimit, sanitizeInput, botDetection, payloadSizeGuard, unauthorizedTracker } from "./lib/security";
+import { db, blogPostsTable } from "@workspace/db";
+import { desc } from "drizzle-orm";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -143,10 +145,6 @@ app.get("/robots.txt", (_req, res) => {
 
 app.get("/sitemap.xml", async (_req, res) => {
   try {
-    const { db } = await import("@workspace/db");
-    const { blogPostsTable } = await import("@workspace/db");
-    const { desc } = await import("drizzle-orm");
-
     const posts = await db
       .select({ slug: blogPostsTable.slug, updatedAt: blogPostsTable.updatedAt })
       .from(blogPostsTable)
