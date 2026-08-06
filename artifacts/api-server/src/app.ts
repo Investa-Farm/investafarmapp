@@ -101,6 +101,11 @@ app.use(express.urlencoded({ extended: true, limit: "512kb" }));
 app.use(botDetection);
 app.use(sanitizeInput);
 
+// ── Google Search Console verification ────────────────────────────────────────
+app.get("/googleb1c7018e72191e16.html", (_req, res) => {
+  res.type("text/html").send("google-site-verification: googleb1c7018e72191e16.html");
+});
+
 // ── robots.txt & sitemap.xml — public, no rate-limit, indexed by crawlers ──
 app.get("/robots.txt", (_req, res) => {
   res.type("text/plain").send(
