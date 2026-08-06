@@ -381,7 +381,13 @@ function getAppUrl(): string {
   return raw.replace(/\/+$/, "");
 }
 
-async function findOrCreateOAuthUser(email: string, name: string, defaultRole: string, provider: "google" | "linkedin") {
+async function findOrCreateOAuthUser(
+  email: string,
+  name: string,
+  defaultRole: string,
+  provider: "google" | "linkedin",
+  opts: { providerId?: string; avatarUrl?: string } = {},
+) {
   let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   let isNew = false;
 
@@ -395,6 +401,8 @@ async function findOrCreateOAuthUser(email: string, name: string, defaultRole: s
       role: (defaultRole as "farmer" | "investor" | "cooperative" | "agribusiness"),
       emailVerified: true,
       metadata: { authProvider: provider },
+      ...(opts.avatarUrl ? { avatarUrl: opts.avatarUrl } : {}),
+      ...(opts.providerId ? { oauthProviderId: `${provider}:${opts.providerId}` } : {}),
     }).returning();
     // Create wallet for new OAuth user
     await db.insert(walletsTable).values({ userId: user.id, balance: "0", currency: "KES" }).catch(() => {});
@@ -408,13 +416,18 @@ async function findOrCreateOAuthUser(email: string, name: string, defaultRole: s
       throw Object.assign(new Error("auth_conflict"), { conflictProvider: existingProvider });
     }
     // Stamp the provider on legacy accounts (no metadata yet) so future checks work
+    const updates: Record<string, any> = {};
     if (!existingProvider) {
-      await db.update(usersTable)
-        .set({ metadata: { ...(user.metadata as object ?? {}), authProvider: provider } })
-        .where(eq(usersTable.id, user.id));
+      updates.metadata = { ...(user.metadata as object ?? {}), authProvider: provider };
     }
-    if (!user.emailVerified) {
-      await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.id, user.id));
+    if (!user.emailVerified) updates.emailVerified = true;
+    // Update avatar / providerId if not already set
+    if (opts.avatarUrl && !(user as any).avatarUrl) updates.avatarUrl = opts.avatarUrl;
+    if (opts.providerId && !(user as any).oauthProviderId) {
+      updates.oauthProviderId = `${provider}:${opts.providerId}`;
+    }
+    if (Object.keys(updates).length > 0) {
+      await db.update(usersTable).set(updates).where(eq(usersTable.id, user.id));
     }
   }
   return { user, isNew };
@@ -478,7 +491,10 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     const name = (profile.name ?? profile.given_name ?? email.split("@")[0]) as string;
     const role = state ?? "investor";
 
-    const { user, isNew } = await findOrCreateOAuthUser(email, name, role, "google");
+    const { user, isNew } = await findOrCreateOAuthUser(email, name, role, "google", {
+      providerId: profile.sub as string | undefined,
+      avatarUrl: profile.picture as string | undefined,
+    });
     oauthRedirect(res, user, isNew);
   } catch (err: any) {
     console.error("[Google OAuth]", err);
@@ -536,7 +552,10 @@ router.get("/auth/linkedin/callback", async (req, res): Promise<void> => {
     const name = (profile.name ?? profile.given_name ?? email.split("@")[0]) as string;
     const role = state ?? "investor";
 
-    const { user, isNew } = await findOrCreateOAuthUser(email, name, role, "linkedin");
+    const { user, isNew } = await findOrCreateOAuthUser(email, name, role, "linkedin", {
+      providerId: profile.sub as string | undefined,
+      avatarUrl: profile.picture as string | undefined,
+    });
     oauthRedirect(res, user, isNew);
   } catch (err: any) {
     console.error("[LinkedIn OAuth]", err);
@@ -554,7 +573,21 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  res.json({ id: user.id, email: user.email, name: user.name, role: user.role, emailVerified: user.emailVerified, phone: user.phone, country: user.country, createdAt: user.createdAt.toISOString() });
+  const meta = (user.metadata as Record<string, unknown> | null) ?? {};
+  res.json({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    emailVerified: user.emailVerified,
+    phone: user.phone,
+    county: user.county,
+    country: user.country,
+    avatarUrl: (user as any).avatarUrl ?? null,
+    bio: (user as any).bio ?? null,
+    authProvider: meta.authProvider ?? null,
+    createdAt: user.createdAt.toISOString(),
+  });
 });
 
 router.patch("/auth/me", async (req, res): Promise<void> => {
@@ -564,17 +597,25 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
   const Body = z.object({
     name: z.string().min(1).optional(),
     country: z.string().optional(),
+    county: z.string().optional(),
+    phone: z.string().optional(),
+    bio: z.string().max(300).optional(),
+    avatarUrl: z.string().url().optional(),
     currentPassword: z.string().optional(),
     newPassword: z.string().min(6).optional(),
   });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
-  const { name, country, currentPassword, newPassword } = parsed.data;
-  const updates: Record<string, string> = {};
+  const { name, country, county, phone, bio, avatarUrl, currentPassword, newPassword } = parsed.data;
+  const updates: Record<string, any> = {};
 
   if (name) updates.name = name;
-  if (country) updates.country = country;
+  if (country !== undefined) updates.country = country;
+  if (county !== undefined) updates.county = county;
+  if (phone !== undefined) updates.phone = phone;
+  if (bio !== undefined) updates.bio = bio;
+  if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
 
   if (currentPassword && newPassword) {
     const valid = await bcrypt.compare(currentPassword, user.passwordHash);
@@ -583,11 +624,21 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
   }
 
   if (Object.keys(updates).length > 0) {
-    await db.update(usersTable).set(updates as any).where(eq(usersTable.id, user.id));
+    await db.update(usersTable).set(updates).where(eq(usersTable.id, user.id));
   }
 
   const [updated] = await db.select().from(usersTable).where(eq(usersTable.id, user.id));
-  res.json({ id: updated.id, name: updated.name, email: updated.email, role: updated.role, phone: updated.phone, country: updated.country });
+  res.json({
+    id: updated.id,
+    name: updated.name,
+    email: updated.email,
+    role: updated.role,
+    phone: updated.phone,
+    county: updated.county,
+    country: updated.country,
+    avatarUrl: (updated as any).avatarUrl ?? null,
+    bio: (updated as any).bio ?? null,
+  });
 });
 
 export default router;

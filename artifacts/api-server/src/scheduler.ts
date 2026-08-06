@@ -109,7 +109,12 @@ async function runAiMarketMonitor(): Promise<void> {
 
     const prompt = `You are an agricultural market intelligence AI for East Africa (Kenya focus).
 Generate 2-3 realistic, distinct market events happening RIGHT NOW that would affect crop prices.
-Each event must be specific to a crop and region.
+
+REGION SCOPE RULES (very important for price differentiation):
+- Use "Kenya" in affectedRegions ONLY for truly national events (e.g. government policy, export ban, nationwide drought declared by KMD)
+- Use specific regions for localised events: "Rift Valley", "Central", "Eastern", "Western", "Coast", "Nyanza", "Meru", "Nakuru", "Kisumu", "Laikipia", "Trans-Nzoia"
+- When drought/flooding hits a specific region, list only THAT region — do not spread it nationally
+- A national event affects ALL farms; a regional event primarily affects farms in that region (others get only minor spillover)
 
 Return ONLY valid JSON array, no markdown, no explanation:
 [
@@ -117,15 +122,15 @@ Return ONLY valid JSON array, no markdown, no explanation:
     "title": "short headline (max 12 words)",
     "description": "1-2 sentence explanation of the market event",
     "eventType": "weather|policy|market|trade|supply",
-    "affectedCrops": ["maize"|"wheat"|"coffee"|"tea"|"avocado"|"tomatoes"|"beans"|"sorghum"],
-    "affectedRegions": ["Rift Valley"|"Central"|"Eastern"|"Western"|"Coast"|"Nyanza"|"Meru"|"Nakuru"|"Kisumu"],
+    "affectedCrops": ["maize"|"wheat"|"coffee"|"tea"|"avocado"|"tomatoes"|"beans"|"sorghum"|"rice"|"sunflower"],
+    "affectedRegions": ["Kenya"|"Rift Valley"|"Central"|"Eastern"|"Western"|"Coast"|"Nyanza"|"Meru"|"Nakuru"|"Kisumu"|"Laikipia"|"Trans-Nzoia"],
     "impactDirection": "positive|negative|mixed",
-    "impactMagnitude": 0.04-0.18,
+    "impactMagnitude": 0.04-0.20,
     "severity": "low|moderate|high|critical",
-    "durationHours": 1-8
+    "durationHours": 1-10
   }
 ]
-Make events realistic and varied. Rotate different crop types each call. Never repeat the same event twice.`;
+Make events realistic and geographically varied. Rotate different crop types and regions each call. Never repeat the same event twice.`;
 
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -384,9 +389,12 @@ async function runPriceSimulation(): Promise<void> {
         if (!cropHit) continue;
 
         const location = (farm.location ?? "").toLowerCase();
-        const regionHit = regions.length === 0
+        // "Kenya" or "East Africa" in affectedRegions = national event → full impact on ALL farms
+        const isNational = regions.length === 0
+          || regions.some(r => r.toLowerCase() === "kenya" || r.toLowerCase() === "east africa" || r.toLowerCase() === "national");
+        const regionHit = isNational
           || regions.some(r => location.includes(r.toLowerCase()) || r.toLowerCase().includes(location.split(",")[0]?.trim() ?? ""));
-        const regionWeight = regionHit ? 1.0 : 0.20; // 20% regional spillover for non-target areas
+        const regionWeight = regionHit ? 1.0 : 0.10; // 10% minimal spillover for truly out-of-region farms
 
         // Deterministic per-farm variance: same farm always responds same % within each event
         const farmSeed = ((farm.id * 2654435761) ^ (evt.id * 40503)) >>> 0;

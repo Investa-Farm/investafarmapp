@@ -22,6 +22,9 @@ export const usersTable = pgTable("users", {
   maxWithdrawalKES: numeric("max_withdrawal_kes", { precision: 15, scale: 2 }),
   metadata: jsonb("metadata"),
   walletPin: text("wallet_pin"),
+  avatarUrl: text("avatar_url"),
+  bio: text("bio"),
+  oauthProviderId: text("oauth_provider_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

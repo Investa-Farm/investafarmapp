@@ -1,7 +1,6 @@
 import { Router, type IRouter } from "express";
 import { CROP_IMAGES } from "./crop-images";
-import { db } from "@workspace/db";
-import { sentimentScoresTable } from "@workspace/db";
+import { db, farmsTable, usersTable, sentimentScoresTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -497,6 +496,119 @@ async function persistSentiment(results: SentimentResult[]): Promise<void> {
     }
   } catch (e) { console.error("[sentiment] persist error:", e); }
 }
+
+// ─── Farmer Success Stories ────────────────────────────────────────────────────
+// Returns curated stories about farmers doing well — funded farms, high performers,
+// recent harvests, best share appreciation. Shown on the investor news feed.
+router.get("/news/farmers", async (req, res): Promise<void> => {
+  try {
+    // Get top performing farms across different dimensions
+    const [funded, highPrice, harvested] = await Promise.all([
+      // Recently funded farms
+      db.select({ farm: farmsTable, farmer: usersTable })
+        .from(farmsTable)
+        .innerJoin(usersTable, eq(farmsTable.farmerId, usersTable.id))
+        .where(eq(farmsTable.status, "funded"))
+        .orderBy(desc(farmsTable.createdAt))
+        .limit(4),
+      // Farms with strongest positive price change
+      db.select({ farm: farmsTable, farmer: usersTable })
+        .from(farmsTable)
+        .innerJoin(usersTable, eq(farmsTable.farmerId, usersTable.id))
+        .where(eq(farmsTable.status, "active"))
+        .orderBy(desc(farmsTable.changePercent))
+        .limit(4),
+      // Recently harvested
+      db.select({ farm: farmsTable, farmer: usersTable })
+        .from(farmsTable)
+        .innerJoin(usersTable, eq(farmsTable.farmerId, usersTable.id))
+        .where(eq(farmsTable.status, "harvested"))
+        .orderBy(desc(farmsTable.createdAt))
+        .limit(3),
+    ]);
+
+    const CROP_ICONS: Record<string, string> = {
+      maize: "🌽", coffee: "☕", tea: "🍵", avocado: "🥑", tomatoes: "🍅",
+      wheat: "🌾", beans: "🫘", rice: "🍚", sunflower: "🌻", dairy: "🥛",
+      default: "🌿",
+    };
+    const FARM_IMAGES = [
+      "https://images.unsplash.com/photo-1592982537447-6f2a6a0c8b1b?w=400&q=80",
+      "https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=400&q=80",
+      "https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=400&q=80",
+      "https://images.unsplash.com/photo-1574323347407-f5e1ad6962cc?w=400&q=80",
+      "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&q=80",
+      "https://images.unsplash.com/photo-1560493676-04071c5f467b?w=400&q=80",
+    ];
+
+    const seen = new Set<number>();
+    const stories: any[] = [];
+
+    const addStory = (row: any, type: "funded" | "rising" | "harvest") => {
+      const farm = row.farm ?? row;
+      const farmer = row.farmer ?? {};
+      if (seen.has(farm.id)) return;
+      seen.add(farm.id);
+      const crop = (farm.cropType ?? "").toLowerCase();
+      const icon = CROP_ICONS[crop] ?? CROP_ICONS.default;
+      const change = parseFloat(farm.changePercent ?? "0");
+      const shares = (farm.totalShares ?? 0) - (farm.sharesAvailable ?? 0);
+      const pct = farm.totalShares ? Math.round((shares / farm.totalShares) * 100) : 0;
+      const img = FARM_IMAGES[(farm.id ?? 0) % FARM_IMAGES.length]!;
+
+      if (type === "funded") {
+        stories.push({
+          id: `farmer-funded-${farm.id}`,
+          title: `${farm.name} fully funded — ${icon} ${farm.cropType} season kicks off`,
+          summary: `${farmer.name ?? "A farmer"} in ${farm.location} secured KES ${parseFloat(farm.loanAmount ?? "0").toLocaleString()} in investor funding. ${pct}% of shares sold. The ${farm.cropType} farm is now underway.`,
+          source: "Investa Farm",
+          url: `/market/farm/${farm.id}`,
+          tag: "Returns",
+          tagColor: "bg-green-100 text-green-700",
+          imageUrl: farm.imageUrl ?? img,
+          time: "Today",
+          type: "farmer-story",
+        });
+      } else if (type === "rising") {
+        if (change <= 0) return;
+        stories.push({
+          id: `farmer-rising-${farm.id}`,
+          title: `${farm.name} shares up ${change.toFixed(1)}% — strong demand for ${icon} ${farm.cropType}`,
+          summary: `Investors are bullish on ${farmer.name ?? "this farmer"}'s ${farm.cropType} farm in ${farm.location}. Share price has risen ${change.toFixed(2)}% this tick. ${shares.toLocaleString()} shares now in investor hands.`,
+          source: "Market Intelligence",
+          url: `/market/farm/${farm.id}`,
+          tag: "Markets",
+          tagColor: "bg-blue-100 text-blue-700",
+          imageUrl: farm.imageUrl ?? img,
+          time: "Live",
+          type: "farmer-story",
+        });
+      } else {
+        stories.push({
+          id: `farmer-harvest-${farm.id}`,
+          title: `${icon} Harvest complete — ${farm.name} delivers returns to investors`,
+          summary: `${farmer.name ?? "A farmer"} successfully completed the ${farm.cropType} harvest in ${farm.location}. Investors who backed this farm are earning their seasonal returns.`,
+          source: "Investa Farm",
+          url: `/market/farm/${farm.id}`,
+          tag: "Returns",
+          tagColor: "bg-emerald-100 text-emerald-700",
+          imageUrl: farm.imageUrl ?? img,
+          time: "Recent",
+          type: "farmer-story",
+        });
+      }
+    };
+
+    for (const row of funded) addStory(row, "funded");
+    for (const row of highPrice) addStory(row, "rising");
+    for (const row of harvested) addStory(row, "harvest");
+
+    res.json(stories.slice(0, 12));
+  } catch (e) {
+    console.error("[news/farmers]", e);
+    res.json([]);
+  }
+});
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 router.get("/news", async (req, res): Promise<void> => {

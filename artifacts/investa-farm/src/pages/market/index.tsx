@@ -521,6 +521,17 @@ export default function MarketHome() {
     refetchInterval: 60 * 1000,
   });
 
+  const { data: farmerStories, isLoading: farmerStoriesLoading } = useQuery<any[]>({
+    queryKey: ["news-farmers"],
+    queryFn: async () => {
+      const r = await fetch("/api/news/farmers");
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
   const { data: sentimentData } = useQuery<any[]>({
     queryKey: ["news-sentiment"],
     queryFn: async () => {
@@ -1228,7 +1239,7 @@ export default function MarketHome() {
 
             {/* Category filter strip */}
             <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
-              {["All", "Markets", "Weather", "Policy", "Returns"].map((cat) => (
+              {["All", "Markets", "Weather", "Policy", "Returns", "🌾 Farmer Stories"].map((cat) => (
                 <button key={cat}
                   onClick={() => setNewsCategory(cat)}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all active:scale-95 ${
@@ -1280,7 +1291,65 @@ export default function MarketHome() {
               </div>
             )}
 
-            {newsLoading
+            {newsCategory === "🌾 Farmer Stories" ? (
+              farmerStoriesLoading
+                ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
+                : (() => {
+                    const stories = farmerStories ?? [];
+                    if (stories.length === 0) return (
+                      <div className="bg-card rounded-2xl border border-border p-8 text-center">
+                        <span className="text-4xl">🌾</span>
+                        <p className="text-muted-foreground text-sm mt-3">Farmer success stories appear here as farms fund and harvest</p>
+                      </div>
+                    );
+                    const [top, ...rest] = stories;
+                    return (
+                      <>
+                        <div className="bg-card rounded-2xl border border-border overflow-hidden">
+                          <div className="relative h-44">
+                            <img src={top.imageUrl ?? `https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=400&q=80`} alt={top.title} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                            <div className="absolute bottom-3 left-3">
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${top.tagColor || "bg-green-100 text-green-700"}`}>{top.tag}</span>
+                            </div>
+                          </div>
+                          <button className="px-4 pt-3 pb-3 text-left w-full active:opacity-70"
+                            onClick={() => top.url && !top.url.startsWith("http") && (window.location.href = top.url)}>
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <span className="text-primary text-[10px] font-bold">{top.source}</span>
+                              <span className="text-muted-foreground/40 text-[10px]">·</span>
+                              <span className="text-muted-foreground text-[10px]">{top.time}</span>
+                            </div>
+                            <p className="text-foreground font-bold text-[14px] leading-snug">{top.title}</p>
+                            <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed line-clamp-2">{top.summary}</p>
+                          </button>
+                        </div>
+                        {rest.length > 0 && (
+                          <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+                            {rest.map((item: any) => (
+                              <button key={item.id} className="w-full text-left px-3.5 py-3 active:bg-muted/20 transition-colors flex gap-3 items-start"
+                                onClick={() => item.url && !item.url.startsWith("http") && (window.location.href = item.url)}>
+                                <div className="flex-1 min-w-0 pt-0.5">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className="text-primary text-[9px] font-bold truncate max-w-[90px]">{item.source}</span>
+                                    <span className="text-muted-foreground/40 text-[9px]">·</span>
+                                    <span className="text-muted-foreground text-[9px]">{item.time}</span>
+                                    <span className={`ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.tagColor || "bg-green-100 text-green-700"}`}>{item.tag}</span>
+                                  </div>
+                                  <p className="text-foreground font-semibold text-[12px] leading-snug line-clamp-2">{item.title}</p>
+                                </div>
+                                <div className="w-16 h-14 rounded-xl overflow-hidden flex-shrink-0 mt-0.5 bg-muted">
+                                  <img src={item.imageUrl ?? `https://images.unsplash.com/photo-1574323347407-f5e1ad6962cc?w=200&q=70`} alt="" className="w-full h-full object-cover" />
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-center text-muted-foreground/60 text-[10px] pb-1">Live from Investa Farm · real farmer data</p>
+                      </>
+                    );
+                  })()
+            ) : newsLoading
               ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
               : (() => {
                   const allItems = newsItems ?? [];

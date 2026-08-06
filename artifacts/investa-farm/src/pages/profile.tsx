@@ -43,6 +43,9 @@ export default function Profile() {
   const [pwaInstalled, setPwaInstalled] = useState(false);
   const [settingsName, setSettingsName] = useState(user?.name ?? stored?.name ?? "");
   const [settingsCountry, setSettingsCountry] = useState((user as any)?.country ?? stored?.country ?? "");
+  const [settingsCounty, setSettingsCounty] = useState((user as any)?.county ?? "");
+  const [settingsPhone, setSettingsPhone] = useState((user as any)?.phone ?? "");
+  const [settingsBio, setSettingsBio] = useState((user as any)?.bio ?? "");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -164,7 +167,10 @@ export default function Profile() {
     try {
       const body: Record<string, string> = {};
       if (settingsName && settingsName !== (user?.name ?? stored?.name)) body.name = settingsName;
-      if (settingsCountry && settingsCountry !== ((user as any)?.country ?? stored?.country)) body.country = settingsCountry;
+      if (settingsCountry !== ((user as any)?.country ?? stored?.country ?? "")) body.country = settingsCountry;
+      if (settingsCounty !== ((user as any)?.county ?? "")) body.county = settingsCounty;
+      if (settingsPhone !== ((user as any)?.phone ?? "")) body.phone = settingsPhone;
+      if (settingsBio !== ((user as any)?.bio ?? "")) body.bio = settingsBio;
       if (currentPw && newPw) { body.currentPassword = currentPw; body.newPassword = newPw; }
       if (!Object.keys(body).length) { setSettingsOpen(false); setSettingsSaving(false); return; }
       const r = await fetch("/api/auth/me", {
@@ -571,6 +577,18 @@ export default function Profile() {
                     className="mt-1.5 w-full border border-border rounded-xl px-4 py-3 text-sm bg-muted text-muted-foreground cursor-not-allowed" />
                 </div>
                 <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone Number</label>
+                  <input value={settingsPhone} onChange={e => setSettingsPhone(e.target.value)}
+                    placeholder="+254 7XX XXX XXX"
+                    className="mt-1.5 w-full border border-border rounded-xl px-4 py-3 text-sm bg-background focus:outline-none focus:border-primary" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">County / Region</label>
+                  <input value={settingsCounty} onChange={e => setSettingsCounty(e.target.value)}
+                    placeholder="e.g. Nairobi, Kiambu"
+                    className="mt-1.5 w-full border border-border rounded-xl px-4 py-3 text-sm bg-background focus:outline-none focus:border-primary" />
+                </div>
+                <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Country</label>
                   <select value={settingsCountry} onChange={e => setSettingsCountry(e.target.value)}
                     className="mt-1.5 w-full border border-border rounded-xl px-4 py-3 text-sm bg-background focus:outline-none focus:border-primary">
@@ -578,6 +596,14 @@ export default function Profile() {
                     {COUNTRIES.map(c => <option key={c.code} value={c.name}>{c.name}</option>)}
                   </select>
                   <p className="text-muted-foreground text-[10px] mt-1">Determines which mobile money option (M-Pesa or MTN) is shown for deposits and withdrawals.</p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bio / About Me</label>
+                  <textarea value={settingsBio} onChange={e => setSettingsBio(e.target.value)}
+                    placeholder="A short description about yourself (optional, max 300 characters)"
+                    maxLength={300} rows={3}
+                    className="mt-1.5 w-full border border-border rounded-xl px-4 py-3 text-sm bg-background focus:outline-none focus:border-primary resize-none" />
+                  <p className="text-muted-foreground text-[10px] mt-1">{settingsBio.length}/300 characters</p>
                 </div>
                 <div className="pt-1 border-t border-border">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Change Password (optional)</p>
