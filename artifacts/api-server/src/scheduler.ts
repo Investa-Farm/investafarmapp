@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable, orderBookTable, watchlistTable, roiProjectionsTable, platformRevenueTable, loanApplicationsTable, sentimentScoresTable } from "@workspace/db";
-import { eq, inArray, lt, and, lte, asc, gte, isNotNull } from "drizzle-orm";
+import { db, usersTable, farmsTable, investmentsTable, marketListingsTable, walletsTable, walletTransactionsTable, dividendsTable, orderBookTable, watchlistTable, roiProjectionsTable, platformRevenueTable, loanApplicationsTable, sentimentScoresTable, marketEventsTable } from "@workspace/db";
+import { eq, inArray, lt, and, lte, asc, gte, isNotNull, desc, or, isNull, gt } from "drizzle-orm";
 import { creditWallet, debitWallet, ensureWallet } from "./lib/walletOps";
 import { sendOpportunityDigest } from "./lib/email";
 import { notifyMany, notifyUser } from "./lib/push";
@@ -91,6 +91,95 @@ function scheduleDailyRandom(
   fireNext();
 }
 
+// ─── AI Market Monitor ─────────────────────────────────────────────────────
+// Runs every 30 min. Uses Groq to surface realistic crop/region-specific
+// market events that feed into per-farm pricing differentiation.
+async function runAiMarketMonitor(): Promise<void> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return;
+
+  try {
+    // Purge events that expired more than 4 hours ago to keep the table clean
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    await db.delete(marketEventsTable)
+      .where(and(
+        isNotNull(marketEventsTable.expiresAt),
+        lt(marketEventsTable.expiresAt as any, fourHoursAgo),
+      )).catch(() => {});
+
+    const prompt = `You are an agricultural market intelligence AI for East Africa (Kenya focus).
+Generate 2-3 realistic, distinct market events happening RIGHT NOW that would affect crop prices.
+Each event must be specific to a crop and region.
+
+Return ONLY valid JSON array, no markdown, no explanation:
+[
+  {
+    "title": "short headline (max 12 words)",
+    "description": "1-2 sentence explanation of the market event",
+    "eventType": "weather|policy|market|trade|supply",
+    "affectedCrops": ["maize"|"wheat"|"coffee"|"tea"|"avocado"|"tomatoes"|"beans"|"sorghum"],
+    "affectedRegions": ["Rift Valley"|"Central"|"Eastern"|"Western"|"Coast"|"Nyanza"|"Meru"|"Nakuru"|"Kisumu"],
+    "impactDirection": "positive|negative|mixed",
+    "impactMagnitude": 0.04-0.18,
+    "severity": "low|moderate|high|critical",
+    "durationHours": 1-8
+  }
+]
+Make events realistic and varied. Rotate different crop types each call. Never repeat the same event twice.`;
+
+    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.9,
+        max_tokens: 600,
+      }),
+    });
+
+    if (!r.ok) return;
+    const json = await r.json() as any;
+    const raw = (json.choices?.[0]?.message?.content ?? "").trim();
+
+    // Strip markdown fences if present
+    const cleaned = raw.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/, "");
+    let events: any[];
+    try {
+      events = JSON.parse(cleaned);
+    } catch {
+      return;
+    }
+    if (!Array.isArray(events) || events.length === 0) return;
+
+    let inserted = 0;
+    for (const evt of events.slice(0, 4)) {
+      try {
+        const hours = Math.min(12, Math.max(1, Number(evt.durationHours ?? 4)));
+        const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+        await db.insert(marketEventsTable).values({
+          title:           String(evt.title ?? "Market alert").slice(0, 200),
+          description:     String(evt.description ?? "").slice(0, 500),
+          eventType:       String(evt.eventType ?? "market"),
+          affectedCrops:   Array.isArray(evt.affectedCrops) ? evt.affectedCrops.map(String) : [],
+          affectedRegions: Array.isArray(evt.affectedRegions) ? evt.affectedRegions.map(String) : [],
+          impactDirection: ["positive", "negative", "mixed"].includes(evt.impactDirection) ? evt.impactDirection : "mixed",
+          impactMagnitude: String(Math.min(0.25, Math.max(0.02, Number(evt.impactMagnitude ?? 0.08)))),
+          severity:        ["low", "moderate", "high", "critical"].includes(evt.severity) ? evt.severity : "moderate",
+          source:          "ai-monitor",
+          expiresAt,
+        });
+        inserted++;
+      } catch { /* skip bad event */ }
+    }
+    if (inserted > 0) {
+      console.log(`[scheduler] AI market monitor: inserted ${inserted} new market events`);
+    }
+  } catch (e) {
+    console.warn("[scheduler] AI market monitor error:", (e as Error)?.message);
+  }
+}
+
 export function startScheduler(): void {
   // High-frequency operations keep their intervals (market data & matching)
   cron.schedule("*/5 * * * *", () => runPriceSimulation(), { timezone: "Africa/Nairobi" });
@@ -112,6 +201,11 @@ export function startScheduler(): void {
   // Farm growth — activate 1-3 pending/draft farms every 30 minutes so active count rises naturally
   cron.schedule("*/30 * * * *", () => runFarmGrowth(), { timezone: "Africa/Nairobi" });
   console.log("[scheduler] Farm growth: activating pending farms every 30 minutes");
+
+  // AI market monitor — detect regional/crop-specific events every 30 minutes; seed on boot
+  cron.schedule("*/30 * * * *", () => runAiMarketMonitor().catch(() => {}), { timezone: "Africa/Nairobi" });
+  runAiMarketMonitor().catch(() => {});
+  console.log("[scheduler] AI market monitor: detecting crop/regional events every 30 minutes");
 
   console.log("[scheduler] Price simulation & alerts: every 5 minutes");
   console.log("[scheduler] Watchlist price alerts: every 5 minutes");
@@ -210,6 +304,13 @@ async function runPriceSimulation(): Promise<void> {
       }
     }
 
+    // ── Load active AI market events (region + crop differentiated) ─────────────
+    const nowTs = new Date();
+    const marketEvents = await db.select().from(marketEventsTable)
+      .where(or(isNull(marketEventsTable.expiresAt), gt(marketEventsTable.expiresAt, nowTs)))
+      .orderBy(desc(marketEventsTable.detectedAt))
+      .catch(() => []);
+
     // Build per-farm order-book from active listings
     const buyMap = new Map<number, number>();  // farmId → total buy-side (sold shares)
     const sellMap = new Map<number, number>(); // farmId → secondary shares listed
@@ -267,6 +368,43 @@ async function runPriceSimulation(): Promise<void> {
       // Pull live sentiment score for this crop type (1.0 = neutral baseline)
       const sentimentFactor = sentimentMap.get(cropKey) ?? 1.0;
 
+      // ── AI market event impact (per-farm, region-differentiated) ─────────────
+      // Each active market event applies a farm-specific multiplier based on:
+      //   • crop match: does this event affect this crop?
+      //   • region weight: full impact if in affected region, 20% spillover otherwise
+      //   • per-farm variance: deterministic hash of (farmId × eventId) → 60–140% of stated magnitude
+      //   • direction: negative/positive/mixed — mixed splits farms up and down
+      let eventImpactFactor = 1.0;
+      for (const evt of marketEvents) {
+        const crops = (evt.affectedCrops ?? []) as string[];
+        const regions = (evt.affectedRegions ?? []) as string[];
+
+        const cropHit = crops.length === 0
+          || crops.some(c => c.toLowerCase() === cropKey || cropKey.includes(c.toLowerCase()) || c.toLowerCase().includes(cropKey));
+        if (!cropHit) continue;
+
+        const location = (farm.location ?? "").toLowerCase();
+        const regionHit = regions.length === 0
+          || regions.some(r => location.includes(r.toLowerCase()) || r.toLowerCase().includes(location.split(",")[0]?.trim() ?? ""));
+        const regionWeight = regionHit ? 1.0 : 0.20; // 20% regional spillover for non-target areas
+
+        // Deterministic per-farm variance: same farm always responds same % within each event
+        const farmSeed = ((farm.id * 2654435761) ^ (evt.id * 40503)) >>> 0;
+        const farmVariance = 0.60 + (farmSeed % 10000) / 10000 * 0.80; // 0.60–1.40
+
+        const mag = Math.max(0, Math.min(0.25, Number(evt.impactMagnitude ?? 0.08)));
+        const direction = evt.impactDirection === "negative" ? -1
+          : evt.impactDirection === "positive" ? 1
+          : (farm.id % 2 === 0 ? 0.6 : -0.6); // mixed: farms split up/down differently
+
+        eventImpactFactor *= 1 + direction * mag * regionWeight * farmVariance;
+      }
+      // Clamp total event impact to ±25% maximum per tick
+      eventImpactFactor = Math.max(0.75, Math.min(1.25, eventImpactFactor));
+
+      // Final per-farm sentiment = baseline sentiment × event shock (fully differentiated)
+      const adjustedSentiment = Math.max(0.75, Math.min(1.25, sentimentFactor * eventImpactFactor));
+
       // ── Self-consistent D̂ per share ─────────────────────────────────────────
       // Primary engine set α so that α × R̂₀ × d_baseline = K = N × P₀
       // ∴ D̂_baseline = P₀ / d_baseline   (structurally guarantees positive ROI)
@@ -278,7 +416,7 @@ async function runPriceSimulation(): Promise<void> {
       const sharePrice  = Number(farm.sharePrice);
       const lambda_base = ((10 - S_base) / 9) * P_MAX * LGD;
       const d_baseline  = (1 - lambda_base) / Math.pow(1 + RISK_FREE, seasonDays / 365);
-      const D_hat       = (sharePrice / Math.max(d_baseline, 0.01)) * rainfallFactor * sentimentFactor;
+      const D_hat       = (sharePrice / Math.max(d_baseline, 0.01)) * rainfallFactor * adjustedSentiment;
 
       // Current λ uses rainfall-adjusted S (more pessimistic if drought)
       const lambda = ((10 - S) / 9) * P_MAX * LGD;

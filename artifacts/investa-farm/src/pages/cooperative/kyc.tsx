@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getToken, getStoredUser } from "@/lib/auth";
+import { getToken, getStoredUser, isDemoAccount } from "@/lib/auth";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -164,6 +164,7 @@ export default function CooperativeKyc() {
   const requiredUploaded = requiredDocs.filter(d => uploadedTypes.has(d.value)).length;
   const progressPct = Math.round((requiredUploaded / requiredDocs.length) * 100);
   const allApproved = approvedCount >= requiredDocs.length;
+  const isDemo = isDemoAccount();
 
   const handleFileSelect = (docType: DocTypeValue, file: File) => {
     const preview = URL.createObjectURL(file);
@@ -317,8 +318,40 @@ export default function CooperativeKyc() {
     document.body
   ) : null;
 
-  return (
-    <div className="app-shell pb-10 page-enter" style={{ background: "#f8faf8" }}>
+  if (isDemo) return createPortal(
+    <motion.div
+      initial={{ x: "100%", opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ type: "spring", damping: 30, stiffness: 350 }}
+      className="fixed inset-0 z-[70] bg-background flex flex-col items-center justify-center px-6 text-center"
+    >
+      <div className="w-20 h-20 rounded-3xl bg-green-100 flex items-center justify-center mb-6">
+        <BadgeCheck size={40} className="text-green-600" />
+      </div>
+      <h2 className="text-2xl font-extrabold text-foreground mb-3">KYC Not Required</h2>
+      <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mb-2">
+        This is a <span className="text-primary font-bold">demo account</span> with pre-verified
+        status. Real cooperative accounts must submit KYC documents before accessing all platform features.
+      </p>
+      <p className="text-muted-foreground/60 text-xs mb-8">Document uploads are disabled in demo mode.</p>
+      <button
+        onClick={() => setLocation("/cooperative/dashboard")}
+        className="h-12 px-8 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-transform shadow-md shadow-primary/25"
+      >
+        Back to Dashboard
+      </button>
+    </motion.div>,
+    document.body
+  );
+
+  return createPortal(
+    <motion.div
+      initial={{ x: "100%", opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ type: "spring", damping: 30, stiffness: 350 }}
+      className="fixed inset-0 z-[70] overflow-y-auto pb-10"
+      style={{ background: "#f8faf8" }}
+    >
       {uploadSheet}
       {viewingDoc && <DocViewerModal doc={viewingDoc} onClose={() => setViewingDoc(null)} />}
 
@@ -455,7 +488,8 @@ export default function CooperativeKyc() {
         </div>
         <div className="h-4" />
       </div>
-    </div>
+    </motion.div>,
+    document.body
   );
 }
 

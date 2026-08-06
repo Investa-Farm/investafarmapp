@@ -101,6 +101,94 @@ app.use(express.urlencoded({ extended: true, limit: "512kb" }));
 app.use(botDetection);
 app.use(sanitizeInput);
 
+// ── robots.txt & sitemap.xml — public, no rate-limit, indexed by crawlers ──
+app.get("/robots.txt", (_req, res) => {
+  res.type("text/plain").send(
+    [
+      "User-agent: *",
+      "Allow: /",
+      "Disallow: /api/",
+      "Disallow: /admin",
+      "Disallow: /farmer",
+      "Disallow: /investor-auth",
+      "Disallow: /farmer-auth",
+      "Disallow: /cooperative-auth",
+      "Disallow: /wealth-auth",
+      "Disallow: /login",
+      "Disallow: /register",
+      "Disallow: /onboarding",
+      "Disallow: /verify-otp",
+      "Disallow: /reset-password",
+      "Disallow: /portfolio",
+      "Disallow: /wallet",
+      "Disallow: /activity",
+      "Disallow: /profile",
+      "Disallow: /bets",
+      "Disallow: /agribusiness",
+      "Disallow: /cooperative",
+      "Disallow: /sales-agent",
+      "Disallow: /offtaker",
+      "Disallow: /syndicates",
+      "Disallow: /wealth",
+      "",
+      "Sitemap: https://investafarm.com/sitemap.xml",
+    ].join("\n")
+  );
+});
+
+app.get("/sitemap.xml", async (_req, res) => {
+  try {
+    const { db } = await import("@workspace/db");
+    const { blogPostsTable } = await import("@workspace/db");
+    const { desc } = await import("drizzle-orm");
+
+    const posts = await db
+      .select({ slug: blogPostsTable.slug, updatedAt: blogPostsTable.updatedAt })
+      .from(blogPostsTable)
+      .orderBy(desc(blogPostsTable.publishedAt));
+
+    const BASE = "https://investafarm.com";
+
+    const staticUrls = [
+      { loc: `${BASE}/`,              priority: "1.0",  changefreq: "weekly" },
+      { loc: `${BASE}/market/preview`, priority: "0.9",  changefreq: "daily"  },
+      { loc: `${BASE}/blog`,           priority: "0.9",  changefreq: "daily"  },
+      { loc: `${BASE}/faq`,            priority: "0.7",  changefreq: "monthly" },
+    ];
+
+    const blogUrls = posts.map((p) => ({
+      loc: `${BASE}/blog/${p.slug}`,
+      lastmod: new Date(p.updatedAt).toISOString().split("T")[0],
+      priority: "0.8",
+      changefreq: "monthly",
+    }));
+
+    const allUrls = [...staticUrls, ...blogUrls];
+
+    const xml = [
+      `<?xml version="1.0" encoding="UTF-8"?>`,
+      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+      ...allUrls.map((u) =>
+        [
+          "  <url>",
+          `    <loc>${u.loc}</loc>`,
+          "lastmod" in u && u.lastmod ? `    <lastmod>${u.lastmod}</lastmod>` : "",
+          `    <changefreq>${u.changefreq}</changefreq>`,
+          `    <priority>${u.priority}</priority>`,
+          "  </url>",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      ),
+      `</urlset>`,
+    ].join("\n");
+
+    res.type("application/xml").send(xml);
+  } catch (e) {
+    res.status(500).send("<!-- sitemap error -->");
+  }
+});
+
 // Public health check — no auth, no rate-limit, for Render + uptime monitors
 app.get("/api/healthz", async (_req, res) => {
   try {

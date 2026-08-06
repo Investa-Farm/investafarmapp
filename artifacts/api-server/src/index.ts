@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDemoUsers } from "./seed";
+import { seedBlogPosts } from "./routes/blog";
 // import { runBulkSeed } from "./bulkSeed";
 import { startScheduler } from "./scheduler";
 import { initVapid } from "./lib/push";
@@ -39,6 +40,7 @@ const server = app.listen(port, async () => {
     await ensureSchema();
     // Seed demo accounts on every startup (idempotent — skips existing records)
     await seedDemoUsers((msg) => logger.info(msg));
+    await seedBlogPosts((msg) => logger.info(msg));
   } catch (e) {
     logger.warn({ err: e }, "DB setup failed (non-fatal)");
   }

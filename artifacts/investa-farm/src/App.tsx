@@ -79,6 +79,8 @@ import BetsPage from "@/pages/bets/index";
 import SyndicatesPage from "@/pages/syndicates/index";
 import FaqPage from "@/pages/faq";
 import NotificationsPage from "@/pages/notifications";
+import BlogIndex from "@/pages/blog/index";
+import BlogPost from "@/pages/blog/post";
 import SystemArchitecture from "@/pages/architecture";
 import NotFound from "@/pages/not-found";
 
@@ -423,6 +425,14 @@ function Router() {
       </Route>
       <Route path="/farmer/syndicates">
         <AuthGuard role="farmer"><SyndicatesPage /></AuthGuard>
+      </Route>
+
+      {/* Blog — public, no login required */}
+      <Route path="/blog">
+        <BlogIndex />
+      </Route>
+      <Route path="/blog/:slug">
+        <BlogPost />
       </Route>
 
       {/* FAQ — accessible from profile for any logged-in user */}

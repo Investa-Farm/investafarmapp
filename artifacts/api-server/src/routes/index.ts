@@ -37,6 +37,8 @@ import supportRouter from "./support";
 import betsRouter from "./bets";
 import syndicatesRouter from "./syndicates";
 import pricingRouter from "./pricing";
+import blogRouter from "./blog";
+import marketEventsRouter from "./market-events";
 
 const router: IRouter = Router();
 
@@ -77,5 +79,7 @@ router.use(supportRouter);
 router.use(betsRouter);
 router.use(syndicatesRouter);
 router.use(pricingRouter);
+router.use(blogRouter);
+router.use(marketEventsRouter);
 
 export default router;

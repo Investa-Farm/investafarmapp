@@ -499,10 +499,16 @@ async function persistSentiment(results: SentimentResult[]): Promise<void> {
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-router.get("/news", async (_req, res): Promise<void> => {
-  if (cache && Date.now() - cache.cachedAt < CACHE_TTL) {
+router.get("/news", async (req, res): Promise<void> => {
+  const force = req.query["force"] === "1";
+  if (!force && cache && Date.now() - cache.cachedAt < CACHE_TTL) {
     res.json(cache.items);
     return;
+  }
+  // Force-refresh: bust both news and sentiment caches
+  if (force) {
+    cache = null;
+    sentimentCache = null;
   }
 
   // Priority chain: TheNewsAPI → Currents → GNews → Mediastack → RSS → Groq AI → Static

@@ -42,6 +42,13 @@ const DEMO_EMAILS = new Set([
   "peter.farmer@investafarm.com",
   "coop@investafarm.com",
   "cooperative@investafarm.com",
+  // agribusiness demo accounts
+  "demo.agent@investafarm.com",
+  "demo.offtaker@investafarm.com",
+  "samuel.njoroge.ke@gmail.com",
+  "rift.valley.buyers@gmail.com",
+  // cooperative demo accounts
+  "mwea.coop.ke@gmail.com",
 ]);
 
 export function isDemoAccount(): boolean {
