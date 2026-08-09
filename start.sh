@@ -9,8 +9,8 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 # are never missing. Uses --force to avoid interactive TTY prompts on Render.
 echo "[start] Pushing schema to database..."
 cd "$ROOT"
-pnpm --filter @workspace/db run push-force 2>&1 && echo "[start] Schema push OK" \
-  || echo "[start] Schema push failed — continuing anyway"
+pnpm --filter @workspace/db run push-force 2>&1
+echo "[start] Schema push OK"
 
 # Start the API server
 cd "$ROOT/artifacts/api-server"

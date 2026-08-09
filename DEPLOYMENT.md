@@ -69,29 +69,28 @@ encode them before putting them in the connection URL:
 | Setting | Value |
 |---|---|
 | Build command | `pnpm install && pnpm --filter @workspace/api-server run build` |
-| Start command | `node --enable-source-maps artifacts/api-server/dist/index.mjs` |
+| Start command | `./start.sh` |
 
-### Pre-deploy: push schema to Supabase
+### Schema synchronization
 
-Run this **once** after your first Render deploy (or any time you add a new
-database column):
+`./start.sh` synchronizes the Neon schema before starting the API on every
+deploy. If Supabase is configured as the standby database, run the second
+command once after the first deploy and after schema changes:
 
 ```bash
-# From your local machine (or a Render shell):
-DATABASE_URL="<your-neon-url>" \
-SUPABASE_DATABASE_URL="<your-supabase-url-with-encoded-password>" \
-DB_TARGET=supabase \
-pnpm --filter @workspace/db run push
+# From your local machine or a Render shell:
+pnpm --filter @workspace/db run push-force
 ```
 
-Or add it to your Render **pre-deploy command**:
+Then sync the standby:
 
 ```
-pnpm --filter @workspace/db run push && DB_TARGET=supabase pnpm --filter @workspace/db run push
+DB_TARGET=supabase pnpm --filter @workspace/db run push-force
 ```
 
-This pushes the same Drizzle schema to both Neon and Supabase so their table
-structures stay identical.
+The production start command intentionally fails if the primary schema push
+fails; serving login against a partially migrated schema would return 500s for
+every account.
 
 ---
 

@@ -72,7 +72,7 @@ pnpm --filter @workspace/db run push
 The app is deployed to Render as a single web service:
 
 - **Build command:** `pnpm install --frozen-lockfile; pnpm run build` — runs a full workspace typecheck, then builds every package (frontend, API server, and the design-only mockup sandbox).
-- **Start command:** `./start.sh` — starts the compiled API server (`artifacts/api-server/dist/index.mjs`), which also serves the built frontend (`artifacts/investa-farm/dist/public`) as static files in production.
+- **Start command:** `./start.sh` — synchronizes the database schema, then starts the compiled API server (`artifacts/api-server/dist/index.mjs`), which also serves the built frontend (`artifacts/investa-farm/dist/public`) as static files in production.
 
 Because Render builds the entire workspace (not just the artifacts that matter for production), all packages must build cleanly even outside Replit's own per-artifact dev flow — verify with the exact commands above before pushing, not just the Replit workflow logs.
 

@@ -71,6 +71,11 @@ async function applyDeltas(client: PoolClient): Promise<void> {
   await col(client, "users", "max_withdrawal_kes", "NUMERIC(15,2)");
   await col(client, "users", "metadata",           "JSONB");
   await col(client, "users", "wallet_pin",         "TEXT");
+  // OAuth/profile fields added after the original users table was deployed.
+  // These must be applied before auth queries select the complete user row.
+  await col(client, "users", "avatar_url",         "TEXT");
+  await col(client, "users", "bio",                "TEXT");
+  await col(client, "users", "oauth_provider_id",  "TEXT");
 
   // farms
   await col(client, "farms", "change_percent", "NUMERIC(8,4) NOT NULL DEFAULT 0");
