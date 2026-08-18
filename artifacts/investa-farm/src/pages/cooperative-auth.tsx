@@ -342,7 +342,7 @@ export default function CooperativeAuth() {
                       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Password</label>
                       <div className="relative">
                         <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 6 characters" required minLength={6}
+                        <input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 characters" required minLength={8}
                           className="w-full border border-border rounded-xl pl-10 pr-12 py-3 text-foreground bg-gray-50 text-sm focus:outline-none focus:border-[#16a34a] focus:bg-white transition-colors" />
                         <button type="button" onClick={() => setShow(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground p-1">
                           {show ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -433,7 +433,7 @@ export default function CooperativeAuth() {
                       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Password</label>
                       <div className="relative">
                         <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 6 characters" required minLength={6}
+                        <input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 characters" required minLength={8}
                           className="w-full border border-border rounded-xl pl-10 pr-12 py-3 text-foreground bg-gray-50 text-sm focus:outline-none focus:border-[#16a34a] focus:bg-white transition-colors" />
                         <button type="button" onClick={() => setShow(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground p-1">
                           {show ? <EyeOff size={16} /> : <Eye size={16} />}

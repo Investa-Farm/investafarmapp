@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDemoUsers } from "./seed";
+import { assertProductionSecrets, isProduction } from "./lib/authTokens";
 import { seedBlogPosts } from "./routes/blog";
 // import { runBulkSeed } from "./bulkSeed";
 import { startScheduler } from "./scheduler";
@@ -8,6 +9,8 @@ import { initVapid } from "./lib/push";
 import { testSmtpConnection } from "./lib/email";
 import { ensureSchema } from "./lib/migrate";
 import { pool } from "@workspace/db";
+
+assertProductionSecrets();
 
 const rawPort = process.env["PORT"] ?? "8080";
 const port = Number(rawPort);
@@ -38,8 +41,10 @@ const server = app.listen(port, async () => {
   try {
     await waitForDb();
     await ensureSchema();
-    // Seed demo accounts on every startup (idempotent — skips existing records)
-    await seedDemoUsers((msg) => logger.info(msg));
+    // Demo accounts are never seeded in production. Opt in locally with SEED_DEMO=true.
+    if (!isProduction() && process.env.SEED_DEMO === "true") {
+      await seedDemoUsers((msg) => logger.info(msg));
+    }
     await seedBlogPosts((msg) => logger.info(msg));
   } catch (e) {
     logger.warn({ err: e }, "DB setup failed (non-fatal)");

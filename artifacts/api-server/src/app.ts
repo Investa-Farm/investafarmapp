@@ -9,12 +9,14 @@ import { randomUUID } from "crypto";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { securityHeaders, frontendSecurityHeaders, globalRateLimit, sanitizeInput, botDetection, payloadSizeGuard, unauthorizedTracker } from "./lib/security";
+import { corsOriginAllowed } from "./lib/authTokens";
 import { db, blogPostsTable } from "@workspace/db";
 import { desc } from "drizzle-orm";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app: Express = express();
+app.set("trust proxy", 1);
 
 // pino-http uses `export =` syntax — cast to avoid TS2349 on Vercel
 app.use(
@@ -42,40 +44,9 @@ app.use(
     },
   }),
 );
-// CORS configuration.
-// Auth is JWT-based, so allowing all origins in production does not weaken
-// security — the token is the credential, not the origin.
-// In development we restrict to known local ports to catch accidental
-// cross-origin calls during development.
 const corsMiddleware = cors({
   origin: (origin, callback) => {
-    // No Origin header → same-origin curl/Postman/server-side call → allow.
-    if (!origin) return callback(null, true);
-
-    // Production → always allow. JWT is the auth mechanism.
-    if (process.env.NODE_ENV === "production") {
-      return callback(null, true);
-    }
-
-    // Development → allow localhost on common Vite / API ports plus any
-    // Replit dev domain (ALLOWED_ORIGINS can extend this list).
-    const allowedOriginsEnv = process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-      : [];
-
-    const devOrigins = [
-      "http://localhost:5000",
-      "http://localhost:3000",
-      "http://localhost:19899",
-      "http://localhost:4173",
-      ...allowedOriginsEnv,
-    ];
-
-    if (devOrigins.includes(origin)) return callback(null, true);
-
-    // Also allow any *.replit.dev origin in development.
-    if (origin.endsWith(".replit.dev")) return callback(null, true);
-
+    if (corsOriginAllowed(origin)) return callback(null, true);
     const err = Object.assign(new Error(`CORS blocked: ${origin}`), { status: 403 });
     return callback(err);
   },

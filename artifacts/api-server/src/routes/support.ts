@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, supportTicketsTable, usersTable, notificationsTable, walletsTable, walletTransactionsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
+import { adminRoleFromRequest } from "../lib/adminAuth";
 import { sendGenericEmail } from "../lib/email";
 import { notifyUser } from "../lib/push";
 import { financialRateLimit } from "../lib/security";
@@ -112,15 +113,10 @@ router.get("/support/tickets/mine", async (req, res): Promise<void> => {
 // ─── ADMIN ROUTES ─────────────────────────────────────────────────────────────
 
 async function requireAdmin(req: any, res: any): Promise<boolean> {
-  const authHeader = String(req.headers["authorization"] ?? "");
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-  if (!token) { res.status(401).json({ error: "Unauthorized" }); return false; }
-  try {
-    const decoded = Buffer.from(token, "base64").toString("utf8");
-    if (decoded.startsWith("admin-session:") || decoded.startsWith("kyc-admin-session:") || decoded.startsWith("sub-admin-session:")) return true;
-    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64").toString("utf8"));
-    if (payload?.role === "admin") return true;
-  } catch {}
+  const user = await getCurrentUser(req);
+  if (user?.role === "admin") return true;
+  const adminRole = adminRoleFromRequest(req);
+  if (adminRole === "master" || adminRole === "sub" || adminRole === "kyc") return true;
   res.status(403).json({ error: "Forbidden" }); return false;
 }
 

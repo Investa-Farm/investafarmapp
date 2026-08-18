@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, Link, useSearch } from "wouter";
-import { setToken, storeUser } from "@/lib/auth";
+import { setToken, storeUser, getToken } from "@/lib/auth";
 import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck, Smartphone, ArrowLeft, RefreshCw, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
@@ -56,10 +56,13 @@ export default function Login() {
     setResendLoading(true);
     setResendDone(false);
     try {
+      const token = getToken();
       await fetch("/api/auth/send-otp", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: verifyEmail }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
       setResendDone(true);
       setResendCooldown(60);
@@ -77,10 +80,13 @@ export default function Login() {
     if (quickResendLoading || quickResendDone) return;
     setQuickResendLoading(true);
     try {
+      const token = getToken();
       await fetch("/api/auth/send-otp", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: pendingEmail }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
       setQuickResendDone(true);
       setTimeout(() => setQuickResendDone(false), 8000);
@@ -223,7 +229,8 @@ export default function Login() {
         try {
           const tr = await fetch("/api/auth/totp/trust-device", {
             method: "POST",
-            headers: { Authorization: `Bearer ${d.token}` },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${d.token}` },
+            body: JSON.stringify({ code }),
           });
           const td = await tr.json();
           if (td.deviceToken) {

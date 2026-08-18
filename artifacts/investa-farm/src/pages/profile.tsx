@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useGetMe, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
-import { clearToken, formatKES, getToken, storeUser, getStoredUser } from "@/lib/auth";
+import { clearToken, formatKES, getToken, setToken, storeUser, getStoredUser } from "@/lib/auth";
 import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, RefreshCw, ArrowUpRight, Smartphone, KeyRound, Lock, Copy, Check as CheckIcon, MonitorSmartphone, Play, Film } from "lucide-react";
 import { getInstallPrompt, triggerInstall, isIosBrowser, isStandalone } from "@/lib/pwa";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
@@ -180,6 +180,7 @@ export default function Profile() {
       });
       if (!r.ok) { const d = await r.json(); setSettingsError(d.error ?? "Failed to save"); setSettingsSaving(false); return; }
       const updated = await r.json();
+      if (updated.token) setToken(updated.token);
       if (stored) storeUser({ ...stored, name: updated.name, country: updated.country });
       queryClient.invalidateQueries({ queryKey: ["me"] });
       setCurrentPw(""); setNewPw(""); setConfirmPw("");
@@ -260,7 +261,7 @@ export default function Profile() {
     { icon: Settings, label: "Account Settings", sublabel: "Name, country, password", action: () => { setSettingsName(user?.name ?? stored?.name ?? ""); setSettingsOpen(true); }, badge: null, badgeLabel: null },
     {
       icon: KeyRound, label: "Wallet PIN",
-      sublabel: pinStatus?.hasPin ? "4-digit PIN protects all transactions" : "Secure your wallet transactions",
+      sublabel: pinStatus?.hasPin ? "6-digit PIN protects all transactions" : "Secure your wallet transactions",
       action: () => setPinSetupOpen(true),
       badge: pinStatus?.hasPin ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700",
       badgeLabel: pinStatus?.hasPin ? "Active" : "Set Up",
@@ -386,7 +387,7 @@ export default function Profile() {
             <KeyRound size={20} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <div className="flex-1">
               <p className="font-semibold text-sm text-amber-700 dark:text-amber-300">Set Up Your Wallet PIN</p>
-              <p className="text-xs text-amber-600 dark:text-amber-400">Authorise transactions with a 4-digit PIN — tap to create yours</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">Authorise transactions with a 6-digit PIN — tap to create yours</p>
             </div>
             <ChevronRight size={15} className="text-amber-400" />
           </button>
@@ -617,7 +618,7 @@ export default function Profile() {
                         {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
                       </button>
                     </div>
-                    <input type={showPw ? "text" : "password"} placeholder="New password (min 6 chars)"
+                    <input type={showPw ? "text" : "password"} placeholder="New password (min 8 chars)"
                       value={newPw} onChange={e => setNewPw(e.target.value)}
                       className="w-full border border-border rounded-xl px-4 py-3 text-sm bg-background focus:outline-none focus:border-primary" />
                     <input type={showPw ? "text" : "password"} placeholder="Confirm new password"

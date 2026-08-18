@@ -1,17 +1,36 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
-import { createHmac, timingSafeEqual, randomBytes } from "crypto";
+import { randomBytes } from "crypto";
 import { db, usersTable, otpCodesTable, passwordResetTokensTable, walletsTable, notificationsTable, auditLogsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { z } from "zod";
 import { LoginBody } from "@workspace/api-zod";
 import { sendOtpEmail, sendWelcomeEmail, sendPasswordResetEmail } from "../lib/email";
 import { sendWelcomeSms, sendOtpSms } from "../lib/sms";
 import { authRateLimit, checkLockout, recordFailedAuth, recordSuccessfulAuth, getClientIp } from "../lib/security";
+import {
+  BCRYPT_ROUNDS,
+  MIN_PASSWORD_LENGTH,
+  allowlistPublicRole,
+  appPublicUrl,
+  consumeOauthTicket,
+  createOauthState,
+  generateOtp,
+  hashOpaqueToken,
+  isPasswordStrongEnough,
+  newResetToken,
+  parseOauthState,
+  passwordResetUrl,
+  signAuthToken,
+  signOauthTicket,
+  verifyAuthToken,
+  verifyToken as verifyTokenPurposes,
+  type TokenPurpose,
+} from "../lib/authTokens";
 
 const RegisterBody = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(MIN_PASSWORD_LENGTH),
   name: z.string().min(1),
   role: z.enum(["farmer", "investor", "cooperative", "agribusiness"]),
   phone: z.string().optional(),
@@ -33,45 +52,70 @@ const DEMO_EMAILS = new Set([
   "admin@investafarm.com",
   "grace.farmer@investafarm.com",
   "peter.farmer@investafarm.com",
+  "demo.agent@investafarm.com",
+  "demo.offtaker@investafarm.com",
+  "mwea.coop.ke@gmail.com",
 ]);
 
-const TOKEN_SECRET = process.env.SESSION_SECRET ?? "dev-secret-change-in-production";
-
-export function signToken(userId: number): string {
-  const payload = Buffer.from(JSON.stringify({ userId, iat: Date.now() })).toString("base64url");
-  const sig = createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
-  return `${payload}.${sig}`;
+export function signToken(
+  userId: number,
+  opts: { purpose?: TokenPurpose; ttlMs?: number; tokenVersion?: number } = {},
+): string {
+  return signAuthToken(userId, opts);
 }
 
 export function verifyToken(token: string): number | null {
-  try {
-    const dot = token.lastIndexOf(".");
-    if (dot === -1) return null;
-    const payload = token.slice(0, dot);
-    const sig = token.slice(dot + 1);
-    const expected = createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
-    const sigBuf = Buffer.from(sig);
-    const expBuf = Buffer.from(expected);
-    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) return null;
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-    return decoded.userId ?? null;
-  } catch {
-    return null;
-  }
+  return verifyTokenPurposes(token, ["full", "verify", "totp"]);
 }
 
-export async function getCurrentUser(req: { headers: { authorization?: string } }) {
+const userPublicSelect = {
+  id: usersTable.id,
+  email: usersTable.email,
+  name: usersTable.name,
+  role: usersTable.role,
+  emailVerified: usersTable.emailVerified,
+  tokenVersion: usersTable.tokenVersion,
+  phone: usersTable.phone,
+  county: usersTable.county,
+  country: usersTable.country,
+  metadata: usersTable.metadata,
+  avatarUrl: usersTable.avatarUrl,
+  bio: usersTable.bio,
+  createdAt: usersTable.createdAt,
+  totpEnabled: usersTable.totpEnabled,
+  creditLimitKES: usersTable.creditLimitKES,
+  maxDepositKES: usersTable.maxDepositKES,
+  maxWithdrawalKES: usersTable.maxWithdrawalKES,
+  accountNumber: usersTable.accountNumber,
+  oauthProviderId: usersTable.oauthProviderId,
+};
+
+export async function getCurrentUser(
+  req: { headers: { authorization?: string } },
+  opts: { allowUnverified?: boolean; purposes?: TokenPurpose[] } = {},
+) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return null;
-  const token = auth.slice(7);
-  const userId = verifyToken(token);
-  if (!userId) return null;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  return user ?? null;
+  const payload = verifyAuthToken(auth.slice(7));
+  if (!payload) return null;
+  const purposes = opts.purposes ?? ["full"];
+  if (!purposes.includes(payload.purpose)) return null;
+  const [user] = await db.select(userPublicSelect).from(usersTable).where(eq(usersTable.id, payload.userId));
+  if (!user) return null;
+  if ((user.tokenVersion ?? 0) !== payload.ver) return null;
+  if (!opts.allowUnverified && !user.emailVerified) return null;
+  return user;
 }
 
-function generateOtp(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+async function bumpTokenVersion(userId: number): Promise<void> {
+  await db.update(usersTable)
+    .set({ tokenVersion: sql`COALESCE(${usersTable.tokenVersion}, 0) + 1` })
+    .where(eq(usersTable.id, userId));
+}
+
+async function tokenVersionOf(userId: number): Promise<number> {
+  const [row] = await db.select({ tokenVersion: usersTable.tokenVersion }).from(usersTable).where(eq(usersTable.id, userId));
+  return row?.tokenVersion ?? 0;
 }
 
 router.post("/auth/register", authRateLimit, async (req, res): Promise<void> => {
@@ -105,7 +149,7 @@ router.post("/auth/register", authRateLimit, async (req, res): Promise<void> => 
     res.status(400).json({ error: "Email already registered" });
     return;
   }
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const isDemo = DEMO_EMAILS.has(email.toLowerCase());
   const [user] = await db.insert(usersTable).values({
     email, passwordHash, name, role,
@@ -114,7 +158,10 @@ router.post("/auth/register", authRateLimit, async (req, res): Promise<void> => 
     ...(isDemo ? { emailVerified: true } : {}),
     metadata: { authProvider: "email" },
   }).returning();
-  const token = signToken(user.id);
+  const token = signToken(user.id, {
+    purpose: isDemo ? "full" : "verify",
+    tokenVersion: user.tokenVersion ?? 0,
+  });
 
   // Create wallet for every new user
   const [existingWallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, user.id));
@@ -143,7 +190,7 @@ router.post("/auth/register", authRateLimit, async (req, res): Promise<void> => 
 
   const code = generateOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-  await db.insert(otpCodesTable).values({ userId: user.id, code, purpose: "email_verify", expiresAt });
+  await db.insert(otpCodesTable).values({ userId: user.id, code: hashOpaqueToken(code), purpose: "email_verify", expiresAt });
   sendOtpEmail(email, name, code).catch(() => {});
   if (phone) {
     sendWelcomeSms(phone, name).catch(() => {});
@@ -157,20 +204,30 @@ router.post("/auth/register", authRateLimit, async (req, res): Promise<void> => 
   });
 });
 
-router.post("/auth/send-otp", async (req, res): Promise<void> => {
-  const user = await getCurrentUser(req);
+router.post("/auth/send-otp", authRateLimit, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req, { allowUnverified: true, purposes: ["full", "verify"] });
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const code = generateOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-  await db.insert(otpCodesTable).values({ userId: user.id, code, purpose: "email_verify", expiresAt });
+  await db.insert(otpCodesTable).values({ userId: user.id, code: hashOpaqueToken(code), purpose: "email_verify", expiresAt });
   sendOtpEmail(user.email, user.name, code).catch(() => {});
   res.json({ message: "OTP sent", email: user.email });
 });
 
-router.patch("/auth/email", async (req, res): Promise<void> => {
-  const user = await getCurrentUser(req);
+router.patch("/auth/email", authRateLimit, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req, { allowUnverified: true, purposes: ["full", "verify"] });
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const { email } = req.body;
+  const { email, currentPassword } = req.body;
+  // Verified sessions must prove current password. Unverified onboarding may
+  // correct a mistyped email with the short-lived verify token only.
+  if (user.emailVerified) {
+    if (!currentPassword || typeof currentPassword !== "string") {
+      res.status(400).json({ error: "Current password is required to change email" }); return;
+    }
+    const [full] = await db.select({ passwordHash: usersTable.passwordHash }).from(usersTable).where(eq(usersTable.id, user.id));
+    const validPw = full ? await bcrypt.compare(currentPassword, full.passwordHash) : false;
+    if (!validPw) { res.status(400).json({ error: "Current password is incorrect" }); return; }
+  }
   if (!email || typeof email !== "string") { res.status(400).json({ error: "Email required" }); return; }
   const emailLower = email.toLowerCase().trim();
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, emailLower));
@@ -180,13 +237,13 @@ router.patch("/auth/email", async (req, res): Promise<void> => {
   await db.update(usersTable).set({ email: emailLower, emailVerified: false }).where(eq(usersTable.id, user.id));
   const code = generateOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-  await db.insert(otpCodesTable).values({ userId: user.id, code, purpose: "email_verify", expiresAt });
+  await db.insert(otpCodesTable).values({ userId: user.id, code: hashOpaqueToken(code), purpose: "email_verify", expiresAt });
   sendOtpEmail(emailLower, user.name, code).catch(() => {});
   res.json({ message: "Email updated. New code sent.", email: emailLower });
 });
 
-router.post("/auth/verify-otp", async (req, res): Promise<void> => {
-  const user = await getCurrentUser(req);
+router.post("/auth/verify-otp", authRateLimit, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req, { allowUnverified: true, purposes: ["full", "verify"] });
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { code } = req.body;
   if (!code) { res.status(400).json({ error: "Code required" }); return; }
@@ -198,7 +255,7 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
     .where(
       and(
         eq(otpCodesTable.userId, user.id),
-        eq(otpCodesTable.code, String(code)),
+        eq(otpCodesTable.code, hashOpaqueToken(String(code))),
         eq(otpCodesTable.used, false),
         eq(otpCodesTable.purpose, "email_verify"),
       )
@@ -215,8 +272,10 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
     sendWelcomeEmail(user.email, user.name, user.role).catch(() => {});
   }
 
+  const sessionToken = signToken(user.id, { purpose: "full", tokenVersion: user.tokenVersion ?? 0 });
   res.json({
     success: true,
+    token: sessionToken,
     user: { id: user.id, email: user.email, name: user.name, role: user.role, emailVerified: true },
   });
 });
@@ -281,9 +340,9 @@ router.post("/auth/login", authRateLimit, async (req, res): Promise<void> => {
     } else {
       const code = generateOtp();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-      await db.insert(otpCodesTable).values({ userId: user.id, code, purpose: "email_verify", expiresAt });
+      await db.insert(otpCodesTable).values({ userId: user.id, code: hashOpaqueToken(code), purpose: "email_verify", expiresAt });
       sendOtpEmail(user.email, user.name, code).catch(() => {});
-      const tempToken = signToken(user.id);
+      const tempToken = signToken(user.id, { purpose: "verify", tokenVersion: user.tokenVersion ?? 0 });
       res.status(403).json({
         error: "Please verify your email first. We've sent a new code to your inbox.",
         requiresOtp: true,
@@ -296,11 +355,11 @@ router.post("/auth/login", authRateLimit, async (req, res): Promise<void> => {
   }
   // TOTP 2FA: skip for demo accounts; for real users with TOTP enabled, issue a temp token and prompt 2FA
   if (user.totpEnabled && user.totpSecret && !DEMO_EMAILS.has(email)) {
-    const tempToken = signToken(user.id);
+    const tempToken = signToken(user.id, { purpose: "totp", tokenVersion: user.tokenVersion ?? 0 });
     res.json({ totpRequired: true, tempToken, email: user.email });
     return;
   }
-  const token = signToken(user.id);
+  const token = signToken(user.id, { purpose: "full", tokenVersion: user.tokenVersion ?? 0 });
 
   // Write login audit log (non-blocking)
   db.insert(auditLogsTable).values({
@@ -319,7 +378,7 @@ router.post("/auth/login", authRateLimit, async (req, res): Promise<void> => {
   });
 });
 
-router.post("/auth/forgot-password", async (req, res): Promise<void> => {
+router.post("/auth/forgot-password", authRateLimit, async (req, res): Promise<void> => {
   const { email: rawEmail } = req.body;
   if (!rawEmail || typeof rawEmail !== "string") {
     res.status(400).json({ error: "Email required" }); return;
@@ -329,56 +388,53 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   // Always return success to not reveal whether email exists
   if (!user) { res.json({ message: "If that email exists, a reset link has been sent." }); return; }
 
-  const token = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-  await db.insert(passwordResetTokensTable).values({ userId: user.id, token, expiresAt });
+  const { raw, hash } = newResetToken();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  await db.insert(passwordResetTokensTable).values({ userId: user.id, token: hash, expiresAt });
 
-  const origin = req.get("origin") ?? `https://${req.get("host")}`;
-  const resetUrl = `${origin}/reset-password?token=${token}`;
+  const resetUrl = passwordResetUrl(raw);
   sendPasswordResetEmail(email, user.name, resetUrl).catch(() => {});
 
   res.json({ message: "If that email exists, a reset link has been sent." });
 });
 
-router.post("/auth/reset-password", async (req, res): Promise<void> => {
+router.post("/auth/reset-password", authRateLimit, async (req, res): Promise<void> => {
   const { token, password } = req.body;
   if (!token || !password || typeof token !== "string" || typeof password !== "string") {
     res.status(400).json({ error: "Token and new password are required" }); return;
   }
-  if (password.length < 6) {
-    res.status(400).json({ error: "Password must be at least 6 characters" }); return;
+  if (!isPasswordStrongEnough(password)) {
+    res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` }); return;
   }
 
   const now = new Date();
   const [record] = await db.select().from(passwordResetTokensTable)
     .where(and(
-      eq(passwordResetTokensTable.token, token),
+      eq(passwordResetTokensTable.token, hashOpaqueToken(token)),
       eq(passwordResetTokensTable.used, false),
     )).limit(1);
 
   if (!record) { res.status(400).json({ error: "Invalid or expired reset link." }); return; }
   if (record.expiresAt < now) { res.status(400).json({ error: "This reset link has expired. Please request a new one." }); return; }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, record.userId));
+  await bumpTokenVersion(record.userId);
   await db.update(passwordResetTokensTable).set({ used: true }).where(eq(passwordResetTokensTable.id, record.id));
 
   res.json({ message: "Password reset successfully. You can now log in." });
 });
 
-router.post("/auth/logout", async (_req, res): Promise<void> => {
+router.post("/auth/logout", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req, { allowUnverified: true, purposes: ["full", "verify", "totp"] });
+  if (user) await bumpTokenVersion(user.id);
   res.json({ message: "Logged out" });
 });
 
 // ─── OAUTH HELPERS ────────────────────────────────────────────────────────────
 
 function getAppUrl(): string {
-  const raw =
-    process.env.APP_URL ??
-    (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://localhost:8080");
-  // Strip any trailing slash so callback URLs like /api/auth/google/callback
-  // are never doubled (https://app.investafarm.com//api/...)
-  return raw.replace(/\/+$/, "");
+  return appPublicUrl();
 }
 
 async function findOrCreateOAuthUser(
@@ -388,26 +444,24 @@ async function findOrCreateOAuthUser(
   provider: "google" | "linkedin",
   opts: { providerId?: string; avatarUrl?: string } = {},
 ) {
+  const role = allowlistPublicRole(defaultRole);
   let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   let isNew = false;
 
   if (!user) {
     isNew = true;
-    // Brand new user — create and tag with the OAuth provider
     [user] = await db.insert(usersTable).values({
       email,
       name,
-      passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), 10),
-      role: (defaultRole as "farmer" | "investor" | "cooperative" | "agribusiness"),
+      passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), BCRYPT_ROUNDS),
+      role,
       emailVerified: true,
       metadata: { authProvider: provider },
       ...(opts.avatarUrl ? { avatarUrl: opts.avatarUrl } : {}),
       ...(opts.providerId ? { oauthProviderId: `${provider}:${opts.providerId}` } : {}),
     }).returning();
-    // Create wallet for new OAuth user
     await db.insert(walletsTable).values({ userId: user.id, balance: "0", currency: "KES" }).catch(() => {});
-    // Send welcome email (non-blocking)
-    sendWelcomeEmail(email, name, defaultRole).catch(() => {});
+    sendWelcomeEmail(email, name, role).catch(() => {});
   } else {
     // Existing user — check for auth provider conflict
     const existingProvider = (user.metadata as Record<string, unknown> | null)?.authProvider as string | undefined;
@@ -433,14 +487,10 @@ async function findOrCreateOAuthUser(
   return { user, isNew };
 }
 
-function oauthRedirect(res: any, user: Awaited<ReturnType<typeof findOrCreateOAuthUser>>["user"], isNew: boolean) {
-  const token = signToken(user.id);
-  const userJson = encodeURIComponent(JSON.stringify({
-    id: user.id, email: user.email, name: user.name,
-    role: user.role, emailVerified: true,
-  }));
+function oauthRedirect(res: { redirect: (url: string) => void }, user: Awaited<ReturnType<typeof findOrCreateOAuthUser>>["user"], isNew: boolean) {
+  const ticket = signOauthTicket(user.id, isNew);
   const appUrl = getAppUrl();
-  res.redirect(`${appUrl}/auth-callback?token=${token}&user=${userJson}&is_new=${isNew ? "1" : "0"}`);
+  res.redirect(`${appUrl}/auth-callback?ticket=${encodeURIComponent(ticket)}&is_new=${isNew ? "1" : "0"}`);
 }
 
 // ─── GOOGLE OAUTH ─────────────────────────────────────────────────────────────
@@ -448,7 +498,7 @@ function oauthRedirect(res: any, user: Awaited<ReturnType<typeof findOrCreateOAu
 router.get("/auth/google", (req, res): void => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) { res.status(503).json({ error: "Google OAuth not configured" }); return; }
-  const role = String((req.query as Record<string, string>).role ?? "investor");
+  const state = createOauthState((req.query as Record<string, string>).role);
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: `${getAppUrl()}/api/auth/google/callback`,
@@ -456,7 +506,7 @@ router.get("/auth/google", (req, res): void => {
     scope: "openid email profile",
     access_type: "offline",
     prompt: "select_account",
-    state: role,
+    state,
   });
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 });
@@ -464,9 +514,14 @@ router.get("/auth/google", (req, res): void => {
 router.get("/auth/google/callback", async (req, res): Promise<void> => {
   const { code, error, state } = req.query as Record<string, string>;
   const appUrl = getAppUrl();
-  const loginPath = (state === "farmer" || state === "cooperative") ? "/farmer-auth" : "/investor-auth";
+  const parsedState = parseOauthState(state);
+  const role = parsedState?.role ?? "investor";
+  const loginPath = (role === "farmer" || role === "cooperative") ? "/farmer-auth" : "/investor-auth";
   if (error || !code) {
     res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(error ?? "cancelled")}&login_path=${encodeURIComponent(loginPath)}`); return;
+  }
+  if (!parsedState) {
+    res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent("Invalid OAuth state")}&login_path=${encodeURIComponent(loginPath)}`); return;
   }
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID!;
@@ -489,7 +544,6 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
 
     const email = (profile.email as string).toLowerCase().trim();
     const name = (profile.name ?? profile.given_name ?? email.split("@")[0]) as string;
-    const role = state ?? "investor";
 
     const { user, isNew } = await findOrCreateOAuthUser(email, name, role, "google", {
       providerId: profile.sub as string | undefined,
@@ -511,13 +565,13 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
 router.get("/auth/linkedin", (req, res): void => {
   const clientId = process.env.LINKEDIN_CLIENT_ID;
   if (!clientId) { res.status(503).json({ error: "LinkedIn OAuth not configured" }); return; }
-  const role = String((req.query as Record<string, string>).role ?? "investor");
+  const state = createOauthState((req.query as Record<string, string>).role);
   const params = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
     redirect_uri: `${getAppUrl()}/api/auth/linkedin/callback`,
     scope: "openid profile email",
-    state: role,
+    state,
   });
   res.redirect(`https://www.linkedin.com/oauth/v2/authorization?${params}`);
 });
@@ -525,9 +579,14 @@ router.get("/auth/linkedin", (req, res): void => {
 router.get("/auth/linkedin/callback", async (req, res): Promise<void> => {
   const { code, error, state } = req.query as Record<string, string>;
   const appUrl = getAppUrl();
-  const loginPath = (state === "farmer" || state === "cooperative") ? "/farmer-auth" : "/investor-auth";
+  const parsedState = parseOauthState(state);
+  const role = parsedState?.role ?? "investor";
+  const loginPath = (role === "farmer" || role === "cooperative") ? "/farmer-auth" : "/investor-auth";
   if (error || !code) {
     res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(error ?? "cancelled")}&login_path=${encodeURIComponent(loginPath)}`); return;
+  }
+  if (!parsedState) {
+    res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent("Invalid OAuth state")}&login_path=${encodeURIComponent(loginPath)}`); return;
   }
   try {
     const clientId = process.env.LINKEDIN_CLIENT_ID!;
@@ -550,7 +609,6 @@ router.get("/auth/linkedin/callback", async (req, res): Promise<void> => {
 
     const email = (profile.email as string).toLowerCase().trim();
     const name = (profile.name ?? profile.given_name ?? email.split("@")[0]) as string;
-    const role = state ?? "investor";
 
     const { user, isNew } = await findOrCreateOAuthUser(email, name, role, "linkedin", {
       providerId: profile.sub as string | undefined,
@@ -567,8 +625,39 @@ router.get("/auth/linkedin/callback", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/auth/oauth/exchange", authRateLimit, async (req, res): Promise<void> => {
+  const ticket = req.body?.ticket;
+  if (!ticket || typeof ticket !== "string") {
+    res.status(400).json({ error: "ticket required" });
+    return;
+  }
+  const consumed = consumeOauthTicket(ticket);
+  if (!consumed) {
+    res.status(401).json({ error: "Invalid or expired OAuth ticket" });
+    return;
+  }
+  const [user] = await db.select(userPublicSelect).from(usersTable).where(eq(usersTable.id, consumed.userId));
+  if (!user) {
+    res.status(401).json({ error: "User not found" });
+    return;
+  }
+  const token = signToken(user.id, { purpose: "full", tokenVersion: user.tokenVersion ?? 0 });
+  res.json({
+    token,
+    isNew: consumed.isNew,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      emailVerified: true,
+      createdAt: user.createdAt.toISOString(),
+    },
+  });
+});
+
 router.get("/auth/me", async (req, res): Promise<void> => {
-  const user = await getCurrentUser(req);
+  const user = await getCurrentUser(req, { allowUnverified: true, purposes: ["full", "verify"] });
   if (!user) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -602,7 +691,7 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
     bio: z.string().max(300).optional(),
     avatarUrl: z.string().url().optional(),
     currentPassword: z.string().optional(),
-    newPassword: z.string().min(6).optional(),
+    newPassword: z.string().min(MIN_PASSWORD_LENGTH).optional(),
   });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
@@ -617,17 +706,25 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
   if (bio !== undefined) updates.bio = bio;
   if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
 
-  if (currentPassword && newPassword) {
-    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  let rotatedToken: string | undefined;
+  if (newPassword) {
+    if (!currentPassword) { res.status(400).json({ error: "Current password is required to change password" }); return; }
+    const [full] = await db.select({ passwordHash: usersTable.passwordHash }).from(usersTable).where(eq(usersTable.id, user.id));
+    const valid = full ? await bcrypt.compare(currentPassword, full.passwordHash) : false;
     if (!valid) { res.status(400).json({ error: "Current password is incorrect" }); return; }
-    updates.passwordHash = await bcrypt.hash(newPassword, 10);
+    updates.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
   }
 
   if (Object.keys(updates).length > 0) {
     await db.update(usersTable).set(updates).where(eq(usersTable.id, user.id));
   }
+  if (newPassword) {
+    await bumpTokenVersion(user.id);
+    const ver = await tokenVersionOf(user.id);
+    rotatedToken = signToken(user.id, { purpose: "full", tokenVersion: ver });
+  }
 
-  const [updated] = await db.select().from(usersTable).where(eq(usersTable.id, user.id));
+  const [updated] = await db.select(userPublicSelect).from(usersTable).where(eq(usersTable.id, user.id));
   res.json({
     id: updated.id,
     name: updated.name,
@@ -638,6 +735,7 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
     country: updated.country,
     avatarUrl: (updated as any).avatarUrl ?? null,
     bio: (updated as any).bio ?? null,
+    ...(rotatedToken ? { token: rotatedToken } : {}),
   });
 });
 

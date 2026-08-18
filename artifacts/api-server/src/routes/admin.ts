@@ -1,7 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, notInArray, inArray, and, count, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
-import { createHmac, timingSafeEqual } from "crypto";
 import { db, pool, usersTable, farmsTable, loanApplicationsTable, kycDocumentsTable, investmentsTable, notificationsTable, walletTransactionsTable, marketListingsTable, farmUpdatesTable, transactionsTable, dividendsTable, walletsTable, priceAlertsTable, pushSubscriptionsTable, orderBookTable, watchlistTable, stellarAccountsTable, reinvestmentRulesTable, otpCodesTable, passwordResetTokensTable, escrowWalletsTable, adminMessagesTable, auditLogsTable, harvestPaymentsTable, portfolioHoldingsTable, platformRevenueTable, transactionFeesTable, supportTicketsTable } from "@workspace/db";
 import { getCurrentUser } from "./auth";
 import { sendKycApprovedEmail, sendKycRejectedEmail, sendGenericEmail, sendSubAdminWelcomeEmail } from "../lib/email";
@@ -9,43 +8,18 @@ import { sendPushToUser, createInAppNotification, notifyUser } from "../lib/push
 import { creditWallet } from "../lib/walletOps";
 import { triggerFarmHarvest } from "../scheduler";
 import { loadSettings, saveSettings, type PlatformSettings } from "../lib/platformSettings";
+import { authRateLimit } from "../lib/security";
+import { signAdminToken, verifyAdminToken, type AdminRole } from "../lib/adminAuth";
+import { BCRYPT_ROUNDS } from "../lib/authTokens";
 
 const router: IRouter = Router();
-
-// ── Admin token helpers (HMAC-signed, not plain base64) ───────────────────────
-const ADMIN_SECRET = process.env.SESSION_SECRET ?? "dev-secret-change-in-production";
-
-type AdminRole = "master" | "sub" | "kyc" | "viewer";
-
-function signAdminToken(role: AdminRole): string {
-  const payload = Buffer.from(JSON.stringify({ role, iat: Date.now() })).toString("base64url");
-  const sig = createHmac("sha256", ADMIN_SECRET).update(`admin:${payload}`).digest("base64url");
-  return `${payload}.${sig}`;
-}
-
-function verifyAdminToken(token: string): AdminRole | null {
-  try {
-    const dot = token.lastIndexOf(".");
-    if (dot === -1) return null;
-    const payload = token.slice(0, dot);
-    const sig = token.slice(dot + 1);
-    const expected = createHmac("sha256", ADMIN_SECRET).update(`admin:${payload}`).digest("base64url");
-    const sigBuf = Buffer.from(sig);
-    const expBuf = Buffer.from(expected);
-    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) return null;
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-    return decoded.role ?? null;
-  } catch {
-    return null;
-  }
-}
 
 async function requireAdmin(req: any, res: any, allowViewer = false): Promise<boolean> {
   // Accept regular Bearer JWT from an admin-role user
   const user = await getCurrentUser(req);
   if (user && user.role === "admin") return true;
 
-  // Also accept HMAC-signed admin session tokens
+  // Also accept HMAC-signed admin session tokens (with expiry)
   const auth: string = req.headers["authorization"] ?? "";
   if (auth.startsWith("Bearer ")) {
     const tok = auth.slice(7);
@@ -58,33 +32,32 @@ async function requireAdmin(req: any, res: any, allowViewer = false): Promise<bo
   return false;
 }
 
-router.post("/admin/login", async (req, res): Promise<void> => {
+router.post("/admin/login", authRateLimit, async (req, res): Promise<void> => {
   const { email, password } = req.body ?? {};
+  if (!email || !password) {
+    res.status(400).json({ error: "Email and password are required" });
+    return;
+  }
 
-  // 1. Master password check (env var, with dev fallback)
-  const masterPass = process.env["ADMIN_PASSWORD"] ?? "admin2024!";
-  if (password && !email && password === masterPass) {
+  const emailLower = String(email).toLowerCase().trim();
+  const masterEmail = (process.env["ADMIN_EMAIL"] ?? "").toLowerCase().trim();
+  const masterPass = process.env["ADMIN_PASSWORD"];
+  if (masterEmail && masterPass && emailLower === masterEmail && password === masterPass) {
     res.json({ ok: true, token: signAdminToken("master"), isMaster: true });
     return;
   }
 
-  // 2. Individual admin user check (email + bcrypt password) → full master access
-  // Also handles viewer/sub-admin accounts so they can log in from the same page
-  if (email && password) {
-    const bcrypt = await import("bcrypt");
-    const emailLower = String(email).toLowerCase().trim();
-    const [user] = await db.select().from(usersTable).where(sql`LOWER(${usersTable.email}) = ${emailLower}`);
-    if (user) {
-      const valid = await bcrypt.compare(password, user.passwordHash);
-      if (valid) {
-        if (user.role === "admin") {
-          res.json({ ok: true, token: signAdminToken("master"), name: user.name, isMaster: true });
-          return;
-        }
-        if ((user.role as string) === "viewer") {
-          res.json({ ok: true, token: signAdminToken("viewer"), name: user.name, isViewer: true });
-          return;
-        }
+  const [user] = await db.select().from(usersTable).where(sql`LOWER(${usersTable.email}) = ${emailLower}`);
+  if (user) {
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (valid) {
+      if (user.role === "admin") {
+        res.json({ ok: true, token: signAdminToken("master"), name: user.name, isMaster: true });
+        return;
+      }
+      if ((user.role as string) === "viewer") {
+        res.json({ ok: true, token: signAdminToken("viewer"), name: user.name, isViewer: true });
+        return;
       }
     }
   }
@@ -93,14 +66,13 @@ router.post("/admin/login", async (req, res): Promise<void> => {
 });
 
 // Viewer sub-admin login — read-only dashboard access
-router.post("/admin/login-viewer", async (req, res): Promise<void> => {
+router.post("/admin/login-viewer", authRateLimit, async (req, res): Promise<void> => {
   const { email, password } = req.body ?? {};
   if (!email || !password) {
     res.status(400).json({ error: "Email and password are required" });
     return;
   }
   const emailLower = String(email).toLowerCase().trim();
-  const bcrypt = await import("bcrypt");
   const [user] = await db.select().from(usersTable).where(sql`LOWER(${usersTable.email}) = ${emailLower}`);
   if (!user || (user.role !== "viewer" as any && user.role !== "admin")) {
     res.status(401).json({ error: "Invalid credentials" });
@@ -115,16 +87,21 @@ router.post("/admin/login-viewer", async (req, res): Promise<void> => {
   res.json({ ok: true, token: signAdminToken(role), name: user.name, isViewer: role === "viewer", isMaster: role === "master" });
 });
 
-// KYC-only sub-admin login — limited to KYC tab access
-router.post("/admin/login-kyc", async (req, res): Promise<void> => {
-  const { password } = req.body ?? {};
+// KYC-only sub-admin login — requires dedicated email + password env vars (no shared password-only login)
+router.post("/admin/login-kyc", authRateLimit, async (req, res): Promise<void> => {
+  const { email, password } = req.body ?? {};
+  const kycEmail = (process.env["KYC_ADMIN_EMAIL"] ?? "").toLowerCase().trim();
   const kycPass = process.env["KYC_ADMIN_PASSWORD"];
-  if (!kycPass) {
+  if (!kycEmail || !kycPass) {
     res.status(503).json({ error: "KYC admin access not configured" });
     return;
   }
-  if (password !== kycPass) {
-    res.status(401).json({ error: "Invalid KYC admin password" });
+  if (!email || !password) {
+    res.status(400).json({ error: "Email and password are required" });
+    return;
+  }
+  if (String(email).toLowerCase().trim() !== kycEmail || password !== kycPass) {
+    res.status(401).json({ error: "Invalid KYC admin credentials" });
     return;
   }
   res.json({ ok: true, token: signAdminToken("kyc"), kycOnly: true });
@@ -162,8 +139,7 @@ router.post("/admin/create-admin", async (req, res): Promise<void> => {
     res.status(409).json({ error: "A user with that email already exists" });
     return;
   }
-  const bcrypt = await import("bcrypt");
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const [created] = await db.insert(usersTable)
     .values({ email, passwordHash, name, role: "admin", emailVerified: true })
     .returning({ id: usersTable.id });
@@ -179,8 +155,8 @@ router.post("/admin/create-sub-admin", async (req, res): Promise<void> => {
     res.status(400).json({ error: "name, email and password are required" });
     return;
   }
-  if (password.length < 6) {
-    res.status(400).json({ error: "Password must be at least 6 characters" });
+  if (password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" });
     return;
   }
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
@@ -188,8 +164,7 @@ router.post("/admin/create-sub-admin", async (req, res): Promise<void> => {
     res.status(409).json({ error: "A user with that email already exists" });
     return;
   }
-  const bcrypt = await import("bcrypt");
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const [created] = await db.insert(usersTable)
     .values({ email, passwordHash, name, role: "viewer" as any, emailVerified: true })
     .returning({ id: usersTable.id });

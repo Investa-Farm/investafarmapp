@@ -18,7 +18,7 @@ export default function ResetPassword() {
     e.preventDefault();
     setError("");
     if (password !== confirm) { setError("Passwords do not match."); return; }
-    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/reset-password", {
@@ -92,9 +92,9 @@ export default function ResetPassword() {
                     type={showPw ? "text" : "password"}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="At least 6 characters"
+                    placeholder="At least 8 characters"
                     required
-                    minLength={6}
+                    minLength={8}
                     className="w-full pl-10 pr-10 py-3 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                   />
                   <button type="button" onClick={() => setShowPw(s => !s)}

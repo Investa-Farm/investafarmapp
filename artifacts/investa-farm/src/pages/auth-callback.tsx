@@ -1,6 +1,6 @@
 /**
  * OAuth Callback Page
- * Reads token + user from URL params after Google/LinkedIn OAuth redirect.
+ * Exchanges a one-time OAuth ticket for a session token (token is never put in the URL).
  * - Existing users → redirect to their dashboard
  * - New users (is_new=1) → show a welcome screen before redirecting
  * - Errors → show friendly conflict / failure messages
@@ -165,35 +165,38 @@ export default function AuthCallback() {
       return;
     }
 
-    const token = params.get("token");
-    const userRaw = params.get("user");
-    const isNew = params.get("is_new") === "1";
+    const ticket = params.get("ticket");
+    const isNewParam = params.get("is_new") === "1";
 
-    if (!token || !userRaw) {
+    if (!ticket) {
       setState({ kind: "error", message: "Invalid authentication response. Redirecting…", loginPath });
       setTimeout(() => setLocation(loginPath), 2500);
       return;
     }
 
-    try {
-      const user = JSON.parse(decodeURIComponent(userRaw));
-      setToken(token);
-      storeUser(user);
-      window.history.replaceState({}, "", "/auth-callback");
+    window.history.replaceState({}, "", "/auth-callback");
 
-      const destination = getRoleHome(user.role);
-
-      if (isNew) {
-        // New user — show welcome screen first, then redirect
-        setState({ kind: "welcome", user, destination });
-      } else {
-        // Returning user — go straight to dashboard
-        setLocation(destination);
-      }
-    } catch {
-      setState({ kind: "error", message: "Failed to complete sign-in. Please try again.", loginPath });
-      setTimeout(() => setLocation(loginPath), 2500);
-    }
+    fetch("/api/auth/oauth/exchange", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticket }),
+    })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok || !d.token || !d.user) throw new Error(d.error ?? "Failed to complete sign-in");
+        setToken(d.token);
+        storeUser(d.user);
+        const destination = getRoleHome(d.user.role);
+        if (d.isNew || isNewParam) {
+          setState({ kind: "welcome", user: d.user, destination });
+        } else {
+          setLocation(destination);
+        }
+      })
+      .catch((err) => {
+        setState({ kind: "error", message: (err as Error).message || "Failed to complete sign-in. Please try again.", loginPath });
+        setTimeout(() => setLocation(loginPath), 2500);
+      });
   }, [setLocation]);
 
   if (state.kind === "conflict") {

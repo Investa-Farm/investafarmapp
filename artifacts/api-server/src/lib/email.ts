@@ -726,7 +726,7 @@ export async function sendFirstInvestmentEmail(
 export async function sendPasswordResetEmail(to: string, name: string, resetUrl: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
-    console.log(`[EMAIL] Password reset for ${to}: ${resetUrl} (SMTP not configured)`);
+    console.log(`[EMAIL] Password reset requested (SMTP not configured)`);
     return;
   }
 
@@ -766,7 +766,7 @@ export async function sendPasswordResetEmail(to: string, name: string, resetUrl:
 export async function sendOtpEmail(to: string, name: string, code: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
-    console.log(`[EMAIL] OTP for ${to}: ${code} (SMTP not configured)`);
+    console.log(`[EMAIL] OTP requested (SMTP not configured)`);
     return;
   }
 

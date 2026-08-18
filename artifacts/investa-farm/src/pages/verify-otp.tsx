@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, PartyPopper, Mail, MessageCircle, Pencil, X, ArrowLeft, Smartphone, KeyRound } from "lucide-react";
-import { getToken, getStoredUser, storeUser, clearToken } from "@/lib/auth";
+import { getToken, getStoredUser, storeUser, setToken } from "@/lib/auth";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
 const WHATSAPP_COMMUNITY = "https://chat.whatsapp.com/BWfnSpL4GTl0EsFpuPMKOK";
@@ -95,25 +95,23 @@ export default function VerifyOtp() {
     if (fullCode.length !== 6) { setError("Enter the complete 6-digit code"); return; }
     setLoading(true); setError("");
     try {
-      const endpoint = mode === "totp"
-        ? "/api/auth/totp/verify-email"
-        : "/api/auth/verify-otp";
-
-      const r = await fetch(endpoint, {
+      const r = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ code: fullCode }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Verification failed");
-      if (user) storeUser({ ...user, emailVerified: true } as typeof user & { emailVerified: boolean });
+      if (d.token) setToken(d.token);
+      if (d.user) storeUser({ ...d.user, emailVerified: true });
+      else if (user) storeUser({ ...user, emailVerified: true } as typeof user & { emailVerified: boolean });
       setDone(true);
       setTimeout(() => {
-        const role = user?.role;
-        clearToken();
-        if (role === "farmer") setLocation("/farmer-auth?registered=1");
-        else if (role === "cooperative") setLocation("/cooperative-auth?registered=1");
-        else setLocation("/login?registered=1");
+        const role = d.user?.role ?? user?.role;
+        if (role === "farmer") setLocation("/farmer");
+        else if (role === "cooperative") setLocation("/cooperative/dashboard");
+        else if (role === "agribusiness") setLocation("/agribusiness");
+        else setLocation("/market");
       }, 2500);
     } catch (err) {
       setError((err as Error).message);

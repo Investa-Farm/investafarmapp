@@ -171,15 +171,9 @@ function AuthGuard({ children, role }: { children: React.ReactNode; role?: AppRo
   if (!token) return <Redirect to="/login" />;
 
   const emailVerified = (user as any)?.emailVerified;
-  const createdAt = (user as any)?.createdAt as string | undefined;
-
-  // Hard-block only after 7-day grace period
-  if (emailVerified === false && createdAt) {
-    const daysSince = (Date.now() - new Date(createdAt).getTime()) / 86_400_000;
-    if (daysSince >= 7) {
-      const email = encodeURIComponent((user as any)?.email ?? "");
-      return <Redirect to={`/verify-otp?email=${email}`} />;
-    }
+  if (emailVerified === false) {
+    const email = encodeURIComponent((user as any)?.email ?? "");
+    return <Redirect to={`/verify-otp?email=${email}`} />;
   }
 
   const userRole = (user as any)?.role as string | undefined;
@@ -194,20 +188,17 @@ function AuthGuard({ children, role }: { children: React.ReactNode; role?: AppRo
     }
     return <Redirect to="/market" />;
   }
-  return (
-    <>
-      {emailVerified === false && (
-        <VerifyBanner email={(user as any)?.email} createdAt={createdAt} />
-      )}
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }
 
 function GuestGuard({ children }: { children: React.ReactNode }) {
   const token = getToken();
   const user = getStoredUser();
   const userRole = (user as any)?.role as string | undefined;
+  if (token && (user as any)?.emailVerified === false) {
+    const email = encodeURIComponent((user as any)?.email ?? "");
+    return <Redirect to={`/verify-otp?email=${email}`} />;
+  }
   if (token && userRole) {
     if (userRole === "farmer") return <Redirect to="/farmer" />;
     if (userRole === "cooperative") return <Redirect to="/cooperative/dashboard" />;
