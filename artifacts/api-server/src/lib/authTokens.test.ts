@@ -14,6 +14,8 @@ import {
   encryptAtRest,
   generateOtp,
   isPasswordStrongEnough,
+  oauthLoginPath,
+  oauthPortalMismatch,
   parseOauthState,
   signAuthToken,
   signOauthTicket,
@@ -28,6 +30,15 @@ afterEach(() => {
   process.env.NODE_ENV = "test";
   process.env.SESSION_SECRET = "unit-test-session-secret-at-least-32-chars!!";
   delete process.env.ADMIN_PASSWORD;
+});
+
+test("oauthPortalMismatch blocks farmer login with an investor Google account", () => {
+  assert.equal(oauthPortalMismatch("farmer", "investor"), "investor");
+  assert.equal(oauthPortalMismatch("investor", "farmer"), "farmer");
+  assert.equal(oauthPortalMismatch("farmer", "farmer"), null);
+  assert.equal(oauthPortalMismatch("investor", "investor"), null);
+  assert.equal(oauthLoginPath("farmer"), "/farmer-auth");
+  assert.equal(oauthLoginPath("investor"), "/investor-auth");
 });
 
 test("allowlistPublicRole maps admin (and unknown) to investor", () => {

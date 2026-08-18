@@ -11,7 +11,8 @@ import { Loader2, CheckCircle2 } from "lucide-react";
 import { setToken, storeUser } from "@/lib/auth";
 
 function getRoleHome(role: string): string {
-  if (role === "farmer" || role === "cooperative") return "/farmer/dashboard";
+  if (role === "farmer") return "/farmer";
+  if (role === "cooperative") return "/cooperative/dashboard";
   if (role === "agribusiness") return "/agribusiness/dashboard";
   return "/market";
 }
@@ -29,13 +30,25 @@ const PROVIDER_COLORS: Record<string, string> = {
 };
 
 /* ── Conflict screen ───────────────────────────────────────────── */
-function ConflictView({ conflictProvider, loginPath }: { conflictProvider: string; loginPath: string }) {
+function ConflictView({
+  conflictProvider,
+  conflictRole,
+  loginPath,
+}: {
+  conflictProvider?: string;
+  conflictRole?: string;
+  loginPath: string;
+}) {
   const [, setLocation] = useLocation();
-  const label = PROVIDER_LABELS[conflictProvider] ?? conflictProvider;
-  const color = PROVIDER_COLORS[conflictProvider] ?? "#374151";
+  const roleLabel = conflictRole
+    ? conflictRole.charAt(0).toUpperCase() + conflictRole.slice(1)
+    : null;
+  const label = conflictProvider ? (PROVIDER_LABELS[conflictProvider] ?? conflictProvider) : "this account";
+  const color = conflictProvider ? (PROVIDER_COLORS[conflictProvider] ?? "#374151") : "#16a34a";
 
-  const message =
-    conflictProvider === "email"
+  const message = conflictRole
+    ? `This Google or LinkedIn email is already registered as a ${roleLabel}. Sign in from the ${roleLabel} page instead — one email cannot be both a farmer and an investor.`
+    : conflictProvider === "email"
       ? "This email is already registered with an email and password. Please sign in with your email instead."
       : `This email is already registered with ${label}. Please sign in with ${label} instead.`;
 
@@ -139,24 +152,50 @@ function NewUserWelcome({ user, destination }: { user: { name: string; email: st
 }
 
 /* ── Main component ────────────────────────────────────────────── */
+const TICKET_KEY = "investa_oauth_ticket";
+const RESULT_KEY = "investa_oauth_result";
+const LOGIN_PATH_KEY = "investa_oauth_login_path";
+const EXCHANGING_KEY = "investa_oauth_exchanging";
+
 export default function AuthCallback() {
   const [, setLocation] = useLocation();
   const [state, setState] = useState<
     | { kind: "loading" }
     | { kind: "welcome"; user: { name: string; email: string; role: string }; destination: string }
-    | { kind: "conflict"; conflictProvider: string; loginPath: string }
+    | { kind: "conflict"; conflictProvider?: string; conflictRole?: string; loginPath: string }
     | { kind: "error"; message: string; loginPath: string }
   >({ kind: "loading" });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const loginPath = decodeURIComponent(params.get("login_path") ?? "/investor-auth");
+    const loginPath = decodeURIComponent(
+      params.get("login_path") ?? sessionStorage.getItem(LOGIN_PATH_KEY) ?? "/investor-auth",
+    );
+    if (params.get("login_path")) sessionStorage.setItem(LOGIN_PATH_KEY, loginPath);
 
-    // Error cases
+    const finish = (d: { token: string; user: { name: string; email: string; role: string }; isNew?: boolean }, isNewParam: boolean) => {
+      setToken(d.token);
+      storeUser(d.user);
+      sessionStorage.removeItem(TICKET_KEY);
+      sessionStorage.removeItem(RESULT_KEY);
+      sessionStorage.removeItem(EXCHANGING_KEY);
+      const destination = getRoleHome(d.user.role);
+      if (d.isNew || isNewParam) {
+        setState({ kind: "welcome", user: d.user, destination });
+      } else {
+        setLocation(destination);
+      }
+    };
+
     const oauthError = params.get("oauth_error");
     if (oauthError) {
+      sessionStorage.removeItem(TICKET_KEY);
+      sessionStorage.removeItem(RESULT_KEY);
+      sessionStorage.removeItem(EXCHANGING_KEY);
       const decoded = decodeURIComponent(oauthError);
-      if (decoded.startsWith("conflict:")) {
+      if (decoded.startsWith("conflict:role:")) {
+        setState({ kind: "conflict", conflictRole: decoded.slice("conflict:role:".length), loginPath });
+      } else if (decoded.startsWith("conflict:")) {
         setState({ kind: "conflict", conflictProvider: decoded.slice("conflict:".length), loginPath });
       } else {
         setState({ kind: "error", message: decoded, loginPath });
@@ -165,16 +204,46 @@ export default function AuthCallback() {
       return;
     }
 
-    const ticket = params.get("ticket");
     const isNewParam = params.get("is_new") === "1";
 
+    try {
+      const cached = sessionStorage.getItem(RESULT_KEY);
+      if (cached) {
+        const d = JSON.parse(cached);
+        if (d.token && d.user) {
+          finish(d, isNewParam || Boolean(d.isNew));
+          return;
+        }
+      }
+    } catch { /* ignore */ }
+
+    const legacyToken = params.get("token");
+    const legacyUserRaw = params.get("user");
+    if (legacyToken && legacyUserRaw && !params.get("ticket")) {
+      try {
+        const user = JSON.parse(decodeURIComponent(legacyUserRaw));
+        window.history.replaceState({}, "", "/auth-callback");
+        finish({ token: legacyToken, user, isNew: isNewParam }, isNewParam);
+        return;
+      } catch {
+        setState({ kind: "error", message: "Invalid authentication response. Redirecting…", loginPath });
+        setTimeout(() => setLocation(loginPath), 2500);
+        return;
+      }
+    }
+
+    const ticket = params.get("ticket") || sessionStorage.getItem(TICKET_KEY);
     if (!ticket) {
       setState({ kind: "error", message: "Invalid authentication response. Redirecting…", loginPath });
       setTimeout(() => setLocation(loginPath), 2500);
       return;
     }
 
-    window.history.replaceState({}, "", "/auth-callback");
+    sessionStorage.setItem(TICKET_KEY, ticket);
+    if (params.get("ticket")) window.history.replaceState({}, "", "/auth-callback");
+
+    if (sessionStorage.getItem(EXCHANGING_KEY) === ticket) return;
+    sessionStorage.setItem(EXCHANGING_KEY, ticket);
 
     fetch("/api/auth/oauth/exchange", {
       method: "POST",
@@ -184,23 +253,25 @@ export default function AuthCallback() {
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok || !d.token || !d.user) throw new Error(d.error ?? "Failed to complete sign-in");
-        setToken(d.token);
-        storeUser(d.user);
-        const destination = getRoleHome(d.user.role);
-        if (d.isNew || isNewParam) {
-          setState({ kind: "welcome", user: d.user, destination });
-        } else {
-          setLocation(destination);
-        }
+        sessionStorage.setItem(RESULT_KEY, JSON.stringify(d));
+        finish(d, isNewParam);
       })
       .catch((err) => {
+        sessionStorage.removeItem(TICKET_KEY);
+        sessionStorage.removeItem(EXCHANGING_KEY);
         setState({ kind: "error", message: (err as Error).message || "Failed to complete sign-in. Please try again.", loginPath });
         setTimeout(() => setLocation(loginPath), 2500);
       });
   }, [setLocation]);
 
   if (state.kind === "conflict") {
-    return <ConflictView conflictProvider={state.conflictProvider} loginPath={state.loginPath} />;
+    return (
+      <ConflictView
+        conflictProvider={state.conflictProvider}
+        conflictRole={state.conflictRole}
+        loginPath={state.loginPath}
+      />
+    );
   }
 
   if (state.kind === "welcome") {
