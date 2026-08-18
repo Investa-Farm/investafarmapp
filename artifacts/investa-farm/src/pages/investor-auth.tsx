@@ -524,7 +524,7 @@ function IPwField({ label, value, set, show, toggle }: { label: string; value: s
       <div className="relative">
         <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
         <input data-testid="input-password" type={show ? "text" : "password"} value={value} onChange={e => set(e.target.value)}
-          placeholder="Min. 6 characters" required minLength={6}
+          placeholder="Min. 8 characters" required minLength={8}
           className="w-full border-2 border-gray-200 rounded-xl pl-10 pr-12 py-3 text-gray-900 bg-gray-50 text-sm focus:outline-none focus:border-primary focus:bg-white transition-all" />
         <button type="button" onClick={toggle} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 p-1">
           {show ? <EyeOff size={16} /> : <Eye size={16} />}

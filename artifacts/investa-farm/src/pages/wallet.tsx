@@ -347,7 +347,7 @@ export default function InvestorWallet() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-amber-800 font-semibold text-xs">Secure your wallet</p>
-              <p className="text-amber-600 text-[10px]">Set a 4-digit PIN to protect your transactions</p>
+              <p className="text-amber-600 text-[10px]">Set a 6-digit PIN to protect your transactions</p>
             </div>
             <button
               onClick={() => { setPinGateAction(null); setPinSetupOpen(true); }}

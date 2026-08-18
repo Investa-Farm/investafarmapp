@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, pgEnum, boolean, numeric, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, pgEnum, boolean, numeric, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -25,6 +25,7 @@ export const usersTable = pgTable("users", {
   avatarUrl: text("avatar_url"),
   bio: text("bio"),
   oauthProviderId: text("oauth_provider_id"),
+  tokenVersion: integer("token_version").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -38,16 +38,12 @@ const DEMO_EMAILS = new Set([
   "demo.farmer@investafarm.com",
   "demo.investor@investafarm.com",
   "demo.coop@investafarm.com",
+  "admin@investafarm.com",
+  "admin@investafarm.com",
   "grace.farmer@investafarm.com",
   "peter.farmer@investafarm.com",
-  "coop@investafarm.com",
-  "cooperative@investafarm.com",
-  // agribusiness demo accounts
   "demo.agent@investafarm.com",
   "demo.offtaker@investafarm.com",
-  "samuel.njoroge.ke@gmail.com",
-  "rift.valley.buyers@gmail.com",
-  // cooperative demo accounts
   "mwea.coop.ke@gmail.com",
 ]);
 

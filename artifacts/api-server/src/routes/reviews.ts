@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, appReviewsTable, usersTable } from "@workspace/db";
 import { eq, desc, avg, count, sql } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
+import { adminRoleFromRequest } from "../lib/adminAuth";
 
 const router: IRouter = Router();
 
@@ -25,19 +26,10 @@ router.post("/reviews", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/reviews", async (req, res): Promise<void> => {
-  const auth: string = req.headers["authorization"] ?? "";
-  let isAdmin = false;
-  if (auth.startsWith("Bearer ")) {
-    const tok = auth.slice(7);
-    try {
-      const decoded = Buffer.from(tok, "base64").toString("utf8");
-      if (decoded.startsWith("admin-session:") || decoded.startsWith("kyc-admin-session:")) isAdmin = true;
-    } catch {}
-  }
-  if (!isAdmin) {
-    const user = await getCurrentUser(req);
-    if (!user || user.role !== "admin") { res.status(403).json({ error: "Admin access required" }); return; }
-  }
+  const user = await getCurrentUser(req);
+  const adminRole = adminRoleFromRequest(req);
+  const isAdmin = user?.role === "admin" || adminRole === "master" || adminRole === "sub" || adminRole === "kyc";
+  if (!isAdmin) { res.status(403).json({ error: "Admin access required" }); return; }
 
   const reviews = await db
     .select({

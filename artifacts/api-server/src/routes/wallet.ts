@@ -9,7 +9,9 @@ import {
   checkDepositVelocity, recordDeposit,
   checkWithdrawalVelocity, recordWithdrawal,
   getUserVelocitySummary,
+  checkLockout, recordFailedAuth, recordSuccessfulAuth,
 } from "../lib/security";
+import { BCRYPT_ROUNDS } from "../lib/authTokens";
 import { notifyUser } from "../lib/push";
 import { sendWalletTopupSms, sendWithdrawalSms, sendCardWithdrawalSms, sendUsdcWithdrawalSms } from "../lib/sms";
 import { sendWalletCreditEmail, sendWithdrawalConfirmationEmail } from "../lib/email";
@@ -78,11 +80,35 @@ router.get("/wallet/pin/status", async (req, res): Promise<void> => {
 router.post("/wallet/pin/setup", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const { pin } = req.body;
-  if (!pin || !/^\d{4}$/.test(String(pin))) {
-    res.status(400).json({ error: "PIN must be exactly 4 digits" }); return;
+  const { pin, currentPin, currentPassword } = req.body ?? {};
+  if (!pin || !/^\d{6,}$/.test(String(pin))) {
+    res.status(400).json({ error: "PIN must be at least 6 digits" }); return;
   }
-  const hash = await bcrypt.hash(String(pin), 10);
+  const [u] = await db.select({ walletPin: usersTable.walletPin }).from(usersTable).where(eq(usersTable.id, user.id));
+  if (u?.walletPin) {
+    const lock = checkLockout(`wallet-pin:${user.id}`);
+    if (lock.locked) {
+      res.status(429).json({ error: lock.message, retryAfterMs: lock.remainingMs }); return;
+    }
+    if (currentPin) {
+      const valid = await bcrypt.compare(String(currentPin), u.walletPin);
+      if (!valid) {
+        recordFailedAuth(`wallet-pin:${user.id}`);
+        res.status(401).json({ error: "Incorrect current PIN" }); return;
+      }
+    } else if (currentPassword && typeof currentPassword === "string") {
+      const [full] = await db.select({ passwordHash: usersTable.passwordHash }).from(usersTable).where(eq(usersTable.id, user.id));
+      const valid = full ? await bcrypt.compare(currentPassword, full.passwordHash) : false;
+      if (!valid) {
+        recordFailedAuth(`wallet-pin:${user.id}`);
+        res.status(401).json({ error: "Incorrect account password" }); return;
+      }
+    } else {
+      res.status(400).json({ error: "Current PIN or account password is required to change your wallet PIN" }); return;
+    }
+    recordSuccessfulAuth(`wallet-pin:${user.id}`);
+  }
+  const hash = await bcrypt.hash(String(pin), BCRYPT_ROUNDS);
   await db.update(usersTable).set({ walletPin: hash } as any).where(eq(usersTable.id, user.id));
   res.json({ success: true });
 });
@@ -91,6 +117,10 @@ router.post("/wallet/pin/setup", async (req, res): Promise<void> => {
 router.post("/wallet/pin/verify", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const lock = checkLockout(`wallet-pin:${user.id}`);
+  if (lock.locked) {
+    res.status(429).json({ error: lock.message, retryAfterMs: lock.remainingMs }); return;
+  }
   const { pin } = req.body;
   if (!pin) { res.status(400).json({ error: "PIN required" }); return; }
   const [u] = await db.select({ walletPin: usersTable.walletPin }).from(usersTable).where(eq(usersTable.id, user.id));
@@ -98,7 +128,11 @@ router.post("/wallet/pin/verify", async (req, res): Promise<void> => {
     res.status(400).json({ error: "No PIN set — please create a wallet PIN first." }); return;
   }
   const valid = await bcrypt.compare(String(pin), u.walletPin);
-  if (!valid) { res.status(401).json({ error: "Incorrect PIN. Please try again." }); return; }
+  if (!valid) {
+    recordFailedAuth(`wallet-pin:${user.id}`);
+    res.status(401).json({ error: "Incorrect PIN. Please try again." }); return;
+  }
+  recordSuccessfulAuth(`wallet-pin:${user.id}`);
   res.json({ valid: true });
 });
 

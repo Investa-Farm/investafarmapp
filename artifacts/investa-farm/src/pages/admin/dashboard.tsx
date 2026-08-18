@@ -2911,7 +2911,7 @@ export default function AdminDashboard() {
                 <div className="relative">
                   <input type={showSubPass ? "text" : "password"} value={newSubAdmin.password}
                     onChange={e => setNewSubAdmin(s => ({ ...s, password: e.target.value }))}
-                    placeholder="Min. 6 characters"
+                    placeholder="Min. 8 characters"
                     className="w-full border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-400 pr-10" />
                   <button type="button" onClick={() => setShowSubPass(v => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">

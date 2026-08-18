@@ -1,5 +1,5 @@
 /**
- * WalletPinPad — shared 4-digit PIN number pad
+ * WalletPinPad — shared 6-digit PIN number pad
  * Used by WalletPinGate (enter PIN) and WalletPinSetup (create/confirm PIN).
  */
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,7 +18,7 @@ interface WalletPinPadProps {
 export function WalletPinPad({
   value,
   onChange,
-  maxLength = 4,
+  maxLength = 6,
   error,
   title,
   subtitle,
@@ -38,7 +38,7 @@ export function WalletPinPad({
 
       {/* Animated dots */}
       <motion.div
-        className="flex gap-5 my-1"
+        className="flex gap-3 my-1"
         animate={error ? { x: [0, -8, 8, -8, 8, 0] } : {}}
         transition={{ duration: 0.35 }}
       >

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
-import { clearToken, getStoredUser, storeUser, getToken, formatKES } from "@/lib/auth";
+import { clearToken, getStoredUser, storeUser, getToken, setToken, formatKES } from "@/lib/auth";
 import { LogOut, ChevronRight, Bell, Settings, HelpCircle, TrendingUp, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon, Leaf, Smartphone, Check, DollarSign, Package } from "lucide-react";
 import { getInstallPrompt, triggerInstall, isIosBrowser, isStandalone } from "@/lib/pwa";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
@@ -97,6 +97,7 @@ export default function FarmerProfile() {
       });
       if (!r.ok) { const d = await r.json(); setSettingsError(d.error ?? "Failed to save"); setSettingsSaving(false); return; }
       const updated = await r.json();
+      if (updated.token) setToken(updated.token);
       if (storedUser) storeUser({ ...storedUser, name: updated.name });
       queryClient.invalidateQueries({ queryKey: ["me"] });
       setCurrentPw(""); setNewPw(""); setConfirmPw("");
@@ -395,7 +396,7 @@ export default function FarmerProfile() {
                         {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
                       </button>
                     </div>
-                    <input type={showPw ? "text" : "password"} placeholder="New password (min 6 chars)"
+                    <input type={showPw ? "text" : "password"} placeholder="New password (min 8 chars)"
                       value={newPw} onChange={e => setNewPw(e.target.value)}
                       className="w-full border border-border rounded-xl px-4 py-3 text-sm bg-background focus:outline-none focus:border-primary" />
                     <input type={showPw ? "text" : "password"} placeholder="Confirm new password"
