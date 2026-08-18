@@ -31,7 +31,7 @@ export const ACCESS_TTL_MS = 12 * 60 * 60 * 1000;
 export const VERIFY_TTL_MS = 60 * 60 * 1000;
 export const TOTP_TTL_MS = 10 * 60 * 1000;
 export const ADMIN_TTL_MS = 8 * 60 * 60 * 1000;
-export const OAUTH_TICKET_TTL_MS = 60 * 1000;
+export const OAUTH_TICKET_TTL_MS = 5 * 60 * 1000;
 export const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
 const DEV_FALLBACK_SECRET = "dev-only-insecure-secret-do-not-use-in-prod!!";
@@ -66,6 +66,17 @@ export function allowlistPublicRole(raw: unknown): PublicRole {
   const role = String(raw ?? "investor").toLowerCase();
   if ((PUBLIC_ROLES as readonly string[]).includes(role)) return role as PublicRole;
   return "investor";
+}
+
+/** Existing account role if it does not match the OAuth portal being used; otherwise null. */
+export function oauthPortalMismatch(requestedRole: unknown, existingRole: string): string | null {
+  if (!existingRole || existingRole === allowlistPublicRole(requestedRole)) return null;
+  return existingRole;
+}
+
+export function oauthLoginPath(role: string): string {
+  if (role === "farmer" || role === "cooperative") return "/farmer-auth";
+  return "/investor-auth";
 }
 
 export function signAuthToken(

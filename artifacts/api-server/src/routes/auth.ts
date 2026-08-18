@@ -20,6 +20,8 @@ import {
   isPasswordStrongEnough,
   newResetToken,
   parseOauthState,
+  oauthLoginPath,
+  oauthPortalMismatch,
   passwordResetUrl,
   signAuthToken,
   signOauthTicket,
@@ -466,8 +468,11 @@ async function findOrCreateOAuthUser(
     // Existing user — check for auth provider conflict
     const existingProvider = (user.metadata as Record<string, unknown> | null)?.authProvider as string | undefined;
     if (existingProvider && existingProvider !== provider) {
-      // Conflict: this email belongs to a different auth method
       throw Object.assign(new Error("auth_conflict"), { conflictProvider: existingProvider });
+    }
+    const roleClash = oauthPortalMismatch(role, user.role);
+    if (roleClash) {
+      throw Object.assign(new Error("auth_conflict"), { conflictRole: roleClash });
     }
     // Stamp the provider on legacy accounts (no metadata yet) so future checks work
     const updates: Record<string, any> = {};
@@ -487,10 +492,20 @@ async function findOrCreateOAuthUser(
   return { user, isNew };
 }
 
-function oauthRedirect(res: { redirect: (url: string) => void }, user: Awaited<ReturnType<typeof findOrCreateOAuthUser>>["user"], isNew: boolean) {
+function oauthRedirect(
+  res: { redirect: (url: string) => void },
+  user: Awaited<ReturnType<typeof findOrCreateOAuthUser>>["user"],
+  isNew: boolean,
+  loginPath: string,
+) {
   const ticket = signOauthTicket(user.id, isNew);
   const appUrl = getAppUrl();
-  res.redirect(`${appUrl}/auth-callback?ticket=${encodeURIComponent(ticket)}&is_new=${isNew ? "1" : "0"}`);
+  const params = new URLSearchParams({
+    ticket,
+    is_new: isNew ? "1" : "0",
+    login_path: loginPath,
+  });
+  res.redirect(`${appUrl}/auth-callback?${params.toString()}`);
 }
 
 // ─── GOOGLE OAUTH ─────────────────────────────────────────────────────────────
@@ -516,7 +531,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
   const appUrl = getAppUrl();
   const parsedState = parseOauthState(state);
   const role = parsedState?.role ?? "investor";
-  const loginPath = (role === "farmer" || role === "cooperative") ? "/farmer-auth" : "/investor-auth";
+  const loginPath = oauthLoginPath(role);
   if (error || !code) {
     res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(error ?? "cancelled")}&login_path=${encodeURIComponent(loginPath)}`); return;
   }
@@ -542,17 +557,23 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     if (!userRes.ok) throw new Error("Failed to fetch Google profile");
     const profile = await userRes.json() as any;
 
-    const email = (profile.email as string).toLowerCase().trim();
+    const emailRaw = profile.email as string | undefined;
+    if (!emailRaw || typeof emailRaw !== "string") {
+      throw new Error("Google did not return an email. Grant email access and try again.");
+    }
+    const email = emailRaw.toLowerCase().trim();
     const name = (profile.name ?? profile.given_name ?? email.split("@")[0]) as string;
 
     const { user, isNew } = await findOrCreateOAuthUser(email, name, role, "google", {
       providerId: profile.sub as string | undefined,
       avatarUrl: profile.picture as string | undefined,
     });
-    oauthRedirect(res, user, isNew);
+    oauthRedirect(res, user, isNew, loginPath);
   } catch (err: any) {
     console.error("[Google OAuth]", err);
-    if (err.conflictProvider) {
+    if (err.conflictRole) {
+      res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(`conflict:role:${err.conflictRole}`)}&login_path=${encodeURIComponent(oauthLoginPath(err.conflictRole))}`);
+    } else if (err.conflictProvider) {
       res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(`conflict:${err.conflictProvider}`)}&login_path=${encodeURIComponent(loginPath)}`);
     } else {
       res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent("Google sign-in failed. Please try again.")}&login_path=${encodeURIComponent(loginPath)}`);
@@ -581,7 +602,7 @@ router.get("/auth/linkedin/callback", async (req, res): Promise<void> => {
   const appUrl = getAppUrl();
   const parsedState = parseOauthState(state);
   const role = parsedState?.role ?? "investor";
-  const loginPath = (role === "farmer" || role === "cooperative") ? "/farmer-auth" : "/investor-auth";
+  const loginPath = oauthLoginPath(role);
   if (error || !code) {
     res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(error ?? "cancelled")}&login_path=${encodeURIComponent(loginPath)}`); return;
   }
@@ -607,17 +628,23 @@ router.get("/auth/linkedin/callback", async (req, res): Promise<void> => {
     if (!userRes.ok) throw new Error("Failed to fetch LinkedIn profile");
     const profile = await userRes.json() as any;
 
-    const email = (profile.email as string).toLowerCase().trim();
+    const emailRaw = profile.email as string | undefined;
+    if (!emailRaw || typeof emailRaw !== "string") {
+      throw new Error("LinkedIn did not return an email. Grant email access and try again.");
+    }
+    const email = emailRaw.toLowerCase().trim();
     const name = (profile.name ?? profile.given_name ?? email.split("@")[0]) as string;
 
     const { user, isNew } = await findOrCreateOAuthUser(email, name, role, "linkedin", {
       providerId: profile.sub as string | undefined,
       avatarUrl: profile.picture as string | undefined,
     });
-    oauthRedirect(res, user, isNew);
+    oauthRedirect(res, user, isNew, loginPath);
   } catch (err: any) {
     console.error("[LinkedIn OAuth]", err);
-    if (err.conflictProvider) {
+    if (err.conflictRole) {
+      res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(`conflict:role:${err.conflictRole}`)}&login_path=${encodeURIComponent(oauthLoginPath(err.conflictRole))}`);
+    } else if (err.conflictProvider) {
       res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent(`conflict:${err.conflictProvider}`)}&login_path=${encodeURIComponent(loginPath)}`);
     } else {
       res.redirect(`${appUrl}/auth-callback?oauth_error=${encodeURIComponent("LinkedIn sign-in failed. Please try again.")}&login_path=${encodeURIComponent(loginPath)}`);
