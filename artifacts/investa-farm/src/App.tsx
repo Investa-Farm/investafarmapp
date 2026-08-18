@@ -191,7 +191,7 @@ function AuthGuard({ children, role }: { children: React.ReactNode; role?: AppRo
   return <>{children}</>;
 }
 
-function GuestGuard({ children }: { children: React.ReactNode }) {
+function GuestGuard({ children, portal }: { children: React.ReactNode; portal?: "farmer" | "investor" }) {
   const token = getToken();
   const user = getStoredUser();
   const userRole = (user as any)?.role as string | undefined;
@@ -200,6 +200,11 @@ function GuestGuard({ children }: { children: React.ReactNode }) {
     return <Redirect to={`/verify-otp?email=${email}`} />;
   }
   if (token && userRole) {
+    const matchesPortal =
+      (portal === "farmer" && userRole === "farmer") ||
+      (portal === "investor" && userRole === "investor");
+    // Another portal's auth page stays visible so the user can switch accounts.
+    if (portal && !matchesPortal) return <>{children}</>;
     if (userRole === "farmer") return <Redirect to="/farmer" />;
     if (userRole === "cooperative") return <Redirect to="/cooperative/dashboard" />;
     if (userRole === "agribusiness") {
@@ -222,13 +227,13 @@ function Router() {
         <GuestGuard><Landing /></GuestGuard>
       </Route>
       <Route path="/farmer-auth">
-        <GuestGuard><FarmerAuth /></GuestGuard>
+        <GuestGuard portal="farmer"><FarmerAuth /></GuestGuard>
       </Route>
       <Route path="/investor-auth">
-        <GuestGuard><InvestorAuth /></GuestGuard>
+        <GuestGuard portal="investor"><InvestorAuth /></GuestGuard>
       </Route>
       <Route path="/wealth-auth">
-        <GuestGuard><InvestorAuth /></GuestGuard>
+        <GuestGuard portal="investor"><WealthAuth /></GuestGuard>
       </Route>
       <Route path="/login">
         <GuestGuard><Login /></GuestGuard>

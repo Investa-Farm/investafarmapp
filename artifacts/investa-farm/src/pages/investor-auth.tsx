@@ -70,7 +70,7 @@ function GoogleLogo() {
   );
 }
 
-export default function InvestorAuth() {
+export default function InvestorAuth({ allowSocial = true }: { allowSocial?: boolean }) {
   const [, setLocation] = useLocation();
   const [tab, setTab] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -375,6 +375,8 @@ export default function InvestorAuth() {
                 </motion.div>
               )}
 
+              {allowSocial && (
+              <>
               {/* ── Social Auth Buttons ── */}
               <div className="grid grid-cols-2 gap-2.5">
                 <motion.button type="button" whileTap={{ scale: 0.97 }}
@@ -398,6 +400,8 @@ export default function InvestorAuth() {
                 <span className="text-xs text-gray-400 font-medium">or continue with email</span>
                 <div className="flex-1 h-px bg-gray-200" />
               </div>
+              </>
+              )}
 
               {tab === "login" ? (
                 <form onSubmit={handleLogin} className="space-y-4">

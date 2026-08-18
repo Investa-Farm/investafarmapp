@@ -16,7 +16,7 @@ function getRoleHome(): string {
     const raw = sessionStorage.getItem("investa_user");
     if (!raw) return "/";
     const user = JSON.parse(raw) as { role?: string };
-    if (user.role === "farmer") return "/farmer/dashboard";
+    if (user.role === "farmer") return "/farmer";
     if (user.role === "cooperative") return "/cooperative/dashboard";
     if (user.role === "agribusiness") return "/agribusiness";
     if (user.role === "investor") return "/market";

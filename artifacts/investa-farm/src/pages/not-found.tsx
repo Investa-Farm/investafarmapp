@@ -4,7 +4,7 @@ import { getStoredUser } from "@/lib/auth";
 function getRoleHome(): string {
   const user = getStoredUser();
   if (!user) return "/";
-  if (user.role === "farmer") return "/farmer/dashboard";
+  if (user.role === "farmer") return "/farmer";
   if (user.role === "cooperative") return "/cooperative/dashboard";
   return "/market";
 }
