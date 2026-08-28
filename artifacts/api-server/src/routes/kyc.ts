@@ -67,7 +67,7 @@ router.get("/kyc/status", async (req, res): Promise<void> => {
   const uploadedTypes = new Set(docs.map(d => d.docType));
   const allUploaded = requiredDocs.every(t => uploadedTypes.has(t as any));
   const approvedTypes = new Set(docs.filter(d => d.status === "approved").map(d => d.docType));
-  const isVerified = requiredDocs.every(t => approvedTypes.has(t));
+  const isVerified = requiredDocs.every(t => approvedTypes.has(t as any));
   res.json({ isVerified, approved, pending, total, allUploaded, requiredDocs });
 });
 

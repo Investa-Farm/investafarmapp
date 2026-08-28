@@ -173,7 +173,7 @@ export default function AuthCallback() {
     );
     if (params.get("login_path")) sessionStorage.setItem(LOGIN_PATH_KEY, loginPath);
 
-    const finish = (d: { token: string; user: { name: string; email: string; role: string }; isNew?: boolean }, isNewParam: boolean) => {
+    const finish = (d: { token: string; user: { id: number; name: string; email: string; role: string }; isNew?: boolean }, isNewParam: boolean) => {
       setToken(d.token);
       storeUser(d.user);
       sessionStorage.removeItem(TICKET_KEY);
