@@ -33,11 +33,7 @@ async function waitForDb(retries = 10, delayMs = 2000): Promise<void> {
   throw new Error("Database not reachable after multiple attempts");
 }
 
-const server = app.listen(port, async () => {
-  logger.info({ port }, "Server listening");
-  initVapid();
-  testSmtpConnection().catch(() => {});
-
+async function prepareDatabase(): Promise<void> {
   try {
     await waitForDb();
     await ensureSchema();
@@ -47,13 +43,31 @@ const server = app.listen(port, async () => {
     }
     await seedBlogPosts((msg) => logger.info(msg));
   } catch (e) {
-    logger.warn({ err: e }, "DB setup failed (non-fatal)");
+    logger.error({ err: e }, "Database setup failed before server start");
+    throw e;
   }
+}
 
-  startScheduler();
-});
+async function startServer(): Promise<void> {
+  // Complete database readiness and additive migrations before accepting
+  // requests. This replaces the fragile drizzle-kit push in start.sh.
+  await prepareDatabase();
 
-server.on("error", (err) => {
-  logger.error({ err }, "Error listening on port");
+  initVapid();
+  testSmtpConnection().catch(() => {});
+
+  const server = app.listen(port, () => {
+    logger.info({ port }, "Server listening");
+    startScheduler();
+  });
+
+  server.on("error", (err) => {
+    logger.error({ err }, "Error listening on port");
+    process.exit(1);
+  });
+}
+
+startServer().catch((err) => {
+  logger.error({ err }, "API server startup failed");
   process.exit(1);
 });
