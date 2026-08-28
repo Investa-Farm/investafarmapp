@@ -1,0 +1,232 @@
+Review Overview
+A comprehensive application review was conducted using the available Investa Farm demo accounts to assess the functionality, navigation, user experience and presentation of the platform's core modules.
+The review covered the Farmer and Investor accounts in detail, including their main operational, financial, investment and account-management features. The Agribusiness account was also accessed; however, further navigation was restricted by a verification requirement requesting organisation documents.
+The review focused not only on whether features were present, but also on whether the information presented to users was clear, whether workflows were intuitive and whether there were opportunities to improve the overall user experience.
+Farmer Account Review
+Modules Reviewed
+Home
+Market
+Wallet
+My Farm / Operations
+Profile
+
+
+
+Home
+The Farmer Home page provides an overview of the farmer's current farm activity, including:
+Active crop and farm location.
+Farm Health Score.
+Funding status and farm listing.
+Agri-input ordering.
+Satellite Farm View.
+Crop growth timeline.
+Getting Started Guide.
+The page provides useful shortcuts into the main farmer workflows and gives the user an immediate overview of their farm status.
+The Getting Started Guide also provides a clear progression covering KYC, funding, posting farm updates and repayment/reinvestment.
+Market
+The Market section provides access to:
+Buyers.
+Agricultural inputs.
+Contracts.
+Crop health information.
+Market news.
+Buyer offers.
+Recommended buyers.
+Demand forecasts.
+Crop proposal submission.
+The page provides useful market information and connects farmers with potential buyers. However, the buyer marketplace and investor/funding journey are presented within the same experience, which could potentially be made clearer for users.
+Suggested enhancement: Consider distinguishing between actions intended to help farmers sell their produce and actions intended to help them secure funding.
+Wallet
+The Farmer Wallet provides:
+Total received funds.
+Pension contribution information.
+Transaction history.
+Stellar account details.
+Currency selection.
+Add Funds.
+Withdrawal functionality.
+Wallet PIN security.
+The wallet provides the major financial functions required by the farmer account.
+The presence of a Wallet PIN adds an additional security layer. The PIN functionality was also reviewed from a user experience perspective.
+My Farm / Operations
+The My Farm section provides a detailed view of:
+Farm activity and performance.
+Daily operational tasks.
+Season earnings.
+Funding applications.
+Loan repayment.
+Revenue sharing.
+Input vouchers.
+Harvest reporting.
+Disaster reporting.
+Satellite Farm View.
+The section brings the farmer's operational and financial activities into one place and provides visibility into the farming cycle and related financial obligations.
+Profile
+The Farmer Profile provides access to:
+Account information.
+Earnings.
+Crop details.
+Wallet management.
+Notifications.
+Security and 2FA.
+Account settings.
+Dark Mode.
+Add to Home Screen.
+Funding history.
+Loans and repayments.
+Help and Support.
+Service rating.
+Sign Out.
+The profile provides comprehensive access to account and support functions.
+Investor Account Review
+Modules Reviewed
+Market
+Portfolio
+Activity
+Profile
+
+Market
+The Investor Market provides a live view of agricultural investment opportunities and market information, including:
+Crop prices.
+Market movements.
+Active farm listings.
+Funded farms.
+Live KES/USD information.
+Getting Started progress.
+Primary Market.
+Secondary Market.
+Gainers and Decliners.
+Featured listings.
+Community Portfolios.
+The platform clearly exposes both the Primary Market and Secondary Market, allowing investors to access newly listed opportunities as well as resale opportunities.
+Suggested enhancement: The distinction between Primary and Secondary Market could be made more explanatory for new investors, particularly by briefly explaining the difference and what happens when an investor chooses either option.
+Portfolio
+The Portfolio section provides:
+Total Portfolio Value.
+Amount Invested.
+Profit and Loss.
+Number of Holdings.
+Risk Allocation.
+Individual investment exposure.
+The risk allocation breakdown gives investors useful visibility into how their portfolio is distributed across different crops and risk levels.
+Activity
+The Activity section provides a transaction history showing:
+Investment/farm name.
+Amount invested.
+Crop.
+Number of shares.
+Share price.
+Exit type.
+Transaction date and time.
+Transaction status.
+The transaction history provides good visibility into the investor's activity and allows individual transactions to be selected for receipt details.
+Profile
+The Investor Profile contains a broad range of investment, security and account-management features, including:
+Wallet.
+Portfolio.
+KYC.
+Broker Status.
+AI Smart Match.
+Dark Mode.
+Account Settings.
+Wallet PIN.
+Two-Factor Authentication.
+Help & FAQs.
+Product Demo.
+Sign Out.
+The Product Demo provides access to feature walkthroughs, which can be useful for helping new investors understand the platform.
+The Wallet PIN was also confirmed to be active on the demo account.
+Wallet PIN – UX Observation
+During testing of the Wallet PIN functionality, the PIN digits were completely masked during entry and confirmation.
+While masking is appropriate from a security perspective, there is currently no visible option for the user to temporarily reveal the entered digits.
+Recommendation
+Consider introducing a Show/Hide PIN option, with the PIN remaining masked by default.
+This would allow users to verify the digits they have entered before confirming their PIN and could reduce accidental PIN-entry errors while maintaining the existing security behaviour.
+Classification: UX Enhancement
+ Priority: Medium
+Agribusiness Account Review
+Access Observation
+The Agribusiness demo account could be accessed initially, but further navigation was restricted by a Verification Required prompt.
+The prompt requires the organisation to upload:
+Registration Certificate.
+Chairman's National ID (front and back).
+Financial Statement.
+The prompt indicates that these documents are required before accessing the partner dashboard and receiving payments.
+Review Impact
+Because the account was blocked at this stage, the Agribusiness modules could not be comprehensively reviewed in the same way as the Farmer and Investor accounts.
+Recommendation
+Since this is a demo account used for application testing, a verified demo Agribusiness account or dedicated demo mode would be useful. This would allow reviewers to access the full partner dashboard without submitting real organisational documentation.
+Classification: Demo Account / Review Access
+ Priority: High
+This should first be confirmed with the development team as to whether the verification gate is intentional for demo accounts.
+Cross-Platform UX Observations
+Beyond individual account functionality, several opportunities were identified that could improve the overall experience.
+Clearer Financial Status
+The Farmer account presents several related financial states, including funding progress, approved applications, loans and input vouchers.
+The information is useful, but the relationship between these different financial workflows could be made clearer to prevent users from confusing:
+Funding → Approval → Voucher → Farm Operations → Repayment/Revenue Sharing
+A clearer visual progression could help users understand where they are in the funding lifecycle.
+KYC Communication
+The Investor account displays KYC as an outstanding onboarding requirement.
+The KYC status could be made more actionable by clearly showing:
+Current verification status.
+Required documents.
+What completing KYC unlocks.
+The next action available to the user.
+This would provide greater clarity than simply displaying a document approval count.
+Profile Organisation
+The Investor Profile contains several important features across investment, security, account and support functions.
+Grouping these into clear categories could make the page easier to navigate, for example:
+Investment
+Portfolio
+KYC
+Broker Status
+AI Smart Match
+Security
+Wallet PIN
+2FA
+Account Settings
+Support
+Product Demo
+Help & FAQs
+Rate Our Services
+Review Summary
+Account / Area
+Review Status
+Key Observation
+Farmer
+✅ Reviewed
+Core modules accessible and functional
+Investor
+✅ Reviewed
+Core modules accessible and functional
+Agribusiness
+⚠️ Partially Reviewed
+Verification requirement restricted access
+Wallet PIN
+⚠️ Enhancement
+Show/Hide PIN could improve usability
+Primary / Secondary Market
+⚠️ Enhancement
+Could provide clearer guidance for new investors
+Farmer Market
+⚠️ Enhancement
+Buyer and funding journeys could be separated more clearly
+KYC
+⚠️ Enhancement
+Status and next steps could be communicated more clearly
+
+Overall Assessment
+The Farmer and Investor demo accounts provided access to a broad range of operational, financial, investment and account-management functionality. The platform presents the major workflows required for each user type in a relatively comprehensive manner.
+No major functional failure was identified within the Farmer and Investor sections reviewed during this session. The main observations were centred around usability, information clarity and demo-account accessibility, rather than core functionality.
+The most significant item requiring follow-up is the Agribusiness verification gate, as it prevented a complete review of the partner dashboard. The Wallet PIN entry experience also presents a reasonable UX improvement opportunity.
+Overall, the application demonstrates a broad and increasingly mature feature set, with further opportunities to improve clarity, navigation and onboarding as the platform continues to evolve.
+
+Recommended Follow-Up Actions
+Check the Agribusiness demo account verification status and determine whether a verified demo account should be provided for application reviews.
+Consider a Show/Hide PIN option during Wallet PIN creation and confirmation.
+Improve the distinction between Primary and Secondary Markets for new investors.
+Clarify the Farmer funding lifecycle across funding, approval, vouchers, repayment and revenue sharing.
+Improve KYC status communication by making requirements and next steps more explicit.
+Review the organisation of the Investor Profile to make investment, security and support functions easier to navigate.
+Final Review Status: 🟢 Generally Functional — Minor UX Enhancements and Agribusiness Access Follow-up Required
