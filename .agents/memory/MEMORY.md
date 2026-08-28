@@ -19,3 +19,4 @@
 - [GitHub remote push](github-remote.md) — gitPush() callback returns NO_CREDENTIALS; use `git push https://x-token-auth:${GIT}@github.com/Investa-Farm/investafarmapp.git main` from shell with the GIT secret.
 - [Google Search Console verification](google-search-console.md) — verification file at /googleb1c7018e72191e16.html served by Express and also in artifacts/investa-farm/public/; production URL is https://app.investafarm.com/; sitemap at /sitemap.xml.
 - [News force-refresh pattern](news-force-refresh.md) — farmer/news.tsx uses a `newsForceKey` state increment to trigger ?force=1 on the API; backend news.ts busts both news cache and sentimentCache when force=1 is received.
+- [Remote branch force updates](remote-branch-force-updates.md) — preserve local branch and uncommitted work before aligning main to a force-rewritten GitHub branch.
