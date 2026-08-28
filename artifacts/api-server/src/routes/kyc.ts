@@ -11,6 +11,15 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? process.env.GOOGLE_SMTP_USER ?? "
 
 const FARMER_REQUIRED_DOCS = ["national_id", "national_id_back", "selfie", "farm_report", "land_title", "group_certificate"];
 const INVESTOR_REQUIRED_DOCS = ["national_id", "national_id_back", "selfie", "financial_statement"];
+const COOPERATIVE_REQUIRED_DOCS = ["national_id", "national_id_back", "selfie", "group_certificate", "financial_statement"];
+const AGRIBUSINESS_REQUIRED_DOCS = ["national_id", "national_id_back", "selfie", "business_registration", "financial_statement", "nda"];
+
+function requiredDocsForRole(role: string): string[] {
+  if (role === "farmer") return FARMER_REQUIRED_DOCS;
+  if (role === "cooperative") return COOPERATIVE_REQUIRED_DOCS;
+  if (role === "agribusiness") return AGRIBUSINESS_REQUIRED_DOCS;
+  return INVESTOR_REQUIRED_DOCS;
+}
 
 const UploadDocBody = z.object({
   docType: z.enum([
@@ -22,6 +31,7 @@ const UploadDocBody = z.object({
     "group_certificate",
     "financial_statement",
     "business_registration",
+    "nda",
     "other",
   ]),
   title: z.string().min(1),
@@ -53,10 +63,11 @@ router.get("/kyc/status", async (req, res): Promise<void> => {
   const approved = docs.filter(d => d.status === "approved").length;
   const pending = docs.filter(d => d.status === "pending").length;
   const total = docs.length;
-  const isVerified = approved >= 2;
-  const requiredDocs = user.role === "farmer" ? FARMER_REQUIRED_DOCS : INVESTOR_REQUIRED_DOCS;
+  const requiredDocs = requiredDocsForRole(user.role);
   const uploadedTypes = new Set(docs.map(d => d.docType));
   const allUploaded = requiredDocs.every(t => uploadedTypes.has(t as any));
+  const approvedTypes = new Set(docs.filter(d => d.status === "approved").map(d => d.docType));
+  const isVerified = requiredDocs.every(t => approvedTypes.has(t));
   res.json({ isVerified, approved, pending, total, allUploaded, requiredDocs });
 });
 
@@ -82,7 +93,7 @@ router.post("/kyc/upload", async (req, res): Promise<void> => {
   }
 
   const allDocs = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.userId, user.id));
-  const requiredDocs = user.role === "farmer" ? FARMER_REQUIRED_DOCS : INVESTOR_REQUIRED_DOCS;
+   const requiredDocs = requiredDocsForRole(user.role);
   const uploadedTypes = new Set(allDocs.map(d => d.docType));
   const allUploaded = requiredDocs.every(t => uploadedTypes.has(t as any));
 

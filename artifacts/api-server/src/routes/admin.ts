@@ -14,6 +14,13 @@ import { BCRYPT_ROUNDS } from "../lib/authTokens";
 
 const router: IRouter = Router();
 
+function kycRouteForRole(role: string): string {
+  if (role === "agribusiness") return "/agribusiness/kyc";
+  if (role === "cooperative") return "/cooperative/dashboard";
+  if (role === "farmer") return "/farmer/kyc";
+  return "/profile";
+}
+
 async function requireAdmin(req: any, res: any, allowViewer = false): Promise<boolean> {
   // Accept regular Bearer JWT from an admin-role user
   const user = await getCurrentUser(req);
@@ -797,6 +804,8 @@ router.patch("/admin/users/:id/limits", async (req, res): Promise<void> => {
 });
 
 router.patch("/admin/users/:id/approve", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
   const id = Number(req.params["id"]);
   const { approved } = req.body as { approved: boolean };
 
@@ -830,7 +839,12 @@ router.patch("/admin/users/:id/approve", async (req, res): Promise<void> => {
   });
 
   // Mobile push notification
-  sendPushToUser(id, { title: notifTitle, body: notifBody, type: approved ? "kyc_approved" : "kyc_rejected", url: approved ? "/portfolio" : "/farmer/kyc" }).catch(() => {});
+  sendPushToUser(id, {
+    title: notifTitle,
+    body: notifBody,
+    type: approved ? "kyc_approved" : "kyc_rejected",
+    url: kycRouteForRole(user.role),
+  }).catch(() => {});
 
   // Send email notification
   if (approved) {
@@ -858,6 +872,7 @@ router.get("/admin/kyc", async (req, res): Promise<void> => {
         reviewedAt: kycDocumentsTable.reviewedAt,
         userName: usersTable.name,
         userEmail: usersTable.email,
+        userRole: usersTable.role,
       })
       .from(kycDocumentsTable)
       .leftJoin(usersTable, eq(kycDocumentsTable.userId, usersTable.id))
@@ -876,18 +891,28 @@ router.get("/admin/kyc", async (req, res): Promise<void> => {
 });
 
 router.patch("/admin/kyc/:id/approve", async (req, res): Promise<void> => {
-  const id = Number(req.params["id"]);
-  const { status } = req.body as { status: "approved" | "rejected" | "pending" };
-  if (!["approved", "rejected", "pending"].includes(status)) {
-    res.status(400).json({ error: "Invalid status" });
-    return;
-  }
-  const [doc] = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.id, id));
-  await db.update(kycDocumentsTable)
-    .set({ status, reviewedAt: status === "pending" ? null : new Date() })
-    .where(eq(kycDocumentsTable.id, id));
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  try {
+    const id = Number(req.params["id"]);
+    const { status } = req.body as { status: "approved" | "rejected" | "pending" };
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid document id" });
+      return;
+    }
+    if (!["approved", "rejected", "pending"].includes(status)) {
+      res.status(400).json({ error: "Invalid status" });
+      return;
+    }
+    const [doc] = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.id, id));
+    if (!doc) {
+      res.status(404).json({ error: "KYC document not found" });
+      return;
+    }
+    await db.update(kycDocumentsTable)
+      .set({ status, reviewedAt: status === "pending" ? null : new Date() })
+      .where(eq(kycDocumentsTable.id, id));
 
-  if (doc) {
     // Check if all user docs are now approved → send approval email
     const allDocs = await db.select().from(kycDocumentsTable).where(eq(kycDocumentsTable.userId, doc.userId));
     const allApproved = allDocs.every(d => (d.id === id ? status : d.status) === "approved");
@@ -904,13 +929,15 @@ router.patch("/admin/kyc/:id/approve", async (req, res): Promise<void> => {
           const title = "⚠️ Document Rejected";
           const body = `One of your KYC documents was rejected. Please re-upload a clearer version.`;
           await db.insert(notificationsTable).values({ userId: user.id, type: "kyc_rejected", title, body });
-          sendPushToUser(user.id, { title, body, type: "kyc_rejected", url: "/farmer/kyc" }).catch(() => {});
+          sendPushToUser(user.id, { title, body, type: "kyc_rejected", url: kycRouteForRole(user.role) }).catch(() => {});
         }
       }
     }
+    res.json({ ok: true, status });
+  } catch (e) {
+    console.error("[admin/kyc/approve]", e);
+    res.status(500).json({ error: "Failed to update KYC document" });
   }
-
-  res.json({ ok: true });
 });
 
 router.delete("/admin/farms/:id", async (req, res): Promise<void> => {

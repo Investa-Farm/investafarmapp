@@ -45,6 +45,14 @@ const DOC_TYPES = [
     category: "business",
   },
   {
+    value: "nda",
+    label: "Signed NDA",
+    emoji: "📝",
+    hint: "Signed Non-Disclosure Agreement with Investa Farm",
+    required: true,
+    category: "business",
+  },
+  {
     value: "selfie",
     label: "Selfie with ID",
     emoji: "🤳",
@@ -457,6 +465,7 @@ export default function AgribusinessKyc() {
               { icon: "🪪", label: "National ID (front & back)" },
               { icon: "📋", label: "Business registration certificate" },
               { icon: "💰", label: "Bank statement (last 3 months)" },
+                { icon: "📝", label: "Signed Non-Disclosure Agreement" },
               { icon: "🤳", label: "Selfie holding your ID" },
             ].map(item => (
               <div key={item.label} className="flex items-center gap-2.5">

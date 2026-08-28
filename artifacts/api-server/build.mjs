@@ -1,5 +1,3 @@
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

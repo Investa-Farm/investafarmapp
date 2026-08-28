@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Building2, Users, Code2, FileSpreadsheet, Plug, Copy, Check, ChevronRight, LogOut, BarChart3, Globe, Phone, Camera, Package, ShoppingCart, Truck, Star, TrendingUp, Key, RefreshCw, Plus, Trash2, Upload, UserPlus, Handshake, Link, QrCode, Search, CheckCircle2, XCircle, Clock, ScanLine, AlertTriangle, MapPin, Leaf, Bell, User, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { clearToken, getStoredUser, getToken } from "@/lib/auth";
+import { clearToken, getStoredUser, getToken, isDemoAccount } from "@/lib/auth";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import CooperativeKyc from "@/pages/cooperative/kyc";
 
@@ -599,6 +599,7 @@ export default function CooperativeDashboard() {
   const [, setLocation] = useLocation();
   const user = getStoredUser();
   const token = getToken();
+  const isDemo = isDemoAccount();
   const [copiedSnippet, setCopiedSnippet] = useState<"rest" | "excel" | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "api" | "farmers" | "orders" | "coinvest" | "delivery">("overview");
   const [kycOpen, setKycOpen] = useState(false);
@@ -613,11 +614,11 @@ export default function CooperativeDashboard() {
       if (!r.ok) return [];
       return r.json();
     },
-    enabled: !!token,
+    enabled: !!token && !isDemo,
   });
-  const kycBlocked = kycDocs.length === 0;
+  const kycBlocked = !isDemo && kycDocs.length === 0;
   const kycApproved = kycDocs.filter((d: any) => d.status === "approved").length;
-  const kycUnderReview = kycDocs.length > 0 && kycApproved === 0;
+  const kycUnderReview = !isDemo && kycDocs.length > 0 && kycApproved === 0;
 
   // API Keys — DB-backed
   const [newKeyName, setNewKeyName] = useState("");

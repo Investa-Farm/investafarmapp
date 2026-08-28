@@ -43,7 +43,7 @@ interface UserRecord {
 
 interface KycDoc {
   id: number; userId: number; docType: string; status: string;
-  userName: string; userEmail: string; fileUrl: string; createdAt: string;
+  userName: string; userEmail: string; userRole?: string; fileUrl: string; createdAt: string;
 }
 
 interface TxRecord {
@@ -205,7 +205,7 @@ export default function AdminDashboard() {
     },
     {
       title: "KYC Review",
-      body: "The KYC tab lists all farmer documents awaiting review. Tap a document to view it full-screen, then Approve or Reject with one tap.",
+      body: "The KYC tab lists identity, business, and cooperative documents awaiting review. Tap a document to view it full-screen, then Approve or Reject with one tap.",
       icon: "📋",
       action: () => setTab("kyc"),
     },
@@ -864,10 +864,15 @@ export default function AdminDashboard() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
       });
-      if (r.ok) {
-        showToast(status === "approved" ? "Document approved ✓" : status === "pending" ? "Moved back to review" : "Document rejected");
-        fetchKyc();
-      }
+       if (r.ok) {
+         showToast(status === "approved" ? "Document approved ✓" : status === "pending" ? "Moved back to review" : "Document rejected");
+         await fetchKyc();
+         fetchStats();
+         fetchUsers();
+       } else {
+         const data = await r.json().catch(() => ({}));
+         showToast(data.error ?? "KYC action failed", "error");
+       }
     } finally {
       setActionLoading(null);
     }
@@ -1317,7 +1322,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div className="flex gap-1.5 overflow-x-auto pb-1">
-                {["all", "admin", "farmer", "investor", "cooperative"].map(r => (
+                {["all", "admin", "farmer", "investor", "cooperative", "agribusiness"].map(r => (
                   <button key={r} onClick={() => setRoleFilter(r)}
                     className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${roleFilter === r ? "bg-primary text-white" : "bg-white border border-border text-muted-foreground"}`}>
                     {r === "all" ? "All" : r.charAt(0).toUpperCase() + r.slice(1)}
@@ -1483,7 +1488,7 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <p className="text-white font-bold text-base">KYC Documents</p>
-                    <p className="text-amber-100 text-[10px]">Identity & document verification</p>
+                    <p className="text-amber-100 text-[10px]">Identity, business & organisation verification</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -1528,6 +1533,11 @@ export default function AdminDashboard() {
                       <p className="text-foreground text-xs font-semibold">{doc.userName}</p>
                       <p className="text-muted-foreground text-[10px] truncate">{doc.userEmail}</p>
                       <div className="flex items-center gap-2 mt-1">
+                        {doc.userRole && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                            {doc.userRole}
+                          </span>
+                        )}
                         <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{doc.docType}</span>
                         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
                           doc.status === "approved" ? "bg-green-100 text-green-700" :

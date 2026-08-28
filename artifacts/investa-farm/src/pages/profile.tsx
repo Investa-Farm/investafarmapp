@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useGetMe, useGetPortfolioSummary } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
-import { clearToken, formatKES, getToken, setToken, storeUser, getStoredUser } from "@/lib/auth";
+import { clearToken, formatKES, getToken, setToken, storeUser, getStoredUser, isDemoAccount } from "@/lib/auth";
 import { LogOut, ChevronRight, Shield, HelpCircle, Settings, CheckCircle2, Clock, Briefcase, TrendingUp, Wallet, Star, Zap, X, Eye, EyeOff, Save, RefreshCw, ArrowUpRight, Smartphone, KeyRound, Lock, Copy, Check as CheckIcon, MonitorSmartphone, Play, Film } from "lucide-react";
 import { getInstallPrompt, triggerInstall, isIosBrowser, isStandalone } from "@/lib/pwa";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
@@ -36,6 +36,7 @@ export default function Profile() {
   const [activeVideoNum, setActiveVideoNum] = useState<1|2|3|4|5|6|null>(null);
   const token = getToken();
   const stored = getStoredUser();
+  const isDemo = isDemoAccount();
   const queryClient = useQueryClient();
   const [profilePhoto, setProfilePhoto] = useState<string | null>(() => localStorage.getItem("investa_profile_photo"));
 
@@ -104,6 +105,7 @@ export default function Profile() {
       const r = await fetch("/api/kyc/status", { headers: { Authorization: `Bearer ${token}` } });
       return r.json();
     },
+    enabled: !!token && !isDemo,
   });
 
   const { data: totpStatus, refetch: refetchTotpStatus } = useQuery<{ totpEnabled: boolean }>({
@@ -394,7 +396,7 @@ export default function Profile() {
         )}
 
         {/* KYC status banner — hidden when fully verified */}
-        {!kycStatus?.isVerified && (
+        {!isDemo && !kycStatus?.isVerified && (
           <button onClick={() => setKycOpen(true)}
             className={`w-full rounded-2xl p-3.5 border flex items-center gap-3 text-left active:scale-98 transition-transform ${
               kycStatus?.allUploaded

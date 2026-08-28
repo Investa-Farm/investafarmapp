@@ -34,7 +34,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'kyc_doc_type') THEN
-    CREATE TYPE "public"."kyc_doc_type" AS ENUM('farm_report', 'national_id', 'national_id_back', 'selfie', 'land_title', 'group_certificate', 'financial_statement', 'business_registration', 'other');;
+    CREATE TYPE "public"."kyc_doc_type" AS ENUM('farm_report', 'national_id', 'national_id_back', 'selfie', 'land_title', 'group_certificate', 'financial_statement', 'business_registration', 'nda', 'other');;
   END IF;
 END $$;
 

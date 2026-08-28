@@ -223,8 +223,9 @@ export default function FarmerKyc() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
-      if (!r.ok) throw new Error("Document save failed");
-      return r.json();
+       const data = await r.json().catch(() => ({}));
+       if (!r.ok) throw new Error(data.error ?? "Document save failed");
+       return data;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["kyc-docs"] });
@@ -265,7 +266,7 @@ export default function FarmerKyc() {
     setUploadError(null);
     try {
       const fileUrl = await uploadFile(selectedFile);
-      upload.mutate({ docType: popupDocType ?? docType, title, fileUrl, notes: notes || undefined });
+       await upload.mutateAsync({ docType: popupDocType ?? docType, title, fileUrl, notes: notes || undefined });
     } catch (err: any) {
       setUploadError(err.message ?? "Upload failed");
     }

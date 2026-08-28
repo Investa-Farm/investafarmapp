@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getStoredUser, getToken, clearToken, formatKES } from "@/lib/auth";
+import { getStoredUser, getToken, clearToken, formatKES, isDemoAccount } from "@/lib/auth";
 import { useLocation, Link } from "wouter";
 import { Bell, LogOut, Package, Handshake, TrendingUp, Users, ShieldCheck, ChevronRight, MapPin, Star, Copy, Check, Plus, Trash2, ExternalLink, Home, Share2, DollarSign, UserCircle, Briefcase, Moon, Sun } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
@@ -14,6 +14,7 @@ type Product = { id: number; name: string; unit: string; price: number; category
 export default function AgribusinessDashboard() {
   const user = getStoredUser();
   const token = getToken();
+  const isDemo = isDemoAccount();
   const [, setLocation] = useLocation();
   const [notifOpen, setNotifOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"home" | "catalogue" | "referral" | "commissions" | "network">("home");
@@ -99,6 +100,7 @@ export default function AgribusinessDashboard() {
       if (!r.ok) return [];
       return r.json();
     },
+    enabled: !!token && !isDemo,
   });
   const kycPending = kycDocs.filter((d: any) => d.status === "pending").length;
   const kycApproved = kycDocs.filter((d: any) => d.status === "approved").length;
@@ -141,8 +143,8 @@ export default function AgribusinessDashboard() {
   });
 
   // KYC hard block — must upload docs before using dashboard features
-  const kycBlocked = kycDocs.length === 0;
-  const kycUnderReview = kycSubmitted && kycApproved === 0 && kycRejected === 0;
+  const kycBlocked = !isDemo && kycDocs.length === 0;
+  const kycUnderReview = !isDemo && kycSubmitted && kycApproved === 0 && kycRejected === 0;
 
   return (
     <div className="app-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }}>

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, PartyPopper, Mail, MessageCircle, Pencil, X, ArrowLeft, Smartphone, KeyRound } from "lucide-react";
-import { getToken, getStoredUser, storeUser, setToken } from "@/lib/auth";
+import { clearToken, getToken, getStoredUser, storeUser, setToken } from "@/lib/auth";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 
 const WHATSAPP_COMMUNITY = "https://chat.whatsapp.com/BWfnSpL4GTl0EsFpuPMKOK";

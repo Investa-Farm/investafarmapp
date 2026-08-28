@@ -11,6 +11,7 @@ export const kycDocTypeEnum = pgEnum("kyc_doc_type", [
   "group_certificate",
   "financial_statement",
   "business_registration",
+  "nda",
   "other",
 ]);
 

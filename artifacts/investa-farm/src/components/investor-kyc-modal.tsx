@@ -26,6 +26,7 @@ function UploadPopup({
   const token = getToken();
   const [title, setTitle] = useState("");
   const [fileUrl, setFileUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedSelfie, setCapturedSelfie] = useState<string | null>(null);
@@ -82,12 +83,14 @@ function UploadPopup({
   const retakeSelfie = () => {
     setCapturedSelfie(null);
     setFileUrl("");
+    setSelectedFile(null);
     startCamera();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFile(file);
     setTitle(t => t || file.name.replace(/\.[^.]+$/, ""));
     setFilePreview(file.name);
     const reader = new FileReader();
@@ -101,13 +104,28 @@ function UploadPopup({
 
   const upload = useMutation({
     mutationFn: async () => {
+      let submittedFileUrl = fileUrl;
+      if (selectedFile) {
+        const form = new FormData();
+        form.append("file", selectedFile);
+        const fileRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+        const fileData = await fileRes.json().catch(() => ({}));
+        if (!fileRes.ok) throw new Error(fileData.error ?? "File upload failed");
+        submittedFileUrl = fileData.url;
+      }
+      if (!submittedFileUrl) throw new Error("Please select a file first");
       const r = await fetch("/api/kyc/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ docType: docType.value, title: title || docType.label, fileUrl }),
+        body: JSON.stringify({ docType: docType.value, title: title || docType.label, fileUrl: submittedFileUrl }),
       });
-      if (!r.ok) throw new Error("Upload failed");
-      return r.json();
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error ?? "Upload failed");
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["kyc-docs"] });
