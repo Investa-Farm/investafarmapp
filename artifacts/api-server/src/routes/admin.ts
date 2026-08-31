@@ -1913,6 +1913,8 @@ router.post("/admin/seed-bulk-demo", async (_req, res): Promise<void> => {
 // Public DB health — lightweight, no auth, safe for uptime monitors
 router.get("/admin/db-health", async (_req, res): Promise<void> => {
   const { primaryPool, fallbackPool, dbStatus } = await import("@workspace/db");
+  const primaryLabel = process.env.SUPABASE_DATABASE_URL ? "supabase" : "neon";
+  const fallbackLabel = primaryLabel === "supabase" ? "neon" : "supabase";
 
   async function checkPool(p: import("pg").Pool, label: string) {
     const client = await p.connect().catch(() => null);
@@ -1934,8 +1936,8 @@ router.get("/admin/db-health", async (_req, res): Promise<void> => {
   }
 
   const [primary, fallback] = await Promise.all([
-    checkPool(primaryPool, "neon"),
-    fallbackPool ? checkPool(fallbackPool, "supabase") : Promise.resolve(null),
+    checkPool(primaryPool, primaryLabel),
+    fallbackPool ? checkPool(fallbackPool, fallbackLabel) : Promise.resolve(null),
   ]);
 
   const overall = primary.ok || (fallback?.ok ?? false);

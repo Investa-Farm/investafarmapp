@@ -285,7 +285,7 @@ export function dbStatus() {
     },
     shadow: shadowPool
       ? {
-          label: "neon",
+          label: primaryLabel === "supabase" ? "neon" : "supabase",
           url: FALLBACK_DB_URL?.replace(/:\/\/[^@]+@/, "://<redacted>@"),
         }
       : null,

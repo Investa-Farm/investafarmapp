@@ -167,6 +167,8 @@ app.get("/sitemap.xml", async (_req, res) => {
 app.get("/api/healthz", async (_req, res) => {
   try {
     const { primaryPool, fallbackPool, dbStatus } = await import("@workspace/db");
+    const primaryLabel = process.env.SUPABASE_DATABASE_URL ? "supabase" : "neon";
+    const fallbackLabel = primaryLabel === "supabase" ? "neon" : "supabase";
 
     async function checkPool(p: import("pg").Pool, label: string) {
       const client = await p.connect().catch(() => null);
@@ -188,8 +190,8 @@ app.get("/api/healthz", async (_req, res) => {
     }
 
     const [primary, fallback] = await Promise.all([
-      checkPool(primaryPool, "neon"),
-      fallbackPool ? checkPool(fallbackPool, "supabase") : Promise.resolve(null),
+      checkPool(primaryPool, primaryLabel),
+      fallbackPool ? checkPool(fallbackPool, fallbackLabel) : Promise.resolve(null),
     ]);
 
     const overall = primary.ok || (fallback?.ok ?? false);

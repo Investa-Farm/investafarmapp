@@ -2,26 +2,27 @@
 
 ## Two-Database Failover Setup
 
-Investa Farm uses **Neon** as the primary PostgreSQL database and **Supabase**
-as an automatic hot-standby. If Neon becomes unreachable the API server
-switches to Supabase within one failed query — no restart required.
+Investa Farm uses **Supabase** as the preferred PostgreSQL database when
+`SUPABASE_DATABASE_URL` is configured, with **Neon** as an automatic fallback.
+If the active database becomes unreachable, the API server switches to the
+other database within one failed query — no restart required.
 
 ```
    ┌─────────────┐    normal        ┌──────────────┐
-   │  API Server │ ──────────────▶  │   Neon (PG)  │ PRIMARY
+    │  API Server │ ──────────────▶  │ Supabase (PG)│ PREFERRED
    └─────────────┘                  └──────────────┘
           │              failover         ▲
           └──────────────────────▶ ┌──────────────┐
-                                   │ Supabase (PG)│ STANDBY
+                                    │   Neon (PG)  │ FALLBACK
                                    └──────────────┘
 ```
 
 ### Failover behaviour
 | Event | Behaviour |
 |---|---|
-| Neon returns a connection error | All traffic shifts to Supabase automatically |
+| Active database returns a connection error | All traffic shifts to the other database automatically |
 | Query/logic errors (e.g. unique constraint) | No failover — error returned to caller |
-| Neon recovers | Traffic shifts back within 60 seconds |
+| Preferred database recovers | Traffic shifts back within 60 seconds |
 | Both databases down | 503 returned to callers |
 
 > **Data divergence warning:** writes during a Neon outage go only to Supabase.
@@ -39,8 +40,8 @@ Go to your service → **Environment** → add these:
 
 | Key | Value | Notes |
 |---|---|---|
-| `DATABASE_URL` | `postgresql://...@neon.tech/...` | Your Neon connection string (already in Replit) |
-| `SUPABASE_DATABASE_URL` | `postgresql://postgres:%5BYourPassword%40Here%5D@db.xyz.supabase.co:5432/postgres` | URL-encode special chars in password (see below) |
+| `DATABASE_URL` | `postgresql://...@neon.tech/...` | Neon connection string; fallback when Supabase is configured |
+| `SUPABASE_DATABASE_URL` | `postgresql://postgres:%5BYourPassword%40Here%5D@db.xyz.supabase.co:5432/postgres` | Preferred database; URL-encode special chars in password (see below) |
 | `NODE_ENV` | `production` | Enables production pool sizes, SSL, etc. |
 | `SEED_DEMO` | `true` only for a demo-enabled deployment | Seeds the public demo accounts and sample data; leave unset for a clean production environment |
 | `SESSION_SECRET` | *(copy from Replit secrets)* | |
@@ -74,9 +75,9 @@ encode them before putting them in the connection URL:
 
 ### Schema synchronization
 
-`./start.sh` synchronizes the Neon schema before starting the API on every
-deploy. If Supabase is configured as the standby database, run the second
-command once after the first deploy and after schema changes:
+`./start.sh` synchronizes the configured primary schema before starting the API
+on every deploy. When both databases are configured, run the second command
+once after the first deploy and after schema changes:
 
 ```bash
 # From your local machine or a Render shell:

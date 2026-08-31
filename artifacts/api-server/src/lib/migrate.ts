@@ -2,8 +2,8 @@
  * Runtime schema migration — runs at every server startup.
  *
  * Two jobs:
- *  1. Apply incremental ALTER TABLE / enum updates to Neon (primary).
- *  2. Bootstrap Supabase (shadow) — create all tables IF NOT EXISTS and
+ *  1. Apply incremental ALTER TABLE / enum updates to the configured primary.
+ *  2. Bootstrap the configured fallback — create all tables IF NOT EXISTS and
  *     apply the same column additions, so both databases always match.
  *
  * All statements are idempotent: safe to re-run on every boot.
