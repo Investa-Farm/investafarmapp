@@ -149,55 +149,74 @@ async function applyDeltas(client: PoolClient): Promise<void> {
   await idx("idx_order_book_farm_id",      "ON order_book (farm_id)");
 }
 
-// ─── Supabase bootstrap ───────────────────────────────────────────────────────
+// ─── Complete schema bootstrap ────────────────────────────────────────────────
 
-async function bootstrapSupabase(): Promise<void> {
-  if (!shadowPool) return;
+async function bootstrapSchema(client: PoolClient, label: string): Promise<void> {
+  let failures = 0;
 
-  let client: PoolClient | null = null;
-  try {
-    client = await shadowPool.connect();
-    logger.info("[migrate:supabase] Bootstrapping Supabase schema…");
-
-    // Run every CREATE TABLE IF NOT EXISTS + enum DO blocks + FK constraints
-    for (const stmt of SUPABASE_INIT_SQL) {
-      try {
-        await client.query(stmt);
-      } catch (e) {
-        // Log but never abort — partial success is fine (idempotent)
-        logger.warn(`[migrate:supabase] stmt failed (non-fatal): ${(e as Error).message.slice(0, 120)}`);
-      }
+  // Run every CREATE TABLE IF NOT EXISTS + enum DO block + FK constraint.
+  // This is required on Render when a database has not received the initial
+  // Drizzle push yet; additive column deltas alone cannot create blog_posts or
+  // any of the other missing tables.
+  for (const stmt of SUPABASE_INIT_SQL) {
+    try {
+      // The generated DO blocks contain a delimiter from the source SQL and
+      // another delimiter from the wrapper. PostgreSQL rejects that `;;`
+      // sequence inside PL/pgSQL, so normalize it before execution.
+      await client.query(stmt.replace(/;{2,}/g, ";"));
+    } catch (e) {
+      failures++;
+      // Keep going: every statement is idempotent and an older database may
+      // legitimately reject a constraint that is already represented another way.
+      logger.warn(`[migrate:${label}] stmt failed (non-fatal): ${(e as Error).message.slice(0, 120)}`);
     }
+  }
 
-    // Apply the same column deltas
-    await applyDeltas(client);
+  await applyDeltas(client);
 
-    logger.info("[migrate:supabase] Supabase schema bootstrap complete ✓");
-  } catch (e) {
-    // Supabase unreachable (e.g. in Replit dev) — not fatal, log and continue
-    logger.warn(`[migrate:supabase] Could not reach Supabase (non-fatal): ${(e as Error).message.slice(0, 120)}`);
+  if (failures === 0) {
+    logger.info(`[migrate:${label}] Complete schema bootstrap finished ✓`);
+  } else {
+    logger.warn(`[migrate:${label}] Schema bootstrap completed with ${failures} non-fatal statement failure(s)`);
+  }
+}
+
+async function ensurePoolSchema(target: typeof pool, label: string): Promise<void> {
+  const client = await target.connect();
+  try {
+    logger.info(`[migrate:${label}] Ensuring database schema…`);
+    await bootstrapSchema(client, label);
   } finally {
-    client?.release();
+    client.release();
   }
 }
 
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 export async function ensureSchema(): Promise<void> {
-  // 1. Primary (Neon)
-  const client = await pool.connect();
+  // 1. Primary database. A primary outage is recoverable when the shadow
+  // database is available, so preserve the error and try the shadow below.
+  let primaryError: unknown = null;
   try {
-    logger.info("[migrate] Applying runtime schema migrations…");
-    await applyDeltas(client);
-    logger.info("[migrate] Runtime schema migrations complete ✓");
+    await ensurePoolSchema(pool, "primary");
   } catch (e) {
-    logger.error({ err: e }, "[migrate] Migration error (non-fatal)");
-  } finally {
-    client.release();
+    primaryError = e;
+    logger.warn({ err: e }, "[migrate:primary] Primary schema setup unavailable; trying fallback");
   }
 
-  // 2. Shadow (Supabase) — runs in background so server start isn't delayed
-  bootstrapSupabase().catch((e) =>
-    logger.warn({ err: e }, "[migrate:supabase] Background bootstrap error"),
-  );
+  // 2. Fallback database. This is awaited so a failover cannot reach seed
+  // queries before its base tables (including blog_posts) have been created.
+  let shadowError: unknown = null;
+  if (shadowPool) {
+    try {
+      await ensurePoolSchema(shadowPool, "fallback");
+    } catch (e) {
+      shadowError = e;
+      logger.warn({ err: e }, "[migrate:fallback] Fallback schema setup unavailable");
+    }
+  }
+
+  if (primaryError && shadowError) {
+    throw primaryError;
+  }
 }
