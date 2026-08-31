@@ -1,0 +1,50 @@
+2026-08-31T08:06:03.361054936Z ==> Deploying...
+2026-08-31T08:06:03.478085686Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-08-31T08:06:33.741353769Z ==> Running './start.sh'
+2026-08-31T08:06:33.836252897Z [start] Starting API server...
+2026-08-31T08:06:39.274792218Z {"level":30,"time":1788163599274,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","msg":"[migrate:primary] Ensuring database schema…"}
+2026-08-31T08:06:52.922901705Z {"level":30,"time":1788163612922,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","msg":"[migrate:primary] Complete schema bootstrap finished ✓"}
+2026-08-31T08:06:52.923872481Z (node:70) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+2026-08-31T08:06:52.923893462Z In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-08-31T08:06:52.923899052Z 
+2026-08-31T08:06:52.923904602Z To prepare for this change:
+2026-08-31T08:06:52.923910112Z - If you want the current behavior, explicitly use 'sslmode=verify-full'
+2026-08-31T08:06:52.923914732Z - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+2026-08-31T08:06:52.923918992Z 
+2026-08-31T08:06:52.923924132Z See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+2026-08-31T08:06:52.923929002Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-08-31T08:06:55.648623993Z {"level":40,"time":1788163612968,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","err":{"type":"DatabaseError2","message":"Your account or project has exceeded the compute time quota. Upgrade your plan to increase limits.","stack":"error: Your account or project has exceeded the compute time quota. Upgrade your plan to increase limits.\n    at <anonymous> (/opt/render/project/src/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async ensurePoolSchema (/opt/render/project/src/artifacts/api-server/src/lib/migrate.ts:185:18)\n    at async ensureSchema (/opt/render/project/src/artifacts/api-server/src/lib/migrate.ts:212:7)\n    at async prepareDatabase (/opt/render/project/src/artifacts/api-server/src/index.ts:39:5)\n    at async startServer (/opt/render/project/src/artifacts/api-server/src/index.ts:54:3)","length":119,"name":"error","severity":"ERROR","code":"53000"},"msg":"[migrate:fallback] Fallback schema setup unavailable"}
+2026-08-31T08:06:55.889336469Z {"level":30,"time":1788163615889,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","msg":"[blog] Seeded: Maize Farming in Kenya: A Complete Seasonal Guide to Maximum Yields"}
+2026-08-31T08:06:55.919888901Z [db:shadow] dual-write failed: Your account or project has exceeded the compute time quota. Upgrade your plan to increase limits. (suppressing repeats for 5 min)
+2026-08-31T08:06:56.034462055Z {"level":30,"time":1788163616034,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","msg":"[blog] Seeded: How Agricultural Investing Works: A Complete Beginner's Guide"}
+2026-08-31T08:06:56.180562508Z {"level":30,"time":1788163616179,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","msg":"[blog] Seeded: Avocado Farming in Kenya: Africa's Most Profitable Export Crop"}
+2026-08-31T08:06:56.331126676Z {"level":30,"time":1788163616330,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","msg":"[blog] Seeded: Kenya's Agricultural Markets: 5 Trends Every Investor Needs to Watch in 2026"}
+2026-08-31T08:06:56.476159Z {"level":30,"time":1788163616475,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","msg":"[blog] Seeded: How Agri-Tech is Transforming Small-Scale Farming in East Africa"}
+2026-08-31T08:06:56.834635125Z {"level":30,"time":1788163616833,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","msg":"[blog] Seeded: Coffee Farming in Kenya: How Premium Beans Deliver Premium Returns"}
+2026-08-31T08:06:57.334516913Z {"level":30,"time":1788163617334,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","msg":"[blog] Seeded: Climate-Smart Agriculture: How Kenyan Farmers Are Adapting to a Changing Climate"}
+2026-08-31T08:06:57.508574842Z {"level":30,"time":1788163617508,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","msg":"[blog] Seeded: Understanding Farm Share Returns: The Complete Investor's Deep Dive"}
+2026-08-31T08:06:57.509420646Z [EMAIL] Resend API configured — primary email provider (HTTP)
+2026-08-31T08:06:57.509446837Z [EMAIL] Brevo API configured — will be used as fallback if Resend fails
+2026-08-31T08:06:57.635438806Z [scheduler] Monthly digest: 1st of each month at 08:00 EAT
+2026-08-31T08:06:57.63568495Z [scheduler] Verification reminders → next run at 11:45 EAT
+2026-08-31T08:06:57.636758679Z [scheduler] Dividend payouts → next run at 04:35 EAT
+2026-08-31T08:06:57.637180086Z [scheduler] Rainfall alerts → next run at 05:48 EAT
+2026-08-31T08:06:57.637466691Z [scheduler] ROI snapshots → next run at 03:11 EAT
+2026-08-31T08:06:57.637845697Z [scheduler] Loan repayment reminders → next run at 07:26 EAT
+2026-08-31T08:06:57.63859113Z [scheduler] Farm growth: activating pending farms every 30 minutes
+2026-08-31T08:06:57.639536406Z [scheduler] AI market monitor: detecting crop/regional events every 30 minutes
+2026-08-31T08:06:57.639550226Z [scheduler] Price simulation & alerts: every 5 minutes
+2026-08-31T08:06:57.639553826Z [scheduler] Watchlist price alerts: every 5 minutes
+2026-08-31T08:06:57.639568067Z [scheduler] Order matching engine: every 1 minute
+2026-08-31T08:06:57.639571467Z [scheduler] Daily jobs: randomised times within safe windows
+2026-08-31T08:06:57.639923033Z {"level":30,"time":1788163617510,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","port":10000,"msg":"Server listening"}
+2026-08-31T08:06:57.644057513Z {"level":40,"time":1788163617643,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","ip":"::1","ua":"go-http-client/1.1","url":"/","msg":"[security] Bot user-agent blocked on mutation"}
+2026-08-31T08:06:57.733672042Z {"level":30,"time":1788163617647,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":403},"responseTime":4,"msg":"request completed"}
+2026-08-31T08:07:04.226075094Z ==> Your service is live 🎉
+2026-08-31T08:07:04.354352495Z ==> 
+2026-08-31T08:07:04.357153034Z ==> ///////////////////////////////////////////////////////////
+2026-08-31T08:07:04.359592914Z ==> 
+2026-08-31T08:07:04.362050554Z ==> Available at your primary URL https://app.investafarm.com + 1 more domain
+2026-08-31T08:07:04.364601707Z ==> 
+2026-08-31T08:07:04.366799161Z ==> ///////////////////////////////////////////////////////////
+2026-08-31T08:07:04.436967352Z {"level":30,"time":1788163624436,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-85bbd944cb-r27mb","req":{"id":2,"method":"GET","url":"/"},"res":{"statusCode":200},"responseTime":6,"msg":"request completed"}
