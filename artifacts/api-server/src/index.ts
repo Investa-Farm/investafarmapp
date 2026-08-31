@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDemoUsers } from "./seed";
-import { assertProductionSecrets, isProduction } from "./lib/authTokens";
+import { assertProductionSecrets } from "./lib/authTokens";
 import { seedBlogPosts } from "./routes/blog";
 // import { runBulkSeed } from "./bulkSeed";
 import { startScheduler } from "./scheduler";
@@ -37,8 +37,10 @@ async function prepareDatabase(): Promise<void> {
   try {
     await waitForDb();
     await ensureSchema();
-    // Demo accounts are never seeded in production. Opt in locally with SEED_DEMO=true.
-    if (!isProduction() && process.env.SEED_DEMO === "true") {
+    // Demo accounts are opt-in in every environment. This keeps production
+    // clean by default while allowing the public demo buttons to be enabled
+    // deliberately on a demo deployment.
+    if (process.env.SEED_DEMO === "true") {
       await seedDemoUsers((msg) => logger.info(msg));
     }
     await seedBlogPosts((msg) => logger.info(msg));

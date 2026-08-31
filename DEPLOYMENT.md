@@ -42,6 +42,7 @@ Go to your service → **Environment** → add these:
 | `DATABASE_URL` | `postgresql://...@neon.tech/...` | Your Neon connection string (already in Replit) |
 | `SUPABASE_DATABASE_URL` | `postgresql://postgres:%5BYourPassword%40Here%5D@db.xyz.supabase.co:5432/postgres` | URL-encode special chars in password (see below) |
 | `NODE_ENV` | `production` | Enables production pool sizes, SSL, etc. |
+| `SEED_DEMO` | `true` only for a demo-enabled deployment | Seeds the public demo accounts and sample data; leave unset for a clean production environment |
 | `SESSION_SECRET` | *(copy from Replit secrets)* | |
 | `PESAPAL_CONSUMER_KEY` | *(copy from Replit secrets)* | |
 | `PESAPAL_CONSUMER_SECRET` | *(copy from Replit secrets)* | |

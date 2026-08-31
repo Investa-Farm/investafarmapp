@@ -277,6 +277,7 @@ authentication and operational controls are ready for public traffic.
 | `DATABASE_URL` | Primary/single PostgreSQL connection |
 | `SUPABASE_DATABASE_URL` | Optional Supabase primary or standby connection |
 | `NODE_ENV` | `production` in Render |
+| `SEED_DEMO` | Optional; set to `true` only when public demo accounts are wanted |
 | `PORT` | HTTP listener port |
 | `SESSION_SECRET` | Session/signing secret |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Web push |
