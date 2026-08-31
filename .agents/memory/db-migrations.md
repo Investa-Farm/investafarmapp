@@ -8,3 +8,18 @@ The production start path must synchronize the primary database schema before st
 **Why:** A deployment can appear healthy while every account receives a 500 if the database is one schema revision behind. Swallowing a schema-push failure turns a recoverable deployment error into a user-facing outage.
 
 **How to apply:** When adding or renaming database fields/tables, update the Drizzle schema and the deployment schema-sync path together. Treat intentional destructive changes as an explicit `--force` decision, not as a reason to continue with a partially migrated database.
+
+The checked-in bootstrap SQL can lag behind the Drizzle schema when new table
+files are added. Compare the table declarations with the bootstrap list during
+deployment work; missing tables must be added before boot-time seeders run.
+Generated bootstrap statements may also contain doubled semicolons inside
+PL/pgSQL blocks, which PostgreSQL rejects and which must be normalized before
+execution.
+
+**Why:** A missing content or partner table can crash startup even when the
+primary connection and additive column migrations are healthy. A doubled
+delimiter can make the bootstrap appear to run while creating nothing.
+
+**How to apply:** Keep complete idempotent table creation in the startup path
+for both active and fallback pools, then apply additive deltas and only seed
+after both pools have been prepared.
