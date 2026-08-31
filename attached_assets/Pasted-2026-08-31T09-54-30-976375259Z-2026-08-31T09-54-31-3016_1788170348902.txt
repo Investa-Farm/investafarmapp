@@ -1,0 +1,50 @@
+2026-08-31T09:54:30.976375259Z 
+2026-08-31T09:54:31.301638424Z 
+2026-08-31T09:54:31.301645885Z > workspace@0.0.0 typecheck:libs /opt/render/project/src
+2026-08-31T09:54:31.301647645Z > tsc --build
+2026-08-31T09:54:31.301648971Z 
+2026-08-31T09:55:17.73053087Z ==> Uploading build...
+2026-08-31T09:55:33.190780268Z ==> Uploaded in 12.3s. Compression took 3.1s
+2026-08-31T09:55:33.195782316Z ==> Build successful 🎉
+2026-08-31T09:55:34.381086557Z ==> Deploying...
+2026-08-31T09:55:34.493500253Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-08-31T09:56:07.843680573Z ==> Running './start.sh'
+2026-08-31T09:56:07.939735478Z [start] Starting API server...
+2026-08-31T09:56:12.972712432Z {"level":30,"time":1788170172972,"pid":71,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-f685b8476-phgkn","msg":"[migrate:primary] Ensuring database schema…"}
+2026-08-31T09:56:26.415860242Z {"level":30,"time":1788170186415,"pid":71,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-f685b8476-phgkn","msg":"[migrate:primary] Complete schema bootstrap finished ✓"}
+2026-08-31T09:56:26.416875067Z (node:71) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+2026-08-31T09:56:26.416892857Z In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-08-31T09:56:26.416896797Z 
+2026-08-31T09:56:26.416901127Z To prepare for this change:
+2026-08-31T09:56:26.416905687Z - If you want the current behavior, explicitly use 'sslmode=verify-full'
+2026-08-31T09:56:26.416909577Z - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+2026-08-31T09:56:26.416911797Z 
+2026-08-31T09:56:26.416916957Z See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+2026-08-31T09:56:26.416919428Z (Use `node --trace-warnings ...` to show where the warning was created)
+2026-08-31T09:56:29.831192661Z {"level":40,"time":1788170186458,"pid":71,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-f685b8476-phgkn","err":{"type":"DatabaseError2","message":"Your account or project has exceeded the compute time quota. Upgrade your plan to increase limits.","stack":"error: Your account or project has exceeded the compute time quota. Upgrade your plan to increase limits.\n    at <anonymous> (/opt/render/project/src/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async ensurePoolSchema (/opt/render/project/src/artifacts/api-server/src/lib/migrate.ts:185:18)\n    at async ensureSchema (/opt/render/project/src/artifacts/api-server/src/lib/migrate.ts:212:7)\n    at async prepareDatabase (/opt/render/project/src/artifacts/api-server/src/index.ts:39:5)\n    at async startServer (/opt/render/project/src/artifacts/api-server/src/index.ts:56:3)","length":119,"name":"error","severity":"ERROR","code":"53000"},"msg":"[migrate:fallback] Fallback schema setup unavailable"}
+2026-08-31T09:56:30.630997239Z [EMAIL] Resend API configured — primary email provider (HTTP)
+2026-08-31T09:56:30.63103264Z [EMAIL] Brevo API configured — will be used as fallback if Resend fails
+2026-08-31T09:56:30.632753415Z {"level":30,"time":1788170190632,"pid":71,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-f685b8476-phgkn","port":10000,"msg":"Server listening"}
+2026-08-31T09:56:30.738011743Z [scheduler] Monthly digest: 1st of each month at 08:00 EAT
+2026-08-31T09:56:30.738132014Z [scheduler] Verification reminders → next run at 10:00 EAT
+2026-08-31T09:56:30.738610681Z [scheduler] Dividend payouts → next run at 01:26 EAT
+2026-08-31T09:56:30.739416503Z [scheduler] Rainfall alerts → next run at 05:20 EAT
+2026-08-31T09:56:30.739719688Z [scheduler] ROI snapshots → next run at 02:52 EAT
+2026-08-31T09:56:30.740083243Z [scheduler] Loan repayment reminders → next run at 08:28 EAT
+2026-08-31T09:56:30.740965355Z [scheduler] Farm growth: activating pending farms every 30 minutes
+2026-08-31T09:56:30.743137837Z [scheduler] AI market monitor: detecting crop/regional events every 30 minutes
+2026-08-31T09:56:30.743149327Z [scheduler] Price simulation & alerts: every 5 minutes
+2026-08-31T09:56:30.743152887Z [scheduler] Watchlist price alerts: every 5 minutes
+2026-08-31T09:56:30.743165338Z [scheduler] Order matching engine: every 1 minute
+2026-08-31T09:56:30.743168467Z [scheduler] Daily jobs: randomised times within safe windows
+2026-08-31T09:56:30.931325009Z {"level":40,"time":1788170190931,"pid":71,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-f685b8476-phgkn","ip":"::1","ua":"go-http-client/1.1","url":"/","msg":"[security] Bot user-agent blocked on mutation"}
+2026-08-31T09:56:30.937350946Z {"level":30,"time":1788170190936,"pid":71,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-f685b8476-phgkn","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":403},"responseTime":92,"msg":"request completed"}
+2026-08-31T09:56:31.232159905Z [db:shadow] dual-write failed: Your account or project has exceeded the compute time quota. Upgrade your plan to increase limits. (suppressing repeats for 5 min)
+2026-08-31T09:56:35.641942457Z ==> Your service is live 🎉
+2026-08-31T09:56:35.759916635Z ==> 
+2026-08-31T09:56:35.762589998Z ==> ///////////////////////////////////////////////////////////
+2026-08-31T09:56:35.765038147Z ==> 
+2026-08-31T09:56:35.767633204Z ==> Available at your primary URL https://app.investafarm.com + 1 more domain
+2026-08-31T09:56:35.770090964Z ==> 
+2026-08-31T09:56:35.772435818Z ==> ///////////////////////////////////////////////////////////
+2026-08-31T09:56:35.877105313Z {"level":30,"time":1788170195876,"pid":71,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-f685b8476-phgkn","req":{"id":2,"method":"GET","url":"/"},"res":{"statusCode":200},"responseTime":10,"msg":"request completed"}
