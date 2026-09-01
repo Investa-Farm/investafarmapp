@@ -1,0 +1,50 @@
+2026-08-31T10:48:01.01878179Z {"level":30,"time":1788173281018,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":14,"method":"POST","url":"/api/auth/login"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n    at onResFinished (/opt/render/project/src/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n    at ServerResponse.onResponseComplete (/opt/render/project/src/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n    at ServerResponse.emit (node:events:520:35)\n    at onFinish (node:_http_outgoing:1026:10)\n    at callback (node:internal/streams/writable:764:21)\n    at afterWrite (node:internal/streams/writable:708:5)\n    at afterWriteTick (node:internal/streams/writable:694:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)"},"responseTime":521,"msg":"request errored"}
+2026-08-31T10:48:09.31227297Z {"level":30,"time":1788173289312,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":15,"method":"GET","url":"/api/auth/google"},"res":{"statusCode":302},"responseTime":3,"msg":"request completed"}
+2026-08-31T10:48:10.316716325Z {"level":30,"time":1788173290316,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":16,"method":"GET","url":"/sw.js"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+2026-08-31T10:48:15.7265684Z [Google OAuth] _DrizzleQueryError: Failed query: select "id", "email", "password_hash", "name", "role", "email_verified", "account_number", "totp_secret", "totp_enabled", "phone", "county", "country", "credit_limit_kes", "max_deposit_kes", "max_withdrawal_kes", "metadata", "wallet_pin", "avatar_url", "bio", "oauth_provider_id", "token_version", "created_at" from "users" where "users"."email" = $1
+2026-08-31T10:48:15.726593932Z params: mosesochiengopiyo@gmail.com
+2026-08-31T10:48:15.726598512Z     at NodePgPreparedQuery.queryWithCache (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/pg-core/session.ts:73:11)
+2026-08-31T10:48:15.726601982Z     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+2026-08-31T10:48:15.726605003Z     at async <anonymous> (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/node-postgres/session.ts:154:19)
+2026-08-31T10:48:15.726608333Z     at async findOrCreateOAuthUser (/opt/render/project/src/artifacts/api-server/src/routes/auth.ts:450:16)
+2026-08-31T10:48:15.726611203Z     at async <anonymous> (/opt/render/project/src/artifacts/api-server/src/routes/auth.ts:567:29) {
+2026-08-31T10:48:15.726615083Z   query: 'select "id", "email", "password_hash", "name", "role", "email_verified", "account_number", "totp_secret", "totp_enabled", "phone", "county", "country", "credit_limit_kes", "max_deposit_kes", "max_withdrawal_kes", "metadata", "wallet_pin", "avatar_url", "bio", "oauth_provider_id", "token_version", "created_at" from "users" where "users"."email" = $1',
+2026-08-31T10:48:15.726618014Z   params: [ 'mosesochiengopiyo@gmail.com' ],
+2026-08-31T10:48:15.726621484Z   cause: error: column "token_version" does not exist
+2026-08-31T10:48:15.726624864Z       at <anonymous> (/opt/render/project/src/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11)
+2026-08-31T10:48:15.726627804Z       at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+2026-08-31T10:48:15.726630695Z       at async <anonymous> (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/node-postgres/session.ts:161:13)
+2026-08-31T10:48:15.726634005Z       at async NodePgPreparedQuery.queryWithCache (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/pg-core/session.ts:71:12)
+2026-08-31T10:48:15.726637125Z       at async <anonymous> (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/src/node-postgres/session.ts:154:19)
+2026-08-31T10:48:15.726640015Z       at async findOrCreateOAuthUser (/opt/render/project/src/artifacts/api-server/src/routes/auth.ts:450:16)
+2026-08-31T10:48:15.726642906Z       at async <anonymous> (/opt/render/project/src/artifacts/api-server/src/routes/auth.ts:567:29) {
+2026-08-31T10:48:15.726645756Z     length: 114,
+2026-08-31T10:48:15.726649236Z     severity: 'ERROR',
+2026-08-31T10:48:15.726652026Z     code: '42703',
+2026-08-31T10:48:15.726655957Z     detail: undefined,
+2026-08-31T10:48:15.726671458Z     hint: undefined,
+2026-08-31T10:48:15.726673388Z     position: '282',
+2026-08-31T10:48:15.726675758Z     internalPosition: undefined,
+2026-08-31T10:48:15.726677678Z     internalQuery: undefined,
+2026-08-31T10:48:15.726679529Z     where: undefined,
+2026-08-31T10:48:15.726681409Z     schema: undefined,
+2026-08-31T10:48:15.726683369Z     table: undefined,
+2026-08-31T10:48:15.726685279Z     column: undefined,
+2026-08-31T10:48:15.726687139Z     dataType: undefined,
+2026-08-31T10:48:15.726689029Z     constraint: undefined,
+2026-08-31T10:48:15.726690899Z     file: 'parse_relation.c',
+2026-08-31T10:48:15.72669275Z     line: '3716',
+2026-08-31T10:48:15.72669475Z     routine: 'errorMissingColumn'
+2026-08-31T10:48:15.72669671Z   }
+2026-08-31T10:48:15.72669864Z }
+2026-08-31T10:48:15.727182869Z {"level":30,"time":1788173295726,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":17,"method":"GET","url":"/api/auth/google/callback"},"res":{"statusCode":302},"responseTime":252,"msg":"request completed"}
+2026-08-31T10:48:16.018831849Z {"level":30,"time":1788173296018,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":18,"method":"GET","url":"/auth-callback"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+2026-08-31T10:48:16.505176493Z {"level":30,"time":1788173296503,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":19,"method":"GET","url":"/sw.js"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+2026-08-31T10:48:16.671291532Z {"level":30,"time":1788173296671,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":20,"method":"GET","url":"/manifest.json"},"res":{"statusCode":304},"responseTime":1,"msg":"request completed"}
+2026-08-31T10:48:16.678881687Z {"level":30,"time":1788173296678,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":21,"method":"GET","url":"/logo.png"},"res":{"statusCode":304},"responseTime":1,"msg":"request completed"}
+2026-08-31T10:48:16.688471864Z {"level":30,"time":1788173296688,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":22,"method":"GET","url":"/assets/index-BZ6xIkfh.css"},"res":{"statusCode":304},"responseTime":1,"msg":"request completed"}
+2026-08-31T10:48:17.187835882Z {"level":30,"time":1788173297187,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":23,"method":"GET","url":"/assets/index-BebvSz8A.js"},"res":{"statusCode":304},"responseTime":0,"msg":"request completed"}
+2026-08-31T10:48:21.648348976Z {"level":30,"time":1788173301648,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":24,"method":"GET","url":"/assets/Investa_8_-removebg-preview_(1)_1778315943098-BmSq2aH2.png"},"res":{"statusCode":304},"responseTime":1,"msg":"request completed"}
+2026-08-31T10:48:21.670404614Z {"level":30,"time":1788173301670,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":25,"method":"GET","url":"/assets/pexels-aedrian-10653885_1778315943103-CTMDTJyZ.jpg"},"res":{"statusCode":304},"responseTime":1,"msg":"request completed"}
+2026-08-31T10:48:25.590874913Z {"level":30,"time":1788173305590,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":26,"method":"GET","url":"/api/auth/google"},"res":{"statusCode":302},"responseTime":2,"msg":"request completed"}
+2026-08-31T10:48:26.592972353Z {"level":30,"time":1788173306592,"pid":70,"hostname":"srv-d9etnj5aeets73bvagqg-hibernate-589557f875-gm6z8","req":{"id":27,"method":"GET","url":"/sw.js"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
