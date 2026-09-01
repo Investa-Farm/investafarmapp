@@ -465,9 +465,12 @@ async function findOrCreateOAuthUser(
     await db.insert(walletsTable).values({ userId: user.id, balance: "0", currency: "KES" }).catch(() => {});
     sendWelcomeEmail(email, name, role).catch(() => {});
   } else {
-    // Existing user — check for auth provider conflict
+    // Existing user — detect provider situation
     const existingProvider = (user.metadata as Record<string, unknown> | null)?.authProvider as string | undefined;
-    if (existingProvider && existingProvider !== provider) {
+    const isOAuthConflict = existingProvider
+      && existingProvider !== "email"
+      && existingProvider !== provider;
+    if (isOAuthConflict) {
       throw Object.assign(new Error("auth_conflict"), { conflictProvider: existingProvider });
     }
     const roleClash = oauthPortalMismatch(role, user.role);
@@ -476,7 +479,7 @@ async function findOrCreateOAuthUser(
     }
     // Stamp the provider on legacy accounts (no metadata yet) so future checks work
     const updates: Record<string, any> = {};
-    if (!existingProvider) {
+    if (!existingProvider || existingProvider === "email") {
       updates.metadata = { ...(user.metadata as object ?? {}), authProvider: provider };
     }
     if (!user.emailVerified) updates.emailVerified = true;
@@ -701,7 +704,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     country: user.country,
     avatarUrl: (user as any).avatarUrl ?? null,
     bio: (user as any).bio ?? null,
-    authProvider: meta.authProvider ?? null,
+    authProvider: meta.authProvider ?? "email",
     createdAt: user.createdAt.toISOString(),
   });
 });
@@ -711,7 +714,7 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
   const Body = z.object({
-    name: z.string().min(1).optional(),
+    name: z.string().min(1).max(100).optional(),
     country: z.string().optional(),
     county: z.string().optional(),
     phone: z.string().optional(),

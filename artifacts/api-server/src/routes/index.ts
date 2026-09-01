@@ -39,6 +39,7 @@ import syndicatesRouter from "./syndicates";
 import pricingRouter from "./pricing";
 import blogRouter from "./blog";
 import marketEventsRouter from "./market-events";
+import farmerSpotlightRouter from "./farmer-spotlight";
 
 const router: IRouter = Router();
 
@@ -81,5 +82,6 @@ router.use(syndicatesRouter);
 router.use(pricingRouter);
 router.use(blogRouter);
 router.use(marketEventsRouter);
+router.use(farmerSpotlightRouter);
 
 export default router;

@@ -109,12 +109,12 @@ async function runAiMarketMonitor(): Promise<void> {
 
     const prompt = `You are an agricultural market intelligence AI for East Africa (Kenya focus).
 Generate 2-3 realistic, distinct market events happening RIGHT NOW that would affect crop prices.
-
 REGION SCOPE RULES (very important for price differentiation):
 - Use "Kenya" in affectedRegions ONLY for truly national events (e.g. government policy, export ban, nationwide drought declared by KMD)
 - Use specific regions for localised events: "Rift Valley", "Central", "Eastern", "Western", "Coast", "Nyanza", "Meru", "Nakuru", "Kisumu", "Laikipia", "Trans-Nzoia"
 - When drought/flooding hits a specific region, list only THAT region — do not spread it nationally
 - A national event affects ALL farms; a regional event primarily affects farms in that region (others get only minor spillover)
+Mix the geographic SCOPE: sometimes national (all Kenya), sometimes regional (specific region), sometimes county-level.
 
 Return ONLY valid JSON array, no markdown, no explanation:
 [
@@ -122,6 +122,7 @@ Return ONLY valid JSON array, no markdown, no explanation:
     "title": "short headline (max 12 words)",
     "description": "1-2 sentence explanation of the market event",
     "eventType": "weather|policy|market|trade|supply",
+    "scope": "national|regional|county",
     "affectedCrops": ["maize"|"wheat"|"coffee"|"tea"|"avocado"|"tomatoes"|"beans"|"sorghum"|"rice"|"sunflower"],
     "affectedRegions": ["Kenya"|"Rift Valley"|"Central"|"Eastern"|"Western"|"Coast"|"Nyanza"|"Meru"|"Nakuru"|"Kisumu"|"Laikipia"|"Trans-Nzoia"],
     "impactDirection": "positive|negative|mixed",
@@ -130,6 +131,7 @@ Return ONLY valid JSON array, no markdown, no explanation:
     "durationHours": 1-10
   }
 ]
+scope rules: "national" → affects all Kenya farms equally (use for government policy, national drought alerts, export bans). "regional" → strong in specific regions, weak spillover. "county" → very localised, minimal spillover.
 Make events realistic and geographically varied. Rotate different crop types and regions each call. Never repeat the same event twice.`;
 
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -171,6 +173,7 @@ Make events realistic and geographically varied. Rotate different crop types and
           impactDirection: ["positive", "negative", "mixed"].includes(evt.impactDirection) ? evt.impactDirection : "mixed",
           impactMagnitude: String(Math.min(0.25, Math.max(0.02, Number(evt.impactMagnitude ?? 0.08)))),
           severity:        ["low", "moderate", "high", "critical"].includes(evt.severity) ? evt.severity : "moderate",
+          scope:           ["national", "regional", "county"].includes(evt.scope) ? evt.scope : "regional",
           source:          "ai-monitor",
           expiresAt,
         });
@@ -389,12 +392,25 @@ async function runPriceSimulation(): Promise<void> {
         if (!cropHit) continue;
 
         const location = (farm.location ?? "").toLowerCase();
-        // "Kenya" or "East Africa" in affectedRegions = national event → full impact on ALL farms
-        const isNational = regions.length === 0
-          || regions.some(r => r.toLowerCase() === "kenya" || r.toLowerCase() === "east africa" || r.toLowerCase() === "national");
-        const regionHit = isNational
-          || regions.some(r => location.includes(r.toLowerCase()) || r.toLowerCase().includes(location.split(",")[0]?.trim() ?? ""));
-        const regionWeight = regionHit ? 1.0 : 0.10; // 10% minimal spillover for truly out-of-region farms
+        const scope = String(evt.scope ?? "regional");
+        let regionWeight: number;
+        const isNational = scope === "national"
+          || regions.length === 0
+          || regions.some(r => ["kenya", "east africa", "national"].includes(r.toLowerCase()));
+        if (isNational) {
+          // National events (policy, export bans, national drought) affect ALL farms equally
+          regionWeight = 1.0;
+        } else {
+          const regionHit = regions.length === 0
+            || regions.some(r => location.includes(r.toLowerCase()) || r.toLowerCase().includes(location.split(",")[0]?.trim() ?? ""));
+          if (scope === "county") {
+            // County-level: full impact on matching farms, near-zero spillover outside
+            regionWeight = regionHit ? 1.0 : 0.05;
+          } else {
+            // Regional default: full impact in affected region, 15% spillover elsewhere
+            regionWeight = regionHit ? 1.0 : 0.15;
+          }
+        }
 
         // Deterministic per-farm variance: same farm always responds same % within each event
         const farmSeed = ((farm.id * 2654435761) ^ (evt.id * 40503)) >>> 0;

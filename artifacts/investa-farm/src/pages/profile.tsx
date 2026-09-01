@@ -47,6 +47,7 @@ export default function Profile() {
   const [settingsCounty, setSettingsCounty] = useState((user as any)?.county ?? "");
   const [settingsPhone, setSettingsPhone] = useState((user as any)?.phone ?? "");
   const [settingsBio, setSettingsBio] = useState((user as any)?.bio ?? "");
+  const [settingsAvatar, setSettingsAvatar] = useState((user as any)?.avatarUrl ?? "");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -173,6 +174,7 @@ export default function Profile() {
       if (settingsCounty !== ((user as any)?.county ?? "")) body.county = settingsCounty;
       if (settingsPhone !== ((user as any)?.phone ?? "")) body.phone = settingsPhone;
       if (settingsBio !== ((user as any)?.bio ?? "")) body.bio = settingsBio;
+      if (settingsAvatar !== ((user as any)?.avatarUrl ?? "")) body.avatarUrl = settingsAvatar;
       if (currentPw && newPw) { body.currentPassword = currentPw; body.newPassword = newPw; }
       if (!Object.keys(body).length) { setSettingsOpen(false); setSettingsSaving(false); return; }
       const r = await fetch("/api/auth/me", {
@@ -598,7 +600,48 @@ export default function Profile() {
                     <option value="" disabled>Select your country</option>
                     {COUNTRIES.map(c => <option key={c.code} value={c.name}>{c.name}</option>)}
                   </select>
-                  <p className="text-muted-foreground text-[10px] mt-1">Determines which mobile money option (M-Pesa or MTN) is shown for deposits and withdrawals.</p>
+                  <p className="text-muted-foreground text-[10px] mt-1">Determines which mobile money option (M-Pesa or MTN) is shown.</p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone Number</label>
+                  <input
+                    type="tel" value={settingsPhone} onChange={e => setSettingsPhone(e.target.value)}
+                    placeholder="+254 7XX XXX XXX"
+                    className="mt-1.5 w-full border border-border rounded-xl px-4 py-3 text-sm bg-background focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">County / Region</label>
+                  <input
+                    type="text" value={settingsCounty} onChange={e => setSettingsCounty(e.target.value)}
+                    placeholder="e.g. Nakuru, Rift Valley"
+                    className="mt-1.5 w-full border border-border rounded-xl px-4 py-3 text-sm bg-background focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Profile Bio</label>
+                  <textarea
+                    value={settingsBio} onChange={e => setSettingsBio(e.target.value)}
+                    placeholder="Tell other investors a bit about yourself…"
+                    rows={3} maxLength={300}
+                    className="mt-1.5 w-full border border-border rounded-xl px-4 py-3 text-sm bg-background focus:outline-none focus:border-primary resize-none"
+                  />
+                  <p className="text-muted-foreground text-[10px] mt-0.5 text-right">{settingsBio.length}/300</p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Profile Photo URL</label>
+                  <input
+                    type="url" value={settingsAvatar} onChange={e => setSettingsAvatar(e.target.value)}
+                    placeholder="https://example.com/your-photo.jpg"
+                    className="mt-1.5 w-full border border-border rounded-xl px-4 py-3 text-sm bg-background focus:outline-none focus:border-primary"
+                  />
+                  {settingsAvatar && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <img src={settingsAvatar} alt="Preview" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        className="w-10 h-10 rounded-xl object-cover border border-border" />
+                      <p className="text-muted-foreground text-[11px]">Preview</p>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bio / About Me</label>
