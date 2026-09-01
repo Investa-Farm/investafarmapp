@@ -76,6 +76,9 @@ async function applyDeltas(client: PoolClient): Promise<void> {
   await col(client, "users", "avatar_url",         "TEXT");
   await col(client, "users", "bio",                "TEXT");
   await col(client, "users", "oauth_provider_id",  "TEXT");
+  // Token versioning is required by every authenticated request. The default
+  // keeps existing users valid while the column is added during deployment.
+  await col(client, "users", "token_version",      "INTEGER NOT NULL DEFAULT 0");
 
   // farms
   await col(client, "farms", "change_percent", "NUMERIC(8,4) NOT NULL DEFAULT 0");
