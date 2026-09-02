@@ -1,5 +1,5 @@
 /**
- * WalletPinGate — bottom-sheet that verifies the user's 6-digit wallet PIN
+ * WalletPinGate — bottom-sheet that verifies the user's four-digit wallet PIN
  * before allowing a transaction to proceed.
  *
  * Usage:
@@ -19,7 +19,7 @@ import { getToken } from "@/lib/auth";
 interface WalletPinGateProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (pin: string) => void;
   onForgotPin: () => void;
   title?: string;
 }
@@ -44,7 +44,7 @@ export function WalletPinGate({
   async function handlePinChange(newPin: string) {
     setPin(newPin);
     setError(null);
-    if (newPin.length === 6) {
+    if (newPin.length === 4) {
       setLoading(true);
       try {
         const r = await fetch("/api/wallet/pin/verify", {
@@ -59,7 +59,7 @@ export function WalletPinGate({
         } else {
           setPin("");
           setError(null);
-          onSuccess();
+           onSuccess(newPin);
         }
       } catch {
         setError("Network error. Please try again.");
@@ -110,7 +110,7 @@ export function WalletPinGate({
               onChange={handlePinChange}
               error={error}
               loading={loading}
-              subtitle="Enter your 6-digit wallet PIN to authorise this transaction"
+               subtitle="Enter your 4-digit wallet PIN to authorise this transaction"
             />
 
             <button

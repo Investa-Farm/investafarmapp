@@ -132,6 +132,7 @@ export default function FarmerWallet() {
   const [pinGateOpen, setPinGateOpen] = useState(false);
   const [pinGateAction, setPinGateAction] = useState<"addFunds" | "withdraw" | null>(null);
   const [pinSetupOpen, setPinSetupOpen] = useState(false);
+  const [transactionPin, setTransactionPin] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -142,12 +143,14 @@ export default function FarmerWallet() {
   }, [token]);
 
   function openWithPin(action: "addFunds" | "withdraw") {
+    if (hasPin === null) return;
     if (hasPin === false) { setPinGateAction(action); setPinSetupOpen(true); }
     else { setPinGateAction(action); setPinGateOpen(true); }
   }
 
-  function onPinVerified() {
+  function onPinVerified(pin: string) {
     setPinGateOpen(false);
+    setTransactionPin(pin);
     if (pinGateAction === "addFunds") setAddFundsOpen(true);
     else if (pinGateAction === "withdraw") { setModal("withdraw"); setAmount(""); }
     setPinGateAction(null);
@@ -200,18 +203,18 @@ export default function FarmerWallet() {
   }
 
   const withdrawMutation = useMutation({
-    mutationFn: async ({ amt, phone }: { amt: number; phone: string }) => {
+    mutationFn: async ({ amt, phone, pin }: { amt: number; phone: string; pin: string }) => {
       const r = await fetch("/api/wallet/withdraw", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: amt, phone }),
+        body: JSON.stringify({ amount: amt, phone, pin }),
       });
       if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
       return r.json();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["wallet"] });
-      setModal(null); setAmount(""); setWdPhone("");
+       setModal(null); setAmount(""); setWdPhone(""); setTransactionPin("");
       setSuccess("Withdrawal initiated. Funds sent to your mobile money account within 1–2 business days.");
       setTimeout(() => setSuccess(null), 5000);
     },
@@ -423,7 +426,7 @@ export default function FarmerWallet() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-amber-800 font-semibold text-xs">Secure your wallet</p>
-              <p className="text-amber-600 text-[10px]">Set a 6-digit PIN to protect your transactions</p>
+              <p className="text-amber-600 text-[10px]">Set a 4-digit PIN to protect your transactions</p>
             </div>
             <button
               onClick={() => { setPinGateAction(null); setPinSetupOpen(true); }}
@@ -439,6 +442,7 @@ export default function FarmerWallet() {
           {/* Add Funds — PIN-gated */}
           <button
             onClick={() => openWithPin("addFunds")}
+            disabled={hasPin === null}
             className="flex-1 flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-all shadow-lg"
             style={{ background: "linear-gradient(135deg,#15803d,#16a34a)", boxShadow: "0 6px 20px rgba(21,128,61,0.35)" }}
           >
@@ -452,6 +456,7 @@ export default function FarmerWallet() {
           {isTodayFriday ? (
             <button
               onClick={() => openWithPin("withdraw")}
+              disabled={hasPin === null}
               className="flex-1 flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl font-bold text-sm active:scale-95 transition-all border-2 border-primary/30 bg-primary/5 text-primary"
             >
               <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
@@ -551,7 +556,7 @@ export default function FarmerWallet() {
                   if (!amt || amt < 100) return;
                   const normalized = normalizePhone(wdDialCode, wdPhone.trim());
                   if (!normalized || !/^\+\d{7,15}$/.test(normalized)) return;
-                  withdrawMutation.mutate({ amt, phone: normalized });
+                   withdrawMutation.mutate({ amt, phone: normalized, pin: transactionPin });
                 }} className="space-y-4">
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                     <p className="text-amber-700 text-xs">Available: <strong>{formatKES(balance)}</strong>. Funds sent to your mobile money within 1–2 business days.</p>
@@ -634,7 +639,7 @@ export default function FarmerWallet() {
                     </div>
                   </div>
 
-                  <button type="submit" disabled={withdrawMutation.isPending || !amount || !wdPhone.trim()}
+                   <button type="submit" disabled={withdrawMutation.isPending || !amount || !wdPhone.trim() || !transactionPin}
                     className="w-full bg-primary text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60">
                     {withdrawMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ArrowDownLeft size={16} />}
                     {withdrawMutation.isPending ? "Processing…" : `Withdraw via ${FARMER_PROVIDERS.find(p => p.id === wdProvider)?.label}`}

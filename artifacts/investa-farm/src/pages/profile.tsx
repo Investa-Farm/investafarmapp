@@ -265,7 +265,7 @@ export default function Profile() {
     { icon: Settings, label: "Account Settings", sublabel: "Name, country, password", action: () => { setSettingsName(user?.name ?? stored?.name ?? ""); setSettingsOpen(true); }, badge: null, badgeLabel: null },
     {
       icon: KeyRound, label: "Wallet PIN",
-      sublabel: pinStatus?.hasPin ? "6-digit PIN protects all transactions" : "Secure your wallet transactions",
+       sublabel: pinStatus?.hasPin ? "4-digit PIN protects all transactions" : "Secure your wallet transactions",
       action: () => setPinSetupOpen(true),
       badge: pinStatus?.hasPin ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700",
       badgeLabel: pinStatus?.hasPin ? "Active" : "Set Up",
@@ -391,7 +391,7 @@ export default function Profile() {
             <KeyRound size={20} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <div className="flex-1">
               <p className="font-semibold text-sm text-amber-700 dark:text-amber-300">Set Up Your Wallet PIN</p>
-              <p className="text-xs text-amber-600 dark:text-amber-400">Authorise transactions with a 6-digit PIN — tap to create yours</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">Authorise transactions with a 4-digit PIN — tap to create yours</p>
             </div>
             <ChevronRight size={15} className="text-amber-400" />
           </button>

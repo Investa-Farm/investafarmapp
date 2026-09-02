@@ -153,7 +153,10 @@ router.post("/portfolio/exit", async (req, res): Promise<void> => {
     return;
   }
   const { holdingId, exitType } = parsed.data;
-  const [investment] = await db.select().from(investmentsTable).where(eq(investmentsTable.id, holdingId));
+   const [investment] = await db.select().from(investmentsTable).where(and(
+     eq(investmentsTable.id, holdingId),
+     eq(investmentsTable.investorId, user.id),
+   ));
   if (!investment) {
     res.status(404).json({ error: "Holding not found" });
     return;

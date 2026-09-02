@@ -81,8 +81,8 @@ router.post("/wallet/pin/setup", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { pin, currentPin, currentPassword } = req.body ?? {};
-  if (!pin || !/^\d{6,}$/.test(String(pin))) {
-    res.status(400).json({ error: "PIN must be at least 6 digits" }); return;
+  if (!pin || !/^\d{4}$/.test(String(pin))) {
+    res.status(400).json({ error: "PIN must be exactly 4 digits" }); return;
   }
   const [u] = await db.select({ walletPin: usersTable.walletPin }).from(usersTable).where(eq(usersTable.id, user.id));
   if (u?.walletPin) {
@@ -122,7 +122,7 @@ router.post("/wallet/pin/verify", async (req, res): Promise<void> => {
     res.status(429).json({ error: lock.message, retryAfterMs: lock.remainingMs }); return;
   }
   const { pin } = req.body;
-  if (!pin) { res.status(400).json({ error: "PIN required" }); return; }
+  if (!pin || !/^\d{4}$/.test(String(pin))) { res.status(400).json({ error: "PIN must be exactly 4 digits" }); return; }
   const [u] = await db.select({ walletPin: usersTable.walletPin }).from(usersTable).where(eq(usersTable.id, user.id));
   if (!u?.walletPin) {
     res.status(400).json({ error: "No PIN set — please create a wallet PIN first." }); return;
@@ -135,6 +135,36 @@ router.post("/wallet/pin/verify", async (req, res): Promise<void> => {
   recordSuccessfulAuth(`wallet-pin:${user.id}`);
   res.json({ valid: true });
 });
+
+/**
+ * Withdrawal authorization is checked again on the server for every request.
+ * The UI gate is only a convenience; it must never be the security boundary.
+ */
+async function requireWalletPin(req: any, res: any, user: { id: number }): Promise<boolean> {
+  const pin = req.body?.pin;
+  if (!pin || !/^\d{4}$/.test(String(pin))) {
+    res.status(400).json({ error: "A valid 4-digit wallet PIN is required" });
+    return false;
+  }
+  const lock = checkLockout(`wallet-pin:${user.id}`);
+  if (lock.locked) {
+    res.status(429).json({ error: lock.message, retryAfterMs: lock.remainingMs });
+    return false;
+  }
+  const [record] = await db.select({ walletPin: usersTable.walletPin }).from(usersTable).where(eq(usersTable.id, user.id));
+  if (!record?.walletPin) {
+    res.status(400).json({ error: "No wallet PIN set — please create one before withdrawing." });
+    return false;
+  }
+  const valid = await bcrypt.compare(String(pin), record.walletPin);
+  if (!valid) {
+    recordFailedAuth(`wallet-pin:${user.id}`);
+    res.status(401).json({ error: "Incorrect wallet PIN" });
+    return false;
+  }
+  recordSuccessfulAuth(`wallet-pin:${user.id}`);
+  return true;
+}
 
 // ─── GET /wallet ─────────────────────────────────────────────────────────────
 router.get("/wallet", async (req, res): Promise<void> => {
@@ -203,6 +233,7 @@ router.post("/wallet/deposit", financialRateLimit, async (req, res): Promise<voi
 router.post("/wallet/withdraw", financialRateLimit, requireNonce, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (!(await requireWalletPin(req, res, user))) return;
   const amount = Number(req.body.amount);
   if (!amount || isNaN(amount)) { res.status(400).json({ error: "Invalid amount." }); return; }
   const check = checkWithdrawalVelocity(user.id, amount);
@@ -607,6 +638,7 @@ router.get("/wallet/pending-exits", async (req, res): Promise<void> => {
 router.post("/wallet/withdraw/card", financialRateLimit, requireNonce, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (!(await requireWalletPin(req, res, user))) return;
   const amount = Number(req.body.amount);
   if (!amount || isNaN(amount) || amount < 100) { res.status(400).json({ error: "Minimum withdrawal is KES 100" }); return; }
   const { cardholderName, cardNumber: cardNum } = req.body;
@@ -648,6 +680,7 @@ router.post("/wallet/withdraw/card", financialRateLimit, requireNonce, async (re
 router.post("/wallet/withdraw/usdc", financialRateLimit, requireNonce, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (!(await requireWalletPin(req, res, user))) return;
   const amount = Number(req.body.amount);
   if (!amount || isNaN(amount) || amount < 500) { res.status(400).json({ error: "Minimum USDC withdrawal is KES 500" }); return; }
   const { walletAddress } = req.body;

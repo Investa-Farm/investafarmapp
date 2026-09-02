@@ -51,6 +51,7 @@ export default function InvestorWallet() {
   const [pinGateAction, setPinGateAction] = useState<"deposit" | "withdraw" | null>(null);
   const [pinSetupOpen, setPinSetupOpen] = useState(false);
   const [hasPin, setHasPin] = useState<boolean | null>(null); // null = loading
+  const [transactionPin, setTransactionPin] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -61,6 +62,7 @@ export default function InvestorWallet() {
   }, [token]);
 
   function openWithPin(action: "deposit" | "withdraw") {
+    if (hasPin === null) return;
     if (hasPin === false) {
       // User has no PIN yet — send them to setup first
       setPinGateAction(action);
@@ -71,8 +73,9 @@ export default function InvestorWallet() {
     }
   }
 
-  function onPinVerified() {
+  function onPinVerified(pin: string) {
     setPinGateOpen(false);
+    setTransactionPin(pin);
     if (pinGateAction === "deposit") { setModal("deposit"); setAmount(""); }
     else if (pinGateAction === "withdraw") { setModal("withdraw"); setAmount(""); }
     setPinGateAction(null);
@@ -347,7 +350,7 @@ export default function InvestorWallet() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-amber-800 font-semibold text-xs">Secure your wallet</p>
-              <p className="text-amber-600 text-[10px]">Set a 6-digit PIN to protect your transactions</p>
+              <p className="text-amber-600 text-[10px]">Set a 4-digit PIN to protect your transactions</p>
             </div>
             <button
               onClick={() => { setPinGateAction(null); setPinSetupOpen(true); }}
@@ -362,6 +365,7 @@ export default function InvestorWallet() {
         <div className="grid grid-cols-2 gap-2.5 mt-3">
           <button
             onClick={() => openWithPin("deposit")}
+            disabled={hasPin === null}
             className="bg-primary text-white font-bold py-4 rounded-2xl flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-transform shadow-md shadow-primary/20"
           >
             <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
@@ -371,6 +375,7 @@ export default function InvestorWallet() {
           </button>
           <button
             onClick={() => openWithPin("withdraw")}
+            disabled={hasPin === null}
             className="bg-muted border border-border text-foreground font-bold py-4 rounded-2xl flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-transform"
           >
             <div className="w-9 h-9 rounded-xl bg-muted/60 border border-border flex items-center justify-center">
@@ -568,8 +573,9 @@ export default function InvestorWallet() {
       {/* Withdraw sheet */}
       <WithdrawSheet
         open={modal === "withdraw"}
-        onClose={() => setModal(null)}
+        onClose={() => { setModal(null); setTransactionPin(""); }}
         balance={balance}
+        pin={transactionPin}
       />
 
       {/* PIN gate — shown before deposit/withdraw when user has a PIN */}

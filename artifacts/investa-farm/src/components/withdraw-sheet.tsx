@@ -102,9 +102,10 @@ interface Props {
   open: boolean;
   onClose: () => void;
   balance: number;
+  pin: string;
 }
 
-export function WithdrawSheet({ open, onClose, balance }: Props) {
+export function WithdrawSheet({ open, onClose, balance, pin }: Props) {
   useScrollLock(open);
   const token = getToken();
   const user = getStoredUser();
@@ -177,7 +178,7 @@ export function WithdrawSheet({ open, onClose, balance }: Props) {
       const r = await fetch("/api/wallet/withdraw", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...nonceHeaders() },
-        body: JSON.stringify({ amount: a, phone: normalized }),
+         body: JSON.stringify({ amount: a, phone: normalized, pin }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Withdrawal failed");
@@ -201,7 +202,7 @@ export function WithdrawSheet({ open, onClose, balance }: Props) {
       const r = await fetch("/api/wallet/withdraw/card", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...nonceHeaders() },
-        body: JSON.stringify({ amount: a, cardholderName: cardholderName.trim(), cardNumber: cardNumber.trim() }),
+         body: JSON.stringify({ amount: a, cardholderName: cardholderName.trim(), cardNumber: cardNumber.trim(), pin }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Card withdrawal failed");
@@ -224,7 +225,7 @@ export function WithdrawSheet({ open, onClose, balance }: Props) {
       const r = await fetch("/api/wallet/withdraw/usdc", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...nonceHeaders() },
-        body: JSON.stringify({ amount: a, walletAddress: walletAddress.trim() }),
+         body: JSON.stringify({ amount: a, walletAddress: walletAddress.trim(), pin }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "USDC withdrawal failed");

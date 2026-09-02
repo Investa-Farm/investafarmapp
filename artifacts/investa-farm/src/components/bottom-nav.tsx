@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BarChart2, Briefcase, Activity, User, Home, Handshake, Package, ClipboardList, Users, ShoppingCart, ShoppingBag, Wallet } from "lucide-react";
+import { BarChart2, Briefcase, Activity, User, Home, Handshake, Package, Users, ShoppingCart, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
 
@@ -14,9 +14,7 @@ const investorNav: NavItem[] = [
 
 const farmerNav: NavItem[] = [
   { label: "Home",    path: "/farmer",            icon: Home         },
-  { label: "Market",  path: "/farmer/market",     icon: ShoppingBag  },
   { label: "Wallet",  path: "/farmer/wallet",     icon: Wallet       },
-  { label: "My Farm", path: "/farmer/operations", icon: ClipboardList },
   { label: "Profile", path: "/farmer/profile",    icon: User         },
 ];
 

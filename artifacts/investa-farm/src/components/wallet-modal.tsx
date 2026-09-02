@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Wallet, CheckCircle2, Receipt, CreditCard, Coins, Smartphone, Copy, Check, TrendingUp, Repeat, Trash2, Download } from "lucide-react";
@@ -10,6 +10,9 @@ import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import farmBgSrc from "@assets/IMG_8016_1781250402404.jpeg";
 import { PaymentSheet } from "@/components/payment-sheet";
 import { downloadCsv } from "@/lib/csv";
+import { nonceHeaders } from "@/lib/nonce";
+import { WalletPinGate } from "@/components/wallet-pin-gate";
+import { WalletPinSetup } from "@/components/wallet-pin-setup";
 
 type WalletData = {
   wallet: { id: number; balance: string; currency: string; updatedAt: string };
@@ -71,7 +74,42 @@ export function WalletModal({ open, onClose }: Props) {
   const [withdrawCardNum, setWithdrawCardNum] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
   const [receiptTx, setReceiptTx] = useState<WalletData["transactions"][number] | null>(null);
+  const [hasPin, setHasPin] = useState<boolean | null>(null);
+  const [pinGateOpen, setPinGateOpen] = useState(false);
+  const [pinSetupOpen, setPinSetupOpen] = useState(false);
+  const [withdrawPin, setWithdrawPin] = useState("");
   const { currency, setCurrency, formatAmount } = useCurrency();
+
+  useEffect(() => {
+    if (!open || !token) return;
+    let cancelled = false;
+    setHasPin(null);
+    fetch("/api/wallet/pin/status", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled && d) setHasPin(d.hasPin === true); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [open, token]);
+
+  function openWithdraw() {
+    if (hasPin === null) return;
+    if (hasPin === false) setPinSetupOpen(true);
+    else setPinGateOpen(true);
+  }
+
+  function onPinVerified(pin: string) {
+    setPinGateOpen(false);
+    setWithdrawPin(pin);
+    setModal("withdraw");
+    setAmount("");
+    setWithdrawTab("mpesa");
+  }
+
+  function onPinSetupDone() {
+    setPinSetupOpen(false);
+    setHasPin(true);
+    setPinGateOpen(true);
+  }
 
   const { data, isLoading, refetch } = useQuery<WalletData>({
     queryKey: ["wallet"],
@@ -113,55 +151,55 @@ export function WalletModal({ open, onClose }: Props) {
   };
 
   const withdrawMutation = useMutation({
-    mutationFn: async ({ amt, phoneNum }: { amt: number; phoneNum: string }) => {
+    mutationFn: async ({ amt, phoneNum, pin }: { amt: number; phoneNum: string; pin: string }) => {
       const r = await fetch("/api/wallet/withdraw", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: amt, phone: phoneNum }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...nonceHeaders() },
+        body: JSON.stringify({ amount: amt, phone: phoneNum, pin }),
       });
       if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
       return r.json();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["wallet"] });
-      setModal(null); setAmount(""); setPhone("");
+      setModal(null); setAmount(""); setPhone(""); setWithdrawPin("");
       setSuccess("Withdrawal initiated to M-Pesa. Funds sent within 1–2 business days.");
       setTimeout(() => setSuccess(null), 5000);
     },
   });
 
   const withdrawCardMutation = useMutation({
-    mutationFn: async ({ amt, name, num }: { amt: number; name: string; num: string }) => {
+    mutationFn: async ({ amt, name, num, pin }: { amt: number; name: string; num: string; pin: string }) => {
       const r = await fetch("/api/wallet/withdraw/card", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: amt, cardholderName: name, cardNumber: num }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...nonceHeaders() },
+        body: JSON.stringify({ amount: amt, cardholderName: name, cardNumber: num, pin }),
       });
       if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
       return r.json();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["wallet"] });
-      setModal(null); setAmount(""); setCardName(""); setWithdrawCardNum("");
+      setModal(null); setAmount(""); setCardName(""); setWithdrawCardNum(""); setWithdrawPin("");
       setSuccess("Card withdrawal initiated. Funds arrive in 2–5 business days.");
       setTimeout(() => setSuccess(null), 5000);
     },
   });
 
   const withdrawUsdcMutation = useMutation({
-    mutationFn: async ({ amt, addr }: { amt: number; addr: string }) => {
+    mutationFn: async ({ amt, addr, pin }: { amt: number; addr: string; pin: string }) => {
       const r = await fetch("/api/wallet/withdraw/usdc", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: amt, walletAddress: addr }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...nonceHeaders() },
+        body: JSON.stringify({ amount: amt, walletAddress: addr, pin }),
       });
       if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
       return r.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["wallet"] });
-      setModal(null); setAmount(""); setUsdcAddress("");
-      setSuccess(`USDC withdrawal queued — ${data.usdcAmount ?? ""} USDC arriving within 30 min.`);
+      setModal(null); setAmount(""); setUsdcAddress(""); setWithdrawPin("");
+      setSuccess(`USDC withdrawal queued — ${result.usdcAmount ?? ""} USDC arriving within 30 min.`);
       setTimeout(() => setSuccess(null), 5000);
     },
   });
@@ -305,8 +343,8 @@ export function WalletModal({ open, onClose }: Props) {
                         <Plus size={18} /> Add Funds
                       </button>
                     )}
-                    <button onClick={() => { setModal("withdraw"); setAmount(""); setWithdrawTab("mpesa"); }}
-                      className="w-full bg-muted border border-border text-muted-foreground font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform text-sm">
+                    <button onClick={openWithdraw} disabled={hasPin === null}
+                      className="w-full bg-muted border border-border text-muted-foreground font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform text-sm disabled:opacity-50">
                       <ArrowUpRight size={14} /> Withdraw Funds
                     </button>
                   </div>
@@ -532,6 +570,7 @@ export function WalletModal({ open, onClose }: Props) {
                               </span>
                             </div>
                           )}
+                          {withdrawUsdcMutation.isError && <p className="text-red-500 text-xs text-center">{(withdrawUsdcMutation.error as Error).message}</p>}
                         </div>
                       )}
                     </div>
@@ -543,7 +582,7 @@ export function WalletModal({ open, onClose }: Props) {
                           onClick={() => {
                             const amt = parseFloat(amount);
                             if (!amt || amt < 100 || !phone.trim()) return;
-                            withdrawMutation.mutate({ amt, phoneNum: phoneCode + phone.trim() });
+                            withdrawMutation.mutate({ amt, phoneNum: phoneCode + phone.trim(), pin: withdrawPin });
                           }}
                           className="w-full bg-green-600 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60 shadow-md shadow-green-600/20">
                           {withdrawMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Smartphone size={16} />}
@@ -553,7 +592,7 @@ export function WalletModal({ open, onClose }: Props) {
                       {withdrawTab === "card" && (
                         <button
                           disabled={withdrawCardMutation.isPending || !amount || parseFloat(amount) < 100 || !cardName.trim() || !withdrawCardNum.trim()}
-                          onClick={() => withdrawCardMutation.mutate({ amt: parseFloat(amount), name: cardName, num: withdrawCardNum })}
+                          onClick={() => withdrawCardMutation.mutate({ amt: parseFloat(amount), name: cardName, num: withdrawCardNum, pin: withdrawPin })}
                           className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 shadow-md shadow-blue-600/20">
                           {withdrawCardMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
                           {withdrawCardMutation.isPending ? "Processing…" : "Withdraw to Card"}
@@ -561,14 +600,12 @@ export function WalletModal({ open, onClose }: Props) {
                       )}
                       {withdrawTab === "usdc" && (
                         <button
-                          disabled={!amount || parseFloat(amount) < 100 || !usdcAddress.startsWith("0x") || usdcAddress.length < 42}
+                          disabled={withdrawUsdcMutation.isPending || !amount || parseFloat(amount) < 500 || !usdcAddress.startsWith("0x") || usdcAddress.length < 42}
                           onClick={() => {
-                            setModal(null); setAmount(""); setUsdcAddress("");
-                            setSuccess("USDC withdrawal queued. Arriving within 30 minutes.");
-                            setTimeout(() => setSuccess(null), 5000);
+                            withdrawUsdcMutation.mutate({ amt: parseFloat(amount), addr: usdcAddress, pin: withdrawPin });
                           }}
                           className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 shadow-md shadow-purple-600/20">
-                          <Coins size={16} /> Withdraw as USDC
+                          {withdrawUsdcMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Coins size={16} />} {withdrawUsdcMutation.isPending ? "Processing…" : "Withdraw as USDC"}
                         </button>
                       )}
                     </div>
@@ -585,6 +622,20 @@ export function WalletModal({ open, onClose }: Props) {
                 setSuccess(`KES ${amt.toLocaleString()} added to your wallet!`);
                 setTimeout(() => { setSuccess(null); onClose(); }, 2200);
               }}
+            />
+
+            <WalletPinGate
+              open={pinGateOpen}
+              onClose={() => setPinGateOpen(false)}
+              onSuccess={onPinVerified}
+              onForgotPin={() => { setPinGateOpen(false); setPinSetupOpen(true); }}
+              title="Authorise Withdrawal"
+            />
+            <WalletPinSetup
+              open={pinSetupOpen}
+              onClose={() => setPinSetupOpen(false)}
+              onSuccess={onPinSetupDone}
+              isFirstTime={hasPin === false}
             />
 
             {/* Receipt sheet */}

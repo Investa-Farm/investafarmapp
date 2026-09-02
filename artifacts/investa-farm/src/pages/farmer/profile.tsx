@@ -3,7 +3,7 @@ import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, getStoredUser, storeUser, getToken, setToken, formatKES } from "@/lib/auth";
-import { LogOut, ChevronRight, Bell, Settings, HelpCircle, TrendingUp, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon, Leaf, Smartphone, Check, DollarSign, Package } from "lucide-react";
+import { LogOut, ChevronRight, Bell, Settings, HelpCircle, TrendingUp, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon, Leaf, Smartphone, Check, DollarSign, Package, KeyRound } from "lucide-react";
 import { getInstallPrompt, triggerInstall, isIosBrowser, isStandalone } from "@/lib/pwa";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/hooks/use-theme";
 import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog";
+import { WalletPinSetup } from "@/components/wallet-pin-setup";
 
 export default function FarmerProfile() {
   const [, setLocation] = useLocation();
@@ -22,6 +23,7 @@ export default function FarmerProfile() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [pinSetupOpen, setPinSetupOpen] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
   const { isDark, toggleDark } = useTheme();
 
@@ -69,6 +71,17 @@ export default function FarmerProfile() {
     },
   });
   const walletBalance = parseFloat(walletData?.wallet?.balance ?? "0");
+
+  const { data: pinStatus } = useQuery<{ hasPin: boolean }>({
+    queryKey: ["wallet-pin-status"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet/pin/status", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error("Failed to load wallet security");
+      return r.json();
+    },
+    enabled: !!token,
+    staleTime: 60_000,
+  });
 
   const handleLogout = () => { clearToken(); setLocation("/"); };
 
@@ -130,6 +143,7 @@ export default function FarmerProfile() {
       title: "Account",
       items: [
         { icon: Bell, label: "Notifications", sublabel: "Loan updates, market alerts", action: () => setNotifOpen(true) },
+        { icon: KeyRound, label: "Wallet PIN", sublabel: pinStatus?.hasPin ? "Change your 4-digit transaction PIN" : "Set a 4-digit PIN for withdrawals", action: () => setPinSetupOpen(true) },
         { icon: ShieldCheck, label: "Security & 2FA", sublabel: "Two-factor authentication (TOTP)", action: () => setLocation("/farmer/totp") },
         { icon: Settings, label: "Account Settings", sublabel: "Name, password", action: openSettings },
         { icon: isDark ? Sun : Moon, label: isDark ? "Switch to Light Mode" : "Switch to Dark Mode", sublabel: "Toggle app appearance", action: toggleDark },
@@ -261,6 +275,15 @@ export default function FarmerProfile() {
       </div>
 
       <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
+      <WalletPinSetup
+        open={pinSetupOpen}
+        onClose={() => setPinSetupOpen(false)}
+        onSuccess={() => {
+          setPinSetupOpen(false);
+          queryClient.invalidateQueries({ queryKey: ["wallet-pin-status"] });
+        }}
+        isFirstTime={pinStatus?.hasPin === false}
+      />
       <RateAppModal open={rateOpen} onClose={() => setRateOpen(false)} />
       <BottomNav role="farmer" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />

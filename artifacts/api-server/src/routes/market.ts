@@ -582,7 +582,10 @@ router.post("/market/sell", async (req, res): Promise<void> => {
     return;
   }
   const { holdingId, quantity, pricePerShare } = parsed.data;
-  const [investment] = await db.select().from(investmentsTable).where(eq(investmentsTable.id, holdingId));
+   const [investment] = await db.select().from(investmentsTable).where(and(
+     eq(investmentsTable.id, holdingId),
+     eq(investmentsTable.investorId, user.id),
+   ));
   if (!investment || investment.quantity < quantity) {
     res.status(400).json({ error: "Invalid holding or insufficient shares" });
     return;

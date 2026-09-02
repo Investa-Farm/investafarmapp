@@ -12,7 +12,7 @@ import { X, Shield, CheckCircle2, Loader2 } from "lucide-react";
 import { WalletPinPad } from "./wallet-pin-pad";
 import { getToken } from "@/lib/auth";
 
-const PIN_LEN = 6;
+const PIN_LEN = 4;
 type SetupStep = "current" | "password" | "create" | "confirm" | "saving" | "done";
 
 interface WalletPinSetupProps {
@@ -195,7 +195,7 @@ export function WalletPinSetup({
                     error={error}
                     title={
                       step === "current" ? "Enter your current PIN" :
-                      step === "create" ? "Create a 6-digit PIN" : "Confirm your PIN"
+                      step === "create" ? "Create a 4-digit PIN" : "Confirm your PIN"
                     }
                     subtitle={
                       step === "current" ? "Required to change your wallet PIN." :

@@ -1,5 +1,5 @@
 /**
- * WalletPinPad — shared 6-digit PIN number pad
+ * WalletPinPad — shared four-digit PIN number pad
  * Used by WalletPinGate (enter PIN) and WalletPinSetup (create/confirm PIN).
  */
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,7 +18,7 @@ interface WalletPinPadProps {
 export function WalletPinPad({
   value,
   onChange,
-  maxLength = 6,
+  maxLength = 4,
   error,
   title,
   subtitle,
