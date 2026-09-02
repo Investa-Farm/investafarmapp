@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
-import { clearToken, getStoredUser, storeUser, getToken, setToken, formatKES } from "@/lib/auth";
-import { LogOut, ChevronRight, Bell, Settings, HelpCircle, TrendingUp, Star, X, Eye, EyeOff, Save, Wallet, RefreshCw, ShieldCheck, Sun, Moon, Leaf, Smartphone, Check, DollarSign, Package, KeyRound } from "lucide-react";
+import { clearToken, getStoredUser, storeUser, getToken, setToken } from "@/lib/auth";
+import { LogOut, ChevronRight, Bell, Settings, HelpCircle, TrendingUp, Star, X, Eye, EyeOff, Save, Wallet, ShieldCheck, Sun, Moon, Leaf, Smartphone, Check, DollarSign, Package, KeyRound } from "lucide-react";
 import { getInstallPrompt, triggerInstall, isIosBrowser, isStandalone } from "@/lib/pwa";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
@@ -53,15 +53,6 @@ export default function FarmerProfile() {
   const { data: user } = useGetMe();
   const storedUser = getStoredUser();
 
-  const { data: walletData, refetch: refetchWallet, isLoading: walletLoading } = useQuery<{ wallet: { balance: string } }>({
-    queryKey: ["wallet-balance-farmer-profile"],
-    queryFn: async () => {
-      const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) return { wallet: { balance: "0" } };
-      return r.json();
-    },
-  });
-
   const { data: loans = [] } = useQuery<any[]>({
     queryKey: ["loan-apps-profile"],
     queryFn: async () => {
@@ -70,8 +61,6 @@ export default function FarmerProfile() {
       return r.json();
     },
   });
-  const walletBalance = parseFloat(walletData?.wallet?.balance ?? "0");
-
   const { data: pinStatus } = useQuery<{ hasPin: boolean }>({
     queryKey: ["wallet-pin-status"],
     queryFn: async () => {
@@ -143,6 +132,7 @@ export default function FarmerProfile() {
       title: "Account",
       items: [
         { icon: Bell, label: "Notifications", sublabel: "Loan updates, market alerts", action: () => setNotifOpen(true) },
+        { icon: Wallet, label: "Wallet & withdrawals", sublabel: "Balance, mobile money and transaction history", action: () => setWalletOpen(true) },
         { icon: KeyRound, label: "Wallet PIN", sublabel: pinStatus?.hasPin ? "Change your 4-digit transaction PIN" : "Set a 4-digit PIN for withdrawals", action: () => setPinSetupOpen(true) },
         { icon: ShieldCheck, label: "Security & 2FA", sublabel: "Two-factor authentication (TOTP)", action: () => setLocation("/farmer/totp") },
         { icon: Settings, label: "Account Settings", sublabel: "Name, password", action: openSettings },
@@ -211,29 +201,12 @@ export default function FarmerProfile() {
             </span>
           </div>
 
-          {/* Balance */}
-          <div className="flex-shrink-0 text-right">
-            <p className="text-white/60 text-[9px] uppercase tracking-wider">Earnings</p>
-            {walletLoading
-              ? <div className="h-5 w-20 bg-white/20 rounded animate-pulse" />
-              : <p className="text-white font-bold text-sm">{formatKES(walletBalance)}</p>}
-            <button onClick={() => refetchWallet()} className="mt-0.5 text-white/50 text-[9px] flex items-center gap-0.5 ml-auto">
-              <RefreshCw size={8} /> Refresh
-            </button>
-          </div>
         </div>
 
-        {/* Two CTA buttons */}
-        <div className="mt-4 grid grid-cols-2 gap-2.5">
-          <button onClick={() => setLocation("/farmer/farm-profile")}
-            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/15 text-white text-xs font-bold border border-white/20 active:scale-95 transition-transform">
-            <Leaf size={13} /> View Crop Details
-          </button>
-          <button onClick={() => setWalletOpen(true)}
-            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/15 text-white text-xs font-bold border border-white/20 active:scale-95 transition-transform">
-            <Wallet size={13} /> Manage Wallet
-          </button>
-        </div>
+        <button onClick={() => setLocation("/farmer/farm-profile")}
+          className="mt-4 w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/15 text-white text-xs font-bold border border-white/20 active:scale-95 transition-transform">
+          <Leaf size={13} /> View Crop Details
+        </button>
       </div>
 
       <div className="px-4 pt-4 space-y-4">

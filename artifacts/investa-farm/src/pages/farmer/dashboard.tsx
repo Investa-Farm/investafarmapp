@@ -1,22 +1,14 @@
 import { useGetFarmerDashboard, useListFarmUpdates, useGetMyFarms } from "@workspace/api-client-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES, getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
-import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, ArrowUpRight, Globe2, ShoppingBag, Package, Satellite } from "lucide-react";
-import { useCurrency, CURRENCIES, type CurrencyCode } from "@/lib/currency";
-import { HarvestPaymentModal } from "@/components/harvest-payment-modal";
+import { getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
+import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, Package } from "lucide-react";
+import { useCurrency } from "@/lib/currency";
 import { WalletModal } from "@/components/wallet-modal";
 import { useLocation, Link } from "wouter";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { getCropImage } from "@/lib/crops";
-import heroImg1 from "@assets/pexels-livier-garcia-645743-1459331_1781945539889.jpg";
-import heroImg2 from "@assets/pexels-fatima-yusuf-323522203-30541313_1781945539888.jpg";
-import heroImg3 from "@assets/IMG_8010_1781245320473.jpeg";
-import heroImg4 from "@assets/pexels-carina-chowanek-297993717-13340333_1781945269230.jpg";
-import heroImg5 from "@assets/pexels-elizabeth-tamara-27565957-19239403_1781945269226.jpg";
-import heroImg6 from "@assets/pexels-lisa-yakurim-40702902-13076945_1781945269227.jpg";
-import heroImg7 from "@assets/pexels-markus-winkler-1430818-2862150_1781945269224.jpg";
 import heroImg8 from "@assets/IMG_8016_1781250402404.jpeg";
 import { KycModal } from "@/components/kyc-modal";
 import { LoanModal } from "@/components/loan-modal";
@@ -24,10 +16,7 @@ import { NotificationPrompt } from "@/components/notification-prompt";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { InlineMicBot } from "@/components/ai-assistant";
 import { SpotlightTour } from "@/components/spotlight-tour";
-import { useTheme } from "@/hooks/use-theme";
 import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog";
-
-const ALL_CROP_SLIDES = [heroImg1, heroImg2, heroImg3, heroImg4, heroImg5, heroImg6, heroImg7, heroImg8];
 
 type GroupInfo = { id: number; name: string; registrationNumber: string; county: string; memberCount: number; status: string } | null;
 
@@ -47,16 +36,8 @@ export default function FarmerDashboard() {
   const [loanOpen, setLoanOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [harvestOpen, setHarvestOpen] = useState(false);
-  const { isDark, toggleDark } = useTheme();
-  const [heroIdx, setHeroIdx] = useState(0);
 
-  useEffect(() => {
-    const t = setInterval(() => setHeroIdx(i => (i + 1) % ALL_CROP_SLIDES.length), 5000);
-    return () => clearInterval(t);
-  }, []);
-
-  const { data: dashboard, isLoading } = useGetFarmerDashboard({ query: { queryKey: ["farmer-dashboard"], refetchInterval: 30000 } });
+  const { data: dashboard } = useGetFarmerDashboard({ query: { queryKey: ["farmer-dashboard"], refetchInterval: 30000 } });
   const { data: updates } = useListFarmUpdates();
   const { data: farms } = useGetMyFarms();
 
@@ -106,8 +87,7 @@ export default function FarmerDashboard() {
     staleTime: 60_000,
   });
 
-  const { formatAmount, currency, setCurrency } = useCurrency();
-  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
+  const { formatAmount } = useCurrency();
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
@@ -116,15 +96,7 @@ export default function FarmerDashboard() {
   const currentFarm = farms?.[0];
   const walletBalance = parseFloat(walletData?.wallet?.balance ?? "0");
 
-  // Build hero slides: if farmer has a crop, lead with that crop's image; then cycle rest
-  const heroSlides = (() => {
-    if (currentFarm?.cropType) {
-      const cropImg = getCropImage(currentFarm.cropType);
-      const rest = ALL_CROP_SLIDES.filter(s => s !== cropImg);
-      return [cropImg, ...rest];
-    }
-    return ALL_CROP_SLIDES;
-  })();
+  const heroImage = currentFarm?.cropType ? getCropImage(currentFarm.cropType) : heroImg8;
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -141,19 +113,9 @@ export default function FarmerDashboard() {
   return (
     <div className="app-shell responsive-shell pb-20 page-enter" data-testid="farmer-dashboard">
 
-      {/* Hero header with crop slideshow background */}
+      {/* Hero header with one stable crop image */}
       <div className="relative overflow-hidden" style={{ minHeight: 240 }}>
-        {heroSlides.map((img, i) => {
-          const current = heroIdx % heroSlides.length;
-          const next = (heroIdx + 1) % heroSlides.length;
-          if (i !== current && i !== next) return null;
-          return (
-            <img key={i} src={img} alt="Farm"
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
-              style={{ opacity: current === i ? 1 : 0 }}
-              loading={i === 0 ? "eager" : "lazy"} />
-          );
-        })}
+        <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover" loading="eager" />
         <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.10) 60%, transparent 100%)" }} />
 
         {/* Top bar */}
@@ -195,14 +157,6 @@ export default function FarmerDashboard() {
           </div>
         </div>
 
-        {/* Slide indicator dots */}
-        <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
-          {heroSlides.map((_, i) => (
-            <button key={i} onClick={() => setHeroIdx(i)}
-              className={`rounded-full transition-all duration-300 ${heroIdx % heroSlides.length === i ? "w-5 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/40"}`} />
-          ))}
-        </div>
-
         {/* Active Crop Card */}
         <div className="relative z-10 mx-5 mb-4">
           <div className="rounded-2xl overflow-hidden shadow-xl" style={{ background: "rgba(0,0,0,0.52)", backdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.14)" }}>
@@ -235,95 +189,20 @@ export default function FarmerDashboard() {
 
       <div className="px-5 pt-4 space-y-4">
 
-        {/* Wallet card — styled like a premium bank card */}
-        <div
-          data-tour="farmer-wallet-card"
-          className="relative rounded-[22px] overflow-hidden select-none shadow-2xl"
-          style={{ minHeight: 190 }}
-        >
-          {/* Crop image background — uses current farm's crop or fallback */}
-          <img
-            src={currentFarm?.cropType ? getCropImage(currentFarm.cropType) : heroImg8}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          {/* Dark green gradient overlay */}
-          <div
-            className="absolute inset-0"
-            style={{ background: "linear-gradient(135deg, rgba(5,46,22,0.92) 0%, rgba(20,83,45,0.88) 45%, rgba(22,101,52,0.80) 70%, rgba(22,163,74,0.78) 100%)" }}
-          />
-          {/* Subtle dot pattern */}
-          <div className="absolute inset-0 opacity-[0.05]"
-            style={{ backgroundImage: "radial-gradient(circle, white 1.5px, transparent 1.5px)", backgroundSize: "18px 18px" }} />
-
-          <div className="relative p-4 flex flex-col justify-between" style={{ minHeight: 190 }}>
-            {/* Top row */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <Wallet size={14} className="text-green-300" />
-                <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest">Farmer Wallet</p>
-              </div>
-              {/* Currency picker */}
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <button
-                    onClick={() => setCurrencyPickerOpen(o => !o)}
-                    className="flex items-center gap-1 text-green-300 text-[10px] font-bold bg-white/10 px-2 py-1 rounded-lg active:bg-white/20 transition-colors"
-                  >
-                    <Globe2 size={9} />
-                    {currency.code}
-                  </button>
-                  {currencyPickerOpen && (
-                    <div className="absolute right-0 top-7 z-20 bg-[#052e16] border border-white/20 rounded-xl shadow-2xl overflow-hidden w-44">
-                      {CURRENCIES.map(c => (
-                        <button
-                          key={c.code}
-                          onClick={() => { setCurrency(c.code as CurrencyCode); setCurrencyPickerOpen(false); }}
-                          className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
-                            c.code === currency.code ? "bg-white/20 text-white font-bold" : "text-white/70 hover:bg-white/10"
-                          }`}
-                        >
-                          <span className="font-semibold">{c.code}</span>
-                          <span className="text-white/50 text-[10px] ml-auto">{c.symbol}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {/* Gold chip */}
-                <div className="w-8 h-6 rounded-sm bg-amber-300/80 border border-amber-200/50 flex flex-col justify-center items-center gap-0.5 p-1">
-                  <div className="w-full h-0.5 bg-amber-600/40 rounded" />
-                  <div className="w-full h-0.5 bg-amber-600/40 rounded" />
-                </div>
-              </div>
+        {/* Wallet summary — balance here, full transactions in the Wallet flow */}
+        <div data-tour="farmer-wallet-card" className="rounded-2xl border border-primary/20 bg-card p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Wallet size={18} className="text-primary" />
             </div>
-
-            {/* Balance — centre */}
-            <div className="text-center py-2">
-              <p className="text-white/60 text-[9px] uppercase tracking-widest mb-0.5">Available Balance</p>
-              <p className="text-white font-bold text-4xl tracking-tight drop-shadow-lg">{formatAmount(walletBalance)}</p>
-              {currency.code !== "KES" && (
-                <p className="text-white/40 text-[10px] mt-0.5">≈ {formatKES(walletBalance)}</p>
-              )}
-              <div className="flex items-center justify-center gap-1.5 mt-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                <p className="text-green-300 text-[9px] font-semibold uppercase tracking-wider">Live Balance</p>
-              </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">Wallet balance</p>
+              <p className="text-foreground font-bold text-xl">{formatAmount(walletBalance)}</p>
             </div>
-
-            {/* Bottom row — action buttons */}
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => setWalletOpen(true)}
-                className="flex items-center justify-center gap-2 py-2.5 bg-white/15 border border-white/25 rounded-xl active:bg-white/25 transition-colors">
-                <Wallet size={13} className="text-green-300" />
-                <span className="text-white text-xs font-semibold">Open Wallet</span>
-              </button>
-              <button onClick={() => setLocation("/farmer/wallet")}
-                className="flex items-center justify-center gap-2 py-2.5 bg-white/15 border border-white/25 rounded-xl active:bg-white/25 transition-colors">
-                <ArrowUpRight size={13} className="text-green-300" />
-                <span className="text-white text-xs font-semibold">Withdraw</span>
-              </button>
-            </div>
+            <button onClick={() => setWalletOpen(true)}
+              className="flex items-center gap-1.5 bg-primary text-white px-3 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform">
+              Open wallet <ChevronRight size={13} />
+            </button>
           </div>
         </div>
 
@@ -347,11 +226,9 @@ export default function FarmerDashboard() {
           <button
             onClick={() => setLocation("/farmer/operations")}
             className="w-full rounded-2xl overflow-hidden text-left active:scale-[0.98] transition-transform shadow-lg shadow-black/10">
-            {/* Crop image banner */}
-            <div className="relative h-28 overflow-hidden">
-              <img src={getCropImage(currentFarm.cropType)} alt={currentFarm.cropType}
-                className="w-full h-full object-cover" loading="lazy" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+            {/* Compact farm status banner */}
+            <div className="relative h-24 overflow-hidden bg-gradient-to-br from-[#052e16] via-[#166534] to-[#16a34a]">
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
               {/* Top badges */}
               <div className="absolute top-2.5 left-3 right-3 flex items-center justify-between">
                 <span className="bg-black/40 backdrop-blur-sm border border-white/20 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -426,31 +303,6 @@ export default function FarmerDashboard() {
                 <span className="text-[9px] font-bold bg-green-500 text-white px-1.5 py-0.5 rounded-full">FUNDED</span>
                 <ChevronRight size={16} className="text-green-500" />
               </div>
-            </div>
-          </button>
-        )}
-
-        {/* Satellite Farm View shortcut — always visible (demo + no-farm users too) */}
-        {currentFarm && (
-          <button
-            onClick={() => setLocation("/farmer/health")}
-            className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 active:scale-[0.98] transition-all overflow-hidden relative"
-            style={{ background: "linear-gradient(135deg, #0c1a2e 0%, #0a2040 50%, #0d2a4a 100%)" }}>
-            {/* Star-field dots */}
-            <div className="absolute inset-0 opacity-20" style={{
-              backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
-              backgroundSize: "20px 20px",
-            }} />
-            <div className="relative w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center flex-shrink-0">
-              <Satellite size={18} className="text-sky-300" />
-            </div>
-            <div className="relative flex-1 text-left">
-              <p className="text-white font-semibold text-sm">Satellite Farm View</p>
-              <p className="text-sky-300/80 text-[11px]">Live NDVI · crop health · weather data</p>
-            </div>
-            <div className="relative flex items-center gap-1 bg-sky-500/20 border border-sky-500/30 text-sky-300 px-2.5 py-1 rounded-lg flex-shrink-0">
-              <span className="text-[10px] font-bold">View</span>
-              <ChevronRight size={11} />
             </div>
           </button>
         )}
@@ -594,34 +446,10 @@ export default function FarmerDashboard() {
 
       </div>
 
-      {/* Farmer platform guide */}
-      <div className="mx-4 mb-4 bg-green-50 border border-green-200 rounded-2xl p-4">
-        <p className="text-green-800 text-xs font-bold mb-2 flex items-center gap-1.5">🌾 Getting Started Guide</p>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">1</span>
-            <p className="text-green-700 text-xs"><strong>Complete KYC</strong> — Upload your ID and farm documents for verification.</p>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">2</span>
-            <p className="text-green-700 text-xs"><strong>Apply for Funding</strong> — List your farm shares on the primary market.</p>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">3</span>
-            <p className="text-green-700 text-xs"><strong>Post Updates</strong> — Keep investors informed to build trust and attract more capital.</p>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">4</span>
-            <p className="text-green-700 text-xs"><strong>Repay &amp; Grow</strong> — Share profits with investors and access larger funding rounds.</p>
-          </div>
-        </div>
-      </div>
-
       <BottomNav role="farmer" />
       <KycModal open={kycOpen} onClose={() => setKycOpen(false)} onVerified={() => { setKycOpen(false); setLoanOpen(true); }} />
       <LoanModal open={loanOpen} onClose={() => setLoanOpen(false)} />
       <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
-      <HarvestPaymentModal open={harvestOpen} onClose={() => setHarvestOpen(false)} />
       <NotificationPrompt storageKey="farmer_notif_v1" />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
 
@@ -630,7 +458,7 @@ export default function FarmerDashboard() {
         active={true}
         startDelayMs={2600}
         steps={[
-          { selector: '[data-tour="farmer-wallet-card"]', title: "Your Farm Wallet", emoji: "💳", body: "Your earnings land here. Deposit funds, withdraw to M-Pesa, and track every transaction." },
+          { selector: '[data-tour="farmer-wallet-card"]', title: "Your Farm Wallet", emoji: "💳", body: "See your balance here. Open the wallet when you need to add funds, withdraw, or view transactions." },
           { selector: '[data-tour="nav-market"]', title: "Sell on the Market", emoji: "🛒", body: "Connect with buyers, check commodity prices, and lock in offtake deals for your harvest." },
           { selector: '[data-tour="kyc-prompt"]', title: "Verify Your Identity", emoji: "🛡️", body: "Complete KYC first — it unlocks funding applications and gets your farm listed to investors." },
         ]}

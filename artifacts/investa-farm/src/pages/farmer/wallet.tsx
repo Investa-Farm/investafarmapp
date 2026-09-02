@@ -1,8 +1,8 @@
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES, getToken, getStoredUser } from "@/lib/auth";
-import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, ArrowUpRight, Loader2, CheckCircle2, ExternalLink, ChevronDown, CreditCard, Copy, Check, Phone, Plus, Shield, Settings2 } from "lucide-react";
+import { formatKES, getToken } from "@/lib/auth";
+import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, ArrowUpRight, Loader2, CheckCircle2, ExternalLink, ChevronDown, Phone, Plus, Shield } from "lucide-react";
 import { PaymentSheet } from "@/components/payment-sheet";
 import { WalletPinGate } from "@/components/wallet-pin-gate";
 import { WalletPinSetup } from "@/components/wallet-pin-setup";
@@ -32,77 +32,6 @@ const TX_ICONS: Record<string, { emoji: string; isCredit: boolean }> = {
   pension_absa: { emoji: "🏦",  isCredit: false },
 };
 
-// ── ABSA Pension Card ─────────────────────────────────────────────────────────
-function PensionCard({ totalEarned, formatKES }: { totalEarned: number; formatKES: (n: number) => string }) {
-  const [open, setOpen] = useState(false);
-  const [rate, setRate] = useState(() => parseFloat(localStorage.getItem("investa_pension_rate") ?? "0.05"));
-
-  function pickRate(r: number) {
-    setRate(r);
-    localStorage.setItem("investa_pension_rate", String(r));
-  }
-
-  const pensionAmount = totalEarned * rate;
-
-  return (
-    <div className="bg-amber-50 border border-amber-200 rounded-2xl mt-3 overflow-hidden">
-      {/* Main row */}
-      <div className="p-3 flex items-center gap-3">
-        {/* ABSA brand swatch */}
-        <div className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg,#c8102e,#e63946)" }}>
-          <span className="text-white text-[10px] font-black tracking-tighter leading-none text-center">ABSA</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-amber-800 font-semibold text-xs">ABSA Pension Fund ({Math.round(rate * 100)}%)</p>
-            <button onClick={() => setOpen(o => !o)}
-              className="flex items-center gap-1 text-[9px] font-bold text-amber-700 bg-amber-200 hover:bg-amber-300 px-2 py-0.5 rounded-full transition-colors">
-              <Settings2 size={9} />
-              {open ? "Done" : "Configure"}
-            </button>
-          </div>
-          <p className="text-amber-700 text-[10px] mt-0.5 leading-snug">
-            <strong>{formatKES(pensionAmount)}</strong> saved · Forwarded to ABSA on each offtaker payment
-          </p>
-        </div>
-      </div>
-
-      {/* Expandable rate picker */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t border-amber-200">
-            <div className="px-3 pb-3 pt-2 space-y-2">
-              <p className="text-amber-700 text-[10px] font-semibold">Choose contribution rate (% of each offtaker payment):</p>
-              <div className="flex gap-1.5">
-                {[5, 6, 7, 8, 9, 10].map(pct => (
-                  <button key={pct} onClick={() => pickRate(pct / 100)}
-                    className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all active:scale-95 ${
-                      Math.round(rate * 100) === pct
-                        ? "bg-amber-500 text-white shadow-sm"
-                        : "bg-white border border-amber-200 text-amber-700"
-                    }`}>
-                    {pct}%
-                  </button>
-                ))}
-              </div>
-              <div className="bg-white border border-amber-100 rounded-xl px-3 py-2 space-y-1">
-                <p className="text-amber-800 text-[10px] font-semibold">What is this?</p>
-                <p className="text-amber-700 text-[10px] leading-relaxed">
-                  When an offtaker repays your farm, {Math.round(rate * 100)}% of your share is automatically forwarded
-                  to your ABSA pension account — building your retirement savings with every harvest.
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 /** Returns the date of the next Friday (or today if already Friday) */
 function getNextFriday(): Date {
   const d = new Date();
@@ -120,7 +49,6 @@ const QUICK_AMOUNTS = [5000, 10000, 25000, 50000];
 export default function FarmerWallet() {
   const [, setLocation] = useLocation();
   const token = getToken();
-  const user = getStoredUser();
   const qc = useQueryClient();
   const [modal, setModal] = useState<"withdraw" | null>(null);
   const [addFundsOpen, setAddFundsOpen] = useState(false);
@@ -207,7 +135,7 @@ export default function FarmerWallet() {
     mutationFn: async ({ amt, phone, pin }: { amt: number; phone: string; pin: string }) => {
       const r = await fetch("/api/wallet/withdraw", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...nonceHeaders() },
         body: JSON.stringify({ amount: amt, phone, pin }),
       });
       if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Failed"); }
@@ -223,39 +151,9 @@ export default function FarmerWallet() {
 
   const { currency, setCurrency, formatAmount } = useCurrency();
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
-  const [stellarCopied, setStellarCopied] = useState(false);
-
-  const { data: stellarAcct } = useQuery<{ accountNumber: string } | null>({
-    queryKey: ["stellar-account"],
-    queryFn: async () => {
-      const r = await fetch("/api/stellar/account", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) return null;
-      return r.json();
-    },
-    staleTime: 300_000,
-  });
-
-  const handleCopyStellar = async () => {
-    if (!stellarAcct?.accountNumber) return;
-    await navigator.clipboard.writeText(stellarAcct.accountNumber).catch(() => {});
-    setStellarCopied(true);
-    setTimeout(() => setStellarCopied(false), 2000);
-  };
 
   const balance = parseFloat(data?.wallet?.balance ?? "0");
   const txs = data?.transactions ?? [];
-  const totalEarned = txs.filter(t => ["deposit", "return", "transfer", "dividend_paid", "wallet_credit"].includes(t.type)).reduce((s, t) => s + parseFloat(t.amount), 0);
-
-  // Set dividend flag so the rate modal can unlock after a payout
-  useEffect(() => {
-    const hasDividend = txs.some(t => t.type === "dividend_paid");
-    if (hasDividend) localStorage.setItem("investa_received_dividend", "1");
-  }, [txs]);
-
-  // Show real stellar account number if available, otherwise masked ID-based fallback
-  const displayAccountNum = stellarAcct?.accountNumber
-    ? stellarAcct.accountNumber
-    : `IF-${String(user?.id ?? 0).padStart(8, "0")}`;
   return (
     <div className="app-shell responsive-shell pb-20 page-enter">
       <div className="px-4 pt-12 pb-2 flex items-center justify-between">
@@ -318,39 +216,13 @@ export default function FarmerWallet() {
               )}
             </div>
 
-            {/* Bottom: wallet identity + account status */}
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-white/50 text-[8px] uppercase tracking-wider">Account holder</p>
-                <p className="text-white font-semibold text-xs tracking-wide">{user?.name ?? "Farmer"}</p>
-                <p className="text-white font-mono text-xs tracking-widest">{displayAccountNum}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-white/50 text-[8px] uppercase tracking-wider">Security</p>
-                <p className="text-green-200 font-semibold text-xs flex items-center justify-end gap-1">
-                  <Shield size={10} /> Protected
-                </p>
-              </div>
+            {/* Bottom: security status */}
+            <div className="flex items-center justify-center gap-1.5">
+              <Shield size={11} className="text-green-200" />
+              <p className="text-green-200 font-semibold text-[10px]">Protected wallet</p>
             </div>
           </div>
         </div>
-
-        {/* Stats strip */}
-        <div className="bg-white border border-border rounded-2xl mt-3 grid grid-cols-2 gap-0 overflow-hidden">
-          <div className="p-3 text-center border-r border-border">
-            <p className="text-green-600 font-bold text-sm">{formatAmount(totalEarned)}</p>
-            <p className="text-muted-foreground text-[10px] mt-0.5">Total Received</p>
-          </div>
-          <div className="p-3 text-center">
-            <p className="text-foreground font-bold text-sm">{txs.length}</p>
-            <p className="text-muted-foreground text-[10px] mt-0.5">Transactions</p>
-          </div>
-        </div>
-
-        {/* Pension savings info — ABSA */}
-        {totalEarned > 0 && (
-          <PensionCard totalEarned={totalEarned} formatKES={formatKES} />
-        )}
 
         {/* Interactive Currency Selector */}
         <button
@@ -381,39 +253,6 @@ export default function FarmerWallet() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Stellar / Investa Account Number */}
-        <div className="mt-3 rounded-2xl overflow-hidden relative shadow-lg"
-          style={{ background: "linear-gradient(135deg, #0a1f11 0%, #0f2d1a 50%, #0a1f11 100%)" }}>
-          <div className="absolute top-0 right-0 w-28 h-28 rounded-full bg-green-500/5 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-20 h-20 rounded-full bg-green-400/5 translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-          <div className="relative p-4">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-green-500/20 flex items-center justify-center">
-                  <CreditCard size={13} className="text-green-400" />
-                </div>
-                <span className="text-white/60 text-[10px] font-semibold uppercase tracking-widest">Stellar Account</span>
-              </div>
-              <span className="text-[9px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full border border-green-500/20">Active</span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              {stellarAcct?.accountNumber ? (
-                <>
-                  <p className="text-white font-mono text-xs tracking-wider truncate flex-1">{stellarAcct.accountNumber}</p>
-                  <button onClick={handleCopyStellar}
-                    className="flex-shrink-0 flex items-center gap-1.5 bg-white/10 border border-white/10 rounded-xl px-2.5 py-1.5 transition-all active:scale-95">
-                    {stellarCopied ? <Check size={11} className="text-green-400" /> : <Copy size={11} className="text-white/70" />}
-                    <span className="text-white/70 text-[10px] font-semibold">{stellarCopied ? "Copied!" : "Copy"}</span>
-                  </button>
-                </>
-              ) : (
-                <p className="text-white/30 text-xs font-mono tracking-wider">Loading account…</p>
-              )}
-            </div>
-            <p className="text-white/25 text-[9px] mt-1.5">Secure · Stellar blockchain · Farm earnings</p>
-          </div>
-        </div>
 
         {/* PIN setup banner */}
         {hasPin === false && (
