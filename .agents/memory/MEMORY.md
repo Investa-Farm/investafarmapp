@@ -1,6 +1,7 @@
 - [Render deploys need extra frontend fixes](render-deploy-frontend-fixes.md) — Render's strict build enforces typecheck + all workspace builds; Replit's dev flow tolerates issues that must be fixed for external hosts.
 - [DB schema migrations](db-migrations.md) — production startup must fail before serving traffic if the primary schema sync fails; never swallow migration errors.
 - [VAPID key security](vapid-security.md) — initVapid() throws on boot in production if VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY not set; dev-only fallback writes .vapid-keys.json (gitignored); never restart dev workflow after deleting or it regenerates and auto-checkpoint recommits it.
+- [Wallet security boundary](wallet-security-boundary.md) — server-side four-digit PIN checks protect withdrawals; exit/listing mutations verify holding ownership but do not need wallet PINs.
 - [Fetch safety pattern](fetch-safety.md) — all queryFn fetch calls must check r.ok before r.json(); missing check causes non-array error bodies to override default values and crash array methods like .some(); affects all farmer pages.
 - [Error boundary routing](error-boundary-routing.md) — ErrorBoundary reads role from localStorage to redirect to the correct role dashboard; getRoleHome() helper pattern used in both error-boundary.tsx and not-found.tsx.
 - [Cross-tab storage sync pitfall](cross-tab-storage-sync.md) — a `storage` event handler must re-derive state from localStorage, not from this tab's current DOM/state, or the "sync" silently no-ops.
