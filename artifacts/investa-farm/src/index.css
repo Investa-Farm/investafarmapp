@@ -180,6 +180,19 @@
     overflow-x: hidden;
   }
 
+  /* Market is the investor's working surface; give it room on desktop
+     without changing the intentionally narrow mobile shell. BottomNav
+     keeps its own 430px max-width and remains viewport-fixed. */
+  .app-shell.market-shell {
+    width: min(960px, calc(100vw - 48px));
+    max-width: 960px;
+  }
+
+  .app-shell.responsive-shell {
+    width: min(960px, calc(100vw - 48px));
+    max-width: 960px;
+  }
+
   html.dark .app-shell {
     box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 24px 64px rgba(0,0,0,0.5);
   }
@@ -191,6 +204,16 @@
     min-height: calc(100dvh - 48px);
     margin-top: 24px;
     margin-bottom: 24px;
+  }
+
+  .app-shell.market-shell {
+    width: min(1120px, calc(100vw - 64px));
+    max-width: 1120px;
+  }
+
+  .app-shell.responsive-shell {
+    width: min(1120px, calc(100vw - 64px));
+    max-width: 1120px;
   }
 }
 

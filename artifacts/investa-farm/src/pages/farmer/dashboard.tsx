@@ -132,13 +132,14 @@ export default function FarmerDashboard() {
     if (h < 17) return "Good afternoon,";
     return "Good evening,";
   };
-  const currentStageIndex = Math.max(0, CROP_STAGES.findIndex(s => s.key === dashboard?.growthStage) ?? 1);
+  const detectedStageIndex = CROP_STAGES.findIndex(s => s.key === dashboard?.growthStage);
+  const currentStageIndex = detectedStageIndex >= 0 ? detectedStageIndex : 0;
   const farmHealth = dashboard?.growthPercent != null ? Math.round(75 + dashboard.growthPercent * 0.2) : null;
   const farmerShare = dashboard ? Math.round(dashboard.farmValue * 0.55) : 0;
 
 
   return (
-    <div className="app-shell pb-20 page-enter" data-testid="farmer-dashboard">
+    <div className="app-shell responsive-shell pb-20 page-enter" data-testid="farmer-dashboard">
 
       {/* Hero header with crop slideshow background */}
       <div className="relative overflow-hidden" style={{ minHeight: 240 }}>
@@ -430,7 +431,7 @@ export default function FarmerDashboard() {
         )}
 
         {/* Satellite Farm View shortcut — always visible (demo + no-farm users too) */}
-        {(isDemo || true) && (
+        {currentFarm && (
           <button
             onClick={() => setLocation("/farmer/health")}
             className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 active:scale-[0.98] transition-all overflow-hidden relative"

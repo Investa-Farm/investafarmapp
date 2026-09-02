@@ -6,6 +6,7 @@ import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, ArrowUpRight, 
 import { PaymentSheet } from "@/components/payment-sheet";
 import { WalletPinGate } from "@/components/wallet-pin-gate";
 import { WalletPinSetup } from "@/components/wallet-pin-setup";
+import { nonceHeaders } from "@/lib/nonce";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -255,11 +256,8 @@ export default function FarmerWallet() {
   const displayAccountNum = stellarAcct?.accountNumber
     ? stellarAcct.accountNumber
     : `IF-${String(user?.id ?? 0).padStart(8, "0")}`;
-  const expiry = new Date(new Date().setFullYear(new Date().getFullYear() + 4));
-  const expiryStr = `${String(expiry.getMonth() + 1).padStart(2, "0")}/${String(expiry.getFullYear()).slice(-2)}`;
-
   return (
-    <div className="app-shell pb-20 page-enter">
+    <div className="app-shell responsive-shell pb-20 page-enter">
       <div className="px-4 pt-12 pb-2 flex items-center justify-between">
         <button onClick={() => setLocation("/farmer")} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
           <ArrowLeft size={16} className="text-foreground" />
@@ -320,29 +318,28 @@ export default function FarmerWallet() {
               )}
             </div>
 
-            {/* Bottom: name + expiry */}
+            {/* Bottom: wallet identity + account status */}
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-white/50 text-[8px] uppercase tracking-wider">{user?.name ?? "Farmer"}</p>
+                <p className="text-white/50 text-[8px] uppercase tracking-wider">Account holder</p>
+                <p className="text-white font-semibold text-xs tracking-wide">{user?.name ?? "Farmer"}</p>
                 <p className="text-white font-mono text-xs tracking-widest">{displayAccountNum}</p>
               </div>
               <div className="text-right">
-                <p className="text-white/50 text-[8px] uppercase tracking-wider">Valid Thru</p>
-                <p className="text-white font-mono text-xs">{expiryStr}</p>
+                <p className="text-white/50 text-[8px] uppercase tracking-wider">Security</p>
+                <p className="text-green-200 font-semibold text-xs flex items-center justify-end gap-1">
+                  <Shield size={10} /> Protected
+                </p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Stats strip */}
-        <div className="bg-white border border-border rounded-2xl mt-3 grid grid-cols-3 gap-0 overflow-hidden">
+        <div className="bg-white border border-border rounded-2xl mt-3 grid grid-cols-2 gap-0 overflow-hidden">
           <div className="p-3 text-center border-r border-border">
             <p className="text-green-600 font-bold text-sm">{formatAmount(totalEarned)}</p>
             <p className="text-muted-foreground text-[10px] mt-0.5">Total Received</p>
-          </div>
-          <div className="p-3 text-center border-r border-border">
-            <p className="text-amber-600 font-bold text-sm">{formatAmount(totalEarned * (parseFloat(localStorage.getItem("investa_pension_rate") ?? "0.05")))}</p>
-            <p className="text-muted-foreground text-[10px] mt-0.5">Pension (ABSA)</p>
           </div>
           <div className="p-3 text-center">
             <p className="text-foreground font-bold text-sm">{txs.length}</p>

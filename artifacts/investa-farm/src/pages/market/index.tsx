@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Bot, Flame } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Bot, Flame, MoreHorizontal } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import {
   useGetTopMovers,
   useListPrimaryMarket,
   useGetMarketSummary,
+  useGetPortfolioSummary,
 } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
@@ -460,6 +461,7 @@ export default function MarketHome() {
   const [matcherOpen, setMatcherOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
+  const [headerActionsOpen, setHeaderActionsOpen] = useState(false);
   const [statModal, setStatModal] = useState<"turnover" | "return" | "listings" | null>(null);
   const [calcListing, setCalcListing] = useState<any>(null);
   const [alertListing, setAlertListing] = useState<any>(null);
@@ -564,6 +566,11 @@ export default function MarketHome() {
   const walletBalance = walletData?.wallet?.balance;
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
   const isDemo = isDemoAccount();
+  const {
+    data: portfolioOverview,
+    isLoading: portfolioOverviewLoading,
+    isError: portfolioOverviewError,
+  } = useGetPortfolioSummary();
 
   const { data: liveTickerData } = useQuery<{ prices: Array<{name: string; price: string; unit: string; change: number}>; insights: string[] } | null>({
     queryKey: ["market-ticker"],
@@ -651,8 +658,13 @@ export default function MarketHome() {
     setPendingInvest(null);
   };
 
+  const portfolioValue = portfolioOverview?.totalValue ?? 0;
+  const todayPnl = portfolioOverview?.todayReturn ?? 0;
+  const todayPnlPercent = portfolioOverview?.todayReturnPercent ?? 0;
+  const investorWalletBalance = Number(walletBalance ?? 0);
+
   return (
-    <div className="app-shell pb-20 page-enter" data-testid="market-home">
+    <div className="app-shell market-shell pb-20 page-enter" data-testid="market-home">
       {/* Resume Pending Investment Banner */}
       <AnimatePresence>
         {pendingInvest && (
@@ -687,14 +699,15 @@ export default function MarketHome() {
       </AnimatePresence>
 
       {/* Market Header */}
-      <div className="relative overflow-hidden pt-12 pb-0 px-5 border-b border-border bg-background" data-tour="market-header">
+      <div className="relative pt-12 pb-0 px-5 border-b border-border bg-background" data-tour="market-header">
         {/* Subtle dot grid decoration */}
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle, #16a34a 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
         <div className="absolute -top-12 -right-8 w-36 h-36 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute -bottom-4 -left-4 w-24 h-24 rounded-full bg-primary/5 blur-2xl" />
 
-        <div className="relative flex items-center justify-between mb-3">
-          <div>
+        <div className="relative mb-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" />
               <span className="inline-flex items-center gap-1 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full">
@@ -705,49 +718,82 @@ export default function MarketHome() {
             <h1 className="text-foreground text-xl font-bold flex items-center gap-1.5">
               Live Market <TrendingUp size={16} className="text-primary" />
             </h1>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {/* Wallet — tap to top up */}
-            <button
-              data-tour="wallet-btn"
-              onClick={() => setWalletOpen(true)}
-              className="flex items-center gap-1.5 bg-primary text-white rounded-full px-3 py-1.5 shadow-sm shadow-primary/30 active:scale-95 transition-transform"
-            >
-              <Wallet size={12} className="text-white" />
-              <span className="text-white text-xs font-bold">{walletBalance !== undefined ? formatAmount(parseFloat(walletBalance ?? "0")) : "Wallet"}</span>
-              <ArrowUpRight size={11} className="text-white/80" />
-            </button>
-            <button onClick={handleRefresh}
-              className="w-8 h-8 rounded-full bg-card flex items-center justify-center border border-border shadow-sm"
-              title="Refresh market">
-              <RefreshCw size={14} className={`text-foreground ${refreshing ? "animate-spin" : ""}`} />
-            </button>
-            <button
-              onClick={() => setAgentOpen(true)}
-              className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform relative"
-              style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #1d4ed8 60%, #6d28d9 100%)" }}
-              title="AI Investment Assistant"
-            >
-              <Bot size={15} className="text-white" />
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-amber-400 flex items-center justify-center">
-                <Zap size={7} className="text-amber-900" />
-              </span>
-            </button>
-            <button onClick={() => setLocation("/market/map")}
-              className="w-8 h-8 rounded-full bg-card flex items-center justify-center border border-border shadow-sm"
-              title="Farm Map">
-              <Map size={15} className="text-foreground" />
-            </button>
-            <button onClick={() => setLocation("/notifications")}
-              className="w-8 h-8 rounded-full bg-card flex items-center justify-center relative border border-border shadow-sm">
-              <Bell size={15} className="text-foreground" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[7px] text-white font-bold flex items-center justify-center">
-                  {Math.min(unreadCount, 9)}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Wallet and notifications stay visible; lower-priority actions live in More. */}
+              <button
+                data-tour="wallet-btn"
+                data-testid="button-market-wallet"
+                onClick={() => setWalletOpen(true)}
+                className="flex items-center gap-1.5 bg-primary text-white rounded-full px-2.5 min-[380px]:px-3 py-1.5 shadow-sm shadow-primary/30 active:scale-95 transition-transform"
+              >
+                <Wallet size={12} className="text-white" />
+                <span className="text-white text-xs font-bold">
+                  {walletBalance !== undefined ? (
+                    <>
+                      <span className="hidden min-[380px]:inline">{formatAmount(parseFloat(walletBalance ?? "0"))}</span>
+                      <span className="min-[380px]:hidden">Wallet</span>
+                    </>
+                  ) : "Wallet"}
                 </span>
-              )}
-            </button>
+                <ArrowUpRight size={11} className="text-white/80" />
+              </button>
+              <button
+                data-testid="button-market-notifications"
+                onClick={() => setLocation("/notifications")}
+                className="w-8 h-8 rounded-full bg-card flex items-center justify-center relative border border-border shadow-sm"
+                title="Notifications"
+              >
+                <Bell size={15} className="text-foreground" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[7px] text-white font-bold flex items-center justify-center">
+                    {Math.min(unreadCount, 9)}
+                  </span>
+                )}
+              </button>
+              <button
+                data-testid="button-market-more"
+                aria-label="More market actions"
+                aria-expanded={headerActionsOpen}
+                onClick={() => setHeaderActionsOpen((open) => !open)}
+                className={`w-8 h-8 rounded-full bg-card flex items-center justify-center border border-border shadow-sm ${headerActionsOpen ? "text-primary border-primary/40" : "text-foreground"}`}
+                title="More market actions"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+            </div>
           </div>
+          {headerActionsOpen && (
+            <div
+              data-testid="market-more-actions"
+              className="absolute right-0 top-[calc(100%+8px)] z-30 w-52 rounded-2xl border border-border bg-card p-1.5 shadow-xl"
+            >
+              <button
+                data-testid="button-refresh-market"
+                onClick={() => { setHeaderActionsOpen(false); handleRefresh(); }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-foreground hover:bg-muted active:bg-muted"
+              >
+                <RefreshCw size={14} className={refreshing ? "animate-spin text-primary" : "text-muted-foreground"} />
+                Refresh market
+              </button>
+              <button
+                data-testid="button-market-assistant"
+                onClick={() => { setHeaderActionsOpen(false); setAgentOpen(true); }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-foreground hover:bg-muted active:bg-muted"
+              >
+                <Bot size={14} className="text-primary" />
+                Investment assistant
+              </button>
+              <button
+                data-testid="button-market-map"
+                onClick={() => { setHeaderActionsOpen(false); setLocation("/market/map"); }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-foreground hover:bg-muted active:bg-muted"
+              >
+                <Map size={14} className="text-muted-foreground" />
+                Explore farm map
+              </button>
+            </div>
+          )}
         </div>
 
 
@@ -774,6 +820,65 @@ export default function MarketHome() {
           </div>
         </div>
       </div>
+
+      {/* Investor-first snapshot: a quick read before the market feed. */}
+      <section className="px-4 pt-4" data-testid="investor-overview">
+        <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-[#052e16] via-[#14532d] to-[#166534] p-4 text-white shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-green-200/70">Investor snapshot</p>
+              <p className="mt-1 text-xs font-medium text-green-100/75">Total portfolio value</p>
+              {portfolioOverviewLoading ? (
+                <Skeleton data-testid="skeleton-portfolio-value" className="mt-2 h-8 w-32 bg-white/15" />
+              ) : (
+                <p data-testid="text-total-portfolio-value" className="mt-1 text-2xl font-black tracking-tight">
+                  {portfolioOverviewError ? "—" : formatAmount(portfolioValue)}
+                </p>
+              )}
+            </div>
+            <Link
+              href="/market/primary"
+              data-testid="link-browse-farms"
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-white px-3 py-2 text-[11px] font-extrabold text-[#14532d] shadow-sm transition-transform active:scale-95"
+            >
+              Browse farms
+              <ChevronRight size={13} />
+            </Link>
+          </div>
+          <div className="mt-4 grid grid-cols-3 divide-x divide-white/15 border-t border-white/15 pt-3">
+            <div className="pr-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-green-100/55">Today&apos;s P&amp;L</p>
+              <p data-testid="text-today-pnl" className={`mt-1 text-sm font-extrabold ${todayPnl >= 0 ? "text-green-200" : "text-red-200"}`}>
+                {portfolioOverviewLoading || portfolioOverviewError ? "—" : `${todayPnl >= 0 ? "+" : "−"}${formatAmount(Math.abs(todayPnl))}`}
+              </p>
+              {!portfolioOverviewLoading && !portfolioOverviewError && (
+                <p data-testid="text-today-pnl-percent" className="mt-0.5 text-[10px] font-semibold text-green-100/65">
+                  {todayPnlPercent >= 0 ? "+" : "−"}{Math.abs(todayPnlPercent).toFixed(1)}%
+                </p>
+              )}
+            </div>
+            <div className="px-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-green-100/55">Wallet balance</p>
+              <p data-testid="text-wallet-balance" className="mt-1 text-sm font-extrabold text-white">
+                {walletBalance === undefined ? "—" : formatAmount(investorWalletBalance)}
+              </p>
+              <p className="mt-0.5 text-[10px] font-medium text-green-100/65">Available to invest</p>
+            </div>
+            <div className="pl-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-green-100/55">Holdings</p>
+              <p data-testid="text-holdings-count" className="mt-1 text-sm font-extrabold text-white">
+                {portfolioOverviewLoading || portfolioOverviewError ? "—" : portfolioOverview?.holdings ?? 0}
+              </p>
+              <p className="mt-0.5 text-[10px] font-medium text-green-100/65">Active positions</p>
+            </div>
+          </div>
+          {portfolioOverviewError && (
+            <p data-testid="status-portfolio-overview" className="mt-3 border-t border-white/15 pt-2 text-[10px] font-medium text-green-100/70">
+              Portfolio data is temporarily unavailable. Your market is still ready to browse.
+            </p>
+          )}
+        </div>
+      </section>
 
       {/* Stat detail bottom sheet */}
       <AnimatePresence>

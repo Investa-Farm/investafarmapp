@@ -483,7 +483,7 @@ export default function Portfolio() {
     });
 
   return (
-    <div className="app-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", background: "#f0fdf4" }} data-testid="portfolio-page">
+    <div className="app-shell responsive-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", background: "#f0fdf4" }} data-testid="portfolio-page">
 
       {/* ── Premium Hero Header ── */}
       <div className="flex-shrink-0 relative overflow-hidden"
@@ -559,6 +559,24 @@ export default function Portfolio() {
                   </button>
                 ))}
               </div>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => setLocation("/market/primary")}
+                  data-testid="button-portfolio-browse-farms"
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-white text-primary py-2 text-[11px] font-bold shadow-sm active:scale-[0.98] transition-transform"
+                >
+                  <TrendingUp size={13} />
+                  Browse farms
+                </button>
+                <button
+                  onClick={() => setLocation("/wallet")}
+                  data-testid="button-portfolio-open-wallet"
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-white/15 border border-white/25 text-white py-2 text-[11px] font-bold active:scale-[0.98] transition-transform"
+                >
+                  <Wallet size={13} />
+                  Open wallet
+                </button>
+              </div>
             </>
           ) : (
             <div className="space-y-3">
@@ -607,16 +625,22 @@ export default function Portfolio() {
           }}>
 
           {/* Slide nav dots */}
-          <div className="flex items-center justify-between px-4 pt-1.5 pb-1 flex-shrink-0">
+          <div className="flex items-center gap-2 px-4 pt-1.5 pb-1 flex-shrink-0">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
               {["Performance", "Risk Allocation", "vs Peers", "Bets & Safety"][overviewSlide]}
             </p>
-            <div className="flex gap-1.5 items-center">
+            <div className="flex flex-1 gap-1 overflow-x-auto items-center justify-end" style={{ scrollbarWidth: "none" }}>
               {[0, 1, 2, 3].map(i => (
                 <button key={i} onClick={() => setOverviewSlide(i)}
-                  style={{ width: i === overviewSlide ? 18 : 6, height: 6, borderRadius: 99,
-                    background: i === overviewSlide ? "#16a34a" : "#d1d5db",
-                    transition: "all 0.3s", border: "none", padding: 0, cursor: "pointer" }} />
+                  aria-label={`Show ${["Performance", "Risk Allocation", "vs Peers", "Bets & Safety"][i]}`}
+                  data-testid={`button-overview-${i}`}
+                  className={`flex-shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold transition-all ${
+                    i === overviewSlide
+                      ? "border-primary bg-primary text-white"
+                      : "border-border bg-card text-muted-foreground"
+                  }`}>
+                  {["Performance", "Risk", "Peers", "Safety"][i]}
+                </button>
               ))}
             </div>
           </div>

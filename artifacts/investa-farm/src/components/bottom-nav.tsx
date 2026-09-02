@@ -8,6 +8,7 @@ interface NavItem { label: string; path: string; icon: React.ElementType; badge?
 const investorNav: NavItem[] = [
   { label: "Market",    path: "/market",    icon: BarChart2 },
   { label: "Portfolio", path: "/portfolio", icon: Briefcase },
+  { label: "Wallet",    path: "/wallet",    icon: Wallet   },
   { label: "Activity",  path: "/activity",  icon: Activity  },
   { label: "Profile",   path: "/profile",   icon: User      },
 ];
@@ -89,30 +90,30 @@ export function BottomNav({ role }: { role: "farmer" | "investor" | "agribusines
               );
           const showBadge = badge && unread > 0;
           return (
-            <Link key={path} href={path}>
-              <button
-                aria-label={label}
-                data-testid={`nav-${label.toLowerCase().replace(/ /g, "-")}`}
-                data-tour={
-                  label === "Portfolio" ? "nav-portfolio" :
-                  label === "Market" && role === "farmer" ? "nav-market" :
-                  label === "Wallet" && role === "farmer" ? "nav-wallet" :
-                  undefined
-                }
-                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all relative ${isActive ? "text-primary" : "text-muted-foreground"}`}
-              >
-                <div className="relative">
-                  <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
-                  {showBadge && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[15px] h-[15px] rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center px-0.5 leading-none">
-                      {unread > 9 ? "9+" : unread}
-                    </span>
-                  )}
-                </div>
-                <span className={`text-[9px] font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                  {label}
-                </span>
-              </button>
+            <Link
+              key={path}
+              href={path}
+              aria-label={label}
+              data-testid={`nav-${label.toLowerCase().replace(/ /g, "-")}`}
+              data-tour={
+                label === "Portfolio" ? "nav-portfolio" :
+                label === "Market" && role === "farmer" ? "nav-market" :
+                label === "Wallet" ? "nav-wallet" :
+                undefined
+              }
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all relative ${isActive ? "text-primary" : "text-muted-foreground"}`}
+            >
+              <div className="relative">
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
+                {showBadge && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[15px] h-[15px] rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center px-0.5 leading-none">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[9px] font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                {label}
+              </span>
             </Link>
           );
         })}

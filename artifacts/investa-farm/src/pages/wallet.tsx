@@ -174,12 +174,8 @@ export default function InvestorWallet() {
     );
   };
 
-  const cardNumber = `•••• •••• •••• ${String(user?.id ?? 0).padStart(4, "0")}`;
-  const expiry = new Date(new Date().setFullYear(new Date().getFullYear() + 4));
-  const expiryStr = `${String(expiry.getMonth() + 1).padStart(2, "0")}/${String(expiry.getFullYear()).slice(-2)}`;
-
   return (
-    <div className="app-shell pb-20 page-enter">
+    <div className="app-shell responsive-shell pb-20 page-enter">
       {/* Top nav */}
       <div className="px-4 pt-12 pb-2 flex items-center justify-between">
         <button onClick={() => setLocation("/market")} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
@@ -240,14 +236,14 @@ export default function InvestorWallet() {
                     className="text-white font-bold text-3xl">{formatAmount(balance)}</motion.p>}
             </div>
 
-            {/* Bottom row: name/account + expiry */}
+            {/* Bottom row: wallet identity + protection status */}
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-white/50 text-[8px] uppercase tracking-wider">{user?.name ?? "Cardholder"}</p>
-                <p className="text-white font-mono text-xs tracking-widest">{cardNumber}</p>
+                <p className="text-white/50 text-[8px] uppercase tracking-wider">Account holder</p>
+                <p className="text-white font-semibold text-xs tracking-wide">{user?.name ?? "Investor"}</p>
                 {stellarAcct?.accountNumber && (
                   <button onClick={handleCopyStellar} className="flex items-center gap-1 mt-1 group" aria-label="Copy account number">
-                    <p className="text-white/50 text-[8px] uppercase tracking-wider mr-0.5">Acct No.</p>
+                    <p className="text-white/50 text-[8px] uppercase tracking-wider mr-0.5">Account</p>
                     <p className="text-white/80 font-mono text-[9px] tracking-wide">
                       {stellarAcct.accountNumber.slice(0, 6)}…{stellarAcct.accountNumber.slice(-4)}
                     </p>
@@ -258,8 +254,10 @@ export default function InvestorWallet() {
                 )}
               </div>
               <div className="text-right">
-                <p className="text-white/50 text-[8px] uppercase tracking-wider">Valid Thru</p>
-                <p className="text-white font-mono text-xs">{expiryStr}</p>
+                <p className="text-white/50 text-[8px] uppercase tracking-wider">Security</p>
+                <p className="text-green-200 font-semibold text-xs flex items-center justify-end gap-1">
+                  <Lock size={10} /> Protected
+                </p>
               </div>
             </div>
           </div>
@@ -404,22 +402,6 @@ export default function InvestorWallet() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <TrendingUp size={16} className="text-white" />
-            </div>
-            <div>
-              <p className="text-green-800 font-semibold text-sm">Ready to Invest?</p>
-              <p className="text-green-600 text-xs">Use your wallet to buy farm shares instantly</p>
-            </div>
-          </div>
-          <button onClick={() => setLocation("/market/primary")}
-            className="w-full bg-primary text-white font-semibold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">
-            Browse Primary Market →
-          </button>
-        </div>
 
         <div>
           <div className="flex items-center justify-between mb-2">
