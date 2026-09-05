@@ -10,6 +10,7 @@ import {
   Star, Plus, RefreshCw, Bell, CreditCard, X, Info, ChevronLeft, ChevronRight,
   Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Briefcase, Flame,
   ShieldCheck, KeyRound, Smartphone, AlertTriangle, Eye,
+  Clock,
 } from "lucide-react";
 import { PortfolioWizard } from "@/components/portfolio-wizard";
 import { Sparkline, generateSparkData } from "@/components/sparkline";
@@ -364,7 +365,7 @@ export default function Portfolio() {
 
   const AI_EXPLAIN: Record<"swap" | "exit" | "sell", { icon: string; title: string; color: string; short: string; bullets: string[] }> = {
     swap: {
-      icon: "🔄", title: "What is Swap?", color: "from-indigo-500 to-violet-500",
+      icon: "Swap", title: "What is Swap?", color: "from-indigo-500 to-violet-500",
       short: "Move your money from one farm to another without withdrawing it.",
       bullets: [
         "Your current shares are listed on the secondary market at market price",
@@ -374,7 +375,7 @@ export default function Portfolio() {
       ],
     },
     exit: {
-      icon: "🚪", title: "What is Exit?", color: "from-green-500 to-emerald-500",
+      icon: "Exit", title: "What is Exit?", color: "from-green-500 to-emerald-500",
       short: "Request to close your investment and get your money back, with returns.",
       bullets: [
         "Mid-Season Exit (30–60 days): ~10% return — sell to another investor via the platform",
@@ -384,7 +385,7 @@ export default function Portfolio() {
       ],
     },
     sell: {
-      icon: "🏷️", title: "What is Sell?", color: "from-blue-500 to-cyan-500",
+      icon: "Sell", title: "What is Sell?", color: "from-blue-500 to-cyan-500",
       short: "List your shares on the secondary market so other investors can buy them.",
       bullets: [
         "You set the quantity and price per share — full control over your listing",
@@ -483,12 +484,12 @@ export default function Portfolio() {
     });
 
   return (
-    <div className="app-shell responsive-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", background: "#f0fdf4" }} data-testid="portfolio-page">
+    <div className="app-shell responsive-shell page-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", background: "linear-gradient(180deg, #eef8f1 0%, #f7faf7 44%, #f4f7f5 100%)" }} data-testid="portfolio-page">
 
       {/* ── Premium Hero Header ── */}
-      <div className="flex-shrink-0 relative overflow-hidden"
+      <div className="flex-shrink-0 relative overflow-hidden rounded-b-[2rem] shadow-[0_12px_35px_rgba(14,79,46,0.18)]"
         style={{
-          background: "linear-gradient(135deg, #0d4f2e 0%, #16a34a 55%, #22c55e 100%)",
+          background: "linear-gradient(135deg, #073b24 0%, #0d6b3d 54%, #1b9a58 100%)",
           paddingTop: "env(safe-area-inset-top, 16px)",
         }}>
         {/* Decorative blobs */}
@@ -496,22 +497,25 @@ export default function Portfolio() {
         <div style={{ position: "absolute", bottom: -40, left: -20, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", top: 28, left: "40%", width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
 
-        <div className="px-5 pt-3 pb-3 relative">
+        <div className="px-5 pt-5 pb-5 relative">
           {/* Top row */}
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-white/60 text-[11px] font-semibold uppercase tracking-widest">My Portfolio</p>
+              <p className="text-white/60 text-[10px] font-bold uppercase tracking-[0.18em]">Investor workspace</p>
+              <p className="text-white font-bold text-base mt-1">My Portfolio</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setLocation("/wallet")}
-                className="flex items-center gap-1.5 bg-white/15 border border-white/25 rounded-full px-3 py-1.5 active:scale-95 transition-all">
+                aria-label="Open wallet"
+                className="flex items-center gap-1.5 bg-white/12 hover:bg-white/20 border border-white/20 rounded-xl px-3 py-2 active:scale-95 transition-all">
                 <Wallet size={11} className="text-white" />
                 <span className="text-white text-[11px] font-semibold">Wallet</span>
               </button>
               <button
                 onClick={() => setLocation("/market")}
-                className="w-8 h-8 rounded-full bg-white/15 border border-white/25 flex items-center justify-center active:scale-95 transition-all">
+                aria-label="Open market notifications"
+                className="w-9 h-9 rounded-xl bg-white/12 hover:bg-white/20 border border-white/20 flex items-center justify-center active:scale-95 transition-all">
                 <Bell size={13} className="text-white" />
               </button>
             </div>
@@ -521,13 +525,13 @@ export default function Portfolio() {
           {summary ? (
             <>
               <motion.div key={summary.totalValue} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-                <p className="text-white/70 text-xs mb-0.5">Total Portfolio Value</p>
-                <p className="text-white font-extrabold" style={{ fontSize: 30, letterSpacing: -1, lineHeight: 1.1 }}>
+                <p className="text-white/65 text-[11px] font-medium mb-1">Total portfolio value</p>
+                <p className="text-white font-extrabold tracking-[-0.05em]" style={{ fontSize: 38, lineHeight: 1.05 }}>
                   <AnimatedKES value={summary.totalValue} />
                 </p>
                 {/* Return badge */}
                 <div className="flex items-center gap-2 mt-2">
-                  <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full ${totalGain >= 0 ? "bg-white/20" : "bg-red-500/30"}`}>
+                  <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg ${totalGain >= 0 ? "bg-white/14" : "bg-red-500/30"}`}>
                     {totalGain >= 0
                       ? <ArrowUpRight size={11} className="text-green-200" />
                       : <ArrowDownRight size={11} className="text-red-200" />}
@@ -544,16 +548,17 @@ export default function Portfolio() {
               </motion.div>
 
               {/* 3-stat glassmorphism row */}
-              <div className="grid grid-cols-3 gap-1.5 mt-3">
+              <div className="grid grid-cols-3 gap-2 mt-5">
                 {([
-                  { key: "invested" as const, label: "Invested", value: formatKES(summary.totalInvested), icon: "💰" },
-                  { key: "pnl" as const, label: "P&L", value: (summary.todayReturn >= 0 ? "+" : "") + formatKES(summary.todayReturn), icon: summary.todayReturn >= 0 ? "📈" : "📉", highlight: true, up: summary.todayReturn >= 0 },
-                  { key: "holdings" as const, label: "Holdings", value: String(summary.holdings), icon: "🌾" },
+                  { key: "invested" as const, label: "Invested", value: formatKES(summary.totalInvested), icon: <Wallet size={15} /> },
+                  { key: "pnl" as const, label: "Today P&L", value: (summary.todayReturn >= 0 ? "+" : "") + formatKES(summary.todayReturn), icon: summary.todayReturn >= 0 ? <TrendingUp size={15} /> : <TrendingDown size={15} />, highlight: true, up: summary.todayReturn >= 0 },
+                  { key: "holdings" as const, label: "Holdings", value: String(summary.holdings), icon: <Briefcase size={15} /> },
                 ]).map(({ key, label, value, icon, highlight, up }) => (
                   <button key={key} onClick={() => setStatDetail(key)}
-                    className="relative rounded-2xl p-2.5 text-left active:scale-95 transition-all overflow-hidden"
+                    aria-label={`View ${label} details`}
+                    className="relative rounded-2xl p-3 text-left active:scale-95 transition-all overflow-hidden hover:bg-white/20"
                     style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.18)" }}>
-                    <span className="text-base leading-none block mb-1">{icon}</span>
+                    <span className="text-white/70 leading-none block mb-2">{icon}</span>
                     <p className={`font-bold text-xs leading-tight truncate ${highlight ? (up ? "text-green-200" : "text-red-300") : "text-white"}`}>{value}</p>
                     <p className="text-white/50 text-[9px] mt-0.5 flex items-center gap-0.5">{label} <Info size={6} className="opacity-60" /></p>
                   </button>
@@ -589,20 +594,19 @@ export default function Portfolio() {
           )}
         </div>
 
-        {/* Curved bottom edge */}
-        <div style={{ height: 20, background: "#f0fdf4", borderRadius: "50% 50% 0 0 / 100% 100% 0 0", marginTop: -1 }} />
       </div>
 
       {/* ── Tab switcher ── */}
-      <div className="px-4 pt-1 pb-2 flex-shrink-0">
-        <div className="flex rounded-2xl p-1 gap-1" style={{ background: "rgba(0,0,0,0.06)" }}>
+      <div className="px-4 pt-4 pb-2 flex-shrink-0">
+        <div className="flex rounded-2xl p-1 gap-1 bg-white/80 border border-black/[0.06] shadow-sm">
           {([
-            { id: "overview" as const, emoji: "📈", label: "Overview" },
-            { id: "holdings" as const, emoji: "🌾", label: "My Holdings" },
-          ]).map(({ id, emoji, label }) => (
+            { id: "overview" as const, icon: <BarChart3 size={14} />, label: "Overview" },
+            { id: "holdings" as const, icon: <Briefcase size={14} />, label: "My Holdings" },
+          ]).map(({ id, icon, label }) => (
             <button key={id} onClick={() => setActiveTab(id)}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === id ? "bg-white text-foreground shadow-md" : "text-muted-foreground"}`}>
-              <span>{emoji}</span>{label}
+              aria-label={`Show ${label}`}
+              className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${activeTab === id ? "bg-primary text-white shadow-md shadow-primary/20" : "text-muted-foreground hover:bg-muted/60"}`}>
+              {icon}{label}
               {id === "holdings" && holdingsList.length > 0 && (
                 <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${activeTab === id ? "bg-primary/10 text-primary" : "bg-muted-foreground/20 text-muted-foreground"}`}>
                   {holdingsList.length}
@@ -652,15 +656,15 @@ export default function Portfolio() {
                 <motion.div key="s0"
                   initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute inset-0 px-4 pb-4 overflow-y-auto flex flex-col gap-3">
+                  className="absolute inset-0 px-4 pb-4 overflow-y-auto flex flex-col gap-4">
 
           {/* Onboarding progress tracker — visible only for new users */}
           {!hasInvestments && (
-            <div className="rounded-2xl overflow-hidden border border-green-200 shadow-sm"
+            <div className="rounded-2xl overflow-hidden border border-emerald-200/80 shadow-sm"
               style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)" }}>
               <div className="px-4 pt-3.5 pb-1 flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-green-600 flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-[11px] font-black">🌱</span>
+                  <TrendingUp size={12} className="text-white" />
                 </div>
                 <p className="text-green-800 font-bold text-sm">Getting Started</p>
                 <span className="ml-auto text-[10px] font-bold text-green-600">
@@ -711,8 +715,8 @@ export default function Portfolio() {
           )}
 
           {/* Performance Chart */}
-          <div className="bg-white border border-border rounded-2xl overflow-hidden flex flex-col shadow-sm" style={{ minHeight: 240 }}>
-            <div className="px-4 pt-3.5 pb-2 flex items-center justify-between flex-shrink-0">
+          <div className="bg-white/90 border border-black/[0.06] rounded-[1.35rem] overflow-hidden flex flex-col shadow-[0_8px_24px_rgba(28,66,43,0.07)]" style={{ minHeight: 270 }}>
+            <div className="px-4 pt-4 pb-2.5 flex items-center justify-between flex-shrink-0">
               <div>
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -739,7 +743,7 @@ export default function Portfolio() {
 
             <div className="flex-1 px-1 pb-2" style={{ minHeight: 0 }}>
               {!summary ? (
-                <div className="h-full flex items-center justify-center"><Skeleton className="w-full h-full rounded-xl" /></div>
+                <div className="h-full flex items-center justify-center px-3 pb-3"><Skeleton className="w-full h-full rounded-xl" /></div>
               ) : summary.totalInvested === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50/50 rounded-xl mx-2">
                   <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
@@ -793,7 +797,7 @@ export default function Portfolio() {
                 <motion.div key="s1"
                   initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute inset-0 px-4 pb-4 overflow-y-auto">
+                   className="absolute inset-0 px-4 pb-4 overflow-y-auto">
 
           {/* Risk Allocation */}
           {(() => {
@@ -820,7 +824,7 @@ export default function Portfolio() {
             const riskBg    = overallRisk === "High" ? "bg-red-50 border-red-200" : overallRisk === "Moderate" ? "bg-amber-50 border-amber-200" : "bg-green-50 border-green-200";
 
             return (
-              <div className="bg-white border border-border rounded-2xl p-4 shadow-sm flex-shrink-0">
+              <div className="bg-white/90 border border-black/[0.06] rounded-[1.35rem] p-4 shadow-[0_8px_24px_rgba(28,66,43,0.07)] flex-shrink-0">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -899,7 +903,7 @@ export default function Portfolio() {
             const rankColor = myReturn >= 18.4 ? "text-green-600 bg-green-50 border-green-200" : myReturn >= 6.1 ? "text-amber-600 bg-amber-50 border-amber-200" : "text-red-500 bg-red-50 border-red-200";
 
             return (
-              <div className="bg-white border border-border rounded-2xl p-4 shadow-sm flex-shrink-0">
+              <div className="bg-white/90 border border-black/[0.06] rounded-[1.35rem] p-4 shadow-[0_8px_24px_rgba(28,66,43,0.07)] flex-shrink-0">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -948,7 +952,7 @@ export default function Portfolio() {
                 <motion.div key="s3"
                   initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute inset-0 px-4 pb-4 overflow-y-auto flex flex-col gap-3">
+                   className="absolute inset-0 px-4 pb-4 overflow-y-auto flex flex-col gap-4">
 
                   {/* Crop Bets */}
                   <MyBetsStrip onNavigate={() => setLocation("/bets")} />
@@ -961,7 +965,7 @@ export default function Portfolio() {
                     const scoreColor = score >= 80 ? "text-green-600" : score >= 60 ? "text-amber-600" : "text-red-500";
                     const scoreBg = score >= 80 ? "bg-green-50 border-green-200" : score >= 60 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
                     return (
-                      <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                       <div className="bg-white/90 border border-black/[0.06] rounded-[1.35rem] p-4 space-y-3 shadow-[0_8px_24px_rgba(28,66,43,0.07)]">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
                             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -1014,7 +1018,7 @@ export default function Portfolio() {
           onTouchStart={hTouchStart}
           onTouchMove={hTouchMove}
           onTouchEnd={hTouchEnd}
-          className="flex-1 overflow-y-auto flex flex-col gap-3 px-4 pb-24"
+           className="flex-1 overflow-y-auto flex flex-col gap-4 px-4 pb-24"
           style={{ minHeight: 0 }}>
           <PullToRefreshIndicator isPulling={hIsPulling} isRefreshing={hIsRefreshing} pullProgress={hPullProgress} />
 
@@ -1038,7 +1042,7 @@ export default function Portfolio() {
             ) : holdingsError ? (
               <div className="flex flex-col items-center justify-center text-center bg-card border border-border rounded-2xl p-8 shadow-sm gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
-                  <span className="text-2xl">⚠️</span>
+                  <AlertTriangle size={25} className="text-red-500" />
                 </div>
                 <div>
                   <p className="text-foreground font-bold text-sm">Could not load portfolio</p>
@@ -1126,7 +1130,7 @@ export default function Portfolio() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -40 }}
                         transition={{ type: "spring", stiffness: 340, damping: 30 }}
-                        className="bg-white rounded-2xl border border-border overflow-hidden shadow-md flex flex-col"
+                         className="bg-white/95 rounded-[1.35rem] border border-black/[0.06] overflow-hidden shadow-[0_12px_30px_rgba(28,66,43,0.11)] flex flex-col"
                         data-testid={`holding-${h.id}`}
                         onTouchStart={e => {
                           touchStartX.current = e.touches[0]?.clientX ?? null;
@@ -1145,24 +1149,24 @@ export default function Portfolio() {
                         }}
                       >
                         {/* Farm image */}
-                        <div className="relative flex-shrink-0" style={{ height: 170 }}>
+                        <div className="relative flex-shrink-0" style={{ height: 185 }}>
                           <img src={farmImg} alt={h.farmName} className="w-full h-full object-cover" />
                           <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.2) 55%, transparent 100%)" }} />
 
                           {/* Status badge */}
                           {isExited && (
                             <div className="absolute top-3 left-3 bg-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-                              <span>⏳</span> Exit Pending
+                              <Clock size={10} /> Exit Pending
                             </div>
                           )}
                           {isHarvested && (
                             <div className="absolute top-3 left-3 bg-green-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
-                              🌾 Harvested
+                              Harvested
                             </div>
                           )}
                           {isListed && !isExited && !isHarvested && (
                             <div className="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-                              <span>🏷️</span> Listed for Sale
+                              <Tag size={10} /> Listed for Sale
                             </div>
                           )}
 
@@ -1178,7 +1182,7 @@ export default function Portfolio() {
 
                           <div className="absolute bottom-0 left-0 right-0 p-3.5">
                             <p className="text-white font-bold text-base leading-tight">{h.farmName}</p>
-                            <p className="text-white/65 text-[11px] mt-0.5">{h.cropType} · 📍 {h.location}</p>
+                            <p className="text-white/65 text-[11px] mt-0.5">{h.cropType} · {h.location}</p>
                           </div>
                         </div>
 
@@ -1228,13 +1232,13 @@ export default function Portfolio() {
                             style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", border: "1px solid #bbf7d0" }}>
                             <div className="flex items-center justify-between mb-2">
                               <p className="text-green-700 text-[10px] font-bold uppercase tracking-wide">
-                                {roi ? "🤖 AI ROI Projections" : "📊 Estimated Payout on Exit"}
+                                {roi ? "AI ROI projections" : "Estimated payout on exit"}
                               </p>
                               <span className="text-green-600 text-[9px] font-semibold flex items-center gap-0.5">Details <ChevRight size={9} /></span>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div className="bg-white/80 rounded-xl p-2.5 border border-orange-100">
-                                <p className="text-muted-foreground text-[9px] font-medium mb-1">⚡ Mid-Season</p>
+                                <p className="text-muted-foreground text-[9px] font-medium mb-1">Mid-season</p>
                                 <p className="text-orange-600 font-extrabold text-sm">{roi ? formatAmount(roi.midSeason.saleProceeds) : formatAmount(midPayout)}</p>
                                 {roi
                                   ? <p className="text-orange-500 text-[9px] font-bold mt-0.5">{roi.midSeason.roiPercent >= 0 ? "+" : ""}{roi.midSeason.roiPercent.toFixed(1)}% ROI</p>
@@ -1242,7 +1246,7 @@ export default function Portfolio() {
                                 }
                               </div>
                               <div className="bg-white/80 rounded-xl p-2.5 border border-green-100">
-                                <p className="text-muted-foreground text-[9px] font-medium mb-1">🌾 Full Season</p>
+                                <p className="text-muted-foreground text-[9px] font-medium mb-1">Full season</p>
                                 <p className="text-green-600 font-extrabold text-sm">{roi ? formatAmount(roi.fullSeason.projectedPayout) : formatAmount(fullPayout)}</p>
                                 {roi
                                   ? <p className="text-green-600 text-[9px] font-bold mt-0.5">{roi.fullSeason.roiPercent >= 0 ? "+" : ""}{roi.fullSeason.roiPercent.toFixed(1)}% ROI</p>
@@ -1259,7 +1263,7 @@ export default function Portfolio() {
                               {(["swap", "sell", "exit"] as const).map(t => (
                                 <button key={t} onClick={() => openAiExplain(t)}
                                   className="text-[9px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full border border-border active:scale-90 transition-transform capitalize">
-                                  {t} ⓘ
+                                   {t} <Info size={9} />
                                 </button>
                               ))}
                             </div>
@@ -1348,7 +1352,7 @@ export default function Portfolio() {
         open={!!shareHolding}
         onClose={() => setShareHolding(null)}
         title={shareHolding?.farmName ?? ""}
-        text={shareHolding ? `🌱 I'm invested in ${shareHolding.farmName} on Investa Farm! ${shareHolding.cropType} · ${shareHolding.location}` : ""}
+        text={shareHolding ? `I'm invested in ${shareHolding.farmName} on Investa Farm. ${shareHolding.cropType} · ${shareHolding.location}` : ""}
         url="https://app.investafarm.com/portfolio"
       />
 
@@ -1369,7 +1373,7 @@ export default function Portfolio() {
               <div className="px-6 pb-8 text-center">
                 <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 mt-2"
                   style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)" }}>
-                  <span className="text-4xl">🏆</span>
+                  <BadgeCheck size={34} className="text-amber-700" />
                 </div>
                 <h2 className="text-foreground font-extrabold text-xl mb-2">You Qualify as a Stock Broker!</h2>
                 <p className="text-muted-foreground text-sm leading-relaxed mb-5">
@@ -1387,10 +1391,10 @@ export default function Portfolio() {
                 <h2 className="text-foreground font-extrabold text-lg mb-1 mt-2">Stock Broker Benefits</h2>
                 <div className="space-y-3 mb-6 mt-3">
                   {[
-                    { icon: "📁", title: "Manage Portfolios", desc: "Create & publish curated farm portfolios" },
-                    { icon: "💸", title: "Earn Management Fees", desc: "Charge up to 2% annual fee on AUM" },
-                    { icon: "🤝", title: "1% Placement Fees", desc: "Earn on every trade your followers make" },
-                    { icon: "👥", title: "Build Followers", desc: "Share your broker link to grow your network" },
+                    { icon: <Briefcase size={17} />, title: "Manage Portfolios", desc: "Create & publish curated farm portfolios" },
+                    { icon: <Wallet size={17} />, title: "Earn Management Fees", desc: "Charge up to 2% annual fee on AUM" },
+                    { icon: <Users size={17} />, title: "1% Placement Fees", desc: "Earn on every trade your followers make" },
+                    { icon: <Users size={17} />, title: "Build Followers", desc: "Share your broker link to grow your network" },
                   ].map(b => (
                     <div key={b.title} className="flex items-start gap-3 bg-muted/50 rounded-xl p-3">
                       <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center flex-shrink-0 text-lg shadow-sm">{b.icon}</div>
@@ -1412,7 +1416,7 @@ export default function Portfolio() {
               <div className="px-6 pb-10 text-center">
                 <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 mt-2"
                   style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
-                  <span className="text-4xl">🌱</span>
+                  <Briefcase size={34} className="text-green-700" />
                 </div>
                 <h2 className="text-foreground font-extrabold text-xl mb-2">Activate Broker Mode</h2>
                 <p className="text-muted-foreground text-sm leading-relaxed mb-6">
@@ -1422,7 +1426,7 @@ export default function Portfolio() {
                   onClick={() => { setBrokerEnabled(true); localStorage.setItem("investa_broker_mode", "true"); localStorage.setItem("investa_broker_unlocked", "true"); setBrokerUnlockOpen(false); setActiveTab("holdings"); }}
                   className="w-full py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform mb-3"
                   style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
-                  🚀 Activate Broker Profile
+                  Activate Broker Profile
                 </button>
                 <button onClick={() => { setBrokerUnlockOpen(false); localStorage.setItem("investa_broker_unlocked", "true"); }}
                   className="w-full py-3 rounded-2xl border border-border text-muted-foreground font-medium text-sm active:scale-95 transition-transform">
@@ -1455,7 +1459,7 @@ export default function Portfolio() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-600 to-emerald-400 flex items-center justify-center shadow-sm">
-                        <span className="text-2xl">📊</span>
+                        <BarChart3 size={22} className="text-primary" />
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs font-medium">ROI Breakdown</p>
@@ -1507,7 +1511,7 @@ export default function Portfolio() {
                     <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)", border: "1px solid #bbf7d0" }}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg">🌾</span>
+                          <Briefcase size={18} className="text-primary" />
                           <div>
                             <p className="text-green-800 font-bold text-sm">Full Season Exit</p>
                             <p className="text-green-500 text-[10px]">~6 months · up to 22% return</p>
@@ -1548,13 +1552,13 @@ export default function Portfolio() {
       <AnimatePresence>
         {statDetail && summary && (() => {
           const STAT_INFO = {
-            invested: { icon: "💰", title: "Total Invested", val: formatKES(summary.totalInvested), color: "from-emerald-600 to-green-500",
+            invested: { icon: <Wallet size={18} />, title: "Total Invested", val: formatKES(summary.totalInvested), color: "from-emerald-600 to-green-500",
               description: "The total capital you've deployed across all active farm investments.",
               bullets: [`${summary.holdings} active farm positions`, "Covers primary market purchases and secondary trades", "Does not include pending exit requests"] },
-            pnl: { icon: "📈", title: "Today's P&L", val: formatKES(summary.todayReturn), color: "from-blue-600 to-sky-500",
+            pnl: { icon: <TrendingUp size={18} />, title: "Today's P&L", val: formatKES(summary.todayReturn), color: "from-blue-600 to-sky-500",
               description: "Your profit or loss over the last 24 hours based on price movement.",
               bullets: [`${formatChange(summary.todayReturnPercent)} change today`, `This week: ${formatChange(summary.weekReturnPercent)}`, "Updates as market prices change"] },
-            holdings: { icon: "🌾", title: "Active Holdings", val: String(summary.holdings), color: "from-amber-600 to-orange-500",
+            holdings: { icon: <Briefcase size={18} />, title: "Active Holdings", val: String(summary.holdings), color: "from-amber-600 to-orange-500",
               description: "Total number of distinct farm investment positions you currently hold.",
               bullets: [`Portfolio value: ${formatKES(summary.totalValue)}`, `Overall return: ${formatChange(summary.overallGainLossPercent)}`, "Tap any holding to view details or request exit"] },
           };

@@ -1,12 +1,12 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getStoredUser, getToken, clearToken, formatKES } from "@/lib/auth";
 import { useLocation, Link } from "wouter";
 import {
-  Briefcase, TrendingUp, TrendingDown, Users, PieChart, BarChart2,
-  Bell, LogOut, Plus, ChevronRight, ArrowUpRight, Shield, Wallet,
-  DollarSign, Target, Activity, X, Settings, FileText, Star,
-  Building2, Globe, Award, AlertCircle, CheckCircle2,
+  Briefcase, Users, BarChart2, Bell, LogOut, Plus, ChevronRight,
+  ArrowUpRight, Shield, Wallet, DollarSign, Target, X, FileText,
+  Globe, Award, AlertCircle, CheckCircle2, TrendingUp, Download,
+  ArrowDownToLine, ArrowUpFromLine, Landmark, Clock3,
 } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
@@ -92,7 +92,7 @@ export default function WealthDashboard() {
   });
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
-  const { data: listings = [] } = useQuery<any[]>({
+  const { data: listings = [], isLoading: listingsLoading } = useQuery<any[]>({
     queryKey: ["primary-market"],
     queryFn: async () => {
       const r = await fetch("/api/market/primary", { headers: { Authorization: `Bearer ${token}` } });
@@ -130,7 +130,7 @@ export default function WealthDashboard() {
     setLocation("/");
   };
 
-  const { data: walletData } = useQuery<{ balance: number; transactions: any[] }>({
+  const { data: walletData, isLoading: walletLoading } = useQuery<{ balance: number; transactions: any[] }>({
     queryKey: ["wealth-wallet"],
     queryFn: async () => {
       const r = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${getToken()}` } });
@@ -152,520 +152,184 @@ export default function WealthDashboard() {
   ];
 
   return (
-    <div className="min-h-dvh w-full max-w-[430px] mx-auto bg-background flex flex-col pb-24">
-      {/* Header */}
-      <div className="relative overflow-hidden px-5 pt-12 pb-6"
-        style={{ background: "linear-gradient(160deg, #1e1b4b 0%, #312e81 60%, #4f46e5 100%)" }}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center">
-              <img src={logoSrc} alt="" className="h-8 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
+    <div className="min-h-dvh w-full bg-[#e9efe9] text-[#163b35]">
+      <div className="mx-auto min-h-dvh max-w-[1180px] overflow-hidden bg-[#f7f8f3] pb-24 shadow-[0_0_0_1px_rgba(20,61,53,0.06)]">
+        <header className="relative overflow-hidden px-5 pb-7 pt-8 text-white sm:px-8 sm:pt-10" style={{ background: "linear-gradient(122deg, #123b35 0%, #1c5a4d 58%, #2d7460 100%)" }}>
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full border border-[#b7d6bd]/15" />
+          <div className="pointer-events-none absolute -bottom-28 right-20 h-64 w-64 rounded-full border border-[#b7d6bd]/10" />
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/10">
+                <img src={logoSrc} alt="Investa Farm" className="h-8 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c7dfc6]/75">Wealth desk</p>
+                <p className="mt-0.5 text-sm font-semibold tracking-tight text-white">{firmName}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-white/60 text-[10px] font-semibold uppercase tracking-wider">Wealth Management</p>
-              <p className="text-white font-bold text-sm leading-tight">{firmName}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setNotifOpen(true)} className="relative w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
-              <Bell size={16} className="text-white" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">{unreadCount}</span>
-              )}
-            </button>
-            <LogoutConfirmDialog onConfirm={handleLogout}>
-              <button className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
-                <LogOut size={15} className="text-white/70" />
+            <div className="flex items-center gap-2">
+              <button data-testid="button-open-notifications" aria-label={`Open notifications${unreadCount ? `, ${unreadCount} unread` : ""}`} onClick={() => setNotifOpen(true)} className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-[#dce9b1]">
+                <Bell size={17} />
+                {unreadCount > 0 && <span data-testid="status-unread-notifications" className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[#1c5a4d] bg-[#e6b85c] px-1 text-[9px] font-bold text-[#183b34]">{unreadCount}</span>}
               </button>
-            </LogoutConfirmDialog>
+              <LogoutConfirmDialog onConfirm={handleLogout}>
+                <button data-testid="button-logout" aria-label="Log out" className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-[#dce9b1]">
+                  <LogOut size={16} className="text-white/80" />
+                </button>
+              </LogoutConfirmDialog>
+            </div>
+          </div>
+
+          <div className="relative mt-8 max-w-3xl">
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#c7dfc6]/70">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#dce9b1]" />
+              Portfolio command centre
+            </div>
+            <h1 className="max-w-2xl text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Good morning, {firmName}</h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-[#d9e8d8]/75">A clear view of capital deployed across Kenya’s productive farmland, funds and client mandates.</p>
+          </div>
+
+          <div className="relative mt-7 grid gap-2 sm:grid-cols-3 sm:gap-3">
+            {[
+              { label: "Total AUM", value: formatKES(totalAUM), note: "↑ 8.2% this month", test: "text-total-aum" },
+              { label: "Average return", value: `+${avgReturn.toFixed(1)}%`, note: "Per season", test: "text-average-return" },
+              { label: "Client mandates", value: `${clients.length}`, note: `${totalFarms} farms tracked`, test: "text-client-count" },
+            ].map(stat => (
+              <div key={stat.label} className="rounded-2xl border border-white/10 bg-[#0f3933]/35 px-4 py-3.5 backdrop-blur-sm">
+                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#c7dfc6]/65">{stat.label}</p>
+                <p data-testid={stat.test} className="mt-1 text-xl font-semibold tracking-tight text-white">{stat.value}</p>
+                <p className="mt-1 text-[10px] font-medium text-[#dce9b1]">{stat.note}</p>
+              </div>
+            ))}
+          </div>
+        </header>
+
+        <div className="border-b border-[#dfe7df] bg-[#f7f8f3] px-4 py-3 sm:px-8">
+          <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            {TABS.map(t => (
+              <button data-testid={`tab-${t.id}`} aria-current={tab === t.id ? "page" : undefined} key={t.id} onClick={() => setTab(t.id)}
+                className={`flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[#8cb8a0] ${tab === t.id ? "bg-[#1c5a4d] text-white shadow-sm" : "text-[#61736c] hover:bg-[#e9efe9] hover:text-[#163b35]"}`}>
+                {t.icon}{t.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* AUM hero stats */}
-        <div className="grid grid-cols-3 gap-3 mt-2">
-          <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-            <p className="text-white/50 text-[9px] font-semibold uppercase tracking-wider mb-1">Total AUM</p>
-            <p className="text-white font-black text-base leading-tight">{formatKES(totalAUM)}</p>
-            <p className="text-green-300 text-[9px] font-semibold mt-0.5">↑ 8.2% this month</p>
-          </div>
-          <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-            <p className="text-white/50 text-[9px] font-semibold uppercase tracking-wider mb-1">Avg Return</p>
-            <p className="text-white font-black text-base leading-tight">+{avgReturn.toFixed(1)}%</p>
-            <p className="text-green-300 text-[9px] font-semibold mt-0.5">Per season</p>
-          </div>
-          <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-            <p className="text-white/50 text-[9px] font-semibold uppercase tracking-wider mb-1">Clients</p>
-            <p className="text-white font-black text-base leading-tight">{clients.length}</p>
-            <p className="text-green-300 text-[9px] font-semibold mt-0.5">{totalFarms} farms</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab bar */}
-      <div className="flex gap-1 px-4 py-3 bg-background border-b border-border overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 ${
-              tab === t.id ? "text-white shadow-sm" : "text-muted-foreground bg-muted"
-            }`}
-            style={tab === t.id ? { background: INDIGO } : {}}>
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 px-4 py-4 space-y-4 overflow-y-auto">
-        <AnimatePresence mode="wait">
-          <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="space-y-4">
-
-            {/* ── OVERVIEW TAB ── */}
-            {tab === "overview" && (
-              <>
-                {/* AUM chart */}
-                <div className="bg-card rounded-2xl border border-border p-4">
-                  <p className="font-bold text-foreground text-sm mb-3">AUM Growth</p>
-                  <div className="h-36">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={AUM_HISTORY} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="aumGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={INDIGO} stopOpacity={0.3} />
-                            <stop offset="95%" stopColor={INDIGO} stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="month" tick={{ fontSize: 9 }} />
-                        <YAxis tickFormatter={v => `${(v / 1_000_000).toFixed(0)}M`} tick={{ fontSize: 9 }} />
-                        <Tooltip formatter={(v: any) => [formatKES(v), "AUM"]} />
-                        <Area type="monotone" dataKey="aum" stroke={INDIGO} strokeWidth={2} fill="url(#aumGrad)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Allocation donut */}
-                <div className="bg-card rounded-2xl border border-border p-4">
-                  <p className="font-bold text-foreground text-sm mb-3">Portfolio Allocation by Crop</p>
-                  <div className="flex items-center gap-4">
-                    <div className="h-32 w-32 flex-shrink-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartPie>
-                          <Pie data={ALLOCATION_DATA} cx="50%" cy="50%" innerRadius={28} outerRadius={52}
-                            dataKey="value" paddingAngle={2}>
-                            {ALLOCATION_DATA.map((_, i) => (
-                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                            ))}
-                          </Pie>
-                        </RechartPie>
-                      </ResponsiveContainer>
+        <main className="px-4 py-5 sm:px-8 sm:py-7">
+          <AnimatePresence mode="wait">
+            <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="space-y-5">
+              {tab === "overview" && (
+                <>
+                  <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#6c8178]">Overview</p>
+                      <h2 className="mt-1 text-xl font-semibold tracking-tight text-[#163b35]">Capital at a glance</h2>
                     </div>
-                    <div className="flex-1 space-y-1.5">
-                      {ALLOCATION_DATA.map((d, i) => (
-                        <div key={d.name} className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                          <span className="text-foreground text-xs flex-1">{d.name}</span>
-                          <span className="text-muted-foreground text-xs font-semibold">{d.value}%</span>
+                    <p className="flex items-center gap-1.5 text-xs text-[#6c8178]"><Clock3 size={13} /> Updated for Q2 2025</p>
+                  </div>
+                  <div className="grid gap-5 lg:grid-cols-[1.55fr_1fr]">
+                    <section data-testid="card-aum-growth" className="rounded-3xl border border-[#dfe7df] bg-white p-4 shadow-[0_8px_28px_rgba(25,76,62,0.05)] sm:p-5">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-[#163b35]">AUM growth</p>
+                          <p className="mt-1 text-xs text-[#74857e]">Managed capital, Jan–Jun 2025</p>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                        <div className="flex items-center gap-1.5 rounded-full bg-[#e7f1e6] px-2.5 py-1 text-[10px] font-bold text-[#2e7654]"><TrendingUp size={12} /> 8.2%</div>
+                      </div>
+                      <div className="mt-5 h-52 sm:h-60">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={AUM_HISTORY} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                            <defs><linearGradient id="aumGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={INDIGO} stopOpacity={0.24} /><stop offset="95%" stopColor={INDIGO} stopOpacity={0} /></linearGradient></defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5ebe5" />
+                            <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#789087" }} axisLine={false} tickLine={false} />
+                            <YAxis tickFormatter={v => `${(v / 1_000_000).toFixed(0)}M`} tick={{ fontSize: 10, fill: "#789087" }} axisLine={false} tickLine={false} />
+                            <Tooltip formatter={(v: any) => [formatKES(v), "AUM"]} contentStyle={{ borderRadius: 12, border: "1px solid #dfe7df", boxShadow: "0 8px 24px rgba(25,76,62,.1)", fontSize: 11 }} />
+                            <Area type="monotone" dataKey="aum" stroke={INDIGO} strokeWidth={2.5} fill="url(#aumGrad)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </section>
 
-                {/* Quick KPIs */}
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { icon: <Target size={16} className="text-indigo-600" />, label: "Active Funds", value: `${FUND_TEMPLATES.length}`, sub: "All performing", bg: "bg-indigo-50", border: "border-indigo-100" },
-                    { icon: <Shield size={16} className="text-green-600" />, label: "Risk Score", value: "Balanced", sub: "Diversified portfolio", bg: "bg-green-50", border: "border-green-100" },
-                    { icon: <Award size={16} className="text-amber-600" />, label: "Best Return", value: "+24.1%", sub: "Nairobi Capital", bg: "bg-amber-50", border: "border-amber-100" },
-                    { icon: <Globe size={16} className="text-blue-600" />, label: "Counties", value: "12", sub: "Active regions", bg: "bg-blue-50", border: "border-blue-100" },
-                  ].map(k => (
-                    <div key={k.label} className={`${k.bg} border ${k.border} rounded-2xl p-3.5`}>
-                      <div className="flex items-center gap-2 mb-1.5">{k.icon}<p className="text-foreground/60 text-[10px] font-semibold uppercase tracking-wider">{k.label}</p></div>
-                      <p className="text-foreground font-bold text-base">{k.value}</p>
-                      <p className="text-muted-foreground text-[10px] mt-0.5">{k.sub}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Top farms available */}
-                {listings.length > 0 && (
-                  <div className="bg-card rounded-2xl border border-border p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="font-bold text-foreground text-sm">Available Farms</p>
-                      <button onClick={() => setLocation("/market/primary")} className="text-indigo-600 text-xs font-semibold">View all →</button>
-                    </div>
-                    <div className="space-y-2.5">
-                      {listings.slice(0, 3).map((l: any) => (
-                        <div key={l.id} className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
-                            <img src={getCropImage(l.cropType, l.imageUrl)} alt={l.farmName} className="w-full h-full object-cover" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-foreground text-xs font-semibold truncate">{l.farmName}</p>
-                            <p className="text-muted-foreground text-[10px]">{l.cropType} · {l.location}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-green-600 text-xs font-bold">{l.changePercent >= 0 ? "+" : ""}{l.changePercent?.toFixed(1)}%</p>
-                            <p className="text-muted-foreground text-[10px]">{formatKES(l.sharePrice)}/share</p>
-                          </div>
+                    <section data-testid="card-crop-allocation" className="rounded-3xl border border-[#dfe7df] bg-white p-4 shadow-[0_8px_28px_rgba(25,76,62,0.05)] sm:p-5">
+                      <p className="text-sm font-semibold text-[#163b35]">Crop allocation</p>
+                      <p className="mt-1 text-xs text-[#74857e]">Diversification across the portfolio</p>
+                      <div className="mt-3 flex items-center gap-3 sm:mt-5 sm:gap-5">
+                        <div className="h-36 w-36 shrink-0 sm:h-40 sm:w-40">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RechartPie><Pie data={ALLOCATION_DATA} cx="50%" cy="50%" innerRadius={38} outerRadius={62} dataKey="value" paddingAngle={2}>{ALLOCATION_DATA.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie></RechartPie>
+                          </ResponsiveContainer>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* ── FUNDS TAB ── */}
-            {tab === "funds" && (
-              <>
-                <div className="flex items-center justify-between">
-                  <p className="font-bold text-foreground text-base">Managed Funds</p>
-                  <button onClick={() => setLocation("/market/primary")}
-                    className="flex items-center gap-1.5 bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl active:scale-95 transition-transform">
-                    <Plus size={13} /> New Fund
-                  </button>
-                </div>
-
-                {FUND_TEMPLATES.map(fund => (
-                  <motion.div key={fund.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                    className="bg-card rounded-2xl border border-border p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-bold text-foreground text-sm">{fund.name}</p>
-                        <p className="text-muted-foreground text-[10px] mt-0.5">{fund.farms} farms · {fund.risk} risk</p>
-                      </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${riskColor(fund.risk)}`}>
-                        {fund.risk.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-muted rounded-xl p-2.5 text-center">
-                        <p className="text-muted-foreground text-[9px] uppercase font-semibold">AUM</p>
-                        <p className="text-foreground font-bold text-xs mt-0.5">{formatKES(fund.aum)}</p>
-                      </div>
-                      <div className="bg-muted rounded-xl p-2.5 text-center">
-                        <p className="text-muted-foreground text-[9px] uppercase font-semibold">Return</p>
-                        <p className="text-green-600 font-bold text-xs mt-0.5">+{fund.returns}%</p>
-                      </div>
-                      <div className="bg-muted rounded-xl p-2.5 text-center">
-                        <p className="text-muted-foreground text-[9px] uppercase font-semibold">Status</p>
-                        <div className="flex items-center justify-center gap-1 mt-0.5">
-                          <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                          <p className="text-foreground font-bold text-[10px]">Active</p>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          {ALLOCATION_DATA.map((d, i) => <div data-testid={`allocation-${d.name.toLowerCase()}`} key={d.name} className="flex items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: COLORS[i % COLORS.length] }} /><span className="min-w-0 flex-1 truncate text-xs text-[#405a51]">{d.name}</span><span className="text-xs font-semibold text-[#163b35]">{d.value}%</span></div>)}
                         </div>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => setLocation("/market/primary")}
-                        className="flex-1 border border-indigo-200 text-indigo-700 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform bg-indigo-50">
-                        Add Farm
-                      </button>
-                      <button onClick={() => setTab("reports")}
-                        className="flex-1 border border-border text-foreground text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform bg-muted">
-                        View Report
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-
-                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <AlertCircle size={16} className="text-indigo-600" />
+                    </section>
                   </div>
-                  <div>
-                    <p className="text-indigo-800 font-semibold text-xs">Create a new fund</p>
-                    <p className="text-indigo-600 text-[10px] mt-0.5 leading-snug">Browse the primary market to select farms and build a custom agricultural fund portfolio for your clients.</p>
-                    <button onClick={() => setLocation("/market/primary")}
-                      className="mt-2 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
-                      Browse Farms →
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* ── CLIENTS TAB ── */}
-            {tab === "clients" && (
-              <>
-                <div className="flex items-center justify-between">
-                  <p className="font-bold text-foreground text-base">Client Portfolios</p>
-                  <button onClick={() => setAddClientOpen(true)}
-                    className="flex items-center gap-1.5 bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl active:scale-95 transition-transform">
-                    <Plus size={13} /> Add Client
-                  </button>
-                </div>
-
-                {/* Summary bar */}
-                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex items-center gap-4">
-                  <div className="flex-1 text-center">
-                    <p className="text-indigo-800 font-black text-base">{clients.length}</p>
-                    <p className="text-indigo-600 text-[10px] font-semibold">Total Clients</p>
-                  </div>
-                  <div className="w-px h-8 bg-indigo-200" />
-                  <div className="flex-1 text-center">
-                    <p className="text-indigo-800 font-black text-base">{formatKES(totalAUM)}</p>
-                    <p className="text-indigo-600 text-[10px] font-semibold">Total AUM</p>
-                  </div>
-                  <div className="w-px h-8 bg-indigo-200" />
-                  <div className="flex-1 text-center">
-                    <p className="text-indigo-800 font-black text-base">+{avgReturn.toFixed(1)}%</p>
-                    <p className="text-indigo-600 text-[10px] font-semibold">Avg Return</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {clients.map((client, i) => (
-                    <motion.div key={client.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="bg-card rounded-2xl border border-border p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
-                            style={{ background: COLORS[i % COLORS.length] }}>
-                            {client.name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-foreground font-semibold text-sm leading-tight">{client.name}</p>
-                            <p className="text-muted-foreground text-[10px]">Since {client.joined}</p>
-                          </div>
-                        </div>
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${riskColor(client.risk)}`}>
-                          {client.risk.toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-muted rounded-xl p-2.5">
-                          <p className="text-muted-foreground text-[9px] uppercase font-semibold">Allocation</p>
-                          <p className="text-foreground font-bold text-xs mt-0.5">{formatKES(client.allocation)}</p>
-                        </div>
-                        <div className="bg-muted rounded-xl p-2.5">
-                          <p className="text-muted-foreground text-[9px] uppercase font-semibold">Returns</p>
-                          <p className="text-green-600 font-bold text-xs mt-0.5">+{client.returns.toFixed(1)}%</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* ── REPORTS TAB ── */}
-            {tab === "reports" && (
-              <>
-                <p className="font-bold text-foreground text-base">Fund Reports</p>
-
-                {/* Performance summary */}
-                <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
-                  <p className="font-semibold text-foreground text-sm">Q2 2025 Performance Summary</p>
-                  {[
-                    { label: "Total Returns Generated", value: formatKES(totalAUM * (avgReturn / 100)), positive: true },
-                    { label: "Management Fees (1.5%)", value: formatKES(totalAUM * 0.015), positive: false },
-                    { label: "Net Client Returns", value: formatKES(totalAUM * ((avgReturn - 1.5) / 100)), positive: true },
-                    { label: "New Capital Raised", value: formatKES(3_500_000), positive: true },
-                  ].map(row => (
-                    <div key={row.label} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                      <p className="text-muted-foreground text-xs">{row.label}</p>
-                      <p className={`text-xs font-bold ${row.positive ? "text-green-600" : "text-foreground"}`}>{row.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Fund performance table */}
-                <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
-                  <p className="font-semibold text-foreground text-sm">Fund Performance</p>
-                  {FUND_TEMPLATES.map(fund => (
-                    <div key={fund.id} className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <p className="text-foreground text-xs font-semibold">{fund.name}</p>
-                        <p className="text-green-600 text-xs font-bold">+{fund.returns}%</p>
-                      </div>
-                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${(fund.returns / 30) * 100}%`, background: INDIGO }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Report download buttons */}
-                {downloadNotice && (
-                  <div className="bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
-                    <AlertCircle size={14} className="text-indigo-500 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-indigo-800 font-semibold text-xs">{downloadNotice}</p>
-                      <p className="text-indigo-600 text-[11px] mt-0.5">Reports will be available once your fund is CMA-registered. Contact <span className="font-medium">support@investafarm.com</span> to begin the process.</p>
-                    </div>
-                    <button onClick={() => setDownloadNotice(null)} className="text-indigo-400 hover:text-indigo-600 flex-shrink-0">
-                      <CheckCircle2 size={14} />
-                    </button>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  {[
-                    { label: "Q2 2025 Full Report", icon: <FileText size={14} /> },
-                    { label: "Client Statement — All", icon: <Users size={14} /> },
-                    { label: "Tax Summary 2024/25", icon: <DollarSign size={14} /> },
-                  ].map(r => (
-                    <button key={r.label}
-                      onClick={() => setDownloadNotice(`"${r.label}" requires CMA registration`)}
-                      className="w-full flex items-center justify-between bg-card border border-border rounded-2xl px-4 py-3.5 active:scale-95 transition-transform">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">{r.icon}</div>
-                        <p className="text-foreground text-sm font-medium">{r.label}</p>
-                      </div>
-                      <ArrowUpRight size={14} className="text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex gap-2">
-                  <AlertCircle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-amber-700 text-xs leading-relaxed">Reports are generated from live portfolio data. Download functionality requires CMA registration for fund managers in Kenya.</p>
-                </div>
-              </>
-            )}
-
-            {/* ── WALLET TAB ── */}
-            {tab === "wallet" && (
-              <>
-                <p className="font-bold text-foreground text-base">Fund Wallet</p>
-
-                <div className="rounded-3xl overflow-hidden" style={{ background: "linear-gradient(160deg,#1e1b4b 0%,#312e81 60%,#4f46e5 100%)" }}>
-                  <div className="px-5 pt-5 pb-4">
-                    <p className="text-indigo-200 text-[10px] font-semibold uppercase tracking-wider mb-1">Available Balance</p>
-                    <p className="text-white font-black text-3xl">{formatKES(walletBalance)}</p>
-                    <p className="text-indigo-200 text-xs mt-1.5">Fund Manager Wallet · {user?.name}</p>
-                  </div>
-                  <div className="grid grid-cols-2 divide-x divide-white/10 border-t border-white/10">
-                    <a href="/wallet" className="py-3 text-center text-white/80 text-xs font-semibold active:bg-white/10 transition-colors block">＋ Add Funds</a>
-                    <a href="/wallet" className="py-3 text-center text-white/80 text-xs font-semibold active:bg-white/10 transition-colors block">↑ Withdraw</a>
-                  </div>
-                </div>
-
-                <div className="bg-card rounded-2xl border border-border p-4">
-                  <p className="font-semibold text-foreground text-sm mb-3">Recent Transactions</p>
-                  {walletTxns.length === 0 ? (
-                    <div className="text-center py-6">
-                      <Wallet size={24} className="text-muted-foreground mx-auto mb-2" />
-                      <p className="text-muted-foreground text-sm">No transactions yet</p>
-                      <p className="text-muted-foreground text-xs mt-0.5">Add funds to start investing in farm portfolios</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {walletTxns.slice(0, 6).map((tx: any, i: number) => {
-                        const isIn = (tx.amount ?? 0) > 0 || tx.type === "deposit" || tx.type === "dividend";
-                        return (
-                          <div key={tx.id ?? i} className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isIn ? "bg-green-50" : "bg-red-50"}`}>
-                              <span className="text-sm">{isIn ? "↓" : "↑"}</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-foreground text-xs font-semibold truncate">{tx.description ?? tx.type ?? "Transaction"}</p>
-                              <p className="text-muted-foreground text-[9px]">{tx.createdAt ? new Date(tx.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short" }) : "—"}</p>
-                            </div>
-                            <p className={`text-xs font-bold flex-shrink-0 ${isIn ? "text-green-600" : "text-red-500"}`}>
-                              {isIn ? "+" : "-"}{formatKES(Math.abs(tx.amount ?? 0))}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
-                  <p className="text-indigo-800 text-xs font-bold mb-3">Quick Actions</p>
-                  <div className="space-y-2">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {[
-                      { label: "Invest in Farm Portfolio", desc: "Browse active farms and allocate client capital", icon: "🌾", href: "/market"    },
-                      { label: "View Full Portfolio",       desc: "Track all fund holdings and performance",        icon: "📊", href: "/portfolio" },
-                    ].map(a => (
-                      <a key={a.label} href={a.href}
-                        className="w-full flex items-center gap-3 bg-white rounded-xl px-3 py-2.5 border border-indigo-100 active:scale-95 transition-all text-left no-underline">
-                        <span className="text-base">{a.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-indigo-800 text-xs font-semibold">{a.label}</p>
-                          <p className="text-indigo-400 text-[9px]">{a.desc}</p>
-                        </div>
-                        <ArrowUpRight size={12} className="text-indigo-400 flex-shrink-0" />
-                      </a>
-                    ))}
+                      { icon: <Target size={16} />, label: "Active funds", value: `${FUND_TEMPLATES.length}`, sub: "All performing", tone: "bg-[#e9eef8] text-[#435da1]" },
+                      { icon: <Shield size={16} />, label: "Risk profile", value: "Balanced", sub: "Diversified portfolio", tone: "bg-[#e7f1e6] text-[#2e7654]" },
+                      { icon: <Award size={16} />, label: "Best return", value: "+24.1%", sub: "Nairobi Capital", tone: "bg-[#f6eddc] text-[#9b6d27]" },
+                      { icon: <Globe size={16} />, label: "Counties", value: "12", sub: "Active regions", tone: "bg-[#e8edf1] text-[#4b6876]" },
+                    ].map(k => <div data-testid={`kpi-${k.label.toLowerCase().replace(" ", "-")}`} key={k.label} className={`rounded-2xl border border-transparent p-4 ${k.tone}`}><div className="flex items-center gap-2">{k.icon}<p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-75">{k.label}</p></div><p className="mt-3 text-lg font-semibold tracking-tight text-[#163b35]">{k.value}</p><p className="mt-0.5 text-[10px] opacity-75">{k.sub}</p></div>)}
                   </div>
-                </div>
-              </>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+                  <section data-testid="card-available-farms" className="rounded-3xl border border-[#dfe7df] bg-white p-4 shadow-[0_8px_28px_rgba(25,76,62,0.05)] sm:p-5">
+                    <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-[#163b35]">Primary market</p><p className="mt-1 text-xs text-[#74857e]">Opportunities available for the next allocation decision</p></div><button data-testid="button-view-market" onClick={() => setLocation("/market/primary")} className="flex shrink-0 items-center gap-1 text-xs font-bold text-[#2e7654] hover:text-[#163b35] focus:outline-none focus:ring-2 focus:ring-[#8cb8a0]">View market <ChevronRight size={14} /></button></div>
+                    {listingsLoading ? <div className="mt-5 space-y-3">{[1, 2, 3].map(i => <div key={i} className="flex animate-pulse items-center gap-3"><div className="h-11 w-11 rounded-xl bg-[#e9efe9]" /><div className="flex-1 space-y-2"><div className="h-3 w-1/2 rounded bg-[#e9efe9]" /><div className="h-2 w-1/3 rounded bg-[#edf2ed]" /></div></div>)}</div> : listings.length > 0 ? <div className="mt-5 grid gap-2 sm:grid-cols-3">{listings.slice(0, 3).map((l: any) => <div data-testid={`market-listing-${l.id}`} key={l.id} className="flex items-center gap-3 rounded-2xl bg-[#f4f7f1] p-3"><div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl"><img src={getCropImage(l.cropType, l.imageUrl)} alt={l.farmName} className="h-full w-full object-cover" /></div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-[#163b35]">{l.farmName}</p><p className="mt-1 truncate text-[10px] text-[#74857e]">{l.cropType} · {l.location}</p></div><div className="text-right"><p className="text-xs font-bold text-[#2e7654]">{l.changePercent >= 0 ? "+" : ""}{l.changePercent?.toFixed(1)}%</p><p className="mt-1 whitespace-nowrap text-[10px] text-[#74857e]">{formatKES(l.sharePrice)}/share</p></div></div>)}</div> : <div className="mt-5 flex items-center gap-3 rounded-2xl border border-dashed border-[#cbd9cc] bg-[#f6f9f4] p-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e6f0e5] text-[#2e7654]"><Landmark size={18} /></div><div><p data-testid="empty-market" className="text-xs font-semibold text-[#365b4d]">No opportunities to review yet</p><p className="mt-1 text-[10px] leading-relaxed text-[#74857e]">The primary market will appear here when new farm allocations are available.</p></div></div>}
+                  </section>
+                </>
+              )}
 
-      {/* Add client modal */}
-      <AnimatePresence>
-        {addClientOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center max-w-[430px] mx-auto">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setAddClientOpen(false)} />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="relative w-full bg-background rounded-t-3xl p-6 space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between">
-                <p className="font-bold text-foreground text-base">Add New Client</p>
-                <button onClick={() => setAddClientOpen(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <X size={14} />
-                </button>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-1.5">Client / Fund Name</label>
-                  <input type="text" value={newClient.name} onChange={e => setNewClient(p => ({ ...p, name: e.target.value }))}
-                    placeholder="e.g. Kamau Family Trust"
-                    className="w-full border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-indigo-500 bg-muted" />
-                </div>
-                <div>
-                  <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-1.5">Allocation (KES thousands)</label>
-                  <input type="text" inputMode="decimal" value={newClient.allocation} onChange={e => setNewClient(p => ({ ...p, allocation: e.target.value.replace(/[^0-9.]/g, "") }))}
-                    placeholder="e.g. 5000 = KES 5,000,000"
-                    className="w-full border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-indigo-500 bg-muted" />
-                </div>
-                <div>
-                  <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-1.5">Risk Profile</label>
-                  <div className="flex gap-2">
-                    {(["low","medium","high"] as const).map(r => (
-                      <button key={r} type="button" onClick={() => setNewClient(p => ({ ...p, risk: r }))}
-                        className={`flex-1 py-2.5 rounded-xl border text-xs font-semibold transition-all ${newClient.risk === r ? riskColor(r) : "border-border text-muted-foreground"}`}>
-                        {r.charAt(0).toUpperCase() + r.slice(1)}
-                      </button>
-                    ))}
+              {tab === "funds" && (
+                <>
+                  <div className="flex items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#6c8178]">Mandates</p><h2 className="mt-1 text-xl font-semibold tracking-tight text-[#163b35]">Managed funds</h2></div><button data-testid="button-new-fund" onClick={() => setLocation("/market/primary")} className="flex items-center gap-1.5 rounded-xl bg-[#1c5a4d] px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#123b35] focus:outline-none focus:ring-2 focus:ring-[#8cb8a0]"><Plus size={14} /> New fund</button></div>
+                  <div className="grid gap-4 lg:grid-cols-2">{FUND_TEMPLATES.map((fund, i) => <motion.div data-testid={`card-fund-${fund.id}`} key={fund.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="rounded-3xl border border-[#dfe7df] bg-white p-5 shadow-[0_8px_28px_rgba(25,76,62,0.05)]"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-[#163b35]">{fund.name}</p><p className="mt-1 text-xs text-[#74857e]">{fund.farms} farms · {fund.risk} risk</p></div><span className={`rounded-full border px-2.5 py-1 text-[9px] font-bold tracking-wide ${riskColor(fund.risk)}`}>{fund.risk.toUpperCase()}</span></div><div className="mt-5 grid grid-cols-3 gap-2"><div className="rounded-xl bg-[#f3f6f1] p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-[#74857e]">AUM</p><p className="mt-1 text-xs font-bold text-[#163b35]">{formatKES(fund.aum)}</p></div><div className="rounded-xl bg-[#f3f6f1] p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-[#74857e]">Return</p><p className="mt-1 text-xs font-bold text-[#2e7654]">+{fund.returns}%</p></div><div className="rounded-xl bg-[#f3f6f1] p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-[#74857e]">Status</p><p className="mt-1 flex items-center gap-1 text-xs font-bold text-[#365b4d]"><span className="h-1.5 w-1.5 rounded-full bg-[#55a76d]" /> Active</p></div></div><div className="mt-4 flex gap-2"><button data-testid={`button-add-farm-${fund.id}`} onClick={() => setLocation("/market/primary")} className="flex-1 rounded-xl border border-[#c1d8c6] bg-[#edf5eb] py-2.5 text-xs font-bold text-[#2e7654] transition-colors hover:bg-[#e2efdf] focus:outline-none focus:ring-2 focus:ring-[#8cb8a0]">Add farm</button><button data-testid={`button-view-report-${fund.id}`} onClick={() => setTab("reports")} className="flex-1 rounded-xl border border-[#dfe7df] bg-[#f7f8f3] py-2.5 text-xs font-bold text-[#365b4d] transition-colors hover:bg-[#edf2eb] focus:outline-none focus:ring-2 focus:ring-[#8cb8a0]">View report</button></div></motion.div>)}</div>
+                  <div className="flex items-start gap-3 rounded-3xl border border-[#c9d9c9] bg-[#edf5eb] p-4"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#dcebd9] text-[#2e7654]"><AlertCircle size={17} /></div><div><p className="text-xs font-bold text-[#365b4d]">Build another allocation</p><p className="mt-1 text-[10px] leading-relaxed text-[#5f796e]">Browse the primary market to select farms and shape a custom portfolio for your clients.</p><button data-testid="button-browse-farms" onClick={() => setLocation("/market/primary")} className="mt-3 inline-flex items-center gap-1 rounded-lg bg-[#1c5a4d] px-3 py-2 text-[10px] font-bold text-white hover:bg-[#123b35] focus:outline-none focus:ring-2 focus:ring-[#8cb8a0]">Browse farms <ArrowUpRight size={12} /></button></div></div>
+                </>
+              )}
+
+              {tab === "clients" && (
+                <>
+                  <div className="flex items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#6c8178]">Relationships</p><h2 className="mt-1 text-xl font-semibold tracking-tight text-[#163b35]">Client portfolios</h2></div><button data-testid="button-add-client" onClick={() => setAddClientOpen(true)} className="flex items-center gap-1.5 rounded-xl bg-[#1c5a4d] px-3.5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#123b35] focus:outline-none focus:ring-2 focus:ring-[#8cb8a0]"><Plus size={14} /> Add client</button></div>
+                  <div className="grid grid-cols-3 divide-x divide-[#c8d9ca] rounded-3xl border border-[#c9d9c9] bg-[#edf5eb] py-4"><div className="text-center"><p data-testid="text-total-clients" className="text-lg font-semibold text-[#234e42]">{clients.length}</p><p className="mt-1 text-[10px] font-semibold text-[#648072]">Total clients</p></div><div className="text-center"><p data-testid="text-client-aum" className="text-lg font-semibold text-[#234e42]">{formatKES(totalAUM)}</p><p className="mt-1 text-[10px] font-semibold text-[#648072]">Total AUM</p></div><div className="text-center"><p data-testid="text-client-return" className="text-lg font-semibold text-[#234e42]">+{avgReturn.toFixed(1)}%</p><p className="mt-1 text-[10px] font-semibold text-[#648072]">Average return</p></div></div>
+                  {clients.length === 0 ? <div className="rounded-3xl border border-dashed border-[#cbd9cc] bg-white p-10 text-center"><Users size={24} className="mx-auto text-[#87a297]" /><p className="mt-3 text-sm font-semibold text-[#365b4d]">No client mandates yet</p><p className="mt-1 text-xs text-[#74857e]">Add a client to begin tracking allocated capital.</p></div> : <div className="grid gap-4 lg:grid-cols-2">{clients.map((client, i) => <motion.div data-testid={`card-client-${client.id}`} key={client.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="rounded-3xl border border-[#dfe7df] bg-white p-5 shadow-[0_8px_28px_rgba(25,76,62,0.05)]"><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white" style={{ background: COLORS[i % COLORS.length] }}>{client.name.charAt(0)}</div><div className="min-w-0"><p className="truncate text-sm font-semibold text-[#163b35]">{client.name}</p><p className="mt-1 text-[10px] text-[#74857e]">Since {client.joined}</p></div></div><span className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-bold tracking-wide ${riskColor(client.risk)}`}>{client.risk.toUpperCase()}</span></div><div className="mt-5 grid grid-cols-2 gap-2"><div className="rounded-xl bg-[#f3f6f1] p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-[#74857e]">Allocation</p><p className="mt-1 text-xs font-bold text-[#163b35]">{formatKES(client.allocation)}</p></div><div className="rounded-xl bg-[#f3f6f1] p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-[#74857e]">Returns</p><p className="mt-1 text-xs font-bold text-[#2e7654]">+{client.returns.toFixed(1)}%</p></div></div></motion.div>)}</div>}
+                </>
+              )}
+
+              {tab === "reports" && (
+                <>
+                  <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#6c8178]">Decision support</p><h2 className="mt-1 text-xl font-semibold tracking-tight text-[#163b35]">Fund reports</h2><p className="mt-1 text-xs text-[#74857e]">A concise read on performance, fees and client value.</p></div>
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <section data-testid="card-performance-summary" className="rounded-3xl border border-[#dfe7df] bg-white p-5 shadow-[0_8px_28px_rgba(25,76,62,0.05)]"><div className="mb-3 flex items-center justify-between"><p className="text-sm font-semibold text-[#163b35]">Q2 2025 summary</p><span className="rounded-full bg-[#e7f1e6] px-2.5 py-1 text-[9px] font-bold text-[#2e7654]">Live data</span></div>{[{ label: "Total returns generated", value: formatKES(totalAUM * (avgReturn / 100)), positive: true }, { label: "Management fees (1.5%)", value: formatKES(totalAUM * 0.015), positive: false }, { label: "Net client returns", value: formatKES(totalAUM * ((avgReturn - 1.5) / 100)), positive: true }, { label: "New capital raised", value: formatKES(3_500_000), positive: true }].map(row => <div data-testid={`report-row-${row.label.toLowerCase().replaceAll(" ", "-")}`} key={row.label} className="flex items-center justify-between gap-3 border-b border-[#edf1eb] py-3 last:border-0"><p className="text-xs text-[#74857e]">{row.label}</p><p className={`whitespace-nowrap text-xs font-bold ${row.positive ? "text-[#2e7654]" : "text-[#365b4d]"}`}>{row.value}</p></div>)}</section>
+                    <section data-testid="card-fund-performance" className="rounded-3xl border border-[#dfe7df] bg-white p-5 shadow-[0_8px_28px_rgba(25,76,62,0.05)]"><p className="text-sm font-semibold text-[#163b35]">Fund performance</p><div className="mt-5 space-y-5">{FUND_TEMPLATES.map(fund => <div key={fund.id}><div className="mb-2 flex items-center justify-between gap-3"><p className="truncate text-xs font-semibold text-[#365b4d]">{fund.name}</p><p className="text-xs font-bold text-[#2e7654]">+{fund.returns}%</p></div><div className="h-2 overflow-hidden rounded-full bg-[#e8eee7]"><div className="h-full rounded-full bg-[#527e6d]" style={{ width: `${(fund.returns / 30) * 100}%` }} /></div></div>)}</div></section>
                   </div>
-                </div>
-                <button onClick={handleAddClient}
-                  className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl active:scale-95 transition-transform">
-                  Add Client
-                </button>
-              </div>
+                  {downloadNotice && <div data-testid="status-download-notice" className="flex items-start gap-3 rounded-3xl border border-[#cbd9ed] bg-[#edf2fa] px-4 py-3.5"><AlertCircle size={15} className="mt-0.5 shrink-0 text-[#526ba6]" /><div className="min-w-0 flex-1"><p className="text-xs font-semibold text-[#435d96]">{downloadNotice}</p><p className="mt-1 text-[11px] leading-relaxed text-[#6279ac]">Reports will be available once your fund is CMA-registered. Contact <span className="font-medium">support@investafarm.com</span> to begin the process.</p></div><button data-testid="button-dismiss-download-notice" aria-label="Dismiss report notice" onClick={() => setDownloadNotice(null)} className="shrink-0 text-[#526ba6] hover:text-[#31477d] focus:outline-none focus:ring-2 focus:ring-[#8cb8a0]"><CheckCircle2 size={15} /></button></div>}
+                  <div className="grid gap-2 sm:grid-cols-3">{[{ label: "Q2 2025 Full Report", icon: <FileText size={15} /> }, { label: "Client Statement — All", icon: <Users size={15} /> }, { label: "Tax Summary 2024/25", icon: <DollarSign size={15} /> }].map(r => <button data-testid={`button-download-${r.label.toLowerCase().replaceAll(" ", "-")}`} key={r.label} onClick={() => setDownloadNotice(`"${r.label}" requires CMA registration`)} className="flex items-center justify-between gap-3 rounded-2xl border border-[#dfe7df] bg-white px-4 py-3.5 text-left transition-colors hover:bg-[#f3f6f1] focus:outline-none focus:ring-2 focus:ring-[#8cb8a0]"><span className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#edf5eb] text-[#2e7654]">{r.icon}</span><span className="truncate text-xs font-semibold text-[#365b4d]">{r.label}</span></span><Download size={14} className="shrink-0 text-[#74857e]" /></button>)}</div>
+                  <div className="flex items-start gap-2.5 rounded-2xl border border-[#ead8ae] bg-[#faf4e7] p-3.5"><AlertCircle size={14} className="mt-0.5 shrink-0 text-[#a57729]" /><p className="text-xs leading-relaxed text-[#87662e]">Reports are generated from live portfolio data. Download functionality requires CMA registration for fund managers in Kenya.</p></div>
+                </>
+              )}
+
+              {tab === "wallet" && (
+                <>
+                  <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#6c8178]">Treasury</p><h2 className="mt-1 text-xl font-semibold tracking-tight text-[#163b35]">Fund wallet</h2><p className="mt-1 text-xs text-[#74857e]">Move capital into the opportunities you have approved.</p></div>
+                  <section data-testid="card-wallet-balance" className="overflow-hidden rounded-3xl bg-[#163f37] text-white shadow-[0_12px_30px_rgba(22,63,55,0.18)]"><div className="flex flex-col justify-between gap-5 px-5 pb-6 pt-5 sm:flex-row sm:items-end"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#b8d4bc]/75">Available balance</p>{walletLoading ? <div className="mt-3 h-9 w-44 animate-pulse rounded-lg bg-white/15" /> : <p data-testid="text-wallet-balance" className="mt-2 text-3xl font-semibold tracking-tight">{formatKES(walletBalance)}</p>}<p className="mt-2 text-xs text-[#b8d4bc]/75">Fund manager wallet · {user?.name}</p></div><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/10"><Wallet size={18} /></div></div><div className="grid grid-cols-2 divide-x divide-white/10 border-t border-white/10"><a data-testid="link-add-funds" href="/wallet" className="flex items-center justify-center gap-2 py-3.5 text-xs font-semibold text-white/80 transition-colors hover:bg-white/10"><ArrowDownToLine size={14} /> Add funds</a><a data-testid="link-withdraw-funds" href="/wallet" className="flex items-center justify-center gap-2 py-3.5 text-xs font-semibold text-white/80 transition-colors hover:bg-white/10"><ArrowUpFromLine size={14} /> Withdraw</a></div></section>
+                  <section data-testid="card-transactions" className="rounded-3xl border border-[#dfe7df] bg-white p-5 shadow-[0_8px_28px_rgba(25,76,62,0.05)]"><div className="flex items-center justify-between"><p className="text-sm font-semibold text-[#163b35]">Recent transactions</p><span className="text-[10px] font-medium text-[#74857e]">Last 6</span></div>{walletLoading ? <div className="mt-5 space-y-4">{[1, 2, 3].map(i => <div key={i} className="flex animate-pulse items-center gap-3"><div className="h-9 w-9 rounded-xl bg-[#e9efe9]" /><div className="flex-1 space-y-2"><div className="h-3 w-1/2 rounded bg-[#e9efe9]" /><div className="h-2 w-1/4 rounded bg-[#edf2ed]" /></div></div>)}</div> : walletTxns.length === 0 ? <div data-testid="empty-wallet-transactions" className="py-9 text-center"><Wallet size={25} className="mx-auto text-[#87a297]" /><p className="mt-3 text-sm font-semibold text-[#365b4d]">No transactions yet</p><p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-[#74857e]">Add funds to start investing in farm portfolios.</p></div> : <div className="mt-5 space-y-3">{walletTxns.slice(0, 6).map((tx: any, i: number) => { const isIn = (tx.amount ?? 0) > 0 || tx.type === "deposit" || tx.type === "dividend"; return <div data-testid={`transaction-${tx.id ?? i}`} key={tx.id ?? i} className="flex items-center gap-3"><div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isIn ? "bg-[#e7f1e6] text-[#2e7654]" : "bg-[#f8eaea] text-[#b45353]"}`}>{isIn ? <ArrowDownToLine size={15} /> : <ArrowUpFromLine size={15} />}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-[#365b4d]">{tx.description ?? tx.type ?? "Transaction"}</p><p className="mt-1 text-[10px] text-[#74857e]">{tx.createdAt ? new Date(tx.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short" }) : "—"}</p></div><p className={`shrink-0 text-xs font-bold ${isIn ? "text-[#2e7654]" : "text-[#b45353]"}`}>{isIn ? "+" : "-"}{formatKES(Math.abs(tx.amount ?? 0))}</p></div> })}</div>}</section>
+                  <section className="rounded-3xl border border-[#c9d9c9] bg-[#edf5eb] p-5"><p className="text-xs font-bold uppercase tracking-[0.15em] text-[#557668]">Shortcuts</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{[{ label: "Invest in farm portfolio", desc: "Browse active farms and allocate capital", icon: <Briefcase size={16} />, href: "/market" }, { label: "View full portfolio", desc: "Track holdings and performance", icon: <BarChart2 size={16} />, href: "/portfolio" }].map(a => <a data-testid={`link-${a.label.toLowerCase().replaceAll(" ", "-")}`} key={a.label} href={a.href} className="flex items-center gap-3 rounded-2xl border border-[#d6e4d4] bg-white/70 px-3.5 py-3 text-left transition-colors hover:bg-white"><span className="text-[#2e7654]">{a.icon}</span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[#365b4d]">{a.label}</span><span className="mt-1 block truncate text-[10px] text-[#74857e]">{a.desc}</span></span><ArrowUpRight size={13} className="shrink-0 text-[#74857e]" /></a>)}</div></section>
+                </>
+              )}
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </AnimatePresence>
+        </main>
 
-      {/* Bottom nav */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-background border-t border-border px-2 py-3 flex items-center justify-around">
-        {[
-          { id: "overview", label: "Overview", icon: <BarChart2 size={18} /> },
-          { id: "funds",    label: "Funds",    icon: <Briefcase size={18} /> },
-          { id: "clients",  label: "Clients",  icon: <Users size={18} /> },
-          { id: "reports",  label: "Reports",  icon: <FileText size={18} /> },
-          { id: "wallet",   label: "Wallet",   icon: <Wallet size={18} /> },
-        ].map(item => (
-          <button key={item.id} onClick={() => setTab(item.id as Tab)}
-            className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${tab === item.id ? "text-indigo-600" : "text-muted-foreground"}`}>
-            {item.icon}
-            <span className="text-[9px] font-semibold">{item.label}</span>
-          </button>
-        ))}
+        <AnimatePresence>
+          {addClientOpen && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end justify-center bg-[#123b35]/10 sm:items-center"><div className="absolute inset-0 bg-[#102d29]/55 backdrop-blur-sm" onClick={() => setAddClientOpen(false)} /><motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 28, stiffness: 300 }} className="relative w-full max-w-lg rounded-t-3xl bg-[#f7f8f3] p-6 shadow-2xl sm:rounded-3xl"><div className="flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#6c8178]">New relationship</p><p className="mt-1 text-lg font-semibold tracking-tight text-[#163b35]">Add client</p></div><button data-testid="button-close-add-client" aria-label="Close add client dialog" onClick={() => setAddClientOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e9efe9] text-[#365b4d] hover:bg-[#dfe9df] focus:outline-none focus:ring-2 focus:ring-[#8cb8a0]"><X size={16} /></button></div><div className="mt-6 space-y-4"><div><label htmlFor="client-name" className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-[#6c8178]">Client / fund name</label><input id="client-name" data-testid="input-client-name" type="text" value={newClient.name} onChange={e => setNewClient(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Kamau Family Trust" className="w-full rounded-xl border border-[#d4e0d5] bg-white px-4 py-3 text-sm text-[#163b35] outline-none placeholder:text-[#9aaba1] focus:border-[#6b9b84] focus:ring-2 focus:ring-[#d9e9d8]" /></div><div><label htmlFor="client-allocation" className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-[#6c8178]">Allocation (KES thousands)</label><input id="client-allocation" data-testid="input-client-allocation" type="text" inputMode="decimal" value={newClient.allocation} onChange={e => setNewClient(p => ({ ...p, allocation: e.target.value.replace(/[^0-9.]/g, "") }))} placeholder="e.g. 5000 = KES 5,000,000" className="w-full rounded-xl border border-[#d4e0d5] bg-white px-4 py-3 text-sm text-[#163b35] outline-none placeholder:text-[#9aaba1] focus:border-[#6b9b84] focus:ring-2 focus:ring-[#d9e9d8]" /></div><fieldset><legend className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-[#6c8178]">Risk profile</legend><div className="flex gap-2">{(["low", "medium", "high"] as const).map(r => <button data-testid={`button-risk-${r}`} key={r} type="button" aria-pressed={newClient.risk === r} onClick={() => setNewClient(p => ({ ...p, risk: r }))} className={`flex-1 rounded-xl border py-2.5 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[#8cb8a0] ${newClient.risk === r ? riskColor(r) : "border-[#d4e0d5] bg-white text-[#74857e]"}`}>{r.charAt(0).toUpperCase() + r.slice(1)}</button>)}</div></fieldset><button data-testid="button-submit-client" onClick={handleAddClient} className="w-full rounded-xl bg-[#1c5a4d] py-3.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#123b35] focus:outline-none focus:ring-2 focus:ring-[#8cb8a0]">Add client</button></div></motion.div></motion.div>}
+        </AnimatePresence>
+
+        <nav aria-label="Dashboard sections" className="fixed bottom-0 left-1/2 z-40 flex w-full max-w-[1180px] -translate-x-1/2 items-center justify-around border-t border-[#dfe7df] bg-[#f7f8f3]/95 px-2 py-2.5 backdrop-blur-md sm:px-8">
+          {TABS.map(item => <button data-testid={`bottom-tab-${item.id}`} aria-current={tab === item.id ? "page" : undefined} key={item.id} onClick={() => setTab(item.id)} className={`flex min-w-[62px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#8cb8a0] ${tab === item.id ? "text-[#1c5a4d]" : "text-[#789087] hover:text-[#365b4d]"}`}>{item.icon}<span>{item.label}</span></button>)}
+        </nav>
+        <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       </div>
-
-      <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
     </div>
   );
 }

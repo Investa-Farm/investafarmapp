@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken, getStoredUser } from "@/lib/auth";
-import { ArrowUpRight, Plus, TrendingUp, RefreshCw, Loader2, ArrowLeft, CheckCircle2, Wallet, CreditCard, Copy, Check, Filter, Trash2, Download, Lock, Shield } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, RefreshCw, ArrowLeft, CheckCircle2, Wallet, CreditCard, Copy, Check, Filter, Trash2, Download, Lock, Shield, Clock3, Sprout, BarChart3, BriefcaseBusiness, X, Coins, Repeat } from "lucide-react";
 // CheckCircle2 used in success toast below
 import { PaymentSheet } from "@/components/payment-sheet";
 import { WithdrawSheet } from "@/components/withdraw-sheet";
@@ -24,13 +24,13 @@ type WalletData = {
   }>;
 };
 
-const TX_ICONS: Record<string, { emoji: string; color: string }> = {
-  deposit:    { emoji: "⬇️", color: "text-green-600" },
-  withdrawal: { emoji: "⬆️", color: "text-red-500" },
-  investment: { emoji: "📈", color: "text-blue-600" },
-  return:     { emoji: "💰", color: "text-green-600" },
-  fee:        { emoji: "💳", color: "text-amber-600" },
-  transfer:   { emoji: "↔️", color: "text-purple-600" },
+const TX_ICONS: Record<string, { icon: ReactNode; color: string }> = {
+  deposit:    { icon: <ArrowDownLeft size={16} />, color: "text-green-600" },
+  withdrawal: { icon: <ArrowUpRight size={16} />, color: "text-red-500" },
+  investment: { icon: <TrendingUp size={16} />, color: "text-blue-600" },
+  return:     { icon: <Coins size={16} />, color: "text-green-600" },
+  fee:        { icon: <CreditCard size={16} />, color: "text-amber-600" },
+  transfer:   { icon: <Repeat size={16} />, color: "text-purple-600" },
 };
 
 const QUICK_AMOUNTS = [1000, 5000, 10000, 25000, 50000];
@@ -435,12 +435,12 @@ export default function InvestorWallet() {
               <p className="text-muted-foreground text-xs">{txs.length === 0 ? "Add funds to get started." : "Try a different filter."}</p>
             </div>
           ) : filteredTxs.map((tx: any) => {
-            const cfg = TX_ICONS[tx.type] ?? { emoji: "💳", color: "text-foreground" };
+              const cfg = TX_ICONS[tx.type] ?? { icon: <CreditCard size={16} />, color: "text-foreground" };
             const isCredit = ["deposit", "return", "transfer"].includes(tx.type);
             return (
               <div key={tx.id} className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 mb-2">
-                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-base flex-shrink-0">
-                  {cfg.emoji}
+                <div className={`w-9 h-9 rounded-xl bg-muted flex items-center justify-center flex-shrink-0 ${cfg.color}`}>
+                  {cfg.icon}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground text-xs font-medium truncate">{tx.description ?? tx.type}</p>
