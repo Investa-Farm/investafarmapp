@@ -485,7 +485,7 @@ export default function FarmDetail() {
     <div ref={scrollRef} className="app-shell pb-56 page-enter overflow-y-auto h-screen" data-testid="farm-detail">
 
       {/* ── HERO GALLERY ── */}
-      <div className="relative h-72 overflow-hidden select-none">
+      <div className="relative h-[20rem] overflow-hidden select-none sm:h-[24rem]">
         <AnimatePresence mode="wait">
           <motion.img
             key={imgIdx}
@@ -531,9 +531,10 @@ export default function FarmDetail() {
         )}
 
         {/* Farm name & meta — pinned bottom of hero */}
-        <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-5">
           <div className="flex items-end justify-between gap-3">
             <div className="flex-1 min-w-0">
+                <p className="text-white/65 text-[9px] font-bold uppercase tracking-[0.2em] mb-2">Farm opportunity</p>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 <span className="bg-[#16a34a] text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                   <ShieldCheck size={9} /> Verified
@@ -562,16 +563,18 @@ export default function FarmDetail() {
       </div>
 
       {/* ── QUICK ACTIONS ROW ── */}
-      <div className="px-4 py-3 flex gap-2 border-b border-border bg-background">
+      <div className="px-4 py-3 flex gap-2 border-b border-border bg-background/95 backdrop-blur-sm">
         <button
           onClick={() => setShareOpen(true)}
-          className="flex-1 flex items-center justify-center gap-1.5 bg-[#16a34a]/10 rounded-xl py-2.5 text-xs font-semibold text-[#16a34a] active:scale-95 transition-transform"
+          aria-label={`Share ${farm.name}`}
+          className="flex-1 flex items-center justify-center gap-1.5 bg-[#16a34a]/10 border border-[#16a34a]/10 rounded-xl py-2.5 text-xs font-semibold text-[#16a34a] active:scale-95 transition-transform focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30"
         >
           <Share2 size={13} /> Share
         </button>
         <button
           onClick={() => setComparePickerOpen(true)}
-          className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 rounded-xl py-2.5 text-xs font-semibold text-blue-600 active:scale-95 transition-transform"
+          aria-label={`Compare ${farm.name} with another farm`}
+          className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 border border-blue-100 rounded-xl py-2.5 text-xs font-semibold text-blue-600 active:scale-95 transition-transform focus:outline-none focus:ring-2 focus:ring-blue-300"
         >
           <Scale size={13} /> Compare
         </button>
@@ -582,7 +585,7 @@ export default function FarmDetail() {
             inWatchlist
               ? "bg-amber-50 text-amber-600 border border-amber-200"
               : "bg-muted text-muted-foreground"
-          } ${watchlistLoading ? "opacity-60" : ""}`}
+          } ${watchlistLoading ? "opacity-60" : ""} focus:outline-none focus:ring-2 focus:ring-amber-300`}
         >
           <Star size={13} className={inWatchlist ? "fill-amber-500 text-amber-500" : ""} />
           {inWatchlist ? "Saved" : "Watchlist"}
@@ -646,21 +649,40 @@ export default function FarmDetail() {
               ))}
             </div>
           )}
+
+          <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-border">
+            <div className="rounded-xl bg-emerald-50/80 px-2.5 py-2.5">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-700/70">Full season</p>
+              <p className="mt-1 text-sm font-black text-emerald-700">+{Math.round(Math.max(14, 18 + (farm.changePercent ?? 0) * 0.6))}%</p>
+            </div>
+            <div className="rounded-xl bg-amber-50/80 px-2.5 py-2.5">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700/70">Risk lens</p>
+              <p className="mt-1 text-sm font-black text-amber-700">
+                {Math.abs(farm.changePercent ?? 0) > 5 ? "Higher" : Math.abs(farm.changePercent ?? 0) > 2 ? "Moderate" : "Lower"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-blue-50/80 px-2.5 py-2.5">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-blue-700/70">Stage</p>
+              <p className="mt-1 truncate text-sm font-black capitalize text-blue-700">{growth?.stage ?? "Growing"}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* ── TAB BAR ── */}
-      <div className="px-4 pt-4 pb-1 sticky top-0 bg-background z-20 border-b border-border">
+      <div className="px-4 pt-4 pb-1 sticky top-0 bg-background/95 backdrop-blur-sm z-20 border-b border-border">
         <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
           {DETAIL_TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              aria-pressed={activeTab === tab.id}
+              data-testid={`farm-detail-tab-${tab.id}`}
               className={`flex-shrink-0 px-3.5 py-2 rounded-full text-[11px] font-semibold transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === tab.id
                   ? "bg-[#16a34a] text-white shadow-md shadow-[#16a34a]/25"
                   : "bg-muted text-muted-foreground"
-              }`}
+              } focus:outline-none focus:ring-2 focus:ring-[#16a34a]/30`}
             >
               <span>{tab.emoji}</span>
               <span>{tab.label}</span>
@@ -1308,7 +1330,8 @@ export default function FarmDetail() {
             <button
               data-testid="button-buy-confirm"
               onClick={() => setInvestOpen(true)}
-              className="w-full bg-gradient-to-r from-[#16a34a] to-emerald-500 text-white font-black py-4 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2.5 shadow-xl shadow-[#16a34a]/30 text-base"
+              aria-label={`Invest in ${farm.cropType} at ${formatKES(listing.pricePerShare)} per share`}
+              className="w-full bg-gradient-to-r from-[#16a34a] to-emerald-500 text-white font-black py-4 rounded-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 shadow-xl shadow-[#16a34a]/30 text-base focus:outline-none focus:ring-4 focus:ring-[#16a34a]/25"
               style={{ boxShadow: "0 8px 32px 0 rgba(22,163,74,0.35)" }}
             >
               <ShoppingCart size={18} />
