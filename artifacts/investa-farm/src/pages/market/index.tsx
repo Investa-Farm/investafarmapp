@@ -54,6 +54,12 @@ const MARKET_INSIGHTS = [
   { text: "☀️ Optimal planting season begins — book your shares now",   statement: true },
 ];
 
+const MARKET_SECTIONS = [
+  { id: "market", label: "Market", icon: TrendingUp },
+  { id: "news", label: "News", icon: Newspaper },
+  { id: "watchlist", label: "Watchlist", icon: Star },
+] as const;
+
 function getNewsImage(item: { imageKey?: string; tag?: string; title?: string }): string {
   if (item.imageKey && (CROP_IMAGES as Record<string, string>)[item.imageKey]) {
     return (CROP_IMAGES as Record<string, string>)[item.imageKey];
@@ -718,6 +724,9 @@ export default function MarketHome() {
             <h1 className="text-foreground text-xl font-bold flex items-center gap-1.5">
               Live Market <TrendingUp size={16} className="text-primary" />
             </h1>
+            <p className="mt-1 max-w-[240px] text-[11px] leading-relaxed text-muted-foreground">
+              Compare verified farms, market momentum, and seasonal opportunities.
+            </p>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               {/* Wallet and notifications stay visible; lower-priority actions live in More. */}
@@ -930,11 +939,13 @@ export default function MarketHome() {
 
       {/* Section tabs */}
       <div className="px-4 pt-3">
-        <div className="flex bg-muted rounded-2xl p-1 gap-1">
-          {(["market", "news", "watchlist"] as const).map(s => (
-            <button key={s} onClick={() => setActiveSectionPersist(s)}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold capitalize transition-all ${activeSection === s ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
-              {s === "watchlist" ? "Watchlist" : s === "news" ? "📰 News" : "📊 Market"}
+        <div className="flex bg-muted/70 border border-border/70 rounded-2xl p-1 gap-1">
+          {MARKET_SECTIONS.map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => setActiveSectionPersist(id)}
+              aria-pressed={activeSection === id}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold capitalize transition-all flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30 ${activeSection === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              <Icon size={13} className={activeSection === id ? "text-primary" : ""} />
+              {label}
             </button>
           ))}
         </div>
@@ -946,20 +957,20 @@ export default function MarketHome() {
             {/* Market type links — compact strip above movers */}
             <div className="grid grid-cols-2 gap-2">
               <Link href="/market/primary">
-                <div className="rounded-xl overflow-hidden relative h-14 cursor-pointer active:scale-95 transition-transform shadow-md shadow-green-600/15">
+                <div className="rounded-2xl overflow-hidden relative h-16 cursor-pointer active:scale-[0.98] transition-transform shadow-md shadow-green-600/15">
                   <img src={getCropImage("maize")} alt="Primary Market" className="absolute inset-0 w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-green-800/70 to-green-950/60 flex items-center px-3 gap-2">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-green-800/70 to-green-950/60 flex flex-col items-start justify-center px-3">
                     <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest bg-white/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">New Issue</span>
-                    <p className="text-white font-extrabold text-xs leading-tight">Primary Market</p>
+                    <p className="text-white font-extrabold text-xs leading-tight mt-1">Primary Market</p>
                   </div>
                 </div>
               </Link>
               <Link href="/market/secondary">
-                <div className="rounded-xl overflow-hidden relative h-14 cursor-pointer active:scale-95 transition-transform shadow-md shadow-amber-600/15">
+                <div className="rounded-2xl overflow-hidden relative h-16 cursor-pointer active:scale-[0.98] transition-transform shadow-md shadow-amber-600/15">
                   <img src={getCropImage("coffee")} alt="Secondary Market" className="absolute inset-0 w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-800/85 via-amber-900/70 to-amber-950/60 flex items-center px-3 gap-2">
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-800/85 via-amber-900/70 to-amber-950/60 flex flex-col items-start justify-center px-3">
                     <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest bg-white/15 px-1.5 py-0.5 rounded-full whitespace-nowrap">Resale</span>
-                    <p className="text-white font-extrabold text-xs leading-tight">Secondary Market</p>
+                    <p className="text-white font-extrabold text-xs leading-tight mt-1">Secondary Market</p>
                   </div>
                 </div>
               </Link>
