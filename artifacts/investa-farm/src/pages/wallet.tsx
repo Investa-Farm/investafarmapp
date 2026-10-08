@@ -15,6 +15,7 @@ import { useGetPortfolioSummary } from "@workspace/api-client-react";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { downloadCsv } from "@/lib/csv";
+import { PrivyStellarWallet } from "@/components/privy-stellar-wallet";
 
 type WalletData = {
   wallet: { id: number; balance: string; currency: string; updatedAt: string };
@@ -262,6 +263,8 @@ export default function InvestorWallet() {
             </div>
           </div>
         </div>
+
+        <PrivyStellarWallet authToken={token} />
 
         {/* Portfolio stats strip */}
         {summary && (

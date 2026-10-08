@@ -26,6 +26,7 @@ app.use(
     redact: {
       paths: [
         "req.headers.authorization",
+        "req.headers.x-privy-access-token",
         "req.headers.cookie",
         "req.body.password",
         "req.body.token",

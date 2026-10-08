@@ -58,3 +58,9 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+PRIVY_APP_ID = "cmuzcaizx028r0dl3t5ebu9mc"
+VITE_PRIVY_APP_ID = "cmuzcaizx028r0dl3t5ebu9mc"

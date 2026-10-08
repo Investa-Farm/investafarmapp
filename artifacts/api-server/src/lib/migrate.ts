@@ -175,6 +175,20 @@ async function bootstrapSchema(client: PoolClient, label: string): Promise<void>
     }
   }
 
+  // Keep this additive wallet-link table in the startup bootstrap as well as
+  // the Drizzle schema so primary and fallback databases are ready before
+  // authenticated wallet routes serve traffic.
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS "privy_stellar_wallets" (
+      "id" SERIAL PRIMARY KEY,
+      "user_id" INTEGER NOT NULL UNIQUE REFERENCES "users"("id") ON DELETE CASCADE,
+      "privy_user_id" TEXT NOT NULL UNIQUE,
+      "address" TEXT NOT NULL UNIQUE,
+      "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+      "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
   await applyDeltas(client);
 
   if (failures === 0) {
