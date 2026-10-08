@@ -1,0 +1,140 @@
+Here are the exact instructions, commands, and code blocks to copy-paste directly into your Replit workspace to build and integrate Privy into the Investa Farm Next.js PWA. [1] 
+------------------------------
+## Step 1: Add your Privy App ID to Replit Secrets
+Do not hardcode your Privy ID in the code files. Instead, add it to your environment variables:
+
+   1. Open your Replit workspace.
+   2. In the left-hand sidebar, click on Tools and select Secrets (the padlock icon).
+   3. Add a new secret with the following details:
+   * Key: NEXT_PUBLIC_PRIVY_APP_ID
+      * Value: (Paste your actual Privy App ID here)
+   
+------------------------------
+## Step 2: Install the Privy SDK
+Open the Shell tab in your Replit workspace panel on the right side and run the following command to install the required Privy packages:
+
+npm install @privy-io/react-auth
+
+------------------------------
+## Step 3: Create the Privy Provider Component
+Create a wrapper component to initialize Privy. In your file tree, create a new file at components/PrivyProviderWrapper.js (or .tsx if using TypeScript) and paste this code:
+
+'use client';
+import { PrivyProvider } from '@privy-io/react-auth';
+export default function PrivyProviderWrapper({ children }) {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+
+  if (!appId) {
+    console.error("Missing NEXT_PUBLIC_PRIVY_APP_ID in environment secrets.");
+  }
+
+  return (
+    <PrivyProvider
+      appId={appId || ''}
+      config={{
+        // Customize authentication options for your urban investors
+        loginMethods: ['email', 'google', 'apple'],
+        appearance: {
+          theme: 'light',
+          accentColor: '#4F46E5', // Customize to match Investa Farm branding
+          logo: 'https://investafarm.com', // Fallback placeholder
+        },
+        // Enable automatic embedded wallet creation on login
+        embeddedWallets: {
+          createOnLogin: 'all-users',
+          requireUserPasswordOnCreate: false,
+        },
+      }}
+    >
+      {children}
+    </PrivyProvider>
+  );
+}
+
+------------------------------
+## Step 4: Wrap your Layout with the Provider
+Open your root layout file (usually found at app/layout.js or pages/_app.js depending on your Next.js directory structure) and wrap your application layout with the newly created provider component: [2] 
+
+import PrivyProviderWrapper from '../components/PrivyProviderWrapper';import '../styles/globals.css';
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <PrivyProviderWrapper>
+          {children}
+        </PrivyProviderWrapper>
+      </body>
+    </html>
+  );
+}
+
+------------------------------
+## Step 5: Implement the Login & Wallet Hook
+Now, let's create a functional login component that handles user authentication and fetches their new programmatic embedded wallet. Create or update a file at components/LoginButton.js:
+
+'use client';
+import { usePrivy, useWallets } from '@privy-io/react-auth';import { useEffect } from 'react';
+export default function LoginButton() {
+  const { login, logout, authenticated, user } = usePrivy();
+  const { wallets } = useWallets();
+
+  // Find the embedded Stellar/Crypto wallet from the active wallets array
+  const embeddedWallet = wallets.find((w) => w.walletClientType === 'privy');
+
+  useEffect(() => {
+    if (authenticated && embeddedWallet) {
+      // Send the user public address to the Investa Farm backend database
+      fetch('/api/users/update-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user?.email?.address,
+          stellarAddress: embeddedWallet.address,
+        }),
+      })
+      .then(res => res.json())
+      .then(data => console.log('Wallet synchronized successfully:', data))
+      .catch(err => console.error('Database sync failed:', err));
+    }
+  }, [authenticated, embeddedWallet, user]);
+
+  return (
+    <div className="flex flex-col items-center gap-4 p-4">
+      {!authenticated ? (
+        <button
+          onClick={login}
+          className="bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg shadow hover:bg-indigo-700 transition"
+        >
+          Connect to Investa Farm
+        </button>
+      ) : (
+        <div className="text-center">
+          <p className="text-green-600 font-medium">Logged in as {user?.email?.address}</p>
+          {embeddedWallet && (
+            <p className="text-xs text-gray-500 font-mono mt-1">
+              Wallet: {embeddedWallet.address.slice(0, 6)}...{embeddedWallet.address.slice(-4)}
+            </p>
+          )}
+          <button
+            onClick={logout}
+            className="mt-4 bg-gray-200 text-gray-700 py-1 px-4 rounded hover:bg-gray-300 transition text-sm"
+          >
+            Log Out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+------------------------------
+## Step 6: Test the Implementation
+
+   1. Click the Run button at the top of your Replit screen.
+   2. Open the web preview panel.
+   3. Click the "Connect to Investa Farm" button to verify the complete modal email/social authentication state flow opens and behaves seamlessly.
+
+Would you like me to help you write the Node.js database router (/api/users/update-wallet) to catch and save these programmatic wallet keys directly into your Neon PostgreSQL instance? [1] 
+
+[1] [https://mail.google.com](https://mail.google.com/mail/?extsrc=sync&client=h&plid=ACUX6DOgi0fGhWYWB7UZtqmgfKrtPDdi6fARyc0)
+[2] [https://mail.google.com](https://mail.google.com/mail/?extsrc=sync&client=h&plid=ACUX6DOJbGiJ6DjlpuWqe7OU_RYmJtIh_3rjUWU)
