@@ -18,6 +18,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { EthereumProvider } from "@walletconnect/ethereum-provider";
 import {
   X, Wallet, Copy, Check, AlertCircle, CheckCircle2,
   Loader2, ExternalLink, ArrowRight, Zap,
@@ -26,6 +27,7 @@ import {
 // ── USDC contract on Polygon Mainnet ──────────────────────────────────────────
 const USDC_POLYGON = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 const POLYGON_CHAIN_ID = "0x89"; // 137
+const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim() ?? "";
 
 // ── ERC-20 helpers (no ethers/web3 dependency) ───────────────────────────────
 function encodeTransfer(to: string, usdcAmount: string): string {
@@ -86,6 +88,27 @@ const WALLETS: WalletDef[] = [
 
 const LS_KEY = "investa_wallet_connect_pending";
 
+function getInjectedProvider(walletId: string): any | null {
+  if (typeof window === "undefined") return null;
+  const root = (window as any).ethereum;
+  const providers: any[] = Array.isArray(root?.providers)
+    ? root.providers
+    : root
+      ? [root]
+      : [];
+
+  if (walletId === "metamask") {
+    return providers.find((provider) => provider?.isMetaMask && !provider?.isBraveWallet) ?? null;
+  }
+  if (walletId === "coinbase") {
+    return providers.find((provider) => provider?.isCoinbaseWallet) ?? null;
+  }
+  if (walletId === "binance") {
+    return providers.find((provider) => provider?.isBinance) ?? null;
+  }
+  return providers.length === 1 ? providers[0] : null;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface WalletConnectResult {
   address: string;
@@ -121,14 +144,21 @@ export function WalletConnectModal({
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [connectionProvider, setConnectionProvider] = useState<any | null>(null);
 
-  const eth = typeof window !== "undefined" ? (window as any).ethereum : null;
-  const hasProvider = !!eth;
+  const rootProvider = typeof window !== "undefined" ? (window as any).ethereum : null;
+  const injectedProviders: any[] = Array.isArray(rootProvider?.providers)
+    ? rootProvider.providers
+    : rootProvider
+      ? [rootProvider]
+      : [];
+  const eth = connectionProvider ?? (selectedWallet ? getInjectedProvider(selectedWallet.id) : null);
+  const hasProvider = injectedProviders.length > 0;
 
   // Detect which wallet injected window.ethereum
-  const injectedName = eth?.isMetaMask ? "MetaMask"
-    : eth?.isCoinbaseWallet ? "Coinbase Wallet"
-    : eth?.isBinance ? "Binance Web3"
+  const injectedName = injectedProviders.some((provider) => provider?.isMetaMask) ? "MetaMask"
+    : injectedProviders.some((provider) => provider?.isCoinbaseWallet) ? "Coinbase Wallet"
+    : injectedProviders.some((provider) => provider?.isBinance) ? "Binance Web3"
     : hasProvider ? "Web3 Wallet"
     : null;
 
@@ -139,7 +169,8 @@ export function WalletConnectModal({
     if (!raw) return;
     try {
       const { walletId, ts } = JSON.parse(raw);
-      if (Date.now() - ts < 5 * 60 * 1000 && eth) {
+      const provider = connectionProvider ?? getInjectedProvider(walletId);
+      if (Date.now() - ts < 5 * 60 * 1000 && provider) {
         localStorage.removeItem(LS_KEY);
         const w = WALLETS.find(x => x.id === walletId);
         if (w) { setSelectedWallet(w); void connectInApp(w); }
@@ -161,19 +192,38 @@ export function WalletConnectModal({
     setStep("connecting");
     setError(null);
     try {
-      if (!eth) throw new Error("No Web3 provider detected.");
+      let provider = getInjectedProvider(wallet.id);
+      if (!provider && wallet.id === "metamask") {
+        if (!WALLETCONNECT_PROJECT_ID) {
+          throw new Error("MetaMask mobile connection needs VITE_WALLETCONNECT_PROJECT_ID to be configured.");
+        }
+        provider = await EthereumProvider.init({
+          projectId: WALLETCONNECT_PROJECT_ID,
+          chains: [137],
+          showQrModal: true,
+          metadata: {
+            name: "Investa Farm",
+            description: "Connect your wallet to pay with USDC on Polygon.",
+            url: window.location.origin,
+            icons: [],
+          },
+        });
+        if (!provider.session) await provider.connect();
+      }
+      if (!provider) throw new Error(`No ${wallet.name} provider detected. Open this page in the wallet browser or choose another wallet.`);
+      setConnectionProvider(provider);
 
       // Request accounts
-      const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
+      const accounts: string[] = await provider.request({ method: "eth_requestAccounts" });
       if (!accounts[0]) throw new Error("No accounts returned");
       const address = accounts[0];
 
       // Switch to Polygon
       try {
-        await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: POLYGON_CHAIN_ID }] });
+        await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: POLYGON_CHAIN_ID }] });
       } catch (sw: any) {
         if (sw?.code === 4902) {
-          await eth.request({
+          await provider.request({
             method: "wallet_addEthereumChain",
             params: [{
               chainId: POLYGON_CHAIN_ID,
@@ -183,12 +233,14 @@ export function WalletConnectModal({
               blockExplorerUrls: ["https://polygonscan.com/"],
             }],
           });
+          await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: POLYGON_CHAIN_ID }] });
+        } else {
+          throw new Error("Switch to Polygon in your wallet to continue.");
         }
-        // ignore other switch errors — user may decline network switch
       }
 
       // Fetch USDC balance
-      const bal = await getUsdcBalance(eth, address);
+      const bal = await getUsdcBalance(provider, address);
       setConnectedAddress(address);
       setUsdcBalance(bal);
       setStep("connected");
@@ -198,6 +250,28 @@ export function WalletConnectModal({
       setStep("select");
     }
   }
+
+  useEffect(() => {
+    if (!connectionProvider?.on) return;
+    const handleAccountsChanged = (accounts: string[]) => {
+      const address = accounts?.[0] ?? null;
+      setConnectedAddress(address);
+      if (!address) {
+        setUsdcBalance(null);
+        setStep("select");
+        return;
+      }
+      void getUsdcBalance(connectionProvider, address).then(setUsdcBalance);
+    };
+    connectionProvider.on("accountsChanged", handleAccountsChanged);
+    return () => {
+      if (typeof connectionProvider.removeListener === "function") {
+        connectionProvider.removeListener("accountsChanged", handleAccountsChanged);
+      } else if (typeof connectionProvider.off === "function") {
+        connectionProvider.off("accountsChanged", handleAccountsChanged);
+      }
+    };
+  }, [connectionProvider]);
 
   // ── Send ERC-20 transfer ───────────────────────────────────────────────────
   async function sendUsdcTx() {
@@ -226,6 +300,10 @@ export function WalletConnectModal({
 
   // ── Open wallet's in-app browser ──────────────────────────────────────────
   function openWalletBrowser(wallet: WalletDef) {
+    if (wallet.id === "metamask") {
+      void connectInApp(wallet);
+      return;
+    }
     localStorage.setItem(LS_KEY, JSON.stringify({ walletId: wallet.id, ts: Date.now() }));
     setSelectedWallet(wallet);
     setStep("opening_app");
@@ -313,7 +391,7 @@ export function WalletConnectModal({
                 {WALLETS.map(w => (
                   <button
                     key={w.id}
-                    onClick={() => hasProvider ? connectInApp(w) : openWalletBrowser(w)}
+                    onClick={() => (w.id === "metamask" || getInjectedProvider(w.id)) ? connectInApp(w) : openWalletBrowser(w)}
                     className="w-full flex items-center gap-3.5 p-4 rounded-2xl border border-border bg-background hover:bg-muted/40 active:scale-[0.98] transition-all"
                   >
                     <div
@@ -326,7 +404,7 @@ export function WalletConnectModal({
                       <p className="text-foreground font-bold text-sm">{w.name}</p>
                       <p className="text-muted-foreground text-xs mt-0.5">{w.description}</p>
                     </div>
-                    {hasProvider ? (
+                    {w.id === "metamask" || getInjectedProvider(w.id) ? (
                       <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
                         Connect
                       </span>
@@ -533,7 +611,7 @@ export function WalletConnectModal({
                 </a>
 
                 <button
-                  onClick={() => { if (eth) connectInApp(selectedWallet!); else setStep("select"); }}
+                  onClick={() => { if (getInjectedProvider(selectedWallet?.id ?? "")) connectInApp(selectedWallet!); else setStep("select"); }}
                   className="w-full py-3 rounded-2xl border-2 border-border text-foreground font-semibold text-sm active:scale-95"
                 >
                   {eth ? "Already in wallet browser — Connect Now" : "← Choose a different wallet"}

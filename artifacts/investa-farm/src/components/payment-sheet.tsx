@@ -990,8 +990,8 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       chain={circleInfo?.chain ?? "Polygon (MATIC)"}
       memo={circleInfo?.memo}
       onConnected={(result) => {
-        setWalletModalOpen(false);
         if (result.txHash) {
+          setWalletModalOpen(false);
           setCircleTxHash(result.txHash);
           setTrackingTxHash(result.txHash);
         }
