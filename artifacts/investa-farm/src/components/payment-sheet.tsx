@@ -177,6 +177,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const [circleConfirming, setCircleConfirming] = useState(false);
   const [circleTxHash, setCircleTxHash] = useState<string | null>(null);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
+  const [connectedEvmWallet, setConnectedEvmWallet] = useState<{ address: string; walletId: string } | null>(null);
   const [trackingTxHash, setTrackingTxHash] = useState<string | null>(null);
   const [circleError, setCircleError] = useState<string | null>(null);
 
@@ -205,6 +206,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     setCircleIntentId(null); setCircleAmountUSDC(""); setCircleTxHash(null);
     setSuccess(false); setWalletModalOpen(false); setTrackingTxHash(null);
+    setConnectedEvmWallet(null);
     setCircleError(null);
   }
 
@@ -971,6 +973,17 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                 </div>
               )}
 
+              {connectedEvmWallet && (
+                <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                    {connectedEvmWallet.walletId} account connected
+                  </p>
+                  <p className="mt-1 break-all font-mono text-[11px] text-emerald-900">
+                    {connectedEvmWallet.address}
+                  </p>
+                </div>
+              )}
+
               {/* Security footer */}
               <div className="flex items-center justify-center gap-1.5 pt-1 pb-1">
                 <Lock size={9} className="text-muted-foreground/50" />
@@ -990,6 +1003,11 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       chain={circleInfo?.chain ?? "Polygon (MATIC)"}
       memo={circleInfo?.memo}
       onConnected={(result) => {
+        if (!result) {
+          setConnectedEvmWallet(null);
+          return;
+        }
+        setConnectedEvmWallet({ address: result.address, walletId: result.walletId });
         if (result.txHash) {
           setWalletModalOpen(false);
           setCircleTxHash(result.txHash);

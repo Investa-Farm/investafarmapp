@@ -87,6 +87,7 @@ const WALLETS: WalletDef[] = [
 ];
 
 const LS_KEY = "investa_wallet_connect_pending";
+const CONNECTED_WALLET_KEY = "investa_connected_evm_wallet";
 
 function getInjectedProvider(walletId: string): any | null {
   if (typeof window === "undefined") return null;
@@ -109,6 +110,23 @@ function getInjectedProvider(walletId: string): any | null {
   return providers.length === 1 ? providers[0] : null;
 }
 
+async function createWalletConnectProvider(showQrModal: boolean) {
+  if (!WALLETCONNECT_PROJECT_ID) {
+    throw new Error("MetaMask mobile connection needs VITE_WALLETCONNECT_PROJECT_ID to be configured.");
+  }
+  return EthereumProvider.init({
+    projectId: WALLETCONNECT_PROJECT_ID,
+    chains: [137],
+    showQrModal,
+    metadata: {
+      name: "Investa Farm",
+      description: "Connect your wallet to pay with USDC on Polygon.",
+      url: window.location.origin,
+      icons: [],
+    },
+  });
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface WalletConnectResult {
   address: string;
@@ -123,7 +141,7 @@ interface Props {
   amountUSDC: string;
   chain: string;
   memo?: string;
-  onConnected?: (result: WalletConnectResult) => void;
+  onConnected?: (result: WalletConnectResult | null) => void;
 }
 
 type Step =
@@ -162,18 +180,25 @@ export function WalletConnectModal({
     : hasProvider ? "Web3 Wallet"
     : null;
 
-  // Auto-connect if we were redirected from a wallet browser
+  // Resume a connection after a mobile wallet switches back to the PWA.
   useEffect(() => {
     if (!open) return;
     const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return;
+    if (!raw) {
+      void restoreSavedWallet();
+      return;
+    }
     try {
       const { walletId, ts } = JSON.parse(raw);
       const provider = connectionProvider ?? getInjectedProvider(walletId);
-      if (Date.now() - ts < 5 * 60 * 1000 && provider) {
+      if (Date.now() - ts >= 10 * 60 * 1000) {
         localStorage.removeItem(LS_KEY);
-        const w = WALLETS.find(x => x.id === walletId);
-        if (w) { setSelectedWallet(w); void connectInApp(w); }
+        return;
+      }
+      const w = WALLETS.find(x => x.id === walletId);
+      if (w && (provider || walletId === "metamask")) {
+        setSelectedWallet(w);
+        void connectInApp(w);
       }
     } catch { localStorage.removeItem(LS_KEY); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,23 +216,13 @@ export function WalletConnectModal({
     setSelectedWallet(wallet);
     setStep("connecting");
     setError(null);
+    if (wallet.id === "metamask") {
+      localStorage.setItem(LS_KEY, JSON.stringify({ walletId: wallet.id, ts: Date.now() }));
+    }
     try {
       let provider = getInjectedProvider(wallet.id);
       if (!provider && wallet.id === "metamask") {
-        if (!WALLETCONNECT_PROJECT_ID) {
-          throw new Error("MetaMask mobile connection needs VITE_WALLETCONNECT_PROJECT_ID to be configured.");
-        }
-        provider = await EthereumProvider.init({
-          projectId: WALLETCONNECT_PROJECT_ID,
-          chains: [137],
-          showQrModal: true,
-          metadata: {
-            name: "Investa Farm",
-            description: "Connect your wallet to pay with USDC on Polygon.",
-            url: window.location.origin,
-            icons: [],
-          },
-        });
+        provider = await createWalletConnectProvider(true);
         if (!provider.session) await provider.connect();
       }
       if (!provider) throw new Error(`No ${wallet.name} provider detected. Open this page in the wallet browser or choose another wallet.`);
@@ -244,10 +259,54 @@ export function WalletConnectModal({
       setConnectedAddress(address);
       setUsdcBalance(bal);
       setStep("connected");
+      localStorage.removeItem(LS_KEY);
+      localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({
+        address,
+        walletId: wallet.id,
+        connectedAt: Date.now(),
+      }));
       onConnected?.({ address, walletId: wallet.id });
     } catch (err: any) {
+      localStorage.removeItem(LS_KEY);
       setError(err?.message ?? "Connection failed");
       setStep("select");
+    }
+  }
+
+  async function restoreSavedWallet() {
+    try {
+      const raw = localStorage.getItem(CONNECTED_WALLET_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { address?: string; walletId?: string };
+      if (!saved.address || !/^0x[0-9a-f]{40}$/i.test(saved.address)) return;
+      const wallet = WALLETS.find((item) => item.id === saved.walletId);
+      if (!wallet) return;
+
+      let provider = getInjectedProvider(wallet.id);
+      if (!provider && wallet.id === "metamask" && WALLETCONNECT_PROJECT_ID) {
+        provider = await createWalletConnectProvider(false);
+      }
+      if (!provider || (wallet.id === "metamask" && !getInjectedProvider(wallet.id) && !provider.session)) {
+        return;
+      }
+
+      const accounts: string[] = await provider.request({ method: "eth_accounts" });
+      if (!accounts?.[0]) return;
+      const address = accounts[0];
+      const bal = await getUsdcBalance(provider, address);
+      setSelectedWallet(wallet);
+      setConnectionProvider(provider);
+      setConnectedAddress(address);
+      setUsdcBalance(bal);
+      setStep("connected");
+      localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({
+        address,
+        walletId: wallet.id,
+        connectedAt: Date.now(),
+      }));
+      onConnected?.({ address, walletId: wallet.id });
+    } catch {
+      // A restored session is optional; the user can reconnect from the wallet list.
     }
   }
 
@@ -257,21 +316,39 @@ export function WalletConnectModal({
       const address = accounts?.[0] ?? null;
       setConnectedAddress(address);
       if (!address) {
+        localStorage.removeItem(CONNECTED_WALLET_KEY);
         setUsdcBalance(null);
         setStep("select");
+        onConnected?.(null);
         return;
       }
+      localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({
+        address,
+        walletId: selectedWallet?.id ?? "metamask",
+        connectedAt: Date.now(),
+      }));
+      onConnected?.({ address, walletId: selectedWallet?.id ?? "metamask" });
       void getUsdcBalance(connectionProvider, address).then(setUsdcBalance);
     };
+    const handleDisconnect = () => {
+      localStorage.removeItem(CONNECTED_WALLET_KEY);
+      setConnectedAddress(null);
+      setUsdcBalance(null);
+      setStep("select");
+      onConnected?.(null);
+    };
     connectionProvider.on("accountsChanged", handleAccountsChanged);
+    connectionProvider.on("disconnect", handleDisconnect);
     return () => {
       if (typeof connectionProvider.removeListener === "function") {
         connectionProvider.removeListener("accountsChanged", handleAccountsChanged);
+        connectionProvider.removeListener("disconnect", handleDisconnect);
       } else if (typeof connectionProvider.off === "function") {
         connectionProvider.off("accountsChanged", handleAccountsChanged);
+        connectionProvider.off("disconnect", handleDisconnect);
       }
     };
-  }, [connectionProvider]);
+  }, [connectionProvider, onConnected, selectedWallet]);
 
   // ── Send ERC-20 transfer ───────────────────────────────────────────────────
   async function sendUsdcTx() {
