@@ -1,0 +1,160 @@
+Here is how you combine the Bridge On-Ramp gateway and the Stellar Disbursement Platform (SDP) payload engine into your Replit workspace.
+This sets up a complete backend transaction system where an investor pools money via Bridge, and an administrator pushes it to your farmers via the SDP.
+------------------------------
+## Step 1: Update Your Replit Secrets
+Open your Tools -> Secrets panel in Replit and ensure all required environment keys are present:
+
+* BRIDGE_API_KEY - Your Bridge secret dashboard token
+* NEXT_PUBLIC_BRIDGE_BASE_URL - https://bridge.xyz (or your sandboxed URL)
+* SDP_API_URL - The domain URL where your hosted SDP backend container lives
+* SDP_API_TOKEN - The authentication token to validate your administrative posts to the SDP container
+
+------------------------------
+## Step 2: Build the Combined Payments Router
+This unified API route handles both incoming investor on-ramping requests (Bridge) and outgoing batch disbursement schedules (SDP).
+Create or update the file in Replit at pages/api/payments/router.js (or app/api/payments/router/route.js if using the newer Next.js layout) and paste this combined architecture:
+
+export default async function handler(req, res) {
+  const { action } = req.query; // Differentiate actions via query parameter (?action=onramp or ?action=disburse)
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method Not Allowed' });
+  }
+
+  // ==========================================
+  // PIPELINE 1: BRIDGE FIAT-TO-STELLAR ON-RAMP
+  // ==========================================
+  if (action === 'onramp') {
+    const { amount, userStellarAddress, userEmail } = req.body;
+
+    if (!amount || !userStellarAddress) {
+      return res.status(400).json({ message: 'Missing amount or target wallet parameters.' });
+    }
+
+    try {
+      // 1. Register or fetch individual customer profile with Bridge
+      const customerResponse = await fetch(`${process.env.NEXT_PUBLIC_BRIDGE_BASE_URL}/customers`, {
+        method: 'POST',
+        headers: {
+          'Api-Key': process.env.BRIDGE_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: userEmail, type: 'individual' }),
+      });
+      const customer = await customerResponse.json();
+
+      // 2. Initialize the deposit request to clear fiat into Stellar USDC
+      const depositResponse = await fetch(`${process.env.NEXT_PUBLIC_BRIDGE_BASE_URL}/deposits`, {
+        method: 'POST',
+        headers: {
+          'Api-Key': process.env.BRIDGE_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customer_id: customer.id,
+          source_currency: 'usd',
+          destination_currency: 'usdc',
+          destination_chain: 'stellar',
+          destination_address: userStellarAddress, // User's Privy Wallet address
+          amount: amount.toString(),
+        }),
+      });
+      const depositData = await depositResponse.json();
+
+      return res.status(200).json({ 
+        success: true, 
+        depositUrl: depositData.hosted_url, 
+        depositId: depositData.id 
+      });
+
+    } catch (error) {
+      console.error('Bridge Gateway Connection Error:', error);
+      return res.status(500).json({ message: 'Bridge integration process failed.' });
+    }
+  }
+
+  // ==========================================
+  // PIPELINE 2: STELLAR DISBURSEMENT BATCHES (SDP)
+  // ==========================================
+  if (action === 'disburse') {
+    const { batchId, payouts } = req.body; // 'payouts' is an array of objects: [{ address: 'G...', amount: '50' }]
+
+    if (!batchId || !payouts || !payouts.length) {
+      return res.status(400).json({ message: 'Missing batch details or recipient list.' });
+    }
+
+    try {
+      // Format the incoming internal ledger database entries to fit the SDP schema requirements
+      const sdpPayload = {
+        disbursement_id: batchId,
+        recipients: payouts.map((p) => ({
+          destination: p.address,
+          amount: p.amount.toString(),
+          asset_code: 'USDC', // Default ecosystem stablecoin token asset matching our gateway
+        })),
+      };
+
+      // Push the batch directly to your containerized open-source SDP background service
+      const sdpResponse = await fetch(`${process.env.SDP_API_URL}/v1/disbursements`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SDP_API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sdpPayload),
+      });
+
+      const sdpResult = await sdpResponse.json();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Batch processing pipeline triggered successfully.',
+        sdpBatchId: sdpResult.id,
+        status: sdpResult.status,
+      });
+
+    } catch (error) {
+      console.error('SDP Payout Engine Connection Error:', error);
+      return res.status(500).json({ message: 'SDP backend connection failed.' });
+    }
+  }
+
+  return res.status(400).json({ message: 'Invalid route action requested.' });
+}
+
+------------------------------
+## Step 3: Frontend PWA Dashboard Layout Integration
+Now you can safely hook your frontend controls into this single endpoint. Update your user marketplace pages or administrative layouts to target this combined router endpoint:
+
+* To run the investor on-ramp trigger:
+
+const res = await fetch('/api/payments/router?action=onramp', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ amount: 250, userStellarAddress: 'G...', userEmail: 'investor@email.com' })
+});
+
+* To trigger an administrative bulk payout to farmers:
+
+const res = await fetch('/api/payments/router?action=disburse', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    batchId: "BATCH_FALL_2026_01",
+    payouts: [
+      { address: "GB2X...", amount: 150.00 },
+      { address: "GC7Y...", amount: 320.00 }
+    ]
+  })
+});
+
+
+------------------------------
+## Step 4: Validate via Replit Terminal
+Hit the Run button at the top of your Replit window. Monitor your output log panel for clean 200 HTTP statuses to ensure your environmental mappings, webhook parsing blocks, and database linkages communicate cleanly with the Stellar network.
+Quick questions if you have time:
+
+* How is the instruction layout density?
+* What should we configure next?
+
+
