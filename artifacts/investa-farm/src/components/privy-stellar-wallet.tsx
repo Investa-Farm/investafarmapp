@@ -26,7 +26,7 @@ export function PrivyStellarWallet({ authToken }: { authToken: string | null }) 
         <div className="flex items-start gap-3">
           <WalletCards className="mt-0.5 text-muted-foreground" size={20} />
           <div>
-            <h2 className="font-semibold text-sm">Embedded Stellar wallet</h2>
+            <h2 className="font-semibold text-sm">Stellar wallet (Privy)</h2>
             <p className="mt-1 text-xs text-muted-foreground">
               Wallet connection is not configured for this deployment.
             </p>
@@ -159,9 +159,9 @@ function ConfiguredPrivyStellarWallet({ authToken }: { authToken: string | null 
         <div className="flex items-start gap-3">
           <WalletCards className="mt-0.5 text-primary" size={20} />
           <div>
-            <h2 className="font-semibold text-sm">Embedded Stellar wallet</h2>
+            <h2 className="font-semibold text-sm">Stellar wallet (Privy)</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Separate from your Investa account number. Link a wallet securely with Privy.
+              An on-chain wallet for Stellar assets, separate from your Investa KES wallet balance.
             </p>
           </div>
         </div>

@@ -158,7 +158,7 @@ export function WithdrawSheet({ open, onClose, balance, pin }: Props) {
     setSuccess(true); setStep("done");
     showCenterSuccess({
       title: "Withdrawal Requested ⬆️",
-      subtitle: `KES ${a.toLocaleString("en-KE")} · arrives in 1–2 business days`,
+      subtitle: `KES ${a.toLocaleString("en-KE")} · payout pending processing`,
     });
     setTimeout(() => { setSuccess(false); onClose(); }, 2400);
   }
@@ -281,8 +281,8 @@ export function WithdrawSheet({ open, onClose, balance, pin }: Props) {
                   <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
                     <CheckCircle2 size={40} className="text-green-600" />
                   </div>
-                  <p className="text-foreground font-bold text-xl mb-1">Withdrawal Initiated!</p>
-                  <p className="text-muted-foreground text-sm">Processing 1–2 business days</p>
+                  <p className="text-foreground font-bold text-xl mb-1">Withdrawal Requested</p>
+                  <p className="text-muted-foreground text-sm">Payout is pending processing</p>
                 </motion.div>
               )}
             </AnimatePresence>

@@ -215,6 +215,11 @@ router.get("/wallet/escrow", async (req, res): Promise<void> => {
 
 // ─── POST /wallet/deposit (direct, dev only) ─────────────────────────────────
 router.post("/wallet/deposit", financialRateLimit, async (req, res): Promise<void> => {
+  if (process.env.NODE_ENV !== "development") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const amount = Number(req.body.amount);
@@ -269,7 +274,7 @@ router.post("/wallet/withdraw", financialRateLimit, requireNonce, async (req, re
     }).catch(() => {});
   }
   recordWithdrawal(user.id, amount);
-  notifyUser(user.id, "withdrawal", "Withdrawal Initiated", `KES ${amount.toLocaleString("en-KE")} sent to mobile money. Processing 1-2 business days.`, "/wallet").catch(() => {});
+  notifyUser(user.id, "withdrawal", "Withdrawal Request Received", `KES ${amount.toLocaleString("en-KE")} withdrawal request received and awaiting payout processing.`, "/wallet").catch(() => {});
   sendWithdrawalConfirmationEmail(user.email, user.name, amount, fee, phone || user.phone || "Mobile Money", ref).catch(() => {});
   if (user.phone) sendWithdrawalSms(user.phone, amount, fee).catch(() => {});
   res.json({ wallet: { ...wallet, balance: String(newBalance) }, fee });
@@ -670,8 +675,8 @@ router.post("/wallet/withdraw/card", financialRateLimit, requireNonce, async (re
     }).catch(() => {});
   }
   recordWithdrawal(user.id, amount);
-  notifyUser(user.id, "withdrawal", "Card Withdrawal Initiated",
-    `KES ${amount.toLocaleString("en-KE")} will arrive at your card within 2–5 business days.`, "/wallet").catch(() => {});
+  notifyUser(user.id, "withdrawal", "Card Withdrawal Request Received",
+    `KES ${amount.toLocaleString("en-KE")} card withdrawal request received and awaiting payout processing.`, "/wallet").catch(() => {});
   if (user.phone) sendCardWithdrawalSms(user.phone, amount, fee).catch(() => {});
   res.json({ wallet: { ...wallet, balance: String(newBalance) }, fee, ref, status: "processing" });
 });
@@ -717,8 +722,8 @@ router.post("/wallet/withdraw/usdc", financialRateLimit, requireNonce, async (re
     }).catch(() => {});
   }
   recordWithdrawal(user.id, amount);
-  notifyUser(user.id, "withdrawal", "USDC Withdrawal Queued",
-    `${usdcAmount} USDC being sent to your Polygon wallet. Usually arrives within 30 min.`, "/wallet").catch(() => {});
+  notifyUser(user.id, "withdrawal", "USDC Withdrawal Request Received",
+    `${usdcAmount} USDC withdrawal request received for your Polygon wallet and awaiting payout processing.`, "/wallet").catch(() => {});
   if (user.phone) sendUsdcWithdrawalSms(user.phone, amount, usdcAmount, fee).catch(() => {});
   res.json({ wallet: { ...wallet, balance: String(newBalance) }, fee, ref, usdcAmount, status: "processing" });
 });
