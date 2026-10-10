@@ -10,8 +10,10 @@
  * The FULL string is used as the Bearer token.
  */
 
-const CIRCLE_API_KEY = process.env.CIRCLE_API_KEY ?? "";
-const BASE = "https://api-sandbox.circle.com/v1";
+const CIRCLE_API_KEY = process.env.CIRCLE_API_KEY?.trim() ?? "";
+const BASE = process.env.CIRCLE_ENV === "production"
+  ? "https://api.circle.com/v1"
+  : "https://api-sandbox.circle.com/v1";
 
 export function isCircleConfigured(): boolean {
   return CIRCLE_API_KEY.length > 10;
@@ -62,7 +64,7 @@ export async function createPaymentIntent(opts: {
       idempotencyKey: opts.idempotencyKey,
       amount: { amount: opts.amountUSDC, currency: "USD" },
       settlementCurrency: "USD",
-      paymentMethods: [{ type: "blockchain", chain: "MATIC" }],
+      paymentMethods: [{ type: "blockchain", chain: "POLY" }],
     }),
   });
   if (!res.ok) {
@@ -72,7 +74,7 @@ export async function createPaymentIntent(opts: {
   const body = await res.json() as any;
   const data = body.data ?? body;
   const address = (data.paymentMethods?.[0]?.address) ?? (data.depositAddress?.address) ?? "";
-  const chain = (data.paymentMethods?.[0]?.chain) ?? "MATIC";
+  const chain = (data.paymentMethods?.[0]?.chain) ?? "POLY";
   return {
     id: data.id,
     depositAddress: { address, chain, currency: "USDC" },
@@ -98,12 +100,3 @@ export async function getPaymentIntentStatus(id: string): Promise<{
   };
 }
 
-/** Generate a static USDC deposit address per user */
-export function getStaticUsdcAddress(userId: number): { address: string; chain: string; memo: string } {
-  const platformAddress = process.env.USDC_DEPOSIT_ADDRESS ?? "0x742d35Cc6634C0532925a3b8D4C9E28E4b9A5bEf";
-  return {
-    address: platformAddress,
-    chain: "Polygon (MATIC)",
-    memo: `IF-${String(userId).padStart(6, "0")}`,
-  };
-}

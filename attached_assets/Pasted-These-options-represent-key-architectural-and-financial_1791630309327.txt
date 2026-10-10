@@ -1,0 +1,21 @@
+These options represent key architectural and financial safety decisions for integrating payment rails and crypto assets into your app (**Investa Farm**):
+### 1. What should Bridge provide?
+ * **Selected Option:** **Use existing stablecoins (recommended)**
+ * **What it means:**
+   * **Bridge** is a financial infrastructure API used for moving money between traditional banking systems (fiat) and crypto (stablecoins).
+   * Choosing **"Use existing stablecoins"** means your application leverages standard, pre-existing stablecoins (such as USDC or EURC) on supported blockchains to deposit, transfer, or liquidate funds.
+   * You avoid the compliance burden, technical overhead, and smart contract risks associated with issuing your own proprietary custom tokens.
+### 2. How should KES and Privy balances interact?
+ * **Selected Option:** **Keep separate; transfer only after explicit approval (recommended)**
+ * **What it means:**
+   * **KES (Kenyan Shillings)** represents local fiat currency balances stored via local payment gateways (like PesaPal), while **Privy** manages user-embedded web3 wallets holding crypto/stablecoins.
+   * **Keeping them separate** creates a strict guardrail between local fiat money and on-chain assets.
+   * Funds will **never** automatically swap or bridge between KES and stablecoins without the user explicitly initiating and confirming a transaction (e.g., clicking "Convert KES to USDC"). This prevents unexpected gas fees, slippage, or accidental cross-asset movements.
+### 3. What should Stellar SDP pay?
+ * **Selected Option:** **Admin-approved, prefunded batches (recommended)**
+ * **What it means:**
+   * The **Stellar Disbursement Platform (SDP)** is built for bulk payouts or disbursements (e.g., paying out yields or earnings to investors).
+   * **"Admin-approved, prefunded batches"** means all outgoing payouts are batched together and require explicit human admin review before any money moves. Additionally, the disbursement account must already hold sufficient pre-deposited funds.
+   * This prevents automated "runaway" payouts, safeguards against malicious API triggers or client-side tampering, and ensures that funds are available before execution.
+
+So being that privy now handles the wallet it should be able to reset wallets for previous accounts and all so that it's the account in terms off deposits so remove the circle under usdc instead have product then depositing using usdc have MetaMask , binance and stellar wallet ensure you have their logos instead of icons ss on them also make the II for the investor page better and remove excess that don't need to be there also work on the wallet page and wallet pop up make it a better yu and then this is the github url https://github.com/Investa-Farm/investafarmapp.git ensure commuting happens in the best way also u have added a token secret for guy use that to push also ensure there is harmonization in the wallet processes no So privy is for wallets that can be used to store cash all way round then we have the payment methods which dispositifs into the wallet then we have ridge for stable pin issuances and all and then we have Stella disbursement platform for disbursement are they all worked on also work on other things missing

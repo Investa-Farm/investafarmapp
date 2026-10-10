@@ -21,17 +21,8 @@ import { WalletConnectModal } from "@/components/wallet-connect-modal";
 import { TxConfirmationTracker } from "@/components/tx-confirmation-tracker";
 import { showCenterSuccess } from "@/components/center-success-modal";
 
-const QUICK_AMOUNTS = [500, 1000, 5000, 10000, 25000];
-
-// Real Circle (circle.com) logo
-function CircleLogo({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="16" cy="16" r="16" fill="#2775CA" />
-      <path d="M20.022 18.124c0 2.124-1.4 3.544-3.578 3.796v1.338c0 .182-.144.318-.326.318h-1.156c-.182 0-.326-.136-.326-.318V21.92C12.32 21.668 10.92 20.246 10.92 18.124h1.846c0 1.114.742 1.876 1.876 1.876s1.876-.762 1.876-1.876c0-1.272-.858-1.764-2.076-2.236-1.61-.63-3.484-1.37-3.484-3.54 0-2.04 1.372-3.416 3.578-3.668V7.342c0-.182.144-.318.326-.318h1.156c.182 0 .326.136.326.318V8.68c2.02.252 3.392 1.624 3.392 3.668H17.872c0-1.092-.728-1.84-1.848-1.84s-1.848.748-1.848 1.84c0 1.232.858 1.722 2.076 2.194 1.624.63 3.77 1.386 3.77 3.582z" fill="white" />
-    </svg>
-  );
-}
+const QUICK_AMOUNTS_KES = [500, 1000, 5000, 10000, 25000];
+const QUICK_AMOUNTS_USDC = [5, 10, 25, 50, 100];
 
 // PesaPal logo mark
 function PesaPalLogo({ size = 16 }: { size?: number }) {
@@ -50,7 +41,8 @@ type PayStep = "idle" | "creating" | "push_sent" | "new_tab" | "polling" | "done
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSuccess: (amount: number) => void;
+  onSuccess: (amount: number, currency: "KES" | "USDC") => void;
+  initialTab?: Tab;
 }
 
 // Currency per dial code — PesaPal requires the correct local currency for USSD push
@@ -133,13 +125,13 @@ function normalizePhone(dialCode: string, raw: string): string {
   return "+" + code + digits;
 }
 
-export function PaymentSheet({ open, onClose, onSuccess }: Props) {
+export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }: Props) {
   useScrollLock(open);
   const token = getToken();
   const user = getStoredUser();
   const qc = useQueryClient();
 
-  const [tab, setTab] = useState<Tab>("mobile");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [amount, setAmount] = useState("");
 
   // Mobile money
@@ -169,7 +161,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
 
   // Circle USDC state
   const [circleInfo, setCircleInfo] = useState<{
-    depositAddress: string; chain: string; memo: string; kesRate: number; minUSDC: string; configured: boolean;
+    depositAddress: string | null; network: string; minUSDC: string; configured: boolean;
   } | null>(null);
   const [circleIntentId, setCircleIntentId] = useState<string | null>(null);
   const [circleAmountUSDC, setCircleAmountUSDC] = useState<string>("");
@@ -181,6 +173,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   const [circleError, setCircleError] = useState<string | null>(null);
 
   const [success, setSuccess] = useState(false);
+  const [successCurrency, setSuccessCurrency] = useState<"KES" | "USDC">("KES");
 
   // Fetch Circle info when switching to USDC tab
   useEffect(() => {
@@ -193,8 +186,9 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   }, [tab, circleInfo, token]);
 
   useEffect(() => {
-    if (!open) resetAll();
-  }, [open]);
+    if (open) setTab(initialTab);
+    else resetAll();
+  }, [open, initialTab]);
 
   function resetAll() {
     setAmount("");
@@ -208,17 +202,19 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     setCircleError(null);
   }
 
-  function handleSuccess(amt: number) {
+  function handleSuccess(amt: number, currency: "KES" | "USDC" = "KES") {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     setPayStep("done");
-    qc.invalidateQueries({ queryKey: ["wallet"] });
-    qc.invalidateQueries({ queryKey: ["wallet-balance"] });
+    setSuccessCurrency(currency);
+    qc.invalidateQueries({ queryKey: currency === "USDC" ? ["stablecoin-wallet"] : ["wallet"] });
     setSuccess(true);
-    onSuccess(amt);
+    onSuccess(amt, currency);
     import("@/components/confetti-overlay").then(({ showConfetti }) => showConfetti(3200));
     showCenterSuccess({
-      title: "Wallet Funded! 💰",
-      subtitle: `KES ${amt.toLocaleString("en-KE")} credited to your account`,
+      title: currency === "USDC" ? "USDC deposit confirmed" : "Wallet funded",
+      subtitle: currency === "USDC"
+        ? `${amt.toFixed(2)} USDC added to your separate Polygon balance`
+        : `KES ${amt.toLocaleString("en-KE")} credited to your account`,
     });
     setTimeout(() => { setSuccess(false); onClose(); }, 2200);
   }
@@ -319,35 +315,33 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   }
 
   // ─── Circle USDC ─────────────────────────────────────────────────────────────
-  async function createCircleIntent() {
+  async function createCircleIntent(): Promise<boolean> {
     const amt = parseFloat(amount);
-    if (!amt || amt < 500) return;
+    if (!amt || amt < 5 || !circleInfo?.configured) return false;
     try {
       const r = await fetch("/api/wallet/circle/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amountKes: amt }),
+        body: JSON.stringify({ amountUsdc: amt }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Failed");
-      setCircleIntentId(d.id);
-      setCircleAmountUSDC(d.amountUSDC);
-      if (d.depositAddress) {
-        setCircleInfo(prev => ({
-          depositAddress: d.depositAddress,
-          chain: d.chain ?? prev?.chain ?? "Polygon (MATIC)",
-          memo: d.memo ?? prev?.memo ?? "",
-          kesRate: d.kesRate ?? prev?.kesRate ?? 130,
-          minUSDC: prev?.minUSDC ?? "5.00",
-          configured: d.configured ?? prev?.configured ?? false,
-        }));
-      }
+      setCircleIntentId(String(d.id));
+      setCircleAmountUSDC(String(d.amountUSDC));
+      setCircleInfo(prev => ({
+        depositAddress: d.depositAddress ?? null,
+        network: d.chain ?? d.network ?? prev?.network ?? "Polygon",
+        minUSDC: prev?.minUSDC ?? "5.00",
+        configured: d.configured === true,
+      }));
+      return true;
     } catch (e) {
       setCircleError((e as Error).message);
+      return false;
     }
   }
 
-  async function confirmCircle(txHash?: string) {
+  async function confirmCircle() {
     if (!circleIntentId) return;
     setCircleConfirming(true);
     setCircleError(null);
@@ -355,11 +349,11 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       const r = await fetch("/api/wallet/circle/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ intentId: circleIntentId, amountKes: parseFloat(amount), txHash: txHash ?? circleTxHash ?? undefined }),
+        body: JSON.stringify({ intentId: Number(circleIntentId) }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Not confirmed");
-      handleSuccess(parseFloat(amount));
+      handleSuccess(Number(d.amountUsdc ?? circleAmountUSDC), "USDC");
     } catch (e) {
       setCircleError((e as Error).message);
     } finally { setCircleConfirming(false); }
@@ -372,12 +366,12 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
   }
 
   const amt = parseFloat(amount) || 0;
-  const usdcEstimate = circleInfo ? (amt / circleInfo.kesRate).toFixed(2) : "0.00";
+  const usdcEstimate = amt.toFixed(2);
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode; gradient: string }[] = [
     { id: "mobile", label: "Mobile Money", icon: <Smartphone size={14} />, gradient: "linear-gradient(135deg,#15803d,#16a34a)" },
     { id: "card",   label: "Card",         icon: <CreditCard size={14} />, gradient: "linear-gradient(135deg,#1d4ed8,#3b82f6)" },
-    { id: "usdc",   label: "USDC",         icon: <CircleLogo size={14} />, gradient: "linear-gradient(135deg,#1652F0,#2D56FA)" },
+    { id: "usdc",   label: "USDC",         icon: <Wallet size={14} />, gradient: "linear-gradient(135deg,#1652F0,#2D56FA)" },
   ];
 
   const provider = MOBILE_PROVIDERS.find(p => p.id === selectedProvider) ?? null;
@@ -427,8 +421,14 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                   <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
                     <CheckCircle2 size={40} className="text-green-600" />
                   </div>
-                  <p className="text-foreground font-bold text-xl mb-1">Payment Confirmed!</p>
-                  <p className="text-muted-foreground text-sm">{formatKES(amt)} added to your wallet</p>
+                  <p className="text-foreground font-bold text-xl mb-1">
+                    {successCurrency === "USDC" ? "USDC deposit confirmed" : "Payment confirmed"}
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    {successCurrency === "USDC"
+                      ? `${circleAmountUSDC || usdcEstimate} USDC added to your USDC balance`
+                      : `${formatKES(amt)} added to your KES wallet`}
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -460,10 +460,12 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
               {!hidingAmount && !circleIntentId && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
-                    Amount (KES)
+                    Amount ({tab === "usdc" ? "USDC" : "KES"})
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">KES</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">
+                      {tab === "usdc" ? "USDC" : "KES"}
+                    </span>
                     <input
                       type="text" inputMode="decimal" value={amount}
                       onChange={e => {
@@ -471,19 +473,19 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                         const parts = raw.split(".");
                         setAmount(parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : raw);
                       }}
-                      placeholder={tab === "usdc" ? "500" : "1000"}
+                      placeholder={tab === "usdc" ? "10" : "1000"}
                       className="w-full border-2 border-border rounded-2xl pl-14 pr-4 py-4 text-foreground font-bold text-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
                     />
                   </div>
                   <div className="flex gap-2 mt-2.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
-                    {QUICK_AMOUNTS.map(a => (
+                    {(tab === "usdc" ? QUICK_AMOUNTS_USDC : QUICK_AMOUNTS_KES).map(a => (
                       <button key={a} type="button" onClick={() => setAmount(String(a))}
                         className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all active:scale-95 ${
                           amount === String(a)
                             ? "bg-primary text-white border-primary"
                             : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
                         }`}>
-                        {formatKES(a)}
+                        {tab === "usdc" ? `${a} USDC` : formatKES(a)}
                       </button>
                     ))}
                   </div>
@@ -805,30 +807,27 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                   {!circleIntentId ? (
                     <>
                       <div className="relative overflow-hidden rounded-2xl p-4"
-                        style={{ background: "linear-gradient(135deg,#0a1628 0%,#0d3085 50%,#1652F0 100%)", boxShadow: "0 10px 36px rgba(22,82,240,0.45)" }}>
+                        style={{ background: "linear-gradient(135deg,#0a1628 0%,#0d3085 50%,#1652F0 100%)", boxShadow: "0 10px 36px rgba(22,82,240,0.24)" }}>
                         <div className="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-blue-400/10" />
                         <div className="absolute bottom-0 left-8 w-16 h-16 rounded-full bg-blue-600/10" />
                         <div className="relative flex items-start gap-3">
                           <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
                             style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.15)" }}>
-                            <span className="text-2xl">🪙</span>
+                            <span className="text-white text-sm font-black tracking-tight">IF</span>
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-0.5">
-                              <p className="text-white font-black text-sm">USDC</p>
-                              <span className="bg-white/15 text-blue-200 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white/15">CIRCLE</span>
+                              <p className="text-white font-black text-sm">Investa Farm · USDC</p>
                             </div>
-                            <p className="text-blue-200/80 text-[11px] leading-relaxed">
-                              {circleInfo
-                                ? `Rate: KES ${circleInfo.kesRate.toFixed(0)} / USDC · ${circleInfo.chain} network`
-                                : "Polygon (MATIC) · Ideal for diaspora investors"}
+                            <p className="text-blue-100/80 text-[11px] leading-relaxed">
+                              USDC on Polygon. This balance is separate from your KES wallet.
                             </p>
                           </div>
                         </div>
                         <div className="flex gap-3 mt-3 pt-3 border-t border-white/10">
-                          {[{ label: "Stablecoin", icon: "💎" }, { label: "On-chain", icon: "⛓️" }, { label: "Global", icon: "🌍" }].map(s => (
+                          {[{ label: "Standard USDC", icon: "✓" }, { label: "Polygon", icon: "⌁" }, { label: "No auto-conversion", icon: "↔" }].map(s => (
                             <div key={s.label} className="flex items-center gap-1">
-                              <span className="text-xs">{s.icon}</span>
+                              <span className="text-blue-200 text-xs">{s.icon}</span>
                               <span className="text-white/60 text-[10px] font-semibold">{s.label}</span>
                             </div>
                           ))}
@@ -838,9 +837,9 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                       {circleInfo && (
                         <div className="bg-muted/60 rounded-2xl p-3 space-y-1.5">
                           {[
-                            { label: "Network", val: circleInfo.chain },
+                            { label: "Network", val: circleInfo.network },
                             { label: "Min deposit", val: `${circleInfo.minUSDC} USDC` },
-                            { label: "KES rate", val: `${circleInfo.kesRate.toFixed(0)} KES / USDC` },
+                            { label: "KES conversion", val: "Never automatic" },
                           ].map(({ label, val }) => (
                             <div key={label} className="flex justify-between text-xs">
                               <span className="text-muted-foreground">{label}</span>
@@ -850,10 +849,19 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                         </div>
                       )}
 
-                      {amt >= 500 && (
+                      {amt >= 5 && (
                         <div className="bg-muted/60 rounded-2xl p-3 flex items-center justify-between">
-                          <p className="text-muted-foreground text-xs">You'll send approx.</p>
+                          <p className="text-muted-foreground text-xs">Deposit amount</p>
                           <p className="text-foreground font-bold text-sm">{usdcEstimate} USDC</p>
+                        </div>
+                      )}
+
+                      {circleInfo && !circleInfo.configured && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                          <AlertCircle size={14} className="text-amber-700 flex-shrink-0 mt-0.5" />
+                          <p className="text-amber-900 text-xs leading-relaxed">
+                            USDC deposits are unavailable until the provider is configured. You can still fund your KES wallet separately; no conversion will happen automatically.
+                          </p>
                         </div>
                       )}
 
@@ -866,11 +874,15 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
 
                       <button
                         onClick={createCircleIntent}
-                        disabled={!amount || amt < 500}
+                        disabled={!circleInfo?.configured || !amount || amt < 5}
                         className="w-full text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 shadow-lg"
                         style={{ background: "linear-gradient(135deg,#1652F0,#2D56FA)", boxShadow: "0 6px 20px rgba(22,82,240,0.35)" }}>
-                        <CircleLogo size={18} />
-                        {amt >= 500 ? `Generate USDC Address for ${usdcEstimate} USDC` : "Enter at least KES 500"}
+                        <Wallet size={18} />
+                        {!circleInfo?.configured
+                          ? "USDC deposits unavailable"
+                          : amt >= 5
+                            ? `Create deposit for ${usdcEstimate} USDC`
+                            : "Enter at least 5 USDC"}
                       </button>
 
                       <div className="relative flex items-center gap-2">
@@ -879,11 +891,11 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                         <div className="flex-1 h-px bg-border" />
                       </div>
                       <button
-                        onClick={async () => { await createCircleIntent(); setWalletModalOpen(true); }}
-                        disabled={!amount || amt < 500}
+                        onClick={async () => { if (await createCircleIntent()) setWalletModalOpen(true); }}
+                        disabled={!circleInfo?.configured || !amount || amt < 5}
                         className="w-full border-2 border-blue-300 text-blue-700 font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40 bg-blue-50">
                         <Wallet size={18} />
-                        Connect Wallet (MetaMask / Coinbase / Binance)
+                        Connect MetaMask, Coinbase, or Binance
                       </button>
                     </>
                   ) : (
@@ -891,11 +903,11 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
-                            <CircleLogo size={16} />
+                            <span className="text-blue-800 text-[10px] font-black">IF</span>
                           </div>
                           <div>
                             <p className="text-blue-800 font-bold text-sm">Send {circleAmountUSDC} USDC</p>
-                            <p className="text-blue-600 text-xs">{circleInfo?.chain ?? "Polygon (MATIC)"} network</p>
+                            <p className="text-blue-600 text-xs">{circleInfo?.network ?? "Polygon"} network</p>
                           </div>
                         </div>
                         <div className="bg-white rounded-xl border border-blue-200 p-3 space-y-2">
@@ -907,15 +919,9 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                             </button>
                           </div>
                         </div>
-                        {circleInfo?.memo && (
-                          <div className="bg-white rounded-xl border border-blue-200 p-3">
-                            <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Memo / Tag (required)</p>
-                            <p className="text-foreground font-mono text-sm font-bold">{circleInfo.memo}</p>
-                          </div>
-                        )}
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-start gap-2">
                           <AlertCircle size={12} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                          <p className="text-amber-700 text-[10px]">Always include the memo. Deposits without a memo cannot be credited to your account.</p>
+                          <p className="text-amber-700 text-[10px]">Only send native USDC on Polygon to this intent-specific address. Other tokens or networks will not be credited. KES is unchanged.</p>
                         </div>
                       </div>
 
@@ -926,16 +932,6 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                             <p className="text-green-700 text-[11px] font-semibold">Transaction submitted via wallet</p>
                           </div>
                           <p className="text-green-600 font-mono text-[10px] break-all">{circleTxHash}</p>
-                        </div>
-                      ) : !circleInfo?.configured && (
-                        <div className="space-y-1.5">
-                          <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">Transaction Hash (required)</p>
-                          <input
-                            type="text"
-                            placeholder="0x… paste your Polygon tx hash"
-                            className="w-full border-2 border-border rounded-xl px-3 py-2.5 text-xs font-mono focus:outline-none focus:border-primary"
-                            onChange={e => setCircleTxHash(e.target.value.trim() || null)}
-                          />
                         </div>
                       )}
 
@@ -953,17 +949,14 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
                         </button>
                         <button
                           onClick={() => {
-                            if (!circleInfo?.configured && circleTxHash) {
-                              setTrackingTxHash(circleTxHash);
-                            } else {
-                              void confirmCircle();
-                            }
+                            if (circleTxHash) setTrackingTxHash(circleTxHash);
+                            else void confirmCircle();
                           }}
-                          disabled={circleConfirming || (!circleInfo?.configured && !circleTxHash)}
+                          disabled={circleConfirming || !circleInfo?.configured}
                           className="text-white font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
                           style={{ background: "linear-gradient(135deg,#1652F0,#2D56FA)" }}>
                           {circleConfirming ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                          {circleInfo?.configured ? "I've Sent USDC" : "Track Confirmations"}
+                          {circleTxHash ? "Track transaction" : "I've sent USDC"}
                         </button>
                       </div>
                     </div>
@@ -985,10 +978,9 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
     <WalletConnectModal
       open={walletModalOpen}
       onClose={() => setWalletModalOpen(false)}
-      depositAddress={circleInfo?.depositAddress ?? "0x742d35Cc6634C0532925a3b8D4C9E28E4b9A5bEf"}
+      depositAddress={circleInfo?.depositAddress ?? ""}
       amountUSDC={circleAmountUSDC || usdcEstimate}
-      chain={circleInfo?.chain ?? "Polygon (MATIC)"}
-      memo={circleInfo?.memo}
+      chain={circleInfo?.network ?? "Polygon"}
       onConnected={(result) => {
         if (result.txHash) {
           setWalletModalOpen(false);
@@ -1004,7 +996,7 @@ export function PaymentSheet({ open, onClose, onSuccess }: Props) {
       onConfirmed={() => {
         const hash = trackingTxHash;
         setTrackingTxHash(null);
-        void confirmCircle(hash ?? undefined);
+        void confirmCircle();
       }}
       onClose={() => setTrackingTxHash(null)}
     />

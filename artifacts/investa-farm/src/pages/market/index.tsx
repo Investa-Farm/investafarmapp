@@ -10,7 +10,6 @@ import {
 } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
-import { Sparkline, generateSparkData } from "@/components/sparkline";
 import { formatChange, getToken, formatKES, isDemoAccount, getStoredUser } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvestModal } from "@/components/invest-modal";
@@ -28,31 +27,8 @@ import { AiSectionBot } from "@/components/ai-section-bot";
 import { AiMatchmaker } from "@/components/ai-matchmaker";
 import { AiAgentModal } from "@/components/ai-agent-modal";
 import { WalletModal } from "@/components/wallet-modal";
-
-const TICKER_ITEMS = [
-  { name: "Maize",     price: "4,200",  unit: "/bag",    change: 2.1,  statement: false },
-  { name: "Tomatoes",  price: "120",    unit: "/kg",     change: -1.3, statement: false },
-  { name: "Avocado",   price: "18,500", unit: "/100kg",  change: 0.8,  statement: false },
-  { name: "Tea",       price: "65",     unit: "/kg",     change: 1.4,  statement: false },
-  { name: "Coffee",    price: "680",    unit: "/kg",     change: -0.6, statement: false },
-  { name: "Beans",     price: "1,450",  unit: "/kg",     change: 3.2,  statement: false },
-  { name: "Wheat",     price: "3,900",  unit: "/bag",    change: 0.5,  statement: false },
-  { name: "Potatoes",  price: "2,800",  unit: "/bag",    change: -0.9, statement: false },
-  { name: "Onions",    price: "95",     unit: "/kg",     change: 1.8,  statement: false },
-  { name: "Rice",      price: "180",    unit: "/kg",     change: 0.3,  statement: false },
-  { name: "Sunflower", price: "4,100",  unit: "/bag",    change: -0.4, statement: false },
-  { name: "Sorghum",   price: "2,600",  unit: "/bag",    change: 1.1,  statement: false },
-];
-
-const MARKET_INSIGHTS = [
-  { text: "🔥 Nairobi maize demand surge — prices up 4.2% this week",  statement: true },
-  { text: "📊 KES 4.2M invested across 18 farms this month",            statement: true },
-  { text: "🌾 Long rains forecast — tea & coffee yields projected high", statement: true },
-  { text: "💰 Top performers: Avocado +22%, Coffee +18% ROI",           statement: true },
-  { text: "⚡ 3 new farm listings added — invest before shares run out", statement: true },
-  { text: "🌍 Kenya agri exports up 8% YoY — strong investor outlook",  statement: true },
-  { text: "☀️ Optimal planting season begins — book your shares now",   statement: true },
-];
+import { getRiskLevel, RiskBadge } from "@/components/risk-badge";
+import { generateSparkData, Sparkline } from "@/components/sparkline";
 
 const MARKET_SECTIONS = [
   { id: "market", label: "Market", icon: TrendingUp },
@@ -139,48 +115,9 @@ type Listing = {
 };
 
 function getMoverReason(item: any, isGainer: boolean): string {
-  const crop = (item.cropType ?? "").toLowerCase();
   const change = Math.abs(item.changePercent ?? 0).toFixed(1);
   const name = item.farmName ?? "This farm";
-
-  if (isGainer) {
-    if (crop.includes("coffee") || crop.includes("avocado")) {
-      return `${name} is up ${change}% driven by strong EU and Japanese export demand. Mombasa auction prices hit multi-year highs this week as global arabica and Hass supply tightens. Early investors are locking in shares ahead of the main harvest window.`;
-    }
-    if (crop.includes("maize") || crop.includes("corn") || crop.includes("sorghum")) {
-      return `${name} surges ${change}% as drought conditions in northern Kenya drive maize scarcity. NCPB depots report below-average national reserves, lifting spot prices across Rift Valley and Eastern regions. Ethanol processing demand is adding further upside pressure.`;
-    }
-    if (crop.includes("tea")) {
-      return `${name} climbs ${change}% after strong Mombasa auction results. Pakistan and Egypt buyers placed large orders ahead of the Ramadan season. La Niña-linked rains boosted leaf quality scores, commanding a premium over competing origins such as Sri Lanka and India.`;
-    }
-    if (crop.includes("tomato") || crop.includes("vegetable") || crop.includes("kale")) {
-      return `${name} rises ${change}% as off-season supply shortfalls hit major wholesale markets. Wakulima Market in Nairobi reports 30% lower arrivals than the 5-year average, pushing farm-gate prices sharply higher. Urban population growth continues to drive steady demand.`;
-    }
-    return `${name} is up ${change}% on rising wholesale prices at Nairobi and Mombasa markets. Strong investor appetite and limited shares remaining are supporting this premium. Harvest forecasts remain favourable and seasonal fundamentals look solid heading into the next quarter.`;
-  } else {
-    if (crop.includes("tomato") || crop.includes("potato") || crop.includes("onion")) {
-      return `${name} dips ${change}% amid a seasonal glut — multiple farms across Kajiado and Kirinyaga harvested simultaneously this week, flooding Wakulima Market. This is a typical short-cycle correction; prices historically recover within 2–3 weeks once oversupply clears.`;
-    }
-    if (crop.includes("coffee") || crop.includes("avocado")) {
-      return `${name} pulls back ${change}% after recent strong gains triggered profit-taking by early investors. The long-term fundamentals remain intact — this is healthy consolidation ahead of the main harvest window. Seasonal demand from export markets stays bullish.`;
-    }
-    if (crop.includes("maize") || crop.includes("wheat")) {
-      return `${name} slips ${change}% as good rainfall in Rift Valley improved crop prospects, softening near-term prices. Traders are adjusting inventory positions ahead of the expected harvest. This is likely a temporary dip — demand from food processors remains strong year-round.`;
-    }
-    return `${name} falls ${change}% due to short-term price pressure from increased local supply in this region. Traders report slower buying as buyers wait for price stabilisation before restocking. Historical data suggests recovery within 1–2 weeks as demand catches up with supply.`;
-  }
-}
-
-type RiskLevel = "Low" | "Moderate" | "High";
-
-const HIGH_RISK_CROPS = new Set(["coffee", "avocado", "tobacco", "horticulture"]);
-const MOD_RISK_CROPS  = new Set(["tea", "wheat", "tomatoes", "potatoes", "onions"]);
-
-function getRiskLevel(cropType: string, changePercent: number): RiskLevel {
-  const crop = cropType?.toLowerCase() ?? "";
-  if (HIGH_RISK_CROPS.has(crop) || Math.abs(changePercent) > 5) return "High";
-  if (MOD_RISK_CROPS.has(crop) || Math.abs(changePercent) > 2) return "Moderate";
-  return "Low";
+  return `${name} recorded a ${isGainer ? "rise" : "decline"} of ${change}% in the movement data currently available. This describes past price movement only; it does not establish a cause or predict future performance.`;
 }
 
 function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
@@ -333,23 +270,6 @@ function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
         </div>
       </div>
     </div>
-  );
-}
-
-function RiskBadge({ level }: { level: RiskLevel }) {
-  const bars = level === "High" ? 5 : level === "Moderate" ? 3 : 2;
-  const barColor = level === "High" ? "#ef4444" : level === "Moderate" ? "#f59e0b" : "#16a34a";
-  const textClass = level === "High" ? "text-red-600" : level === "Moderate" ? "text-amber-600" : "text-green-700";
-  return (
-    <span className={`inline-flex items-center gap-1 ${textClass}`}>
-      <span className="flex gap-[2px] items-end">
-        {[1,2,3,4,5].map(i => (
-          <span key={i} className="w-[3px] rounded-[1px] flex-shrink-0"
-            style={{ height: 3 + i * 1.5, background: i <= bars ? barColor : "rgba(0,0,0,0.12)" }} />
-        ))}
-      </span>
-      <span className="text-[9px] font-bold">{level}</span>
-    </span>
   );
 }
 
@@ -589,23 +509,7 @@ export default function MarketHome() {
     refetchInterval: 5 * 60 * 1000,
   });
 
-  // Build rich ticker: live prices preferred, always fall back to TICKER_ITEMS so the tape never runs empty
-  const tickerItems = (() => {
-    const result: Array<{ type: "price"; name: string; price: string; unit: string; change: number } | { type: "insight"; text: string }> = [];
-    const priceSource = liveTickerData?.prices?.length
-      ? liveTickerData.prices
-      : TICKER_ITEMS;
-    const insightSource = liveTickerData?.insights?.length
-      ? liveTickerData.insights.map(text => ({ text }))
-      : MARKET_INSIGHTS;
-    const prices = priceSource.map(t => ({ type: "price" as const, ...t }));
-    const insights = insightSource.map(i => ({ type: "insight" as const, ...i }));
-    for (let i = 0; i < prices.length; i++) {
-      result.push(prices[i]!);
-      if (i % 3 === 2 && insights[Math.floor(i / 3)]) result.push(insights[Math.floor(i / 3)]!);
-    }
-    return [...result, ...result];
-  })();
+  const tickerItems = liveTickerData?.prices ?? [];
 
   const handleBuyClick = (e: React.MouseEvent, listing: Listing) => {
     e.preventDefault(); e.stopPropagation();
@@ -705,7 +609,7 @@ export default function MarketHome() {
       </AnimatePresence>
 
       {/* Market Header */}
-      <div className="relative pt-12 pb-0 px-5 border-b border-border bg-background" data-tour="market-header">
+      <div className="market-intro relative pt-10 pb-0 px-5 border-b border-border text-white" data-tour="market-header">
         {/* Subtle dot grid decoration */}
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle, #16a34a 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
         <div className="absolute -top-12 -right-8 w-36 h-36 rounded-full bg-primary/5 blur-3xl" />
@@ -716,16 +620,16 @@ export default function MarketHome() {
             <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" />
-              <span className="inline-flex items-center gap-1 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-green-700 text-[9px] font-bold uppercase tracking-wider">Live</span>
+              <span className="inline-flex items-center gap-1 bg-white/10 border border-white/15 px-2 py-1 rounded-full">
+                <ShieldCheck size={10} className="text-[#d8bd75]" />
+                <span className="text-white/75 text-[9px] font-bold uppercase tracking-wider">Farm shares</span>
               </span>
             </div>
-            <h1 className="text-foreground text-xl font-bold flex items-center gap-1.5">
-              Live Market <TrendingUp size={16} className="text-primary" />
+            <h1 data-market-display className="text-white text-[27px] font-semibold leading-tight flex items-center gap-1.5">
+              Invest in the harvest
             </h1>
-            <p className="mt-1 max-w-[240px] text-[11px] leading-relaxed text-muted-foreground">
-              Compare verified farms, market momentum, and seasonal opportunities.
+            <p className="mt-1 max-w-[300px] text-[12px] leading-relaxed text-white/65">
+              Compare farm-share offerings, review the available data, and choose how to participate.
             </p>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -734,7 +638,7 @@ export default function MarketHome() {
                 data-tour="wallet-btn"
                 data-testid="button-market-wallet"
                 onClick={() => setWalletOpen(true)}
-                className="flex items-center gap-1.5 bg-primary text-white rounded-full px-2.5 min-[380px]:px-3 py-1.5 shadow-sm shadow-primary/30 active:scale-95 transition-transform"
+                className="market-action flex items-center gap-1.5 bg-[#d1a448] text-[#193c30] rounded-full px-2.5 min-[380px]:px-3 py-1.5 shadow-sm active:scale-95 transition-transform"
               >
                 <Wallet size={12} className="text-white" />
                 <span className="text-white text-xs font-bold">
@@ -808,24 +712,18 @@ export default function MarketHome() {
 
         {/* Ticker — rich with KES commodity prices + market insights */}
         <div data-tour="market-ticker" className="relative overflow-hidden rounded-xl mb-0 border-t border-border" style={{ background: "rgba(0,0,0,0.03)" }}>
-          <div className="flex ticker-track whitespace-nowrap py-2">
-            {tickerItems.map((item, i) => (
-              item.type === "price" ? (
-                <span key={i} className="inline-flex items-center gap-1 px-3.5 text-xs flex-shrink-0">
-                  <span className="font-bold text-foreground/90">{item.name}</span>
-                  <span className="text-muted-foreground text-[10px]">KES {item.price}{item.unit}</span>
-                  <span className={`font-bold text-[10px] ${item.change >= 0 ? "text-green-600" : "text-red-500"}`}>
-                    {item.change >= 0 ? "▲" : "▼"}{Math.abs(item.change)}%
-                  </span>
-                  <span className="text-border/50 ml-1 text-[10px]">·</span>
+          <div className="flex items-center gap-2 py-2 text-[10px] text-white/65">
+            {tickerItems.length > 0 ? (
+              tickerItems.slice(0, 5).map((item, i) => (
+                <span key={`${item.name}-${i}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.08] shrink-0">
+                  <span className="font-semibold text-white/90">{item.name}</span>
+                  <span>KES {item.price}{item.unit}</span>
+                  <span className={item.change >= 0 ? "text-[#b8d7a7]" : "text-[#e6aaa0]"}>{formatChange(item.change)}</span>
                 </span>
-              ) : (
-                <span key={i} className="inline-flex items-center px-4 text-[10px] font-medium text-amber-700 bg-amber-50/60 border-l border-r border-amber-200/50 flex-shrink-0">
-                  {item.text}
-                  <span className="text-border/50 ml-3 text-[10px]">·</span>
-                </span>
-              )
-            ))}
+              ))
+            ) : (
+              <span className="px-2.5 py-1">Commodity price data is not available right now.</span>
+            )}
           </div>
         </div>
       </div>
@@ -1109,7 +1007,7 @@ export default function MarketHome() {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      {(listings && listings.length >= 2 ? listings.slice(0, 2) : null)?.map((listing: any, idx: number) => {
+                      {(listings ?? []).slice(0, 2).map((listing: any, idx: number) => {
                         const isFirst = idx === 0;
                         const roi = listing.changePercent > 0 ? `+${listing.changePercent.toFixed(1)}%` : `${listing.changePercent.toFixed(1)}%`;
                         return (
@@ -1138,50 +1036,7 @@ export default function MarketHome() {
                             </div>
                           </div>
                         );
-                      }) ?? (
-                        <>
-                          <Link href="/market/primary">
-                            <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
-                              style={{ background: "linear-gradient(160deg, #78350f 0%, #b45309 50%, #fbbf24 100%)" }}>
-                              <img src="/investor-bg.jpg" alt="Investment"
-                                className="absolute inset-0 w-full h-full object-cover opacity-35 mix-blend-luminosity" />
-                              <div className="relative h-full flex flex-col justify-between p-3">
-                                <div>
-                                  <span className="text-yellow-100 text-[8px] font-bold uppercase tracking-widest bg-yellow-600/40 px-1.5 py-0.5 rounded-full">Premium</span>
-                                  <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Avocado Export</p>
-                                </div>
-                                <div>
-                                  <p className="text-yellow-300 font-black text-2xl leading-none">+22%</p>
-                                  <p className="text-yellow-100/60 text-[9px]">projected ROI</p>
-                                  <div className="mt-2 bg-white text-amber-700 font-bold text-[10px] py-1.5 rounded-lg text-center">
-                                    <Zap size={10} className="inline mr-1" /> View Farms
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
-                          <Link href="/market/primary">
-                            <div className="rounded-2xl overflow-hidden relative h-52 cursor-pointer active:scale-95 transition-transform shadow-md"
-                              style={{ background: "linear-gradient(160deg, #052e16 0%, #14532d 50%, #16a34a 100%)" }}>
-                              <img src="/investor-bg.jpg" alt="Investment"
-                                className="absolute inset-0 w-full h-full object-cover opacity-35 mix-blend-luminosity" />
-                              <div className="relative h-full flex flex-col justify-between p-3">
-                                <div>
-                                  <span className="text-green-200 text-[8px] font-bold uppercase tracking-widest bg-green-600/30 px-1.5 py-0.5 rounded-full">Low Risk</span>
-                                  <p className="text-white font-extrabold text-sm leading-tight mt-1.5">Maize Long Rains</p>
-                                </div>
-                                <div>
-                                  <p className="text-green-300 font-black text-2xl leading-none">+14%</p>
-                                  <p className="text-green-200/60 text-[9px]">target return</p>
-                                  <div className="mt-2 bg-white text-primary font-bold text-[10px] py-1.5 rounded-lg text-center">
-                                    🌽 View Farms
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
-                        </>
-                      )}
+                      })}
                     </div>
                   </motion.div>
                 )}

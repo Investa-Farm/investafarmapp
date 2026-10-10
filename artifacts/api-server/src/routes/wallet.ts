@@ -1,6 +1,18 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
-import { db, walletsTable, walletTransactionsTable, escrowWalletsTable, usersTable, investmentsTable, farmsTable } from "@workspace/db";
+import { randomUUID } from "node:crypto";
+import {
+  db,
+  walletsTable,
+  walletTransactionsTable,
+  stablecoinWalletsTable,
+  stablecoinTransactionsTable,
+  stablecoinDepositIntentsTable,
+  escrowWalletsTable,
+  usersTable,
+  investmentsTable,
+  farmsTable,
+} from "@workspace/db";
 import { eq, desc, and, isNull } from "drizzle-orm";
 import { getCurrentUser } from "./auth";
 import {
@@ -15,7 +27,7 @@ import { BCRYPT_ROUNDS } from "../lib/authTokens";
 import { notifyUser } from "../lib/push";
 import { sendWalletTopupSms, sendWithdrawalSms, sendCardWithdrawalSms, sendUsdcWithdrawalSms } from "../lib/sms";
 import { sendWalletCreditEmail, sendWithdrawalConfirmationEmail } from "../lib/email";
-import { isCircleConfigured, getKesUsdcRate, createPaymentIntent, getPaymentIntentStatus, getStaticUsdcAddress } from "../lib/circle";
+import { isCircleConfigured, createPaymentIntent, getPaymentIntentStatus } from "../lib/circle";
 import {
   isConfigured as isPesapalConfigured,
   ensureIpnRegistered,
@@ -41,6 +53,74 @@ async function getOrCreateWallet(userId: number) {
   if (existing) return existing;
   const [created] = await db.insert(walletsTable).values({ userId }).returning();
   return created;
+}
+
+async function getOrCreateStablecoinWallet(userId: number) {
+  const conditions = and(
+    eq(stablecoinWalletsTable.userId, userId),
+    eq(stablecoinWalletsTable.network, "polygon"),
+  );
+  const [existing] = await db.select().from(stablecoinWalletsTable).where(conditions).limit(1);
+  if (existing) return existing;
+
+  await db.insert(stablecoinWalletsTable)
+    .values({ userId, asset: "USDC", network: "polygon" })
+    .onConflictDoNothing();
+
+  const [created] = await db.select().from(stablecoinWalletsTable).where(conditions).limit(1);
+  if (!created) throw new Error("Could not create the user's Polygon USDC wallet.");
+  return created;
+}
+
+async function creditStablecoinDeposit(userId: number, intentId: number, actualAmount: number) {
+  const wallet = await getOrCreateStablecoinWallet(userId);
+
+  return db.transaction(async (tx) => {
+    const [intent] = await tx.select().from(stablecoinDepositIntentsTable)
+      .where(and(
+        eq(stablecoinDepositIntentsTable.id, intentId),
+        eq(stablecoinDepositIntentsTable.userId, userId),
+      ))
+      .for("update")
+      .limit(1);
+
+    if (!intent) throw new Error("Deposit intent not found.");
+    if (intent.status === "completed") {
+      return { alreadyCredited: true, balanceUsdc: Number(wallet.balance) };
+    }
+    if (intent.status !== "pending") throw new Error("Deposit intent is not pending.");
+
+    const [lockedWallet] = await tx.select().from(stablecoinWalletsTable)
+      .where(eq(stablecoinWalletsTable.id, wallet.id))
+      .for("update")
+      .limit(1);
+    if (!lockedWallet) throw new Error("Stablecoin wallet not found.");
+
+    const newBalance = Number((Number(lockedWallet.balance) + actualAmount).toFixed(6));
+    const reference = `CIRCLE-${intent.providerIntentId}`;
+    await tx.update(stablecoinWalletsTable)
+      .set({ balance: String(newBalance), updatedAt: new Date() })
+      .where(eq(stablecoinWalletsTable.id, lockedWallet.id));
+
+    await tx.insert(stablecoinTransactionsTable).values({
+      walletId: lockedWallet.id,
+      userId,
+      asset: "USDC",
+      network: "polygon",
+      type: "deposit",
+      amount: actualAmount.toFixed(6),
+      balanceAfter: newBalance.toFixed(6),
+      description: "USDC deposit confirmed on Polygon",
+      reference,
+      status: "completed",
+    });
+
+    await tx.update(stablecoinDepositIntentsTable)
+      .set({ status: "completed", updatedAt: new Date() })
+      .where(eq(stablecoinDepositIntentsTable.id, intent.id));
+
+    return { alreadyCredited: false, balanceUsdc: newBalance };
+  });
 }
 
 async function creditWallet(userId: number, amount: number, reference: string, description: string) {
@@ -217,6 +297,10 @@ router.get("/wallet/escrow", async (req, res): Promise<void> => {
 router.post("/wallet/deposit", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (process.env.NODE_ENV !== "development") {
+    res.status(404).json({ error: "Direct wallet deposits are only available in development." });
+    return;
+  }
   const amount = Number(req.body.amount);
   if (!amount || isNaN(amount)) { res.status(400).json({ error: "Invalid amount." }); return; }
   const check = checkDepositVelocity(user.id, amount);
@@ -275,19 +359,16 @@ router.post("/wallet/withdraw", financialRateLimit, requireNonce, async (req, re
   res.json({ wallet: { ...wallet, balance: String(newBalance) }, fee });
 });
 
-// ─── CIRCLE / USDC ROUTES ─────────────────────────────────────────────────────
+// ─── USDC DEPOSIT ROUTES ──────────────────────────────────────────────────────
 
 router.get("/wallet/circle/info", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const kesRate = await getKesUsdcRate().catch(() => 130);
-  const addressInfo = getStaticUsdcAddress(user.id);
   res.json({
     configured: isCircleConfigured(),
-    kesRate,
-    depositAddress: addressInfo.address,
-    chain: addressInfo.chain,
-    memo: addressInfo.memo,
+    asset: "USDC",
+    network: "Polygon",
+    depositAddress: null,
     minUSDC: "5.00",
   });
 });
@@ -295,91 +376,121 @@ router.get("/wallet/circle/info", async (req, res): Promise<void> => {
 router.post("/wallet/circle/intent", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const amountKes = Number(req.body.amountKes);
-  if (!amountKes || amountKes < 500) { res.status(400).json({ error: "Minimum KES 500 for USDC payments." }); return; }
-  const kesRate = await getKesUsdcRate().catch(() => 130);
-  const amountUSDC = (amountKes / kesRate).toFixed(2);
-  const idempotencyKey = `IF-CIRCLE-${user.id}-${Date.now()}`;
+  const amountUSDC = Number(req.body.amountUsdc);
+  if (!Number.isFinite(amountUSDC) || amountUSDC < 5 || amountUSDC > 100_000) {
+    res.status(400).json({ error: "USDC deposits must be between 5 and 100,000 USDC." });
+    return;
+  }
   if (!isCircleConfigured()) {
-    const addressInfo = getStaticUsdcAddress(user.id);
-    res.json({ id: idempotencyKey, depositAddress: addressInfo.address, chain: addressInfo.chain, memo: addressInfo.memo, amountUSDC, kesRate, configured: false });
+    res.status(503).json({
+      error: "USDC deposits are unavailable until the deposit provider is configured. No fallback address is used.",
+    });
     return;
   }
   try {
-    const intent = await createPaymentIntent({ amountUSDC, idempotencyKey });
-    res.json({ id: intent.id, depositAddress: intent.depositAddress.address, chain: intent.depositAddress.chain, amountUSDC, kesRate, memo: `IF-${user.id}`, configured: true });
-  } catch {
-    const addressInfo = getStaticUsdcAddress(user.id);
-    res.json({ id: idempotencyKey, depositAddress: addressInfo.address, chain: addressInfo.chain, memo: addressInfo.memo, amountUSDC, kesRate, configured: false });
+    const intent = await createPaymentIntent({
+      amountUSDC: amountUSDC.toFixed(2),
+      idempotencyKey: `IF-USDC-${user.id}-${randomUUID()}`,
+    });
+    if (!intent.depositAddress.address) throw new Error("Deposit provider did not return a deposit address.");
+
+    const [savedIntent] = await db.insert(stablecoinDepositIntentsTable).values({
+      userId: user.id,
+      providerIntentId: intent.id,
+      expectedAmount: amountUSDC.toFixed(6),
+      depositAddress: intent.depositAddress.address,
+      network: "polygon",
+      status: "pending",
+    }).returning({ id: stablecoinDepositIntentsTable.id });
+
+    res.json({
+      id: savedIntent.id,
+      providerIntentId: intent.id,
+      depositAddress: intent.depositAddress.address,
+      chain: "Polygon",
+      network: "polygon",
+      asset: "USDC",
+      amountUSDC: amountUSDC.toFixed(2),
+      configured: true,
+    });
+  } catch (error) {
+    req.log?.error?.({ err: error }, "Failed to create USDC deposit intent");
+    res.status(502).json({ error: "Could not create a secure USDC deposit intent. No funds were moved." });
   }
 });
-
-const USDC_POLYGON = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
-const POLYGON_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-
-async function verifyPolygonUsdcTx(txHash: string, toAddress: string, minUsdc: number): Promise<boolean> {
-  try {
-    const resp = await fetch("https://polygon-rpc.com/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getTransactionReceipt", params: [txHash] }),
-    });
-    const data = await resp.json() as any;
-    const receipt = data?.result;
-    if (!receipt || receipt.status !== "0x1") return false;
-    if (receipt.to?.toLowerCase() !== USDC_POLYGON.toLowerCase()) return false;
-    for (const log of (receipt.logs ?? [])) {
-      if (log.address?.toLowerCase() !== USDC_POLYGON.toLowerCase()) continue;
-      if (log.topics?.[0] !== POLYGON_TRANSFER_TOPIC) continue;
-      const recipientRaw: string = log.topics?.[2] ?? "";
-      const recipient = "0x" + recipientRaw.slice(-40);
-      if (recipient.toLowerCase() !== toAddress.toLowerCase()) continue;
-      const rawAmt = parseInt(log.data, 16);
-      const usdcAmt = rawAmt / 1_000_000;
-      if (usdcAmt >= minUsdc * 0.99) return true;
-    }
-    return false;
-  } catch { return false; }
-}
 
 router.post("/wallet/circle/verify", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const { intentId, amountKes, txHash } = req.body;
-  if (!intentId) { res.status(400).json({ error: "Intent ID required" }); return; }
-  const amount = Number(amountKes);
-  if (!amount || amount < 500) { res.status(400).json({ error: "Invalid amount" }); return; }
-
-  if (isCircleConfigured()) {
-    try {
-      const status = await getPaymentIntentStatus(intentId);
-      if (!status.paid) {
-        res.status(402).json({ error: "USDC payment not confirmed yet. Check your transaction and try again in a moment." });
-        return;
-      }
-    } catch { /* Circle API error — fall through to txHash verification */ }
-  } else if (txHash && typeof txHash === "string" && txHash.startsWith("0x")) {
-    const kesRate = await getKesUsdcRate().catch(() => 130);
-    const expectedUsdc = amount / kesRate;
-    const { address: depositAddress } = getStaticUsdcAddress(user.id);
-    const valid = await verifyPolygonUsdcTx(txHash, depositAddress, expectedUsdc);
-    if (!valid) {
-      res.status(402).json({ error: "Transaction not found or amount mismatch. Please wait a moment for the transaction to confirm, then try again." });
-      return;
-    }
-  } else {
-    res.status(402).json({
-      error: "USDC payment could not be verified. Please connect your MetaMask, Coinbase, or Binance wallet and send the transaction — we'll verify it on-chain automatically.",
-    });
+  const intentId = Number(req.body?.intentId);
+  if (!Number.isInteger(intentId) || intentId <= 0) {
+    res.status(400).json({ error: "A valid USDC deposit intent is required." });
+    return;
+  }
+  if (!isCircleConfigured()) {
+    res.status(503).json({ error: "USDC deposit verification is unavailable; KES and USDC balances remain separate." });
     return;
   }
 
-  const reference = `CIRCLE-${txHash ?? intentId}`;
-  const result = await creditWallet(user.id, amount, reference, `USDC deposit${txHash ? ` (tx: ${txHash.slice(0, 10)}…)` : ` via Circle (${intentId.slice(0, 8)})`}`);
-  if ((result as any).alreadyCredited) { res.json({ alreadyCredited: true }); return; }
-  recordDeposit(user.id, amount);
-  notifyUser(user.id, "wallet_credit", "💰 USDC Deposit Confirmed!", `KES ${amount.toLocaleString("en-KE")} added to your wallet via USDC.`, "/wallet").catch(() => {});
-  res.json({ success: true });
+  const [intent] = await db.select().from(stablecoinDepositIntentsTable)
+    .where(and(
+      eq(stablecoinDepositIntentsTable.id, intentId),
+      eq(stablecoinDepositIntentsTable.userId, user.id),
+    ))
+    .limit(1);
+  if (!intent) { res.status(404).json({ error: "USDC deposit intent not found." }); return; }
+  if (intent.status === "completed") {
+    res.json({ success: true, alreadyCredited: true, asset: "USDC", network: "Polygon" });
+    return;
+  }
+  if (intent.status !== "pending") { res.status(409).json({ error: "This USDC deposit intent is no longer active." }); return; }
+
+  try {
+    const status = await getPaymentIntentStatus(intent.providerIntentId);
+    if (!status.paid) {
+      res.status(402).json({ error: "USDC payment is not confirmed yet. Check your wallet transaction and try again." });
+      return;
+    }
+    const actualAmount = Number(status.amountUsdc);
+    const expectedAmount = Number(intent.expectedAmount);
+    if (!Number.isFinite(actualAmount) || actualAmount <= 0 || actualAmount + 0.000001 < expectedAmount) {
+      res.status(402).json({ error: "The confirmed USDC amount does not match this deposit intent." });
+      return;
+    }
+
+    const result = await creditStablecoinDeposit(user.id, intent.id, actualAmount);
+    if (!result.alreadyCredited) {
+      notifyUser(
+        user.id,
+        "wallet_credit",
+        "USDC deposit confirmed",
+        `${actualAmount.toFixed(2)} USDC was added to your separate Polygon USDC balance. Your KES balance was not changed.`,
+        "/wallet",
+      ).catch(() => {});
+    }
+    res.json({
+      success: true,
+      alreadyCredited: result.alreadyCredited,
+      asset: "USDC",
+      network: "Polygon",
+      amountUsdc: actualAmount,
+      balanceUsdc: result.balanceUsdc,
+    });
+  } catch (error) {
+    req.log?.error?.({ err: error }, "Failed to verify USDC deposit");
+    res.status(502).json({ error: "Could not verify this USDC deposit right now. No balance was changed." });
+  }
+});
+
+router.get("/wallet/stablecoin", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const wallet = await getOrCreateStablecoinWallet(user.id);
+  const transactions = await db.select().from(stablecoinTransactionsTable)
+    .where(eq(stablecoinTransactionsTable.userId, user.id))
+    .orderBy(desc(stablecoinTransactionsTable.createdAt))
+    .limit(50);
+  res.json({ wallet, transactions });
 });
 
 router.get("/wallet/circle/tx-status", async (req, res): Promise<void> => {

@@ -25,6 +25,14 @@ type WalletData = {
   }>;
 };
 
+type StablecoinWalletData = {
+  wallet: { id: number; balance: string; asset: string; network: string; updatedAt: string };
+  transactions: Array<{
+    id: number; type: string; amount: string; balanceAfter: string;
+    description: string | null; status: string; createdAt: string;
+  }>;
+};
+
 const TX_ICONS: Record<string, { icon: ReactNode; color: string }> = {
   deposit:    { icon: <ArrowDownLeft size={16} />, color: "text-green-600" },
   withdrawal: { icon: <ArrowUpRight size={16} />, color: "text-red-500" },
@@ -42,14 +50,14 @@ export default function InvestorWallet() {
   const user = getStoredUser();
   const qc = useQueryClient();
   const isFarmer = (user as {role?: string} | null)?.role === "farmer";
-  const [modal, setModal] = useState<"deposit" | "withdraw" | "finance" | null>(null);
+  const [modal, setModal] = useState<"deposit" | "usdc-deposit" | "withdraw" | "finance" | null>(null);
   useScrollLock(!!modal);
   const [amount, setAmount] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
 
   // ── Wallet PIN state ────────────────────────────────────────────────────────
   const [pinGateOpen, setPinGateOpen] = useState(false);
-  const [pinGateAction, setPinGateAction] = useState<"deposit" | "withdraw" | null>(null);
+  const [pinGateAction, setPinGateAction] = useState<"deposit" | "usdc-deposit" | "withdraw" | null>(null);
   const [pinSetupOpen, setPinSetupOpen] = useState(false);
   const [hasPin, setHasPin] = useState<boolean | null>(null); // null = loading
   const [transactionPin, setTransactionPin] = useState("");
@@ -62,7 +70,7 @@ export default function InvestorWallet() {
       .catch(() => {});
   }, [token]);
 
-  function openWithPin(action: "deposit" | "withdraw") {
+  function openWithPin(action: "deposit" | "usdc-deposit" | "withdraw") {
     if (hasPin === null) return;
     if (hasPin === false) {
       // User has no PIN yet — send them to setup first
@@ -78,6 +86,7 @@ export default function InvestorWallet() {
     setPinGateOpen(false);
     setTransactionPin(pin);
     if (pinGateAction === "deposit") { setModal("deposit"); setAmount(""); }
+    else if (pinGateAction === "usdc-deposit") { setModal("usdc-deposit"); setAmount(""); }
     else if (pinGateAction === "withdraw") { setModal("withdraw"); setAmount(""); }
     setPinGateAction(null);
   }
@@ -140,6 +149,16 @@ export default function InvestorWallet() {
       return r.json();
     },
     enabled: !!token,
+  });
+
+  const { data: stablecoinData, isLoading: stablecoinLoading } = useQuery<StablecoinWalletData>({
+    queryKey: ["stablecoin-wallet"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet/stablecoin", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error("Failed to load USDC wallet");
+      return r.json();
+    },
+    enabled: !!token && !isFarmer,
   });
 
   const { data: summary } = useGetPortfolioSummary();
@@ -264,7 +283,36 @@ export default function InvestorWallet() {
           </div>
         </div>
 
-        <PrivyStellarWallet authToken={token} />
+        {!isFarmer && (
+          <section className="mt-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-900 dark:bg-blue-950/30" data-testid="card-usdc-wallet">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-xs font-black text-white">USDC</div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">USDC balance</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Polygon network · separate from your KES wallet</p>
+                </div>
+              </div>
+              <p className="shrink-0 text-lg font-bold tabular-nums text-foreground" data-testid="text-usdc-balance">
+                {stablecoinLoading ? "…" : `${Number(stablecoinData?.wallet.balance ?? 0).toFixed(2)} USDC`}
+              </p>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-blue-200/70 pt-3 dark:border-blue-900">
+              <p className="text-[10px] leading-relaxed text-muted-foreground">No automatic conversion. Any exchange requires your action and confirmation.</p>
+              <button
+                type="button"
+                onClick={() => openWithPin("usdc-deposit")}
+                disabled={hasPin === null}
+                className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl bg-blue-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-blue-800 disabled:opacity-50"
+                data-testid="button-add-usdc"
+              >
+                <Plus size={14} /> Add USDC
+              </button>
+            </div>
+          </section>
+        )}
+
+        {!isFarmer && <PrivyStellarWallet authToken={token} />}
 
         {/* Portfolio stats strip */}
         {summary && (
@@ -473,10 +521,13 @@ export default function InvestorWallet() {
 
       {/* Deposit — PaymentSheet */}
       <PaymentSheet
-        open={modal === "deposit"}
+        open={modal === "deposit" || modal === "usdc-deposit"}
+        initialTab={modal === "usdc-deposit" ? "usdc" : "mobile"}
         onClose={() => setModal(null)}
-        onSuccess={(amt) => {
-          setSuccess(`💰 KES ${amt.toLocaleString()} added to your wallet!`);
+        onSuccess={(amt, currency) => {
+          setSuccess(currency === "USDC"
+            ? `${amt.toFixed(2)} USDC added to your USDC balance`
+            : `KES ${amt.toLocaleString()} added to your KES wallet`);
           setTimeout(() => setSuccess(null), 5000);
         }}
       />
