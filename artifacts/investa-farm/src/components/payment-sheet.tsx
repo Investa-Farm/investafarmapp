@@ -895,7 +895,7 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
                         disabled={!circleInfo?.configured || !amount || amt < 5}
                         className="w-full border-2 border-blue-300 text-blue-700 font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40 bg-blue-50">
                         <Wallet size={18} />
-                        Connect MetaMask, Coinbase, or Binance
+                        Choose a wallet
                       </button>
                     </>
                   ) : (
@@ -925,7 +925,7 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
                         </div>
                       </div>
 
-                      {circleTxHash ? (
+                      {circleTxHash && (
                         <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-1">
                           <div className="flex items-center gap-1.5">
                             <CheckCircle2 size={13} className="text-green-600" />

@@ -108,26 +108,69 @@ router.post("/users/update-wallet", async (req, res): Promise<void> => {
   }
 
   try {
-    const [wallet] = await db
+    const [existingWallet] = await db
+      .select({
+        privyUserId: privyStellarWalletsTable.privyUserId,
+        address: privyStellarWalletsTable.address,
+      })
+      .from(privyStellarWalletsTable)
+      .where(eq(privyStellarWalletsTable.userId, user.id))
+      .limit(1);
+
+    if (
+      existingWallet &&
+      (existingWallet.privyUserId !== verifiedUserId || existingWallet.address !== parsed.data.address)
+    ) {
+      res.status(409).json({
+        error:
+          "A different Stellar wallet is already linked. Reconnect the original Privy account; the existing wallet was not changed.",
+      });
+      return;
+    }
+
+    const [insertedWallet] = await db
       .insert(privyStellarWalletsTable)
       .values({
         userId: user.id,
         privyUserId: verifiedUserId,
         address: parsed.data.address,
       })
-      .onConflictDoUpdate({
+      .onConflictDoNothing({
         target: privyStellarWalletsTable.userId,
-        set: {
-          privyUserId: verifiedUserId,
-          address: parsed.data.address,
-          updatedAt: new Date(),
-        },
       })
       .returning({
         address: privyStellarWalletsTable.address,
         linkedAt: privyStellarWalletsTable.createdAt,
       });
 
+    if (insertedWallet) {
+      res.json({ wallet: insertedWallet });
+      return;
+    }
+
+    const [unchangedWallet] = await db
+      .select({
+        privyUserId: privyStellarWalletsTable.privyUserId,
+        address: privyStellarWalletsTable.address,
+        linkedAt: privyStellarWalletsTable.createdAt,
+      })
+      .from(privyStellarWalletsTable)
+      .where(eq(privyStellarWalletsTable.userId, user.id))
+      .limit(1);
+
+    if (
+      !unchangedWallet ||
+      unchangedWallet.privyUserId !== verifiedUserId ||
+      unchangedWallet.address !== parsed.data.address
+    ) {
+      res.status(409).json({
+        error:
+          "A different Stellar wallet is already linked. Reconnect the original Privy account; the existing wallet was not changed.",
+      });
+      return;
+    }
+
+    const { privyUserId: _privyUserId, ...wallet } = unchangedWallet;
     res.json({ wallet });
   } catch (error) {
     if ((error as { code?: string })?.code === "23505") {

@@ -189,6 +189,53 @@ async function bootstrapSchema(client: PoolClient, label: string): Promise<void>
     )
   `);
 
+  // Keep the crypto ledger separate from the existing KES wallet and boot it
+  // on both primary and fallback databases before wallet routes become live.
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS "stablecoin_wallets" (
+      "id" SERIAL PRIMARY KEY,
+      "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
+      "asset" TEXT NOT NULL DEFAULT 'USDC',
+      "network" TEXT NOT NULL DEFAULT 'polygon',
+      "balance" NUMERIC(20,6) NOT NULL DEFAULT 0,
+      "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+      "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "stablecoin_wallets_user_network_unique"
+      ON "stablecoin_wallets" ("user_id", "network");
+
+    CREATE TABLE IF NOT EXISTS "stablecoin_transactions" (
+      "id" SERIAL PRIMARY KEY,
+      "wallet_id" INTEGER NOT NULL REFERENCES "stablecoin_wallets"("id"),
+      "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
+      "asset" TEXT NOT NULL DEFAULT 'USDC',
+      "network" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "amount" NUMERIC(20,6) NOT NULL,
+      "balance_after" NUMERIC(20,6) NOT NULL,
+      "description" TEXT,
+      "reference" TEXT NOT NULL UNIQUE,
+      "external_tx_hash" TEXT UNIQUE,
+      "status" TEXT NOT NULL DEFAULT 'completed',
+      "created_at" TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS "stablecoin_transactions_user_created_idx"
+      ON "stablecoin_transactions" ("user_id", "created_at" DESC);
+
+    CREATE TABLE IF NOT EXISTS "stablecoin_deposit_intents" (
+      "id" SERIAL PRIMARY KEY,
+      "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
+      "provider_intent_id" TEXT NOT NULL UNIQUE,
+      "expected_amount" NUMERIC(20,6) NOT NULL,
+      "deposit_address" TEXT NOT NULL,
+      "network" TEXT NOT NULL DEFAULT 'polygon',
+      "status" TEXT NOT NULL DEFAULT 'pending',
+      "transaction_hash" TEXT UNIQUE,
+      "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+      "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+
   await applyDeltas(client);
 
   if (failures === 0) {

@@ -1723,15 +1723,15 @@ export async function sendWithdrawalConfirmationEmail(
       <td style="padding:0;">
         <div style="background:linear-gradient(160deg,#1e293b 0%,#334155 100%);padding:28px 40px;text-align:center;">
           <p style="font-size:44px;margin:0 0 8px 0;">🏧</p>
-          <h1 style="color:#ffffff;font-size:22px;font-weight:900;margin:0 0 6px 0;">Withdrawal Initiated</h1>
-          <p style="color:rgba(255,255,255,0.8);font-size:13px;margin:0;">Your M-Pesa withdrawal is being processed</p>
+          <h1 style="color:#ffffff;font-size:22px;font-weight:900;margin:0 0 6px 0;">Withdrawal request received</h1>
+          <p style="color:rgba(255,255,255,0.8);font-size:13px;margin:0;">Your request is pending; no transfer has been sent</p>
         </div>
       </td>
     </tr>
     <tr>
       <td style="padding:32px 40px;">
         <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
-          Hi <strong>${name}</strong>, your withdrawal request has been submitted and is being processed.
+          Hi <strong>${name}</strong>, your withdrawal request has been received. The amount and fee are reserved from your KES wallet, but the transfer has not been sent yet.
         </p>
 
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:20px;margin:0 0 24px 0;">
@@ -1746,7 +1746,7 @@ export async function sendWithdrawalConfirmationEmail(
               <td style="color:#ef4444;font-size:13px;font-weight:700;text-align:right;">- ${fmt(feeKes)}</td>
             </tr>
             <tr style="border-top:1px solid #e2e8f0;">
-              <td style="color:#111827;font-size:14px;font-weight:800;padding:10px 0 0 0;">You Receive</td>
+              <td style="color:#111827;font-size:14px;font-weight:800;padding:10px 0 0 0;">Net amount if completed</td>
               <td style="color:#16a34a;font-size:14px;font-weight:800;text-align:right;padding:10px 0 0 0;">${fmt(amountKes - feeKes)}</td>
             </tr>
             <tr>
@@ -1761,7 +1761,7 @@ export async function sendWithdrawalConfirmationEmail(
         </div>
 
         <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:16px;margin:0 0 24px 0;">
-          <p style="color:#1e40af;font-size:13px;margin:0;">⏱ <strong>Processing time:</strong> 1–2 business days. You will receive an M-Pesa confirmation SMS once the transfer completes.</p>
+          <p style="color:#1e40af;font-size:13px;margin:0;"><strong>Status:</strong> Pending. No M-Pesa transfer has been sent. We will notify you if the request is completed.</p>
         </div>
 
         ${ctaButton("📱 Open App →", "https://app.investafarm.com/wallet")}
@@ -1771,7 +1771,7 @@ export async function sendWithdrawalConfirmationEmail(
   await transport.sendMail({
     from: from("Investa Farm"),
     to,
-    subject: `🏧 Withdrawal Submitted — ${fmt(amountKes)} to M-Pesa`,
-    html: emailWrapper(content, `Your withdrawal of ${fmt(amountKes)} to M-Pesa ${phone} is being processed. Ref: ${refCode}.`),
+    subject: `🏧 Withdrawal Request Received — ${fmt(amountKes)}`,
+    html: emailWrapper(content, `Your request for ${fmt(amountKes)} is pending; no M-Pesa transfer has been sent. Ref: ${refCode}.`),
   });
 }

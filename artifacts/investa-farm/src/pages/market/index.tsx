@@ -407,26 +407,13 @@ export default function MarketHome() {
   const [moverTab, setMoverTab] = useState<"movers" | "decliners">("movers");
   const [moverSlide, setMoverSlide] = useState(0);
   const moverTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [marketPhase, setMarketPhase] = useState<"movers" | "ads">("movers");
-  const phaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keep market movers in this slot; featured listings already have their own
+  // section below, so they should not rotate in as a duplicate promotion.
+  const marketPhase: "movers" | "ads" = "movers";
 
   useEffect(() => {
     moverTimer.current = setInterval(() => setMoverSlide(s => s + 1), 30000);
     return () => { if (moverTimer.current) clearInterval(moverTimer.current); };
-  }, []);
-
-  useEffect(() => {
-    const cycle = () => {
-      phaseTimer.current = setTimeout(() => {
-        setMarketPhase("ads");
-        phaseTimer.current = setTimeout(() => {
-          setMarketPhase("movers");
-          cycle();
-        }, 45_000);
-      }, 90_000);
-    };
-    cycle();
-    return () => { if (phaseTimer.current) clearTimeout(phaseTimer.current); };
   }, []);
 
   // Featured listings animated cycling (2 visible at a time)
@@ -874,7 +861,7 @@ export default function MarketHome() {
               </Link>
             </div>
 
-            {/* Rotating Spotlight — Gainers/Decliners ↔ Investment Opportunities */}
+            {/* Market movers; featured investment listings have their own section below. */}
             <section>
               <AnimatePresence mode="wait">
                 {marketPhase === "movers" ? (

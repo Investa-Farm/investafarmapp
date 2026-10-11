@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useCreateWallet } from "@privy-io/react-auth/extended-chains";
 import { CheckCircle2, Copy, LoaderCircle, ShieldCheck, WalletCards } from "lucide-react";
+import { SiStellar } from "react-icons/si";
 import { isPrivyConfigured } from "./privy-provider";
 
 type LinkedWalletResponse = {
@@ -24,7 +25,7 @@ export function PrivyStellarWallet({ authToken }: { authToken: string | null }) 
     return (
       <section className="mt-3 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-start gap-3">
-          <WalletCards className="mt-0.5 text-muted-foreground" size={20} />
+          <SiStellar className="mt-0.5 text-[#08B5E5]" size={20} />
           <div>
             <h2 className="font-semibold text-sm">Embedded Stellar wallet</h2>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -102,6 +103,11 @@ function ConfiguredPrivyStellarWallet({ authToken }: { authToken: string | null 
     setBusy(true);
     try {
       const existingWallet = findStellarWallet();
+      if (linkedAddress && (!existingWallet || existingWallet.address !== linkedAddress)) {
+        throw new Error(
+          "Sign in to the original Privy account linked to this address. No new wallet was created and the saved link was not changed.",
+        );
+      }
       const address =
         existingWallet?.address ?? (await createWallet({ chainType: "stellar" })).wallet.address;
       const privyAccessToken = await getAccessToken();
@@ -151,13 +157,15 @@ function ConfiguredPrivyStellarWallet({ authToken }: { authToken: string | null 
     ? "Loading Privy…"
     : !authenticated
       ? "Continue with Privy"
-      : "Create and link Stellar wallet";
+      : linkedAddress
+        ? "Reconnect existing Stellar wallet"
+        : "Create and link Stellar wallet";
 
   return (
     <section className="mt-3 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <WalletCards className="mt-0.5 text-primary" size={20} />
+          <SiStellar className="mt-0.5 text-[#08B5E5]" size={20} />
           <div>
             <h2 className="font-semibold text-sm">Embedded Stellar wallet</h2>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -173,21 +181,32 @@ function ConfiguredPrivyStellarWallet({ authToken }: { authToken: string | null 
           <LoaderCircle className="animate-spin" size={14} /> Checking linked wallet…
         </p>
       ) : linkedAddress ? (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-muted/60 px-3 py-2.5">
-          <div>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Connected address</p>
-            <p className="mt-1 font-mono text-xs" title={linkedAddress}>{shortAddress(linkedAddress)}</p>
+        <>
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-muted/60 px-3 py-2.5">
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Connected address</p>
+              <p className="mt-1 font-mono text-xs" title={linkedAddress}>{shortAddress(linkedAddress)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={copyAddress}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium hover:bg-background"
+              aria-label="Copy Stellar wallet address"
+            >
+              {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
+              {copied ? "Copied" : "Copy"}
+            </button>
           </div>
           <button
             type="button"
-            onClick={copyAddress}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium hover:bg-background"
-            aria-label="Copy Stellar wallet address"
+            onClick={linkWallet}
+            disabled={!ready || busy}
+            className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-            {copied ? "Copied" : "Copy"}
+            {busy || !ready ? <LoaderCircle className="animate-spin" size={16} /> : <SiStellar size={16} className="text-[#08B5E5]" />}
+            {busy ? "Verifying saved wallet…" : actionLabel}
           </button>
-        </div>
+        </>
       ) : (
         <button
           type="button"

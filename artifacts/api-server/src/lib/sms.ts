@@ -64,21 +64,14 @@ export async function sendWalletTopupSms(phone: string, amount: number, newBalan
 export async function sendWithdrawalSms(phone: string, amount: number, fee: number): Promise<void> {
   await sendSms(
     phone,
-    `InvestaFarm: KES ${amount.toLocaleString("en-KE")} M-Pesa withdrawal initiated. Fee: KES ${fee.toFixed(0)}. Expect funds within 1-2 business days.`
+    `InvestaFarm: Withdrawal request received. KES ${amount.toLocaleString("en-KE")} is reserved; fee KES ${fee.toFixed(0)}. No M-Pesa transfer has been sent yet.`
   );
 }
 
 export async function sendCardWithdrawalSms(phone: string, amount: number, fee: number): Promise<void> {
   await sendSms(
     phone,
-    `InvestaFarm: KES ${amount.toLocaleString("en-KE")} card withdrawal initiated. Fee: KES ${fee.toFixed(0)}. Funds arrive in 2-5 business days.`
-  );
-}
-
-export async function sendUsdcWithdrawalSms(phone: string, amount: number, usdcAmount: string, fee: number): Promise<void> {
-  await sendSms(
-    phone,
-    `InvestaFarm: ${usdcAmount} USDC (KES ${amount.toLocaleString("en-KE")}) withdrawal queued to your Polygon wallet. Fee: KES ${fee.toFixed(0)}. Usually within 30 min.`
+    `InvestaFarm: Card withdrawal request received. KES ${amount.toLocaleString("en-KE")} is reserved; fee KES ${fee.toFixed(0)}. No card transfer has been sent yet.`
   );
 }
 

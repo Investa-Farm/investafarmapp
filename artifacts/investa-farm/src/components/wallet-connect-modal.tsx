@@ -15,17 +15,18 @@
  * On desktop with a browser extension (MetaMask, Coinbase Wallet):
  *   window.ethereum is already injected → connect inline, no redirect needed.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { EthereumProvider } from "@walletconnect/ethereum-provider";
+import { SiBinance, SiStellar } from "react-icons/si";
 import {
   X, Wallet, Copy, Check, AlertCircle, CheckCircle2,
   Loader2, ExternalLink, ArrowRight, Zap,
 } from "lucide-react";
 
 // ── USDC contract on Polygon Mainnet ──────────────────────────────────────────
-const USDC_POLYGON = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+const USDC_POLYGON = "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359";
 const POLYGON_CHAIN_ID = "0x89"; // 137
 const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim() ?? "";
 
@@ -75,15 +76,26 @@ function walletBrowserLink(walletId: string): string {
 interface WalletDef {
   id: string;
   name: string;
-  emoji: string;
+  icon: ReactNode;
   color: string;
   description: string;
 }
 
+function MetaMaskMark() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 40 40" aria-hidden="true">
+      <path fill="#E2761B" d="M5 4 18 13 15 19 8 17 5 4Zm30 0-13 9 3 6 7-2 3-13Z" />
+      <path fill="#E4761B" d="m8 18 7 2 5 5-4 4-8-4v-7Zm24 0-7 2-5 5 4 4 8-4v-7Z" />
+      <path fill="#F6851B" d="m16 29 4-4 4 4-1 5h-6l-1-5Z" />
+      <path fill="#763D16" d="m13 21 5 1 2 3-4 4-5-4 2-4Zm14 0-5 1-2 3 4 4 5-4-2-4Z" />
+      <path fill="#CD6116" d="m16 34 1-5 3-2v7h-4Zm8 0-1-5-3-2v7h4Z" />
+    </svg>
+  );
+}
+
 const WALLETS: WalletDef[] = [
-  { id: "metamask",  name: "MetaMask",            emoji: "🦊", color: "#E2761B", description: "Browser extension or MetaMask Mobile" },
-  { id: "coinbase",  name: "Coinbase Wallet",      emoji: "🔵", color: "#0052FF", description: "Coinbase Wallet app or browser extension" },
-  { id: "binance",   name: "Binance Web3 Wallet",  emoji: "🟡", color: "#F3BA2F", description: "Send USDC from your Binance account" },
+  { id: "metamask",  name: "MetaMask",            icon: <MetaMaskMark />, color: "#E2761B", description: "Browser extension or MetaMask Mobile" },
+  { id: "binance",   name: "Binance Web3 Wallet",  icon: <SiBinance size={25} color="#F3BA2F" />, color: "#F3BA2F", description: "Send USDC from your Binance account" },
 ];
 
 const LS_KEY = "investa_wallet_connect_pending";
@@ -275,7 +287,11 @@ export function WalletConnectModal({
 
   // ── Send ERC-20 transfer ───────────────────────────────────────────────────
   async function sendUsdcTx() {
-    if (!eth || !connectedAddress || !depositAddress) return;
+    if (!eth || !connectedAddress) return;
+    if (!/^0x[a-fA-F0-9]{40}$/.test(depositAddress)) {
+      setError("The Polygon USDC deposit address is not configured correctly.");
+      return;
+    }
     setStep("sending");
     setError(null);
     try {
@@ -398,7 +414,7 @@ export function WalletConnectModal({
                       className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
                       style={{ background: `${w.color}18` }}
                     >
-                      {w.emoji}
+                      {w.icon}
                     </div>
                     <div className="flex-1 text-left">
                       <p className="text-foreground font-bold text-sm">{w.name}</p>
@@ -415,6 +431,23 @@ export function WalletConnectModal({
                     )}
                   </button>
                 ))}
+                <div
+                  className="w-full flex items-center gap-3.5 p-4 rounded-2xl border border-dashed border-border bg-muted/30 opacity-80"
+                  aria-disabled="true"
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#08B5E5]/10">
+                    <SiStellar size={25} color="#08B5E5" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-foreground font-bold text-sm">Stellar Wallet</p>
+                    <p className="text-muted-foreground text-xs mt-0.5">
+                      Link through Privy in wallet settings; Stellar deposits are not configured.
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                    Unavailable
+                  </span>
+                </div>
 
                 {/* Manual fallback */}
                 <div className="pt-3 border-t border-border">
@@ -435,7 +468,7 @@ export function WalletConnectModal({
               <div className="py-8 flex flex-col items-center gap-4 text-center">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
                   style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
-                  {selectedWallet?.emoji}
+                  {selectedWallet?.icon}
                 </div>
                 <div>
                   <p className="text-foreground font-bold">Connecting to {selectedWallet?.name}</p>
@@ -453,7 +486,7 @@ export function WalletConnectModal({
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl"
                       style={{ background: `${selectedWallet?.color ?? "#6366F1"}20` }}>
-                      {selectedWallet?.emoji}
+                      {selectedWallet?.icon}
                     </div>
                     <div>
                       <p className="font-bold text-sm text-foreground">{selectedWallet?.name}</p>
@@ -522,7 +555,7 @@ export function WalletConnectModal({
               <div className="py-8 flex flex-col items-center gap-4 text-center">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
                   style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
-                  {selectedWallet?.emoji}
+                  {selectedWallet?.icon}
                 </div>
                 <div>
                   <p className="text-foreground font-bold">Approve in {selectedWallet?.name}</p>
@@ -575,7 +608,7 @@ export function WalletConnectModal({
               <div className="space-y-4 text-center">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto"
                   style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
-                  {selectedWallet?.emoji}
+                  {selectedWallet?.icon}
                 </div>
                 <div>
                   <p className="text-foreground font-bold text-base">Opening {selectedWallet?.name}</p>
