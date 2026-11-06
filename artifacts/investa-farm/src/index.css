@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -409,3 +410,50 @@
 .dark .shadow-sm   { box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 .dark .divide-gray-100 > * + * { border-color: hsl(var(--border)); }
 .dark .divide-gray-200 > * + * { border-color: hsl(220 13% 22%); }
+
+/* Investor market: a warm, mineral palette inspired by Kenyan red earth and
+   deep highland foliage. Kept scoped so the rest of the product is untouched. */
+.market-shell {
+  --market-ink: #17332b;
+  --market-leaf: #1d5b45;
+  --market-citrus: #d1a448;
+  --market-paper: #f5f3eb;
+  --market-line: rgba(35, 68, 55, .13);
+  font-family: "DM Sans", sans-serif;
+  background: var(--market-paper);
+}
+.market-shell h1,
+.market-shell h2,
+.market-shell [data-market-display] {
+  font-family: "Fraunces", Georgia, serif;
+}
+.market-shell .market-intro {
+  background:
+    radial-gradient(ellipse at 84% 8%, rgba(209,164,72,.19), transparent 32%),
+    linear-gradient(132deg, #173c31 0%, #215c46 64%, #2c6a4d 100%);
+}
+.market-shell .market-action {
+  transition: transform .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+.market-shell .market-action:hover { transform: translateY(-1px); }
+.market-shell .market-action:active { transform: scale(.98); }
+.market-shell .market-opportunity {
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.market-shell .market-opportunity:hover {
+  transform: translateY(-2px);
+  border-color: rgba(29,91,69,.35);
+  box-shadow: 0 14px 32px rgba(23,51,43,.09);
+}
+.market-shell :focus-visible {
+  outline: 2px solid #a27b2d;
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .market-shell *, .market-shell *::before, .market-shell *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}

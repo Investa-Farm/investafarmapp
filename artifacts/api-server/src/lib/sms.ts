@@ -64,21 +64,14 @@ export async function sendWalletTopupSms(phone: string, amount: number, newBalan
 export async function sendWithdrawalSms(phone: string, amount: number, fee: number): Promise<void> {
   await sendSms(
     phone,
-    `InvestaFarm: KES ${amount.toLocaleString("en-KE")} M-Pesa withdrawal request received and pending payout processing. Fee: KES ${fee.toFixed(0)}.`
+    `InvestaFarm: Withdrawal request received. KES ${amount.toLocaleString("en-KE")} is reserved; fee KES ${fee.toFixed(0)}. No M-Pesa transfer has been sent yet.`
   );
 }
 
 export async function sendCardWithdrawalSms(phone: string, amount: number, fee: number): Promise<void> {
   await sendSms(
     phone,
-    `InvestaFarm: KES ${amount.toLocaleString("en-KE")} card withdrawal request received and pending payout processing. Fee: KES ${fee.toFixed(0)}.`
-  );
-}
-
-export async function sendUsdcWithdrawalSms(phone: string, amount: number, usdcAmount: string, fee: number): Promise<void> {
-  await sendSms(
-    phone,
-    `InvestaFarm: ${usdcAmount} USDC (KES ${amount.toLocaleString("en-KE")}) withdrawal request received for your Polygon wallet and pending payout processing. Fee: KES ${fee.toFixed(0)}.`
+    `InvestaFarm: Card withdrawal request received. KES ${amount.toLocaleString("en-KE")} is reserved; fee KES ${fee.toFixed(0)}. No card transfer has been sent yet.`
   );
 }
 

@@ -54,9 +54,7 @@ export function initVapid() {
       _publicKey = keys.publicKey;
       _privateKey = keys.privateKey;
       persistKeys(_publicKey, _privateKey);
-      console.log("[web-push] VAPID keys generated and cached locally (dev only, gitignored):");
-      console.log(`  VAPID_PUBLIC_KEY=${_publicKey}`);
-      console.log(`  VAPID_PRIVATE_KEY=${_privateKey}`);
+      console.log("[web-push] Development VAPID keys generated and cached locally (gitignored).");
     }
   }
 

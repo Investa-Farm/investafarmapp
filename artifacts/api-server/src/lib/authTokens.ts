@@ -265,6 +265,7 @@ export function corsOriginAllowed(origin: string | undefined): boolean {
     "https://investafarm.com",
     "https://www.investafarm.com",
     "https://app.investafarm.com",
+    "https://dial.to",
     "http://localhost:5000",
     "http://localhost:3000",
     "http://localhost:8080",
