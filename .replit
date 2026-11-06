@@ -64,15 +64,3 @@ channel = "stable-25_05"
 [userenv.shared]
 PRIVY_APP_ID = "cmuzcaizx028r0dl3t5ebu9mc"
 VITE_PRIVY_APP_ID = "cmuzcaizx028r0dl3t5ebu9mc"
-
-[[ports]]
-localPort = 8080
-externalPort = 80
-
-[[ports]]
-localPort = 8081
-externalPort = 8081
-
-[[ports]]
-localPort = 19899
-externalPort = 3000
