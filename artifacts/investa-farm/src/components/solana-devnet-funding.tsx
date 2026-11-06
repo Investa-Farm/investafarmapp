@@ -57,6 +57,44 @@ type DevnetBalances = {
   note: string;
 };
 
+const AURORA_SOURCE_CHAINS = [
+  { value: "eth", label: "Ethereum" },
+  { value: "bera", label: "Berachain" },
+  { value: "base", label: "Base" },
+  { value: "gnosis", label: "Gnosis" },
+  { value: "arb", label: "Arbitrum" },
+  { value: "bsc", label: "BNB Chain" },
+  { value: "avax", label: "Avalanche" },
+  { value: "op", label: "Optimism" },
+  { value: "pol", label: "Polygon" },
+  { value: "monad", label: "Monad" },
+  { value: "adi", label: "ADI Chain" },
+  { value: "plasma", label: "Plasma" },
+  { value: "scroll", label: "Scroll" },
+  { value: "xlayer", label: "X Layer" },
+  { value: "hood", label: "Hoodi" },
+  { value: "sui", label: "Sui" },
+  { value: "aptos", label: "Aptos" },
+  { value: "xrp", label: "XRP Ledger" },
+  { value: "btc", label: "Bitcoin" },
+  { value: "doge", label: "Dogecoin" },
+  { value: "tron", label: "TRON" },
+  { value: "ton", label: "TON" },
+  { value: "near", label: "NEAR" },
+  { value: "sol", label: "Solana" },
+  { value: "zec", label: "Zcash" },
+  { value: "ltc", label: "Litecoin" },
+  { value: "cardano", label: "Cardano" },
+  { value: "stellar", label: "Stellar" },
+  { value: "aleo", label: "Aleo" },
+  { value: "bch", label: "Bitcoin Cash" },
+  { value: "dash", label: "Dash" },
+  { value: "starknet", label: "Starknet" },
+  { value: "coca", label: "COCA" },
+  { value: "qtc", label: "QTC" },
+  { value: "evm", label: "EVM (Base default)" },
+] as const;
+
 function errorFromResponse(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object" && "error" in payload) {
     const error = (payload as { error?: unknown }).error;
@@ -97,7 +135,7 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
   const [walletBusy, setWalletBusy] = useState(false);
   const [walletError, setWalletError] = useState("");
   const [amount, setAmount] = useState(10);
-  const [sourceChain, setSourceChain] = useState<"base" | "eth">("base");
+  const [sourceChain, setSourceChain] = useState("base");
   const [status, setStatus] = useState<MultiChainStatus | null>(null);
   const [statusError, setStatusError] = useState("");
   const [intentBusy, setIntentBusy] = useState(false);
@@ -410,11 +448,12 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
               <select
                 id="aurora-source-chain"
                 value={sourceChain}
-                onChange={(event) => setSourceChain(event.currentTarget.value as "base" | "eth")}
+                onChange={(event) => setSourceChain(event.currentTarget.value)}
                 className="mt-1 min-h-10 w-full rounded-xl border border-border bg-background px-3 text-xs text-foreground"
               >
-                <option value="base">Base mainnet</option>
-                <option value="eth">Ethereum mainnet</option>
+                {AURORA_SOURCE_CHAINS.map((chain) => (
+                  <option key={chain.value} value={chain.value}>{chain.label}</option>
+                ))}
               </select>
               <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
                 USDC is only a reminder, not a restriction: the address may accept other Aurora-supported assets on

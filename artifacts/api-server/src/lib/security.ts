@@ -511,6 +511,14 @@ setInterval(() => {
  * Applied only to non-authenticated routes that might be scraped.
  */
 export function botDetection(req: Request, res: Response, next: NextFunction): void {
+  // CORS preflight is read-only protocol negotiation, not a mutation.
+  // Allow it through so cross-origin wallets and social clients can reach
+  // their route-specific CORS policy.
+  if (req.method === "OPTIONS") {
+    next();
+    return;
+  }
+
   const ua = (req.headers["user-agent"] ?? "").toLowerCase();
   const ip = getClientIp(req);
 

@@ -23,9 +23,47 @@ import { financialRateLimit } from "../lib/security";
 
 const router: IRouter = Router();
 
+const AURORA_SOURCE_CHAINS = [
+  "eth",
+  "bera",
+  "base",
+  "gnosis",
+  "arb",
+  "bsc",
+  "avax",
+  "op",
+  "pol",
+  "monad",
+  "adi",
+  "plasma",
+  "scroll",
+  "xlayer",
+  "hood",
+  "sui",
+  "aptos",
+  "xrp",
+  "btc",
+  "doge",
+  "tron",
+  "ton",
+  "near",
+  "sol",
+  "zec",
+  "ltc",
+  "cardano",
+  "stellar",
+  "aleo",
+  "bch",
+  "dash",
+  "starknet",
+  "coca",
+  "qtc",
+  "evm",
+] as const;
+
 const IntentBody = z.object({
   userSolanaWallet: z.string().trim().min(32).max(44),
-  sourceChain: z.enum(["evm", "base", "eth", "arb", "bsc", "avax", "op", "pol", "scroll"]),
+  sourceChain: z.enum(AURORA_SOURCE_CHAINS),
   sourceAsset: z.string().trim().min(1).max(40).default("USDC"),
   investmentAmount: z.number().int().min(10).max(500),
 });
@@ -64,6 +102,27 @@ function connectionForDevnet() {
 }
 
 function actionOrigin(req: Request): string | null {
+  const configuredOrigin = process.env["PUBLIC_APP_URL"]?.trim();
+  if (configuredOrigin) {
+    try {
+      const parsed = new URL(configuredOrigin);
+      if (
+        parsed.protocol === "https:" &&
+        !parsed.username &&
+        !parsed.password &&
+        parsed.pathname === "/" &&
+        !parsed.search &&
+        !parsed.hash
+      ) {
+        return parsed.origin;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  if (process.env["NODE_ENV"] === "production") return "https://app.investafarm.com";
+
   const forwardedHost = req.get("x-forwarded-host")?.split(",")[0]?.trim();
   const host = forwardedHost || req.get("host");
   const forwardedProtocol = req.get("x-forwarded-proto")?.split(",")[0]?.trim();
@@ -75,8 +134,12 @@ function actionOrigin(req: Request): string | null {
 }
 
 function actionCors(_req: Request, res: Response, next: NextFunction) {
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, Content-Encoding, Accept-Encoding",
+  );
   next();
 }
 

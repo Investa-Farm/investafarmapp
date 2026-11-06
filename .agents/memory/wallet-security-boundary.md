@@ -10,3 +10,9 @@ Wallet PIN authorization is required server-side for every withdrawal method, wh
 Exit requests and secondary-market listings do not require the wallet PIN because they create requests/listings rather than directly moving wallet funds; they must still verify that the holding belongs to the signed-in investor.
 
 **How to apply:** Keep the four-digit format and lockout behavior consistent across setup, verification, and withdrawal routes. Preserve investor ownership predicates on exit/listing mutations.
+
+Keep KES, Polygon stablecoin, and Privy/on-chain balances as separate ledgers. Never credit one from another automatically; any transfer between them requires explicit user approval and appropriate settlement verification.
+
+**Why:** The user's product requirements treat these balances as distinct and prohibit implicit conversion or movement between wallet systems.
+
+**How to apply:** Treat Devnet and Aurora as separate wallet/network flows. Do not connect on-chain activity to KES or farm-share accounting until an audited, user-approved settlement flow exists.

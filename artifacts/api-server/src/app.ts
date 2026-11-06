@@ -53,6 +53,25 @@ const corsMiddleware = cors({
   },
   credentials: true,
 });
+const apiCorsMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+  // Solana Actions are public endpoints consumed by wallets and social clients
+  // from many origins. They do not use cookies or credentialed CORS.
+  if (req.originalUrl.split("?")[0]?.startsWith("/api/actions/")) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, Content-Encoding, Accept-Encoding",
+    );
+    if (req.method === "OPTIONS") {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+    return;
+  }
+  corsMiddleware(req, res, next);
+};
 
 // Attach a unique request ID to every request for tracing and audit logs
 app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -78,6 +97,30 @@ app.use(sanitizeInput);
 // ── Google Search Console verification ────────────────────────────────────────
 app.get("/googleb1c7018e72191e16.html", (_req, res) => {
   res.type("text/html").send("google-site-verification: googleb1c7018e72191e16.html");
+});
+
+// Solana Actions discovery manifest. Social clients fetch this from the domain root.
+function actionsManifestCors(_req: Request, res: Response, next: NextFunction) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (_req.method === "OPTIONS") {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+}
+
+app.options("/actions.json", actionsManifestCors);
+app.get("/actions.json", actionsManifestCors, (_req, res) => {
+  res.type("application/json").json({
+    rules: [
+      {
+        pathPattern: "/api/actions/invest",
+        apiPath: "/api/actions/invest",
+      },
+    ],
+  });
 });
 
 // ── robots.txt & sitemap.xml — public, no rate-limit, indexed by crawlers ──
@@ -209,7 +252,7 @@ app.get("/api/healthz", async (_req, res) => {
 });
 
 // Tight API CSP (default-src 'none') — correct for JSON-only routes
-app.use("/api", corsMiddleware, globalRateLimit, securityHeaders, unauthorizedTracker, router);
+app.use("/api", apiCorsMiddleware, globalRateLimit, securityHeaders, unauthorizedTracker, router);
 
 // Serve uploaded files (KYC docs, farm photos) from the uploads directory
 const uploadsDir = path.resolve(process.cwd(), "uploads");
