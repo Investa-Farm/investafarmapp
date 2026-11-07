@@ -47,6 +47,12 @@ Go to your service → **Environment** → add these:
 | `SESSION_SECRET` | *(copy from Replit secrets)* | |
 | `PESAPAL_CONSUMER_KEY` | *(copy from Replit secrets)* | |
 | `PESAPAL_CONSUMER_SECRET` | *(copy from Replit secrets)* | |
+| `VITE_PRIVY_APP_ID` / `PRIVY_APP_ID` / `PRIVY_APP_SECRET` | Privy app values | Frontend wallet connection and server-side wallet verification |
+| `AURORA_INTENTS_API_KEY` | Aurora API key | Required for Aurora address creation and deposit-status checks |
+| `PUBLIC_APP_URL` | `https://your-public-domain` | Set the canonical HTTPS origin used by Solana Actions; use the Render domain if it serves the app |
+| `SOLANA_DEVNET_USDC_MINT` | Devnet token mint | Six-decimal test token mint; required for the Blink demo |
+| `SOLANA_DEVNET_TREASURY_ADDRESS` | Devnet wallet address | Destination wallet for signed Devnet test transfers |
+| `SOLANA_DEVNET_RPC_URL` | optional | Custom Solana Devnet RPC endpoint |
 
 #### URL-encoding passwords with special characters
 

@@ -72,6 +72,11 @@ const ActionBody = z.object({
   account: z.string().trim().min(32).max(44),
 });
 
+const IntentStatusQuery = z.object({
+  walletAddress: z.string().trim().min(32).max(44),
+  depositAddress: z.string().trim().min(1).max(256),
+});
+
 function parsePublicKey(value: string | undefined): PublicKey | null {
   if (!value) return null;
   try {
@@ -145,8 +150,15 @@ function actionCors(_req: Request, res: Response, next: NextFunction) {
 
 router.get("/multichain/status", (_req, res) => {
   const config = devnetConfig();
+  const auroraMissingSettings = [
+    ...(!process.env["AURORA_INTENTS_API_KEY"] ? ["AURORA_INTENTS_API_KEY"] : []),
+    ...(!process.env["PRIVY_APP_ID"] ? ["PRIVY_APP_ID"] : []),
+    ...(!process.env["PRIVY_APP_SECRET"] ? ["PRIVY_APP_SECRET"] : []),
+    ...(!process.env["SESSION_SECRET"] ? ["SESSION_SECRET"] : []),
+  ];
   res.json({
-    auroraReady: Boolean(process.env["AURORA_INTENTS_API_KEY"] && process.env["PRIVY_APP_ID"] && process.env["PRIVY_APP_SECRET"]),
+    auroraReady: auroraMissingSettings.length === 0,
+    auroraMissingSettings,
     solanaDevnet: {
       network: "devnet",
       transferConfigured: config.transferConfigured,
@@ -154,6 +166,8 @@ router.get("/multichain/status", (_req, res) => {
       missingSettings: [
         ...(!config.usdcMint ? ["SOLANA_DEVNET_USDC_MINT"] : []),
         ...(!config.treasury ? ["SOLANA_DEVNET_TREASURY_ADDRESS"] : []),
+      ],
+      optionalMissingSettings: [
         ...(!config.shareMint ? ["SOLANA_FARM_SHARE_MINT"] : []),
       ],
     },
@@ -259,7 +273,7 @@ router.post("/intent/create", financialRateLimit, async (req, res): Promise<void
     const result: unknown = await upstream.json().catch(() => null);
     if (!upstream.ok) {
       const providerError = upstream.status === 403
-        ? "Aurora has not approved this API key for persistent deposit addresses."
+        ? "Aurora rejected this API key for persistent deposit addresses. Check the key and its configured permissions."
         : upstream.status === 429
           ? "Aurora is rate limiting address creation. Wait and try again."
           : "Aurora could not create a deposit address. No funds moved.";
@@ -292,6 +306,104 @@ router.post("/intent/create", financialRateLimit, async (req, res): Promise<void
       ? error.message
       : "Aurora Intents is unavailable. No deposit address was created and no funds moved.";
     res.status(502).json({ error: message });
+  }
+});
+
+router.get("/intent/status", financialRateLimit, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ error: "Sign in to Investa Farm to check this deposit." });
+    return;
+  }
+
+  const parsed = IntentStatusQuery.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid Solana wallet and Aurora deposit address are required." });
+    return;
+  }
+
+  const wallet = parsePublicKey(parsed.data.walletAddress);
+  if (!wallet) {
+    res.status(400).json({ error: "A valid Solana wallet address is required." });
+    return;
+  }
+  const walletAddress = wallet.toBase58();
+  const verification = await verifyPrivyWalletOwnership(req, "solana", walletAddress);
+  if (!verification.ok) {
+    res.status(verification.status).json({ error: verification.error });
+    return;
+  }
+
+  const apiKey = process.env["AURORA_INTENTS_API_KEY"];
+  if (!apiKey) {
+    res.status(503).json({ error: "Aurora deposit tracking is not configured on this server." });
+    return;
+  }
+
+  try {
+    const statusUrl = new URL(
+      `https://intents-api.aurora.dev/api/transactions/${encodeURIComponent(apiKey)}`,
+    );
+    statusUrl.searchParams.set("walletAddress", walletAddress);
+    statusUrl.searchParams.set("numberOfTransactions", "100");
+
+    const upstream = await fetch(statusUrl, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    const payload: unknown = await upstream.json().catch(() => null);
+    if (!upstream.ok) {
+      res.status(upstream.status === 429 ? 429 : 502).json({
+        error: upstream.status === 429
+          ? "Aurora is rate limiting status checks. Wait a moment and retry."
+          : "Aurora could not return deposit status right now.",
+      });
+      return;
+    }
+
+    const rows: unknown[] = Array.isArray(payload)
+      ? payload
+      : payload && typeof payload === "object" && Array.isArray((payload as { data?: unknown }).data)
+        ? (payload as { data: unknown[] }).data
+        : [];
+    const matching = rows
+      .filter((row): row is Record<string, unknown> =>
+        !!row &&
+        typeof row === "object" &&
+        (row as Record<string, unknown>).depositAddress === parsed.data.depositAddress,
+      )
+      .sort((a, b) =>
+        Number(b.createdAtTimestamp ?? 0) - Number(a.createdAtTimestamp ?? 0),
+      );
+    const transaction = matching[0];
+
+    res.setHeader("Cache-Control", "no-store");
+    if (!transaction) {
+      res.json({
+        found: false,
+        status: "PENDING_DEPOSIT",
+        message: "Aurora has not detected a deposit at this address yet.",
+      });
+      return;
+    }
+
+    const stringArray = (value: unknown): string[] =>
+      Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === "string").slice(0, 10)
+        : [];
+
+    res.json({
+      found: true,
+      status: typeof transaction.status === "string" ? transaction.status : "UNKNOWN",
+      amountIn: typeof transaction.amountInFormatted === "string" ? transaction.amountInFormatted : null,
+      amountOut: typeof transaction.amountOutFormatted === "string" ? transaction.amountOutFormatted : null,
+      createdAt: typeof transaction.createdAt === "string" ? transaction.createdAt : null,
+      originChainTxHashes: stringArray(transaction.originChainTxHashes),
+      destinationChainTxHashes: stringArray(transaction.destinationChainTxHashes),
+      refundReason: typeof transaction.refundReason === "string" ? transaction.refundReason : null,
+    });
+  } catch {
+    res.status(502).json({ error: "Aurora deposit status is temporarily unavailable." });
   }
 });
 
@@ -338,6 +450,8 @@ router.get("/solana/devnet/status", (_req, res) => {
     missingSettings: [
       ...(!config.usdcMint ? ["SOLANA_DEVNET_USDC_MINT"] : []),
       ...(!config.treasury ? ["SOLANA_DEVNET_TREASURY_ADDRESS"] : []),
+    ],
+    optionalMissingSettings: [
       ...(!config.shareMint ? ["SOLANA_FARM_SHARE_MINT"] : []),
     ],
     note: "Devnet test tokens have no real-world value. Devnet activity never credits KES or Polygon USDC balances.",

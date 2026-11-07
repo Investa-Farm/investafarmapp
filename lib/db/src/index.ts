@@ -61,7 +61,6 @@ export const shadowPool = FALLBACK_DB_URL
   : null;
 
 // Backward-compat aliases
-export const pool         = primaryPool;
 export const fallbackPool = shadowPool;
 
 // ─── Dual-write noise suppression ─────────────────────────────────────────────
@@ -246,6 +245,9 @@ function wrapClient(
 const smartPool: pg.Pool = shadowPool
   ? makeSmartPool(primaryPool, shadowPool)
   : primaryPool;
+
+// Keep legacy Pool consumers on the same failover path as Drizzle queries.
+export const pool = smartPool;
 
 const _db = drizzle(smartPool, { schema });
 
