@@ -23,11 +23,13 @@ type PrivyLinkedAccount = {
 
 type MultiChainStatus = {
   auroraReady: boolean;
+  auroraMissingSettings: string[];
   solanaDevnet: {
     network: string;
     transferConfigured: boolean;
     cropShareMintConfigured: boolean;
     missingSettings: string[];
+    optionalMissingSettings: string[];
   };
 };
 
@@ -40,6 +42,18 @@ type IntentAddress = {
   targetAmountUsd: number;
   amountIsNotQuoted: boolean;
   message: string;
+};
+
+type AuroraDepositStatus = {
+  found: boolean;
+  status: string;
+  amountIn?: string | null;
+  amountOut?: string | null;
+  createdAt?: string | null;
+  originChainTxHashes?: string[];
+  destinationChainTxHashes?: string[];
+  refundReason?: string | null;
+  message?: string;
 };
 
 type TokenBalance = {
@@ -141,6 +155,9 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
   const [intentBusy, setIntentBusy] = useState(false);
   const [intentError, setIntentError] = useState("");
   const [intentAddress, setIntentAddress] = useState<IntentAddress | null>(null);
+  const [auroraStatus, setAuroraStatus] = useState<AuroraDepositStatus | null>(null);
+  const [auroraStatusBusy, setAuroraStatusBusy] = useState(false);
+  const [auroraStatusError, setAuroraStatusError] = useState("");
   const [copied, setCopied] = useState(false);
   const [sandboxPreviewed, setSandboxPreviewed] = useState(false);
   const [balances, setBalances] = useState<DevnetBalances | null>(null);
@@ -239,6 +256,8 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
   async function createAuroraAddress() {
     setIntentError("");
     setIntentAddress(null);
+    setAuroraStatus(null);
+    setAuroraStatusError("");
     setIntentBusy(true);
     try {
       if (!authToken) throw new Error("Sign in to Investa Farm before creating a deposit address.");
@@ -269,6 +288,38 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
       setIntentError(error instanceof Error ? error.message : "Aurora could not create a deposit address.");
     } finally {
       setIntentBusy(false);
+    }
+  }
+
+  async function checkAuroraDeposit() {
+    setAuroraStatusError("");
+    setAuroraStatusBusy(true);
+    try {
+      if (!authToken || !walletAddress || !intentAddress?.depositAddress) {
+        throw new Error("Connect and verify your Solana wallet, then create an Aurora address first.");
+      }
+      const privyAccessToken = await getAccessToken();
+      if (!privyAccessToken) throw new Error("Sign in to Privy again to verify wallet ownership.");
+
+      const query = new URLSearchParams({
+        walletAddress,
+        depositAddress: intentAddress.depositAddress,
+      });
+      const response = await fetch(`/api/intent/status?${query}`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "X-Privy-Access-Token": `Bearer ${privyAccessToken}`,
+        },
+      });
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(errorFromResponse(payload, "Aurora could not check this deposit."));
+      }
+      setAuroraStatus(payload as AuroraDepositStatus);
+    } catch (error: unknown) {
+      setAuroraStatusError(error instanceof Error ? error.message : "Aurora could not check this deposit.");
+    } finally {
+      setAuroraStatusBusy(false);
     }
   }
 
@@ -470,9 +521,14 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
               </button>
               {status && !status.auroraReady && (
                 <p className="mt-2 text-[10px] leading-relaxed text-amber-700 dark:text-amber-300">
-                  Aurora requires an approved API key and server-side Privy verification. No address can be created until configured.
+                  Aurora needs its server API key, Privy verification, and session configuration. No address can be created until configured.
                 </p>
               )}
+              {status?.auroraMissingSettings?.length ? (
+                <p className="mt-2 text-[10px] leading-relaxed text-amber-700 dark:text-amber-300">
+                  Missing server settings: {status.auroraMissingSettings.join(", ")}.
+                </p>
+              ) : null}
               {statusError && <p role="alert" className="mt-2 text-[10px] text-destructive">{statusError}</p>}
               {intentError && <p role="alert" className="mt-2 text-[10px] text-destructive">{intentError}</p>}
               {intentAddress && (
@@ -494,6 +550,45 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
                   <p className="mt-2 text-[10px] font-medium text-amber-700 dark:text-amber-300">
                     Waiting for a source-chain deposit. This address response does not confirm a payment or issue crop shares.
                   </p>
+                  <button
+                    type="button"
+                    onClick={checkAuroraDeposit}
+                    disabled={auroraStatusBusy}
+                    className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-blue-300 px-3 text-[10px] font-semibold text-blue-900 disabled:opacity-50 dark:border-blue-800 dark:text-blue-100"
+                  >
+                    {auroraStatusBusy ? <LoaderCircle className="animate-spin" size={13} /> : <CheckCircle2 size={13} />}
+                    {auroraStatusBusy ? "Checking Aurora…" : "Check deposit status"}
+                  </button>
+                  {auroraStatusError && <p role="alert" className="mt-2 text-[10px] text-destructive">{auroraStatusError}</p>}
+                  {auroraStatus && (
+                    <div role="status" className="mt-2 rounded-lg bg-white/80 p-2.5 text-[10px] dark:bg-background/70">
+                      <p className="font-semibold text-foreground">
+                        {auroraStatus.found ? `Aurora status: ${auroraStatus.status}` : "No deposit detected yet"}
+                      </p>
+                      {auroraStatus.found && auroraStatus.amountOut && (
+                        <p className="mt-1 text-muted-foreground">Delivered amount: {auroraStatus.amountOut}</p>
+                      )}
+                      {auroraStatus.status === "SUCCESS" && (
+                        <p className="mt-1 text-emerald-700 dark:text-emerald-300">
+                          Aurora reports delivery to your Solana wallet. This does not credit KES or issue farm shares.
+                        </p>
+                      )}
+                      {auroraStatus.refundReason && (
+                        <p className="mt-1 text-amber-700 dark:text-amber-300">Refund detail: {auroraStatus.refundReason}</p>
+                      )}
+                      {auroraStatus.destinationChainTxHashes?.map((hash) => (
+                        <a
+                          key={hash}
+                          href={`https://explorer.solana.com/tx/${encodeURIComponent(hash)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 block break-all text-blue-700 underline dark:text-blue-300"
+                        >
+                          View Solana transaction
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               <div
@@ -523,15 +618,21 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
                     },
                     {
                       title: "Incoming payment",
-                      detail: intentAddress
-                        ? "Waiting; payment receipt tracking is not connected."
-                        : "Not started.",
-                      complete: false,
+                      detail: auroraStatus?.found
+                        ? `Aurora status: ${auroraStatus.status}.`
+                        : intentAddress
+                          ? "Check status to see whether Aurora detected a deposit."
+                          : "Not started.",
+                      complete: Boolean(auroraStatus?.found && auroraStatus.status !== "PENDING_DEPOSIT"),
                     },
                     {
                       title: "Solana settlement",
-                      detail: "Not confirmed; Aurora settlement status is not connected.",
-                      complete: false,
+                      detail: auroraStatus?.status === "SUCCESS"
+                        ? "Aurora reports delivery to the verified Solana wallet."
+                        : auroraStatus?.status === "REFUNDED" || auroraStatus?.status === "FAILED"
+                          ? `Aurora reports ${auroraStatus.status.toLowerCase()}.`
+                          : "Not confirmed; check the Aurora deposit status.",
+                      complete: auroraStatus?.status === "SUCCESS",
                     },
                     {
                       title: "Farm-share issuance",
@@ -601,6 +702,11 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
               {status?.solanaDevnet.missingSettings.length ? (
                 <p className="mt-2 text-[10px] leading-relaxed text-amber-700 dark:text-amber-300">
                   Missing Devnet setup: {status.solanaDevnet.missingSettings.join(", ")}. The transfer action remains disabled.
+                </p>
+              ) : null}
+              {status?.solanaDevnet.optionalMissingSettings.length ? (
+                <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                  Optional balance display setting not configured: {status.solanaDevnet.optionalMissingSettings.join(", ")}.
                 </p>
               ) : null}
               {balancesError && <p role="alert" className="mt-2 text-[10px] text-destructive">{balancesError}</p>}
