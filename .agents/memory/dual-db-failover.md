@@ -24,8 +24,11 @@ Pre-deploy: `pnpm --filter @workspace/db run push && DB_TARGET=supabase pnpm --f
 ## Health endpoints
 GET /api/healthz and GET /api/admin/db-health both show primary + fallback status independently.
 
+## Startup readiness must use the failover pool
+Any startup health check that acquires a raw pool connection must import the smart `pool` export, not `primaryPool`; otherwise an unreachable preferred database can prevent the service from starting before the healthy fallback is tried.
+
 **Why:** User requested hot-standby for resilience; failover-at-query-error is simpler than dual-write and handles most outage scenarios.
-**How to apply:** Any new DB schema change must be pushed to both DBs — Neon via normal push, Supabase via DB_TARGET=supabase push from outside Replit.
+**How to apply:** Keep readiness checks on the smart pool. Any new DB schema change must be pushed to both DBs — Neon via normal push, Supabase via DB_TARGET=supabase push from outside Replit.
 
 ## Dual-write implementation details (updated)
 - makeDualPool() and makeDualClient() use .apply(target, args) to forward ALL original args so pg's overloaded query signatures work correctly. Rebuilding args manually broke parameterised queries ("no parameter $1" error).
