@@ -66,11 +66,11 @@ pnpm --filter @workspace/db run push
 | `DATABASE_URL` | all environments | Postgres connection string |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | production | Web push notifications. The server throws on boot in production if these aren't set — there is no file-based fallback in production. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | optional | Seed/admin account credentials |
-| `PRIVY_APP_ID` / `PRIVY_APP_SECRET` | Aurora wallet verification | Server-side verification of the user's linked Privy Solana wallet. The frontend also needs `VITE_PRIVY_APP_ID`. |
+| `PRIVY_APP_ID` / `PRIVY_APP_SECRET` | Aurora and Solana wallet verification | Server-side verification of the user's linked Privy Solana wallet. The frontend also needs `VITE_PRIVY_APP_ID`. |
 | `VITE_WALLETCONNECT_PROJECT_ID` | MetaMask mobile | WalletConnect project ID used by the frontend to return a connected MetaMask account to the PWA. |
-| `AURORA_INTENTS_API_KEY` | Aurora deposits | Approved Aurora Intents API key; store as a server secret, never in frontend variables. |
+| `AURORA_INTENTS_API_KEY` | Aurora deposits | Valid Aurora Intents API key; store as a server secret, never in frontend variables. |
 | `AURORA_SOLANA_USDC_ASSET_ID` | optional | Select a specific Solana USDC asset if Aurora returns more than one match for the API key. |
-| `PUBLIC_APP_URL` | optional | Canonical HTTPS public origin used in Solana Action links. Production defaults to `https://app.investafarm.com`; set this when using another domain. |
+| `PUBLIC_APP_URL` | production Blink on a non-default domain | Canonical HTTPS public origin used in Solana Action links. Production defaults to `https://app.investafarm.com`; set this to the Render service's public domain if that is where the app is served. |
 | `SOLANA_DEVNET_RPC_URL` | optional | Custom Solana Devnet RPC. Defaults to Solana's public Devnet endpoint. |
 | `SOLANA_DEVNET_USDC_MINT` / `SOLANA_DEVNET_TREASURY_ADDRESS` | Devnet demo only | Public Devnet mint and destination wallet used to build unsigned test-USDC transactions. Configure both to enable the demo. |
 | `SOLANA_FARM_SHARE_MINT` | optional, Devnet only | Public Devnet token mint used only to display a balance; the demo does not issue shares. |
@@ -102,7 +102,7 @@ There is no program deployment step for this demo. The current API only builds a
 
 Aurora Intents is a separate **Solana mainnet** deposit path. It can create a persistent deposit address for supported source chains and assets, with the destination set to the user's server-verified Privy Solana wallet. The UI lists Aurora's supported source-chain identifiers (including EVM, Bitcoin-family, Stellar, Sui, and other networks); actual deposits still depend on Aurora's supported asset list and API-key approval. The generated address is not a swap quote, does not lock an exchange rate, and does not confirm receipt. Do not treat a deposit as an investment or credit KES until an audited settlement/reconciliation flow is implemented.
 
-To configure the Aurora address flow, add `AURORA_INTENTS_API_KEY` as a Render secret. `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `SESSION_SECRET`, and `VITE_PRIVY_APP_ID` must also be present. If Aurora returns multiple Solana USDC assets, set `AURORA_SOLANA_USDC_ASSET_ID` to the intended asset ID. The app only requests a persistent address; it does not invoke the Aurora Swap API, submit a transaction, or issue farm shares.
+To configure the Aurora address and tracking flow, add `AURORA_INTENTS_API_KEY` as a Render secret. `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `SESSION_SECRET`, and `VITE_PRIVY_APP_ID` must also be present. If Aurora returns multiple Solana USDC assets, set `AURORA_SOLANA_USDC_ASSET_ID` to the intended asset ID. After creating an address, the signed-in user can check Aurora's transaction history for a matching deposit and Solana delivery status. This does not credit KES, record an Investa investment, or issue farm shares.
 
 The Devnet demo also exposes a Solana Action at `/api/actions/invest` and its discovery manifest at `/actions.json`, with the cross-origin headers required by wallets and social Blink clients. To share a registered Blink on X, publish the app on its canonical HTTPS domain and register that domain with Dialect at [dial.to/register](https://dial.to/register). Social Blink links build unsigned **Devnet** demo transactions only; users must review and sign in a compatible wallet. Do not use a Blink to imply that a real investment has been funded.
 
