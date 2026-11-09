@@ -5,6 +5,6 @@ description: Workspace-specific PNPM 9 behavior around peer auto-installation an
 
 For PNPM 9 commands in this workspace, pass `--config.auto-install-peers=false` when installing packages. The lockfile records peer auto-installation as disabled; omitting the CLI flag from a frozen install can produce a lockfile configuration mismatch, while a non-frozen install can rewrite unrelated dependency resolutions and select incompatible optional Solana peers.
 
-**Why:** Privy’s Solana packages and the app’s locked Solana Kit peer versions must stay aligned for the Vite build to resolve correctly.
+**Why:** Privy’s Solana packages and the app’s locked Solana Kit peer versions must stay aligned for the Vite build to resolve correctly. A Git reset can also leave `node_modules` from the previous checkout, making declared packages appear missing.
 
-**How to apply:** Use scoped/offline installs where possible, include the explicit flag, inspect the lockfile diff before committing, and rerun the web build after adding SDK dependencies.
+**How to apply:** After a source reset or sync, run `pnpm install --frozen-lockfile --config.auto-install-peers=false` before diagnosing missing-module errors. Inspect the lockfile diff before committing and rerun the web build after adding SDK dependencies.

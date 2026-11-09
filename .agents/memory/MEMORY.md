@@ -24,4 +24,4 @@
 - [Remote branch force updates](remote-branch-force-updates.md) — preserve local branch and uncommitted work before aligning main to a force-rewritten GitHub branch.
 - [Farmer surface density](farmer-surface-density.md) — farmer home stays focused on farm status and next actions; wallet settings/security live behind profile or focused flows.
 - [Wallet payment boundaries](wallet-payment-boundaries.md) — KES and stablecoins stay separate; Privy links are preserved; mainnet, Devnet, and farm-share issuance remain distinct.
-- [PNPM peer lock setting](pnpm-peer-lock-setting.md) — pass the workspace's disabled peer auto-install flag to PNPM 9 install commands to avoid frozen-lock errors and incompatible peer upgrades.
+- [PNPM peer lock setting](pnpm-peer-lock-setting.md) — after repo sync, reinstall from lock with peer auto-install disabled to avoid stale modules and incompatible upgrades.
