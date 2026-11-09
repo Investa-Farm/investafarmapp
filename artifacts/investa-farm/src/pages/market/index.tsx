@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Star, Map, Calculator, BellRing, ExternalLink, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Bot, Flame, MoreHorizontal } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, Star, Map, Calculator, BellRing, ExternalLink, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Bot, Flame, MoreHorizontal } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import {
   useGetTopMovers,
@@ -430,14 +430,16 @@ export default function MarketHome() {
   // Combined movers/decliners tab
   const [moverTab, setMoverTab] = useState<"movers" | "decliners">("movers");
   const [moverSlide, setMoverSlide] = useState(0);
-  const [tickerIndex, setTickerIndex] = useState(0);
   const moverTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   // Keep market movers in this slot; featured listings already have their own
   // section below, so they should not rotate in as a duplicate promotion.
   const marketPhase: "movers" | "ads" = "movers";
 
   useEffect(() => {
-    moverTimer.current = setInterval(() => setMoverSlide(s => s + 1), 6000);
+    moverTimer.current = setInterval(() => {
+      setMoverSlide((slide) => slide + 1);
+      setMoverTab((tab) => tab === "movers" ? "decliners" : "movers");
+    }, 6000);
     return () => { if (moverTimer.current) clearInterval(moverTimer.current); };
   }, []);
 
@@ -516,17 +518,6 @@ export default function MarketHome() {
   });
 
   const tickerItems = liveTickerData?.prices ?? [];
-  useEffect(() => {
-    if (tickerItems.length < 2) {
-      setTickerIndex(0);
-      return;
-    }
-    const timer = window.setInterval(() => {
-      setTickerIndex((index) => (index + 1) % tickerItems.length);
-    }, 4500);
-    return () => window.clearInterval(timer);
-  }, [tickerItems.length]);
-  const activeTickerItem = tickerItems.length ? tickerItems[tickerIndex % tickerItems.length] : null;
 
   const handleBuyClick = (e: React.MouseEvent, listing: Listing) => {
     e.preventDefault(); e.stopPropagation();
@@ -632,10 +623,6 @@ export default function MarketHome() {
             <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" />
-              <span className="inline-flex items-center gap-1 bg-white/10 border border-white/15 px-2 py-1 rounded-full">
-                <ShieldCheck size={10} className="text-[#d8bd75]" />
-                <span className="text-white/75 text-[9px] font-bold uppercase tracking-wider">Farm shares</span>
-              </span>
             </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -716,50 +703,36 @@ export default function MarketHome() {
         </div>
 
 
-        {/* Live commodity ticker: one live market item per slide. */}
-        <div data-tour="market-ticker" className="relative mb-0 overflow-hidden border-t border-white/15 py-2.5">
-          <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white/[0.06] px-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(134,239,172,0.8)]" aria-hidden="true" />
-              <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-white/55">
-                {activeTickerItem?.source === "fallback" ? "Reference price" : "Live market"}
-              </span>
-              {activeTickerItem ? (
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={`${activeTickerItem.name}-${tickerIndex}`}
-                    className="flex min-w-0 items-center gap-2"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.28 }}
-                  >
-                    <span className="truncate text-xs font-bold text-white">{activeTickerItem.name}</span>
-                    <span className="whitespace-nowrap text-[10px] text-white/75">KES {activeTickerItem.price}{activeTickerItem.unit}</span>
-                  </motion.div>
-                </AnimatePresence>
-              ) : (
-                <span className="truncate text-[10px] text-white/65">Market prices unavailable</span>
-              )}
+      </div>
+
+      {/* Continuous live/reference market tape on the light surface. */}
+      <div data-tour="market-ticker" className="overflow-hidden border-b border-border bg-white py-2.5 text-foreground dark:bg-card">
+        {tickerItems.length > 0 ? (
+          <div className="flex items-center">
+            <span className="ml-4 mr-3 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+              <span className={`h-1.5 w-1.5 rounded-full ${tickerItems.some((item) => item.source !== "fallback") ? "bg-emerald-500" : "bg-amber-500"}`} />
+              {tickerItems.every((item) => item.source === "fallback") ? "Reference" : "Market"}
+            </span>
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="ticker-track flex w-max items-center whitespace-nowrap">
+                {[...tickerItems, ...tickerItems].map((item, index) => (
+                  <div key={`${item.name}-${index}`} className="flex items-center gap-2 px-4">
+                    <span className="text-[11px] font-semibold text-foreground">{item.name}</span>
+                    <span className="text-[10px] text-muted-foreground">KES {item.price}{item.unit}</span>
+                    {item.change !== null && (
+                      <span className={`text-[10px] font-bold ${item.change >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {item.change >= 0 ? "▲" : "▼"} {formatChange(item.change)}
+                      </span>
+                    )}
+                    <span className="ml-2 h-4 border-r border-border" aria-hidden="true" />
+                  </div>
+                ))}
+              </div>
             </div>
-            {activeTickerItem && activeTickerItem.change !== null && (
-              <span className={`shrink-0 text-right ${activeTickerItem.change >= 0 ? "text-[#b8d7a7]" : "text-[#e6aaa0]"}`}>
-                <span className="block text-[8px] font-semibold uppercase tracking-wide text-white/45">Farm movement</span>
-                <span className="block text-xs font-bold">{formatChange(activeTickerItem.change)}</span>
-              </span>
-            )}
           </div>
-          {tickerItems.length > 1 && (
-            <div className="mt-1.5 flex justify-center gap-1" aria-label={`Market item ${tickerIndex + 1} of ${tickerItems.length}`}>
-              {tickerItems.slice(0, 6).map((item, index) => (
-                <span
-                  key={`${item.name}-dot`}
-                  className={`h-1 rounded-full transition-all ${index === tickerIndex % 6 ? "w-4 bg-white/80" : "w-1 bg-white/30"}`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        ) : (
+          <p className="px-4 text-[11px] text-muted-foreground">Market prices are temporarily unavailable.</p>
+        )}
       </div>
 
       {/* Stat detail bottom sheet */}
@@ -858,19 +831,14 @@ export default function MarketHome() {
                     transition={{ duration: 0.35 }}>
 
               <div className="flex items-center justify-between mb-2.5">
-                <div className="flex bg-muted rounded-full p-0.5 gap-0.5">
-                  <button
-                    onClick={() => { setMoverTab("movers"); setMoverSlide(0); }}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${moverTab === "movers" ? "bg-green-600 text-white shadow-sm" : "text-muted-foreground"}`}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`flex h-7 w-7 items-center justify-center rounded-full ${moverTab === "movers" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}
+                    aria-label={moverTab === "movers" ? "Positive market movement" : "Negative market movement"}
+                    title={moverTab === "movers" ? "Positive market movement" : "Negative market movement"}
                   >
-                    <TrendingUp size={9} /> Gainers
-                  </button>
-                  <button
-                    onClick={() => { setMoverTab("decliners"); setMoverSlide(0); }}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${moverTab === "decliners" ? "bg-red-500 text-white shadow-sm" : "text-muted-foreground"}`}
-                  >
-                    <TrendingDown size={9} /> Decliners
-                  </button>
+                    {moverTab === "movers" ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                  </span>
                   <AiSectionBot
                     label="market movers"
                     context="Kenyan farm investment market: what causes a farm's share price to move up or down, and what does it mean for my investment strategy?"

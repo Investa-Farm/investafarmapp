@@ -20,6 +20,8 @@ import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog";
 import { COUNTRIES } from "@/lib/countries";
 import { WalletPinSetup } from "@/components/wallet-pin-setup";
 import { InlineVideoPlayer } from "@/components/inline-video-player";
+import { PrivyStellarWallet } from "@/components/privy-stellar-wallet";
+import { SolanaDevnetFunding } from "@/components/solana-devnet-funding";
 
 const BROKER_THRESHOLD = 500_000;
 
@@ -402,6 +404,17 @@ export default function Profile() {
       </div>
 
       <div className="px-4 pt-4 space-y-3">
+        <section aria-labelledby="linked-wallets-title">
+          <div className="mb-2 px-1">
+            <h2 id="linked-wallets-title" className="text-sm font-bold text-foreground">Linked wallets</h2>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              Privy connects Stellar. Aurora handles cross-chain deposits to Solana.
+            </p>
+          </div>
+          <PrivyStellarWallet authToken={token} />
+          <SolanaDevnetFunding authToken={token} />
+        </section>
+
         {/* Wallet PIN setup banner — shown to users who haven't created a PIN yet */}
         {pinStatus !== undefined && !pinStatus?.hasPin && (
           <button onClick={() => setPinSetupOpen(true)}

@@ -27,6 +27,7 @@ import { getCurrentUser } from "./auth";
 import { financialRateLimit } from "../lib/security";
 
 const router: IRouter = Router();
+let cachedAuroraSolanaUsdcAsset: { assetId: string; expiresAt: number } | null = null;
 
 const AURORA_SOURCE_CHAINS = [
   "eth",
@@ -238,14 +239,29 @@ function actionCors(_req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-router.get("/multichain/status", (_req, res) => {
+router.get("/multichain/status", async (_req, res): Promise<void> => {
   const config = devnetConfig();
   const auroraMissingSettings = [
     ...(!process.env["AURORA_INTENTS_API_KEY"] ? ["AURORA_INTENTS_API_KEY"] : []),
     ...(!process.env["SESSION_SECRET"] ? ["SESSION_SECRET"] : []),
   ];
+  let auroraProviderReady = false;
+  let auroraStatusMessage = "Aurora Intents is not configured on this server.";
+  if (auroraMissingSettings.length === 0) {
+    try {
+      await resolveAuroraSolanaUsdcAsset(process.env["AURORA_INTENTS_API_KEY"]!);
+      auroraProviderReady = true;
+      auroraStatusMessage = "Aurora is reachable and a Solana USDC destination is available.";
+    } catch (error) {
+      auroraStatusMessage = error instanceof Error
+        ? error.message
+        : "Aurora could not verify a Solana USDC destination.";
+    }
+  }
   res.json({
-    auroraReady: auroraMissingSettings.length === 0,
+    auroraReady: auroraMissingSettings.length === 0 && auroraProviderReady,
+    auroraProviderReady,
+    auroraStatusMessage,
     auroraMissingSettings,
     solanaDevnet: {
       network: "devnet",
@@ -265,6 +281,9 @@ router.get("/multichain/status", (_req, res) => {
 async function resolveAuroraSolanaUsdcAsset(apiKey: string): Promise<string> {
   const configuredAssetId = process.env["AURORA_SOLANA_USDC_ASSET_ID"]?.trim();
   if (configuredAssetId) return configuredAssetId;
+  if (cachedAuroraSolanaUsdcAsset && cachedAuroraSolanaUsdcAsset.expiresAt > Date.now()) {
+    return cachedAuroraSolanaUsdcAsset.assetId;
+  }
 
   const response = await fetch(
     `https://intents-api.aurora.dev/api/tokens/${encodeURIComponent(apiKey)}`,
@@ -302,7 +321,11 @@ async function resolveAuroraSolanaUsdcAsset(apiKey: string): Promise<string> {
         : "Aurora lists multiple Solana USDC destinations; configure AURORA_SOLANA_USDC_ASSET_ID to select one.",
     );
   }
-  return unique[0]!;
+  cachedAuroraSolanaUsdcAsset = {
+    assetId: unique[0]!,
+    expiresAt: Date.now() + 60_000,
+  };
+  return cachedAuroraSolanaUsdcAsset.assetId;
 }
 
 router.post("/intent/challenge", financialRateLimit, async (req, res): Promise<void> => {

@@ -2,8 +2,8 @@ import { useState, useEffect, type ReactNode } from "react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
-import { formatKES, getToken, getStoredUser } from "@/lib/auth";
-import { ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, RefreshCw, ArrowLeft, CheckCircle2, Wallet, CreditCard, Copy, Check, Filter, Trash2, Download, Lock, Shield, Clock3, Sprout, BarChart3, BriefcaseBusiness, X, Coins, Repeat } from "lucide-react";
+import { getToken, getStoredUser } from "@/lib/auth";
+import { ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, RefreshCw, ArrowLeft, CheckCircle2, Wallet, CreditCard, Filter, Trash2, Download, Lock, Shield, Clock3, Sprout, BarChart3, BriefcaseBusiness, X, Coins, Repeat } from "lucide-react";
 // CheckCircle2 used in success toast below
 import { PaymentSheet } from "@/components/payment-sheet";
 import { WithdrawSheet } from "@/components/withdraw-sheet";
@@ -11,12 +11,9 @@ import { WalletPinGate } from "@/components/wallet-pin-gate";
 import { WalletPinSetup } from "@/components/wallet-pin-setup";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { useGetPortfolioSummary } from "@workspace/api-client-react";
-import { useCurrency, CURRENCIES } from "@/lib/currency";
+import { useCurrency } from "@/lib/currency";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { downloadCsv } from "@/lib/csv";
-import { PrivyStellarWallet } from "@/components/privy-stellar-wallet";
-import { SolanaDevnetFunding } from "@/components/solana-devnet-funding";
 
 type WalletData = {
   wallet: { id: number; balance: string; currency: string; updatedAt: string };
@@ -98,20 +95,8 @@ export default function InvestorWallet() {
     // If they came from an action, proceed to PIN gate
     if (pinGateAction) { setPinGateOpen(true); }
   }
-  const [stellarCopied, setStellarCopied] = useState(false);
   const [txFilter, setTxFilter] = useState<"all" | "deposit" | "withdrawal" | "investment" | "fee">("all");
-  const { currency, setCurrency, formatAmount } = useCurrency();
-
-  const { data: stellarAcct, isError: stellarError, isSuccess: stellarLoaded } = useQuery<{ accountNumber: string } | null>({
-    queryKey: ["stellar-account"],
-    queryFn: async () => {
-      const r = await fetch("/api/stellar/account", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) return null;
-      return r.json();
-    },
-    staleTime: 300_000,
-    retry: false,
-  });
+  const { formatAmount } = useCurrency();
 
   const { data: escrowData } = useQuery<{ heldTotal: number; releasedTotal: number; escrows: Array<{ id: number; farmId: number | null; amount: string; status: string; description: string | null; releaseAt: string | null; createdAt: string }> }>({
     queryKey: ["wallet-escrow"],
@@ -135,13 +120,6 @@ export default function InvestorWallet() {
     enabled: !isFarmer,
   });
 
-  const handleCopyStellar = async () => {
-    if (!stellarAcct?.accountNumber) return;
-    await navigator.clipboard.writeText(stellarAcct.accountNumber).catch(() => {});
-    setStellarCopied(true);
-    setTimeout(() => setStellarCopied(false), 2000);
-  };
-
   const { data, isLoading, refetch } = useQuery<WalletData>({
     queryKey: ["wallet"],
     queryFn: async () => {
@@ -162,7 +140,20 @@ export default function InvestorWallet() {
     enabled: !!token && !isFarmer,
   });
 
-  const { data: summary } = useGetPortfolioSummary();
+  const {
+    data: circleInfo,
+    isLoading: circleInfoLoading,
+    isError: circleInfoError,
+  } = useQuery<{ configured: boolean }>({
+    queryKey: ["circle-info"],
+    queryFn: async () => {
+      const response = await fetch("/api/wallet/circle/info", { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error("Could not check Polygon USDC deposit availability.");
+      return response.json();
+    },
+    enabled: !!token && !isFarmer,
+    staleTime: 60_000,
+  });
 
 
   const balance = parseFloat(data?.wallet?.balance ?? "0");
@@ -239,7 +230,7 @@ export default function InvestorWallet() {
                 <img src={logoSrc} alt="Investa Farm" className="h-6 w-auto" style={{ filter: "brightness(0) invert(1)" }} />
                 <div>
                   <p className="text-white/50 text-[8px] font-bold uppercase tracking-widest leading-none">Investa Farm</p>
-                  <p className="text-white font-bold text-[11px] leading-none mt-0.5">Investor Wallet</p>
+                  <p className="text-white font-bold text-[11px] leading-none mt-0.5">KES wallet</p>
                 </div>
               </div>
               <div className="w-10 h-7 rounded-sm bg-amber-300/80 border border-amber-200/50 flex flex-col justify-center items-center gap-0.5 p-1">
@@ -250,7 +241,7 @@ export default function InvestorWallet() {
 
             {/* Balance centre */}
             <div className="text-center">
-              <p className="text-white/60 text-[10px] uppercase tracking-wider mb-0.5">Wallet Balance</p>
+              <p className="text-white/60 text-[10px] uppercase tracking-wider mb-0.5">Available balance</p>
               {isLoading
                 ? <div className="h-8 w-36 bg-white/20 rounded-lg animate-pulse mx-auto" />
                 : <motion.p key={balance} initial={{ scale: 0.95 }} animate={{ scale: 1 }}
@@ -262,17 +253,6 @@ export default function InvestorWallet() {
               <div>
                 <p className="text-white/50 text-[8px] uppercase tracking-wider">Account holder</p>
                 <p className="text-white font-semibold text-xs tracking-wide">{user?.name ?? "Investor"}</p>
-                {stellarAcct?.accountNumber && (
-                  <button onClick={handleCopyStellar} className="flex items-center gap-1 mt-1 group" aria-label="Copy account number">
-                    <p className="text-white/50 text-[8px] uppercase tracking-wider mr-0.5">Account</p>
-                    <p className="text-white/80 font-mono text-[9px] tracking-wide">
-                      {stellarAcct.accountNumber.slice(0, 6)}…{stellarAcct.accountNumber.slice(-4)}
-                    </p>
-                    {stellarCopied
-                      ? <Check size={8} className="text-green-400 ml-0.5" />
-                      : <Copy size={8} className="text-white/40 group-hover:text-white/70 ml-0.5 transition-colors" />}
-                  </button>
-                )}
               </div>
               <div className="text-right">
                 <p className="text-white/50 text-[8px] uppercase tracking-wider">Security</p>
@@ -291,7 +271,15 @@ export default function InvestorWallet() {
                 <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-xs font-black text-white">USDC</div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">USDC balance</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">Polygon network · separate from your KES wallet</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {circleInfoLoading
+                      ? "Checking Polygon deposit availability…"
+                      : circleInfoError
+                        ? "Could not verify Polygon deposit settings. Refresh to retry."
+                      : circleInfo?.configured
+                        ? "Polygon network · separate from your KES wallet"
+                        : "Polygon USDC deposits are not enabled on this deployment."}
+                  </p>
                 </div>
               </div>
               <p className="shrink-0 text-lg font-bold tabular-nums text-foreground" data-testid="text-usdc-balance">
@@ -299,51 +287,24 @@ export default function InvestorWallet() {
               </p>
             </div>
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-blue-200/70 pt-3 dark:border-blue-900">
-              <p className="text-[10px] leading-relaxed text-muted-foreground">No automatic conversion. Any exchange requires your action and confirmation.</p>
+              <p className="text-[10px] leading-relaxed text-muted-foreground">
+                {circleInfo?.configured
+                  ? "No automatic conversion. KES and USDC stay separate."
+                  : circleInfoError
+                    ? "Deposit settings could not be checked."
+                    : "No Circle deposit address is available; no funds can be sent yet."}
+              </p>
               <button
                 type="button"
                 onClick={() => openWithPin("usdc-deposit")}
-                disabled={hasPin === null}
-                className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl bg-blue-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-blue-800 disabled:opacity-50"
+                disabled={hasPin === null || circleInfoLoading || circleInfo?.configured !== true}
+                className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl bg-blue-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                 data-testid="button-add-usdc"
               >
-                <Plus size={14} /> Add USDC
+                <Plus size={14} /> {circleInfoLoading ? "Checking…" : circleInfo?.configured ? "Add USDC" : "Unavailable"}
               </button>
             </div>
           </section>
-        )}
-
-        {!isFarmer && <PrivyStellarWallet authToken={token} />}
-        {!isFarmer && <SolanaDevnetFunding authToken={token} />}
-
-        {/* Portfolio stats strip */}
-        {summary && (
-          <div className="bg-card border border-border rounded-2xl mt-3 p-3">
-            <div className="grid grid-cols-4 gap-1.5">
-              {[
-                { label: "Portfolio", val: formatAmount(summary.totalValue), up: true },
-                { label: "Invested", val: formatAmount(summary.totalInvested), up: null },
-                { label: "Today P&L", val: formatAmount(summary.todayReturn), up: summary.todayReturn >= 0 },
-                { label: "Holdings", val: String(summary.holdings), up: null },
-              ].map(({ label, val, up }) => (
-                <div key={label} className="text-center">
-                  <p className={`font-bold text-xs truncate ${up === null ? "text-foreground" : up ? "text-green-600" : "text-red-500"}`}>{val}</p>
-                  <p className="text-muted-foreground text-[9px] mt-0.5">{label}</p>
-                </div>
-              ))}
-            </div>
-            {/* Currency switcher */}
-            <div className="flex gap-1.5 mt-2.5 pt-2.5 border-t border-border overflow-x-auto">
-              {CURRENCIES.map(c => (
-                <button key={c.code} onClick={() => setCurrency(c.code)}
-                  className={`flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-bold transition-all active:scale-95 ${
-                    currency.code === c.code ? "bg-primary border-primary text-white" : "border-border text-muted-foreground"
-                  }`}>
-                  {c.code}
-                </button>
-              ))}
-            </div>
-          </div>
         )}
 
         {/* Escrow balance strip */}

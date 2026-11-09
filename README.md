@@ -89,39 +89,21 @@ The app is deployed to Render as a single web service:
 
 Because Render builds the entire workspace (not just the artifacts that matter for production), all packages must build cleanly even outside Replit's own per-artifact dev flow — verify with the exact commands above before pushing, not just the Replit workflow logs.
 
-## Which blockchain demo should I use?
+## Solana and Aurora
 
-| Feature | Network | What it does | What it does not do |
-|---|---|---|---|
-| Solana Devnet funding lab | Solana **Devnet** | Reads public test balances and builds an unsigned test-token transfer for a connected, verified wallet. The wallet owner reviews and signs it. | No real funds, KES credit, farm investment, or share issuance. |
-| Social Blink | Solana **Devnet** | Publishes a shareable Solana Action (`/actions.json` → `/api/actions/invest`) that creates an unsigned demo transfer for a compatible wallet to review and sign. | It is not an investment checkout and does not create farm shares or settle an investment. |
-| Aurora Intents | Solana **mainnet** destination | Creates a persistent deposit address for supported source-chain assets and checks Aurora's deposit/delivery status for the user's verified Solana wallet. | It is not a quote or a confirmed investment; it does not credit KES, record a farm investment, or issue shares. |
+Solana supports Investa's wallet demos and shareable Social Blinks. Aurora Intents solves the cross-chain deposit problem: users can route supported assets from 34+ source networks to USDC in their verified Solana wallet. Privy is used for Stellar only.
 
-Keep the Devnet and mainnet flows separate. Never send real assets to a Devnet address or treat an Aurora deposit as an Investa investment without a separate audited settlement and reconciliation flow.
+The live Aurora flow creates a persistent deposit address and checks Aurora's transaction status. It is not a quote, investment checkout, KES credit, or farm-share issuance flow. Keep it separate from Solana Devnet, which uses valueless test tokens and unsigned transactions.
 
 ## Solana Devnet demo
 
-The Solana Devnet funding lab is part of the existing Investa Farm Render web service; it is not a separately deployed Solana program. The API reads public Devnet balances and can construct an **unsigned SPL-token transfer** for a connected Solana wallet. The wallet owner signs a message to verify ownership, then reviews and signs the Devnet transaction in their wallet. Privy is used for Stellar, not Solana. The demo does not mint farm shares, record an investment, or credit KES or Polygon USDC. Devnet tokens have no real-world value.
+The Devnet wallet and Social Blink demo runs in the existing app; no separate Solana program deployment is needed. Configure `SOLANA_DEVNET_USDC_MINT` and `SOLANA_DEVNET_TREASURY_ADDRESS`; set `PUBLIC_APP_URL` for public Blink links. Wallet owners verify their address and review/sign any unsigned test transaction. Devnet tokens have no real-world value and never credit KES or create farm shares.
 
-To enable the Devnet transfer and Blink demo on Render:
+## Aurora Intents deposits
 
-1. Add `SOLANA_DEVNET_USDC_MINT` with a six-decimal test-token mint on Devnet.
-2. Add `SOLANA_DEVNET_TREASURY_ADDRESS` with the demo destination wallet on Devnet.
-3. Optionally set `SOLANA_DEVNET_RPC_URL` to a reliable Devnet RPC and `SOLANA_FARM_SHARE_MINT` if you want the UI to display that token's public balance.
-4. Sign in to Investa Farm and connect Phantom, Solflare, or another injected Solana wallet that supports message signing. Investa verifies ownership with a short-lived signed message; no transaction is sent for verification.
-5. Set `PUBLIC_APP_URL` to the live HTTPS origin and redeploy the Render service. Use a wallet funded with Devnet SOL and the configured test USDC mint.
+Configure the server-side `AURORA_INTENTS_API_KEY` in Replit Secrets and the Render service, plus `SESSION_SECRET`, for live address creation. Aurora must approve the key for persistent addresses. Set `AURORA_SOLANA_USDC_ASSET_ID` only if Aurora returns multiple Solana USDC assets. The app checks Aurora's token list before enabling address creation.
 
-There is no program deployment step for this demo. Check `GET /api/multichain/status` and `GET /api/solana/devnet/status` after deploy; both must report the Devnet transfer as configured. `/actions.json` should then list the demo amount links. The API only builds a transaction for the configured Devnet mint and treasury; it does not sign or submit the transaction on the user's behalf. Keep all Devnet mint/treasury settings separate from production stablecoin, KES, and farm-share accounting.
-
-## Aurora Intents deposits and Solana Social Blinks
-
-Aurora Intents is a separate **Solana mainnet** deposit path. It creates a persistent deposit address for supported source chains and assets, with the destination set to the user's Solana wallet after a signed-message ownership check. The UI offers 31+ Aurora source-network identifiers (including EVM, Bitcoin-family, Stellar, Sui, and other networks); actual deposits still depend on Aurora's supported asset list and API-key approval. The generated address is not a swap quote, does not lock an exchange rate, and does not confirm receipt. Do not treat a deposit as an investment or credit KES until an audited settlement/reconciliation flow is implemented.
-
-To configure the live Aurora address and tracking flow, add `AURORA_INTENTS_API_KEY` as a server secret in Replit and Render, and set `SESSION_SECRET`. Aurora must approve the key for persistent deposit addresses. If Aurora returns multiple Solana USDC assets, set `AURORA_SOLANA_USDC_ASSET_ID` to the intended asset ID. After creating an address, the signed-in user can check Aurora's transaction history for a matching deposit and Solana delivery status. This does not credit KES, record an Investa investment, or issue farm shares. Without an approved key, the UI reports the route unavailable and does not show a fake address.
-
-Solana wallet verification uses a server-signed, five-minute challenge and the wallet's Ed25519 message signature. Privy remains limited to the Stellar account flow. Aurora is the provider for cross-chain deposits to Solana; Circle is a separate Polygon USDC deposit rail and WalletConnect only connects a compatible EVM wallet for that Polygon flow.
-
-The Devnet demo exposes a Solana Action at `/api/actions/invest` and its discovery manifest at `/actions.json`, with the cross-origin headers required by wallets and Blink clients. The Action returns an unsigned transaction; the wallet user must review and sign it. To share a registered Blink on X, publish the app on its canonical HTTPS domain and register that domain with Dialect at [dial.to/register](https://dial.to/register). If `/actions.json` has no amount links, check that both Devnet mint and treasury settings are valid. If it shows a parked page or `/api` returns an unrelated 404, fix the domain's DNS/Render custom-domain target first.
+Each address routes supported deposits to the user's verified Solana wallet; the flow also checks Aurora's transaction status. It is not a swap quote or an Investa investment: deposits do not credit KES or issue farm shares. The API exposes the unsigned Devnet Blink at `/api/actions/invest` and `/actions.json`; register the deployed domain with Dialect before sharing public Blinks.
 
 ## Architecture notes
 

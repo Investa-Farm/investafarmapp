@@ -40,6 +40,8 @@ type WalletProof = {
 
 type MultiChainStatus = {
   auroraReady: boolean;
+  auroraProviderReady: boolean;
+  auroraStatusMessage: string;
   auroraMissingSettings: string[];
   solanaDevnet: {
     network: string;
@@ -454,17 +456,17 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-700 text-xs font-black text-white">SOL</div>
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Cross-chain to Solana</h2>
-              <p className="mt-1 text-[11px] text-muted-foreground">Aurora mainnet deposits · separate Devnet demo</p>
+              <h2 className="text-sm font-semibold text-foreground">Aurora cross-chain deposits</h2>
+              <p className="mt-1 text-[11px] text-muted-foreground">34+ source networks · USDC on Solana</p>
             </div>
           </div>
           <span className="rounded-full bg-violet-100 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-violet-800 dark:bg-violet-900 dark:text-violet-200">
-            Test only
+            Mainnet
           </span>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-violet-200/70 pt-3 dark:border-violet-900">
           <p className="text-[10px] leading-relaxed text-muted-foreground">
-            Aurora can route supported assets to Solana USDC. Devnet tokens are test-only and cannot credit KES or issue farm shares.
+            Connect and verify a Solana wallet to create a live Aurora deposit address. A separate Devnet demo is test-only.
           </p>
           <button
             type="button"
@@ -595,7 +597,7 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
               </button>
               {status && !status.auroraReady && (
                 <p className="mt-2 text-[10px] leading-relaxed text-amber-700 dark:text-amber-300">
-                  Aurora needs its server API key and secure session configuration. No address can be created until configured.
+                  {status.auroraStatusMessage} No address was created.
                 </p>
               )}
               {status?.auroraMissingSettings?.length ? (
