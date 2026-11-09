@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "postgresql-16"]
 
 [[ports]]
 localPort = 8080
@@ -19,3 +19,6 @@ VITE_WALLETCONNECT_PROJECT_ID = "Yjdjjajajakakks"
 
 [userenv.development]
 SEED_DEMO = "true"
+
+[nix]
+channel = "stable-25_05"

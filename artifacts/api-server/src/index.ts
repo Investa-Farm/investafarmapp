@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedDemoUsers } from "./seed";
+import { isDemoSeedEnabled, seedDemoUsers } from "./seed";
 import { assertProductionSecrets } from "./lib/authTokens";
 import { seedBlogPosts } from "./routes/blog";
 // import { runBulkSeed } from "./bulkSeed";
@@ -37,10 +37,7 @@ async function prepareDatabase(): Promise<void> {
   try {
     await waitForDb();
     await ensureSchema();
-    // Demo accounts are opt-in in every environment. This keeps production
-    // clean by default while allowing the public demo buttons to be enabled
-    // deliberately on a demo deployment.
-    if (process.env.SEED_DEMO === "true") {
+    if (isDemoSeedEnabled()) {
       await seedDemoUsers((msg) => logger.info(msg));
     }
     await seedBlogPosts((msg) => logger.info(msg));
@@ -51,9 +48,14 @@ async function prepareDatabase(): Promise<void> {
 }
 
 async function startServer(): Promise<void> {
-  // Complete database readiness and additive migrations before accepting
-  // requests. This replaces the fragile drizzle-kit push in start.sh.
-  await prepareDatabase();
+  // The Render root start script performs these steps explicitly before
+  // launching the server. Keep the runtime path for local/direct starts.
+  if (process.env.DATABASE_PREPARED === "true") {
+    await waitForDb();
+    logger.info("Database preparation completed before server start");
+  } else {
+    await prepareDatabase();
+  }
 
   initVapid();
   testSmtpConnection().catch(() => {});

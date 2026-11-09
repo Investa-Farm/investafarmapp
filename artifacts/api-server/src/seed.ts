@@ -51,6 +51,24 @@ const DEMO_USERS = [
   { email: "demo.offtaker@investafarm.com",     password: "password123", name: "Demo Offtaker",          role: "agribusiness" as const },
 ];
 
+const LIVE_DEMO_FARMER_EMAILS: Record<string, string> = {
+  "john.kamau.farm@gmail.com": "john.farmer@investafarm.com",
+  "grace.wanjiku.ke@gmail.com": "grace.farmer@investafarm.com",
+  "peter.otieno.farm@gmail.com": "peter.farmer@investafarm.com",
+  "mary.akinyi254@gmail.com": "demo.farmer@investafarm.com",
+  "jmwangi.farm@gmail.com": "john.farmer@investafarm.com",
+  "fatuma.hassan.ke@gmail.com": "grace.farmer@investafarm.com",
+  "lucy.chebet01@yahoo.com": "demo.farmer@investafarm.com",
+  "danielomondi.ke@gmail.com": "peter.farmer@investafarm.com",
+  "sarah.wanjiru.ke@gmail.com": "john.farmer@investafarm.com",
+  "mkipkemoi.tea@gmail.com": "grace.farmer@investafarm.com",
+};
+
+export function isDemoSeedEnabled(): boolean {
+  if (process.env.SEED_DEMO === "false") return false;
+  return process.env.SEED_DEMO === "true" || process.env.NODE_ENV === "production";
+}
+
 // All farms — each has a farmerEmail mapping
 const DEMO_FARMS = [
   {
@@ -290,8 +308,15 @@ const INVESTOR_INVESTMENTS: Array<{
 
 export async function seedDemoUsers(log: (msg: string) => void = console.log) {
   const createdUsers: Record<string, number> = {};
+  const seedUsers = process.env.NODE_ENV === "production"
+    ? DEMO_USERS.filter((user) =>
+        user.email.endsWith("@investafarm.com") &&
+        user.role !== "admin" &&
+        user.role !== "viewer",
+      )
+    : DEMO_USERS;
 
-  for (const u of DEMO_USERS) {
+  for (const u of seedUsers) {
     try {
       const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, u.email));
       if (existing) {
@@ -662,39 +687,71 @@ async function seedFarmsAndListings(userIds: Record<string, number>, log: (msg: 
   }
 
   const existingNames = new Set(existingFarms.map(f => f.name));
+  const farmSeeds = process.env.NODE_ENV === "production"
+    ? DEMO_FARMS.map((farm) => ({
+        ...farm,
+        farmerEmail: LIVE_DEMO_FARMER_EMAILS[farm.farmerEmail] ?? "demo.farmer@investafarm.com",
+      }))
+    : DEMO_FARMS;
 
-  for (const farm of DEMO_FARMS) {
+  for (const farm of farmSeeds) {
     const farmerId = userIds[farm.farmerEmail];
     if (!farmerId) continue;
 
-    // Reset prices on existing farms to prevent scheduler drift
     const match = existingFarms.find(f => f.name === farm.name);
+    let farmId: number;
     if (match) {
       await db.update(farmsTable)
-        .set({ changePercent: farm.changePercent, currentPrice: farm.currentPrice })
+        .set({
+          changePercent: farm.changePercent,
+          currentPrice: farm.currentPrice,
+          ...(process.env.NODE_ENV === "production" ? { farmerId } : {}),
+        })
         .where(eq(farmsTable.id, match.id))
         .catch(() => {});
-      continue;
+      farmId = match.id;
+    } else {
+      if (existingNames.has(farm.name)) continue;
+      try {
+        const { farmerEmail: _ignored, ...farmData } = farm;
+        const [inserted] = await db.insert(farmsTable).values({ ...farmData, farmerId }).returning({ id: farmsTable.id });
+        if (!inserted) continue;
+        farmId = inserted.id;
+        existingNames.add(farm.name);
+        existingFarms.push({ id: farmId, name: farm.name, farmerId });
+        log(`[seed] Farm: ${farm.name}`);
+      } catch (err) {
+        log(`[seed] Farm skip ${farm.name}: ${String(err)}`);
+        continue;
+      }
     }
 
-    if (existingNames.has(farm.name)) continue;
-
-    try {
-      const { farmerEmail: _ignored, ...farmData } = farm;
-      const [inserted] = await db.insert(farmsTable).values({ ...farmData, farmerId }).returning({ id: farmsTable.id });
-      existingNames.add(farm.name);
-      log(`[seed] Farm: ${farm.name}`);
-
+    const [primaryListing] = await db.select({ id: marketListingsTable.id })
+      .from(marketListingsTable)
+      .where(and(
+        eq(marketListingsTable.farmId, farmId),
+        eq(marketListingsTable.listingType, "primary"),
+        eq(marketListingsTable.isActive, 1),
+      ))
+      .limit(1);
+    if (primaryListing) {
+      await db.update(marketListingsTable)
+        .set({
+          sellerId: farmerId,
+          sharesAvailable: farm.sharesAvailable,
+          pricePerShare: farm.currentPrice,
+        })
+        .where(eq(marketListingsTable.id, primaryListing.id))
+        .catch((err) => log(`[seed] Listing update skip ${farm.name}: ${String(err)}`));
+    } else {
       await db.insert(marketListingsTable).values({
-        farmId: inserted!.id,
+        farmId,
         sellerId: farmerId,
         listingType: "primary",
         sharesAvailable: farm.sharesAvailable,
         pricePerShare: farm.currentPrice,
         isActive: 1,
-      }).catch(() => {});
-    } catch (err) {
-      log(`[seed] Farm skip ${farm.name}: ${String(err)}`);
+      }).catch((err) => log(`[seed] Listing skip ${farm.name}: ${String(err)}`));
     }
   }
 
@@ -706,7 +763,7 @@ async function seedSecondaryListings(userIds: Record<string, number>, log: (msg:
     .where(and(eq(marketListingsTable.listingType, "secondary"), eq(marketListingsTable.isActive, 1)));
   if (existing.length > 0) return;
 
-  const investorId = userIds["david.mwangi.inv@gmail.com"];
+  const investorId = userIds["david.mwangi.inv@gmail.com"] ?? userIds["david.investor@investafarm.com"];
   if (!investorId) return;
 
   const farms = await db.select().from(farmsTable).limit(8);

@@ -7,6 +7,9 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
+    "serve": "node --enable-source-maps ./dist/index.mjs",
+    "migrate": "node --enable-source-maps ./dist/migrate.mjs",
+    "seed": "node --enable-source-maps ./dist/seed.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npx --yes tsx --test src/lib/authTokens.test.ts src/lib/adminAuth.test.ts"
   },

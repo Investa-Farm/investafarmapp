@@ -43,7 +43,7 @@ Go to your service → **Environment** → add these:
 | `DATABASE_URL` | `postgresql://...@neon.tech/...` | Neon connection string; fallback when Supabase is configured |
 | `SUPABASE_DATABASE_URL` | `postgresql://postgres:%5BYourPassword%40Here%5D@db.xyz.supabase.co:5432/postgres` | Preferred database; URL-encode special chars in password (see below) |
 | `NODE_ENV` | `production` | Enables production pool sizes, SSL, etc. |
-| `SEED_DEMO` | `true` only for a demo-enabled deployment | Seeds the public demo accounts and sample data; leave unset for a clean production environment |
+| `SEED_DEMO` | Optional; set `false` to disable demo records | Production startup seeds the public demo accounts and farm listings by default. It uses only reserved `@investafarm.com` demo accounts and omits admin/viewer accounts. |
 | `SESSION_SECRET` | *(copy from Replit secrets)* | |
 | `PESAPAL_CONSUMER_KEY` | *(copy from Replit secrets)* | |
 | `PESAPAL_CONSUMER_SECRET` | *(copy from Replit secrets)* | |
@@ -81,9 +81,12 @@ encode them before putting them in the connection URL:
 
 ### Schema synchronization
 
-`./start.sh` synchronizes the configured primary schema before starting the API
-on every deploy. When both databases are configured, run the second command
-once after the first deploy and after schema changes:
+`./start.sh` synchronizes the configured primary schema and creates the public
+demo accounts/farm listings before starting the API. Demo logins use published
+passwords and must remain ordinary demo roles; admin and viewer demo accounts
+are deliberately excluded in production. Set `SEED_DEMO=false` to disable this
+seed behavior. When both databases are configured, run the second command once
+after the first deploy and after schema changes:
 
 ```bash
 # From your local machine or a Render shell:

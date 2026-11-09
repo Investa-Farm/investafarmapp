@@ -35,7 +35,7 @@ Investa Farm is an agribusiness financing and investment platform connecting far
 - `lib/api-spec/openapi.yaml` — source of truth for API contracts
 - `lib/api-client-react` — auto-generated React Query hooks (via Orval codegen)
 - `lib/api-zod` — shared Zod validation schemas generated from the API spec
-- `start.sh` — production start command (used by Render); runs the built API server, which also serves the built frontend
+- `start.sh` — production start command (used by Render); migrates the database, conditionally seeds demo data, then runs the API server and frontend
 
 ## Run & operate
 
@@ -85,7 +85,7 @@ pnpm --filter @workspace/db run push
 The app is deployed to Render as a single web service:
 
 - **Build command:** `pnpm install --frozen-lockfile; pnpm run build` — runs a full workspace typecheck, then builds every package (frontend, API server, and the design-only mockup sandbox).
-- **Start command:** `./start.sh` — synchronizes the database schema, then starts the compiled API server (`artifacts/api-server/dist/index.mjs`), which also serves the built frontend (`artifacts/investa-farm/dist/public`) as static files in production.
+- **Start command:** `./start.sh` — runs the root `start` script, which applies idempotent migrations and blog seeds, adds demo accounts/farms only when `SEED_DEMO=true`, then starts the compiled API server (`artifacts/api-server/dist/index.mjs`), which also serves the built frontend (`artifacts/investa-farm/dist/public`) as static files in production.
 
 Because Render builds the entire workspace (not just the artifacts that matter for production), all packages must build cleanly even outside Replit's own per-artifact dev flow — verify with the exact commands above before pushing, not just the Replit workflow logs.
 
