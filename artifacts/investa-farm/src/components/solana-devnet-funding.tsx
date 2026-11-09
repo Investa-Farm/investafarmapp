@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useCreateWallet, usePrivy } from "@privy-io/react-auth";
 import {
   ArrowUpRight,
   CheckCircle2,
@@ -12,13 +11,31 @@ import {
   X,
 } from "lucide-react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
-import { isPrivyConfigured } from "./privy-provider";
 
-type PrivyLinkedAccount = {
-  type?: string;
-  chainType?: string;
-  chain_type?: string;
-  address?: string;
+type SolanaProvider = {
+  publicKey?: { toBase58(): string } | null;
+  connect?: () => Promise<{ publicKey?: { toBase58(): string } }>;
+  signMessage?: (message: Uint8Array, encoding?: "utf8") => Promise<{ signature: Uint8Array }>;
+  on?: (event: string, callback: (...args: any[]) => void) => void;
+  removeListener?: (event: string, callback: (...args: any[]) => void) => void;
+  off?: (event: string, callback: (...args: any[]) => void) => void;
+  isPhantom?: boolean;
+  isSolflare?: boolean;
+  isBackpack?: boolean;
+};
+
+declare global {
+  interface Window {
+    solana?: SolanaProvider;
+    phantom?: { solana?: SolanaProvider };
+    solflare?: SolanaProvider;
+  }
+}
+
+type WalletProof = {
+  challenge: string;
+  signature: string;
+  expiresAt: string;
 };
 
 type MultiChainStatus = {
@@ -39,8 +56,8 @@ type IntentAddress = {
   depositAddress: string;
   memo: string | null;
   alreadyExists: boolean;
-  targetAmountUsd: number;
-  amountIsNotQuoted: boolean;
+  sourceChain: string;
+  recipient: string;
   message: string;
 };
 
@@ -95,7 +112,6 @@ const AURORA_SOURCE_CHAINS = [
   { value: "tron", label: "TRON" },
   { value: "ton", label: "TON" },
   { value: "near", label: "NEAR" },
-  { value: "sol", label: "Solana" },
   { value: "zec", label: "Zcash" },
   { value: "ltc", label: "Litecoin" },
   { value: "cardano", label: "Cardano" },
@@ -117,38 +133,38 @@ function errorFromResponse(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-export function SolanaDevnetFunding({ authToken }: { authToken: string | null }) {
-  if (!isPrivyConfigured) {
-    return (
-      <section className="mt-3 rounded-2xl border border-violet-200 bg-violet-50/70 p-4 dark:border-violet-900 dark:bg-violet-950/30">
-        <div className="flex items-start gap-3">
-          <WalletCards className="mt-0.5 text-violet-700 dark:text-violet-300" size={20} />
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">Solana Devnet funding lab</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Privy is not configured in this deployment, so Solana wallet linking is unavailable.
-              This sandbox never changes your KES or Polygon USDC balance.
-            </p>
-          </div>
-        </div>
-      </section>
-    );
-  }
+function getInjectedSolanaProvider(): SolanaProvider | null {
+  if (typeof window === "undefined") return null;
+  return window.phantom?.solana ?? window.solflare ?? window.solana ?? null;
+}
 
+function solanaWalletName(provider: SolanaProvider | null): string {
+  if (!provider) return "Solana wallet";
+  if (provider.isPhantom || window.phantom?.solana === provider) return "Phantom";
+  if (provider.isSolflare || window.solflare === provider) return "Solflare";
+  if (provider.isBackpack) return "Backpack";
+  return "Solana wallet";
+}
+
+function signatureToBase64(signature: Uint8Array): string {
+  let binary = "";
+  for (const byte of signature) binary += String.fromCharCode(byte);
+  return window.btoa(binary);
+}
+
+export function SolanaDevnetFunding({ authToken }: { authToken: string | null }) {
   return <ConfiguredSolanaDevnetFunding authToken={authToken} />;
 }
 
 function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null }) {
-  const { ready, authenticated, login, getAccessToken, user } = usePrivy();
-  const { createWallet } = useCreateWallet();
   const [open, setOpen] = useState(false);
   useScrollLock(open);
 
   const [walletAddress, setWalletAddress] = useState("");
   const [walletVerified, setWalletVerified] = useState(false);
+  const [walletProof, setWalletProof] = useState<WalletProof | null>(null);
   const [walletBusy, setWalletBusy] = useState(false);
   const [walletError, setWalletError] = useState("");
-  const [amount, setAmount] = useState(10);
   const [sourceChain, setSourceChain] = useState("base");
   const [status, setStatus] = useState<MultiChainStatus | null>(null);
   const [statusError, setStatusError] = useState("");
@@ -159,22 +175,42 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
   const [auroraStatusBusy, setAuroraStatusBusy] = useState(false);
   const [auroraStatusError, setAuroraStatusError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [sandboxPreviewed, setSandboxPreviewed] = useState(false);
   const [balances, setBalances] = useState<DevnetBalances | null>(null);
   const [balancesBusy, setBalancesBusy] = useState(false);
   const [balancesError, setBalancesError] = useState("");
 
   useEffect(() => {
-    const linkedAccounts = user?.linkedAccounts as PrivyLinkedAccount[] | undefined;
-    const solanaWallet = linkedAccounts?.find(
-      (account) =>
-        account.type === "wallet" &&
-        (account.chainType ?? account.chain_type) === "solana" &&
-        typeof account.address === "string",
-    );
-    setWalletAddress(solanaWallet?.address ?? "");
-    setWalletVerified(false);
-  }, [user]);
+    if (!walletAddress) return;
+    const provider = getInjectedSolanaProvider();
+    if (!provider?.on) return;
+
+    const handleAccountChanged = (publicKey: { toBase58(): string } | null) => {
+      const nextAddress = publicKey?.toBase58() ?? "";
+      setWalletAddress(nextAddress);
+      setWalletVerified(false);
+      setWalletProof(null);
+      setIntentAddress(null);
+      setAuroraStatus(null);
+      setBalances(null);
+    };
+    const handleDisconnect = () => {
+      setWalletAddress("");
+      setWalletVerified(false);
+      setWalletProof(null);
+      setIntentAddress(null);
+      setAuroraStatus(null);
+      setBalances(null);
+    };
+
+    provider.on("accountChanged", handleAccountChanged);
+    provider.on("disconnect", handleDisconnect);
+    return () => {
+      provider.removeListener?.("accountChanged", handleAccountChanged);
+      provider.removeListener?.("disconnect", handleDisconnect);
+      provider.off?.("accountChanged", handleAccountChanged);
+      provider.off?.("disconnect", handleDisconnect);
+    };
+  }, [walletAddress]);
 
   useEffect(() => {
     if (!open) return;
@@ -206,77 +242,113 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [open]);
 
+  async function requestWalletProof(address: string, provider: SolanaProvider): Promise<WalletProof> {
+    if (!authToken) throw new Error("Sign in to Investa Farm before verifying a Solana wallet.");
+    if (!provider.signMessage) {
+      throw new Error("This wallet cannot sign verification messages. Use Phantom or Solflare.");
+    }
+
+    const challengeResponse = await fetch("/api/intent/challenge", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ walletAddress: address }),
+    });
+    const challengePayload: unknown = await challengeResponse.json().catch(() => null);
+    if (!challengeResponse.ok) {
+      throw new Error(errorFromResponse(challengePayload, "Could not start wallet verification."));
+    }
+    const challenge = challengePayload as { challenge?: string; message?: string; expiresAt?: string };
+    if (!challenge.challenge || !challenge.message || !challenge.expiresAt) {
+      throw new Error("The server returned an invalid wallet challenge.");
+    }
+
+    const signed = await provider.signMessage(new TextEncoder().encode(challenge.message), "utf8");
+    if (!signed?.signature || signed.signature.length !== 64) {
+      throw new Error("The wallet returned an invalid verification signature.");
+    }
+    return {
+      challenge: challenge.challenge,
+      signature: signatureToBase64(signed.signature),
+      expiresAt: challenge.expiresAt,
+    };
+  }
+
   async function connectSolanaWallet() {
     setWalletError("");
     setWalletBusy(true);
     try {
       if (!authToken) throw new Error("Sign in to Investa Farm before linking a wallet.");
-      if (!ready) throw new Error("Privy is still loading. Try again in a moment.");
-      if (!authenticated) {
-        login();
-        return;
+      const provider = getInjectedSolanaProvider();
+      if (!provider?.connect) {
+        throw new Error("No Solana wallet was found. Open this app in Phantom or Solflare, or install a wallet extension.");
       }
+      const connected = await provider.connect();
+      const address = connected.publicKey?.toBase58() ?? provider.publicKey?.toBase58() ?? "";
+      if (!address) throw new Error("The wallet did not return a Solana address.");
 
-      const linkedAccounts = user?.linkedAccounts as PrivyLinkedAccount[] | undefined;
-      const existing = linkedAccounts?.find(
-        (account) =>
-          account.type === "wallet" &&
-          (account.chainType ?? account.chain_type) === "solana" &&
-          typeof account.address === "string",
-      );
-      const address = existing?.address ?? (await createWallet()).address;
-      const privyAccessToken = await getAccessToken();
-      if (!privyAccessToken) throw new Error("Sign in to Privy again to verify wallet ownership.");
-
-      const response = await fetch("/api/users/verify-solana-wallet", {
+      const proof = await requestWalletProof(address, provider);
+      const response = await fetch("/api/intent/verify-wallet", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${authToken}`,
-          "X-Privy-Access-Token": `Bearer ${privyAccessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ walletAddress: address, ...proof }),
       });
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(errorFromResponse(payload, "The server could not verify this Solana wallet."));
+        throw new Error(errorFromResponse(payload, "The server could not verify this wallet signature."));
       }
       const verifiedAddress = (payload as { wallet?: { address?: string } })?.wallet?.address;
       if (!verifiedAddress) throw new Error("The server did not confirm the Solana wallet.");
       setWalletAddress(verifiedAddress);
       setWalletVerified(true);
+      setWalletProof(proof);
       setBalances(null);
     } catch (error: unknown) {
-      setWalletError(error instanceof Error ? error.message : "Could not link the Solana wallet.");
+      setWalletError(error instanceof Error ? error.message : "Could not connect the Solana wallet.");
     } finally {
       setWalletBusy(false);
     }
   }
 
+  async function getCurrentWalletProof(): Promise<WalletProof> {
+    if (!walletAddress) throw new Error("Connect a Solana wallet first.");
+    const provider = getInjectedSolanaProvider();
+    if (!provider) throw new Error("Reconnect your Solana wallet in its browser or extension.");
+    const currentAddress = provider.publicKey?.toBase58();
+    if (currentAddress && currentAddress !== walletAddress) {
+      throw new Error("Your active wallet changed. Connect and verify it again.");
+    }
+    if (walletProof && Date.parse(walletProof.expiresAt) > Date.now() + 5_000) {
+      return walletProof;
+    }
+    const freshProof = await requestWalletProof(walletAddress, provider);
+    setWalletProof(freshProof);
+    return freshProof;
+  }
+
   async function createAuroraAddress() {
     setIntentError("");
-    setIntentAddress(null);
-    setAuroraStatus(null);
-    setAuroraStatusError("");
     setIntentBusy(true);
     try {
       if (!authToken) throw new Error("Sign in to Investa Farm before creating a deposit address.");
       if (!walletAddress || !walletVerified) throw new Error("Connect and verify a Solana wallet first.");
-      const privyAccessToken = await getAccessToken();
-      if (!privyAccessToken) throw new Error("Sign in to Privy again to verify wallet ownership.");
+      const proof = await getCurrentWalletProof();
 
       const response = await fetch("/api/intent/create", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${authToken}`,
-          "X-Privy-Access-Token": `Bearer ${privyAccessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userSolanaWallet: walletAddress,
+          walletAddress,
           sourceChain,
-          sourceAsset: "USDC",
-          investmentAmount: amount,
+          ...proof,
         }),
       });
       const payload: unknown = await response.json().catch(() => null);
@@ -284,6 +356,8 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
         throw new Error(errorFromResponse(payload, "Aurora could not create a deposit address."));
       }
       setIntentAddress(payload as IntentAddress);
+      setAuroraStatus(null);
+      setAuroraStatusError("");
     } catch (error: unknown) {
       setIntentError(error instanceof Error ? error.message : "Aurora could not create a deposit address.");
     } finally {
@@ -298,18 +372,18 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
       if (!authToken || !walletAddress || !intentAddress?.depositAddress) {
         throw new Error("Connect and verify your Solana wallet, then create an Aurora address first.");
       }
-      const privyAccessToken = await getAccessToken();
-      if (!privyAccessToken) throw new Error("Sign in to Privy again to verify wallet ownership.");
-
-      const query = new URLSearchParams({
-        walletAddress,
-        depositAddress: intentAddress.depositAddress,
-      });
-      const response = await fetch(`/api/intent/status?${query}`, {
+      const proof = await getCurrentWalletProof();
+      const response = await fetch("/api/intent/status", {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${authToken}`,
-          "X-Privy-Access-Token": `Bearer ${privyAccessToken}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          walletAddress,
+          depositAddress: intentAddress.depositAddress,
+          ...proof,
+        }),
       });
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok) {
@@ -354,7 +428,7 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
   }
 
   function actionUrl() {
-    return `${window.location.origin}/api/actions/invest?amount=${amount}`;
+    return `${window.location.origin}/api/actions/invest?amount=10`;
   }
 
   async function copyActionUrl() {
@@ -380,8 +454,8 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-700 text-xs font-black text-white">SOL</div>
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Solana funding lab</h2>
-              <p className="mt-1 text-[11px] text-muted-foreground">Devnet sandbox · separate from KES and Polygon USDC</p>
+              <h2 className="text-sm font-semibold text-foreground">Cross-chain to Solana</h2>
+              <p className="mt-1 text-[11px] text-muted-foreground">Aurora mainnet deposits · separate Devnet demo</p>
             </div>
           </div>
           <span className="rounded-full bg-violet-100 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-violet-800 dark:bg-violet-900 dark:text-violet-200">
@@ -390,7 +464,7 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-violet-200/70 pt-3 dark:border-violet-900">
           <p className="text-[10px] leading-relaxed text-muted-foreground">
-            Devnet tokens have no real-world value. The demo cannot credit KES or issue farm shares.
+            Aurora can route supported assets to Solana USDC. Devnet tokens are test-only and cannot credit KES or issue farm shares.
           </p>
           <button
             type="button"
@@ -398,7 +472,7 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
             className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl bg-violet-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-violet-800"
             data-testid="button-open-solana-lab"
           >
-            Open lab <ArrowUpRight size={14} />
+            View routes <ArrowUpRight size={14} />
           </button>
         </div>
       </section>
@@ -418,8 +492,8 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 id="solana-lab-title" className="text-lg font-bold text-foreground">Funding routes</h3>
-                <p className="mt-1 text-xs text-muted-foreground">Choose a sandbox flow. No KES balance is used.</p>
+                <h3 id="solana-lab-title" className="text-lg font-bold text-foreground">Aurora Intents &amp; Solana Devnet</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Aurora uses real mainnet deposits; Devnet is a separate test-only demo.</p>
               </div>
               <button
                 type="button"
@@ -441,31 +515,14 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
               </div>
             </div>
 
-            <div className="mt-4">
-              <label htmlFor="funding-amount" className="flex items-center justify-between text-xs font-semibold text-foreground">
-                <span>Target amount</span>
-                <span>${amount} USD</span>
-              </label>
-              <input
-                id="funding-amount"
-                type="range"
-                min={10}
-                max={500}
-                step={10}
-                value={amount}
-                onChange={(event) => setAmount(Number(event.currentTarget.value))}
-                className="mt-3 w-full accent-violet-700"
-                aria-label="Target amount in US dollars"
-              />
-              <div className="flex justify-between text-[10px] text-muted-foreground"><span>$10</span><span>$500</span></div>
-            </div>
-
             <div className="mt-4 rounded-2xl border border-border bg-card p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h4 className="text-sm font-semibold text-foreground">Privy Solana wallet</h4>
+                  <h4 className="text-sm font-semibold text-foreground">Solana wallet</h4>
                   <p className="mt-1 text-[10px] text-muted-foreground">
-                    {walletVerified ? "Verified by Investa's server with Privy." : "Connect and verify with Privy before creating a deposit address."}
+                    {walletVerified
+                      ? `Ownership verified with a signed message from ${solanaWalletName(getInjectedSolanaProvider())}.`
+                      : "Connect Phantom, Solflare, or another compatible wallet. Privy remains for Stellar only."}
                   </p>
                 </div>
                 <ShieldCheck className="text-emerald-600" size={18} />
@@ -478,12 +535,15 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
               <button
                 type="button"
                 onClick={connectSolanaWallet}
-                disabled={!ready || walletBusy}
+                disabled={walletBusy}
                 className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-border px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {walletBusy || !ready ? <LoaderCircle className="animate-spin" size={15} /> : <WalletCards size={15} />}
-                {walletBusy ? "Verifying with Privy…" : walletAddress ? "Verify Solana wallet" : "Connect Solana wallet"}
+                {walletBusy ? <LoaderCircle className="animate-spin" size={15} /> : <WalletCards size={15} />}
+                {walletBusy ? "Waiting for wallet…" : walletAddress ? "Reconnect & verify wallet" : "Connect Solana wallet"}
               </button>
+              <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                Verification signs a short message only. It does not approve a transfer or expose your private key.
+              </p>
               {walletError && <p role="alert" className="mt-2 text-[11px] text-destructive">{walletError}</p>}
             </div>
 
@@ -499,16 +559,30 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
               <select
                 id="aurora-source-chain"
                 value={sourceChain}
-                onChange={(event) => setSourceChain(event.currentTarget.value)}
+                onChange={(event) => {
+                  setSourceChain(event.currentTarget.value);
+                  setIntentAddress(null);
+                  setAuroraStatus(null);
+                  setIntentError("");
+                }}
                 className="mt-1 min-h-10 w-full rounded-xl border border-border bg-background px-3 text-xs text-foreground"
               >
                 {AURORA_SOURCE_CHAINS.map((chain) => (
                   <option key={chain.value} value={chain.value}>{chain.label}</option>
                 ))}
               </select>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-muted/60 px-3 py-2">
+                  <p className="text-[9px] uppercase tracking-wide text-muted-foreground">You send</p>
+                  <p className="mt-0.5 text-xs font-semibold text-foreground">Supported asset · {sourceChain.toUpperCase()}</p>
+                </div>
+                <div className="rounded-xl bg-blue-50 px-3 py-2 dark:bg-blue-950/30">
+                  <p className="text-[9px] uppercase tracking-wide text-blue-700 dark:text-blue-300">You receive</p>
+                  <p className="mt-0.5 text-xs font-semibold text-blue-900 dark:text-blue-100">USDC · Solana</p>
+                </div>
+              </div>
               <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-                USDC is only a reminder, not a restriction: the address may accept other Aurora-supported assets on
-                this chain. Verify the network and asset before sending.
+                34+ source networks. Supported tokens vary by chain. This persistent address is not a quote; check the token and network before sending.
               </p>
               <button
                 type="button"
@@ -521,7 +595,7 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
               </button>
               {status && !status.auroraReady && (
                 <p className="mt-2 text-[10px] leading-relaxed text-amber-700 dark:text-amber-300">
-                  Aurora needs its server API key, Privy verification, and session configuration. No address can be created until configured.
+                  Aurora needs its server API key and secure session configuration. No address can be created until configured.
                 </p>
               )}
               {status?.auroraMissingSettings?.length ? (
@@ -534,7 +608,7 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
               {intentAddress && (
                 <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
                   <p className="text-[10px] font-semibold text-blue-900 dark:text-blue-100">
-                    Address ready · {intentAddress.network}
+                    Deposit route ready · {intentAddress.sourceChain.toUpperCase()} → USDC on Solana
                   </p>
                   <p className="mt-1 break-all font-mono text-[10px] text-foreground">{intentAddress.depositAddress}</p>
                   {intentAddress.memo && <p className="mt-1 break-all text-[10px] text-muted-foreground">Memo: {intentAddress.memo}</p>}
@@ -599,12 +673,12 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
                 <ol className="mt-3 space-y-3">
                   {[
                     {
-                      title: "Privy wallet",
+                      title: "Solana wallet",
                       detail: walletVerified
-                        ? "Ownership verified by Investa's server."
+                        ? "Wallet ownership verified by signed message."
                         : walletAddress
-                          ? "Linked in Privy; server verification is still required."
-                          : "Connect a Solana wallet to start.",
+                          ? "Reconnect and verify before creating a deposit address."
+                          : "Connect Phantom or another compatible wallet.",
                       complete: walletVerified,
                     },
                     {
@@ -612,7 +686,7 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
                       detail: intentAddress
                         ? "Persistent mainnet address created; no funds moved."
                         : status?.auroraReady
-                          ? "Ready after the wallet is verified."
+                          ? "Ready after wallet ownership is verified."
                           : "Unavailable until Aurora is approved and configured.",
                       complete: Boolean(intentAddress),
                     },
@@ -735,28 +809,6 @@ function ConfiguredSolanaDevnetFunding({ authToken }: { authToken: string | null
               </p>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-border bg-card p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground">Robinhood Connect</h4>
-                  <p className="mt-1 text-[10px] text-muted-foreground">Local sandbox preview only. No Robinhood login or API request.</p>
-                </div>
-                <span className="rounded-full bg-muted px-2 py-1 text-[9px] font-semibold text-muted-foreground">Mock</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSandboxPreviewed((value) => !value)}
-                className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-border px-3 text-xs font-semibold text-foreground hover:bg-muted"
-              >
-                {sandboxPreviewed ? <CheckCircle2 size={14} /> : <ExternalLink size={14} />}
-                {sandboxPreviewed ? "Hide sandbox preview" : "Preview funding flow"}
-              </button>
-              {sandboxPreviewed && (
-                <div role="status" className="mt-3 rounded-lg bg-muted/70 p-3 text-[10px] leading-relaxed text-muted-foreground">
-                  Sandbox preview completed locally. No Robinhood account was linked, no funding was requested, and no wallet balance changed.
-                </div>
-              )}
-            </div>
           </section>
         </div>
       )}

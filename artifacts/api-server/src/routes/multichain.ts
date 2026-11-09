@@ -1,5 +1,4 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { createHmac } from "node:crypto";
 import {
   Connection,
   LAMPORTS_PER_SOL,
@@ -17,8 +16,14 @@ import {
   getMint,
 } from "@solana/spl-token";
 import { z } from "zod";
+import {
+  createHmac,
+  createPublicKey,
+  randomBytes,
+  timingSafeEqual,
+  verify as verifySignature,
+} from "node:crypto";
 import { getCurrentUser } from "./auth";
-import { verifyPrivyWalletOwnership } from "./privy-wallet";
 import { financialRateLimit } from "../lib/security";
 
 const router: IRouter = Router();
@@ -47,7 +52,6 @@ const AURORA_SOURCE_CHAINS = [
   "tron",
   "ton",
   "near",
-  "sol",
   "zec",
   "ltc",
   "cardano",
@@ -62,19 +66,25 @@ const AURORA_SOURCE_CHAINS = [
 ] as const;
 
 const IntentBody = z.object({
-  userSolanaWallet: z.string().trim().min(32).max(44),
+  walletAddress: z.string().trim().min(32).max(44),
   sourceChain: z.enum(AURORA_SOURCE_CHAINS),
-  sourceAsset: z.string().trim().min(1).max(40).default("USDC"),
-  investmentAmount: z.number().int().min(10).max(500),
+  challenge: z.string().min(40).max(2048),
+  signature: z.string().min(80).max(200),
 });
 
 const ActionBody = z.object({
   account: z.string().trim().min(32).max(44),
 });
 
-const IntentStatusQuery = z.object({
+const WalletChallengeBody = z.object({
+  walletAddress: z.string().trim().min(32).max(44),
+});
+
+const IntentStatusBody = z.object({
   walletAddress: z.string().trim().min(32).max(44),
   depositAddress: z.string().trim().min(1).max(256),
+  challenge: z.string().min(40).max(2048),
+  signature: z.string().min(80).max(200),
 });
 
 function parsePublicKey(value: string | undefined): PublicKey | null {
@@ -83,6 +93,86 @@ function parsePublicKey(value: string | undefined): PublicKey | null {
     return new PublicKey(value);
   } catch {
     return null;
+  }
+}
+
+function walletChallengeMessage(userId: number, walletAddress: string, expiresAt: number, nonce: string): string {
+  return [
+    "Investa Farm · Solana wallet verification",
+    `Investa user: ${userId}`,
+    `Solana address: ${walletAddress}`,
+    `Expires: ${new Date(expiresAt).toISOString()}`,
+    `Nonce: ${nonce}`,
+    "Sign this message to verify wallet ownership. No transaction will be sent.",
+  ].join("\n");
+}
+
+function issueWalletChallenge(userId: number, walletAddress: string) {
+  const secret = process.env["SESSION_SECRET"];
+  if (!secret) throw new Error("SESSION_SECRET is not configured.");
+
+  const expiresAt = Date.now() + 5 * 60_000;
+  const nonce = randomBytes(18).toString("hex");
+  const payload = Buffer.from(JSON.stringify({
+    userId,
+    walletAddress,
+    expiresAt,
+    nonce,
+  })).toString("base64url");
+  const mac = createHmac("sha256", secret).update(payload).digest("base64url");
+
+  return {
+    challenge: `${payload}.${mac}`,
+    message: walletChallengeMessage(userId, walletAddress, expiresAt, nonce),
+    expiresAt: new Date(expiresAt).toISOString(),
+  };
+}
+
+function verifyWalletChallenge(
+  userId: number,
+  walletAddress: string,
+  challenge: string,
+  signatureBase64: string,
+): boolean {
+  const secret = process.env["SESSION_SECRET"];
+  if (!secret) return false;
+
+  try {
+    const [payload, providedMac, extra] = challenge.split(".");
+    if (!payload || !providedMac || extra) return false;
+
+    const expectedMac = createHmac("sha256", secret).update(payload).digest();
+    const suppliedMac = Buffer.from(providedMac, "base64url");
+    if (suppliedMac.length !== expectedMac.length || !timingSafeEqual(suppliedMac, expectedMac)) return false;
+
+    const body = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      userId?: unknown;
+      walletAddress?: unknown;
+      expiresAt?: unknown;
+      nonce?: unknown;
+    };
+    const expiresAt = Number(body.expiresAt);
+    if (
+      body.userId !== userId ||
+      body.walletAddress !== walletAddress ||
+      !Number.isFinite(expiresAt) ||
+      expiresAt <= Date.now() ||
+      expiresAt > Date.now() + 5 * 60_000 + 5_000 ||
+      typeof body.nonce !== "string"
+    ) return false;
+
+    const signature = Buffer.from(signatureBase64, "base64");
+    if (signature.length !== 64) return false;
+    const message = walletChallengeMessage(userId, walletAddress, expiresAt, body.nonce);
+    const publicKeyDerPrefix = Buffer.from("302a300506032b6570032100", "hex");
+    const publicKey = createPublicKey({
+      key: Buffer.concat([publicKeyDerPrefix, new PublicKey(walletAddress).toBuffer()]),
+      format: "der",
+      type: "spki",
+    });
+    return verifySignature(null, Buffer.from(message, "utf8"), publicKey, signature);
+  } catch {
+    return false;
   }
 }
 
@@ -152,8 +242,6 @@ router.get("/multichain/status", (_req, res) => {
   const config = devnetConfig();
   const auroraMissingSettings = [
     ...(!process.env["AURORA_INTENTS_API_KEY"] ? ["AURORA_INTENTS_API_KEY"] : []),
-    ...(!process.env["PRIVY_APP_ID"] ? ["PRIVY_APP_ID"] : []),
-    ...(!process.env["PRIVY_APP_SECRET"] ? ["PRIVY_APP_SECRET"] : []),
     ...(!process.env["SESSION_SECRET"] ? ["SESSION_SECRET"] : []),
   ];
   res.json({
@@ -217,6 +305,49 @@ async function resolveAuroraSolanaUsdcAsset(apiKey: string): Promise<string> {
   return unique[0]!;
 }
 
+router.post("/intent/challenge", financialRateLimit, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ error: "Sign in to Investa Farm before verifying a Solana wallet." });
+    return;
+  }
+  const parsed = WalletChallengeBody.safeParse(req.body);
+  if (!parsed.success || !parsePublicKey(parsed.data?.walletAddress)) {
+    res.status(400).json({ error: "A valid Solana public address is required." });
+    return;
+  }
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(issueWalletChallenge(user.id, new PublicKey(parsed.data.walletAddress).toBase58()));
+  } catch {
+    res.status(503).json({ error: "Solana wallet verification is unavailable on this server." });
+  }
+});
+
+router.post("/intent/verify-wallet", financialRateLimit, async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ error: "Sign in to Investa Farm before verifying a Solana wallet." });
+    return;
+  }
+  const parsed = WalletChallengeBody.extend({
+    challenge: z.string().min(40).max(2048),
+    signature: z.string().min(80).max(200),
+  }).safeParse(req.body);
+  const publicKey = parsed.success ? parsePublicKey(parsed.data.walletAddress) : null;
+  if (!parsed.success || !publicKey) {
+    res.status(400).json({ error: "A valid wallet and signed verification message are required." });
+    return;
+  }
+  const walletAddress = publicKey.toBase58();
+  if (!verifyWalletChallenge(user.id, walletAddress, parsed.data.challenge, parsed.data.signature)) {
+    res.status(401).json({ error: "Wallet signature is invalid or expired. Request a new verification message." });
+    return;
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ wallet: { address: walletAddress, chain: "solana", verified: true } });
+});
+
 router.post("/intent/create", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) {
@@ -226,18 +357,18 @@ router.post("/intent/create", financialRateLimit, async (req, res): Promise<void
 
   const parsed = IntentBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Choose a supported source chain and an amount from $10 to $500." });
+    res.status(400).json({ error: "Choose a supported source chain and provide a verified Solana wallet." });
     return;
   }
 
-  const recipient = parsePublicKey(parsed.data.userSolanaWallet);
+  const recipient = parsePublicKey(parsed.data.walletAddress);
   if (!recipient) {
     res.status(400).json({ error: "A valid Solana public address is required." });
     return;
   }
-  const walletVerification = await verifyPrivyWalletOwnership(req, "solana", recipient.toBase58());
-  if (!walletVerification.ok) {
-    res.status(walletVerification.status).json({ error: walletVerification.error });
+  const recipientAddress = recipient.toBase58();
+  if (!verifyWalletChallenge(user.id, recipientAddress, parsed.data.challenge, parsed.data.signature)) {
+    res.status(401).json({ error: "Wallet signature is invalid or expired. Verify the wallet and retry." });
     return;
   }
 
@@ -294,12 +425,10 @@ router.post("/intent/create", financialRateLimit, async (req, res): Promise<void
       depositAddress: response.depositAddress,
       memo: typeof response.memo === "string" ? response.memo : null,
       alreadyExists: response.alreadyExists === true,
-      targetAmountUsd: parsed.data.investmentAmount,
       sourceChain: parsed.data.sourceChain,
-      sourceAssetHint: parsed.data.sourceAsset,
-      amountIsNotQuoted: true,
+      recipient: recipientAddress,
       message:
-        "This is a persistent mainnet deposit address, not a quote. The selected amount is only a target; fees and output are not locked. No funds have moved. Send only an asset supported by Aurora on the selected source chain.",
+        "This is a persistent mainnet deposit address, not a quote. No funds have moved. Send only an Aurora-supported asset on the selected source chain. Aurora will deliver USDC to your verified Solana wallet.",
     });
   } catch (error) {
     const message = error instanceof Error && error.message.startsWith("Aurora ")
@@ -309,14 +438,14 @@ router.post("/intent/create", financialRateLimit, async (req, res): Promise<void
   }
 });
 
-router.get("/intent/status", financialRateLimit, async (req, res): Promise<void> => {
+router.post("/intent/status", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) {
     res.status(401).json({ error: "Sign in to Investa Farm to check this deposit." });
     return;
   }
 
-  const parsed = IntentStatusQuery.safeParse(req.query);
+  const parsed = IntentStatusBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "A valid Solana wallet and Aurora deposit address are required." });
     return;
@@ -328,9 +457,8 @@ router.get("/intent/status", financialRateLimit, async (req, res): Promise<void>
     return;
   }
   const walletAddress = wallet.toBase58();
-  const verification = await verifyPrivyWalletOwnership(req, "solana", walletAddress);
-  if (!verification.ok) {
-    res.status(verification.status).json({ error: verification.error });
+  if (!verifyWalletChallenge(user.id, walletAddress, parsed.data.challenge, parsed.data.signature)) {
+    res.status(401).json({ error: "Wallet signature is invalid or expired. Verify the wallet and retry." });
     return;
   }
 

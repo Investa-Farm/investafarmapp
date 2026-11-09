@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Minus, Star, Map, Calculator, BellRing, ExternalLink, ChevronDown, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Bot, Flame, MoreHorizontal } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, ShieldCheck, Star, Map, Calculator, BellRing, ExternalLink, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Bot, Flame, MoreHorizontal } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import {
   useGetTopMovers,
   useListPrimaryMarket,
   useGetMarketSummary,
-  useGetPortfolioSummary,
 } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
@@ -125,7 +124,30 @@ function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
   const token = getToken();
   const [, setLocation] = useLocation();
   const [dismissed, setDismissed] = useState(() => !!localStorage.getItem("investa_checklist_dismissed"));
-  const [minimized, setMinimized] = useState(() => !!localStorage.getItem("investa_checklist_minimized"));
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (dismissed || sessionStorage.getItem("investa_checklist_opened_this_session")) return;
+    const timer = window.setTimeout(() => {
+      sessionStorage.setItem("investa_checklist_opened_this_session", "1");
+      setOpen(true);
+    }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [dismissed]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
 
   const isEmailVerified = (user as any)?.emailVerified !== false;
 
@@ -176,100 +198,102 @@ function InvestorChecklist({ walletBalance }: { walletBalance?: string }) {
 
   const doneCount = steps.filter(s => s.done).length;
 
-  if (dismissed) return null;
-
-  if (doneCount === steps.length) {
-    // Show a "you're all set" state instead of silently disappearing
-    return (
-      <div className="mx-4 mt-3 bg-gradient-to-r from-[#052e16] to-[#166534] rounded-2xl px-4 py-3 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-green-400/20 flex items-center justify-center flex-shrink-0">
-          <CheckCircle2 size={20} className="text-green-400" />
-        </div>
-        <div className="flex-1">
-          <p className="text-white font-bold text-sm">You're all set! 🎉</p>
-          <p className="text-green-200 text-[11px] mt-0.5">Profile complete · KYC approved · Ready to invest</p>
-        </div>
-        <button onClick={() => { localStorage.setItem("investa_checklist_dismissed", "1"); setDismissed(true); }}
-          className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-          <X size={12} className="text-white/70" />
-        </button>
-      </div>
-    );
-  }
-
   const pct = Math.round((doneCount / steps.length) * 100);
+  if (dismissed || !open) return null;
 
-  const handleMinimize = () => {
-    const next = !minimized;
-    setMinimized(next);
-    if (next) localStorage.setItem("investa_checklist_minimized", "1");
-    else localStorage.removeItem("investa_checklist_minimized");
+  const closeAndRemember = () => {
+    localStorage.setItem("investa_checklist_dismissed", "1");
+    setDismissed(true);
+    setOpen(false);
   };
 
-  if (minimized) {
-    return (
-      <div className="mx-4 mt-2">
-        <button onClick={handleMinimize}
-          className="w-full flex items-center gap-2.5 bg-gradient-to-r from-[#052e16] to-[#166534] rounded-xl px-3 py-2 text-white">
-          <div className="w-5 h-5 rounded-full border border-white/40 flex items-center justify-center flex-shrink-0">
-            <span className="text-[8px] font-bold">{doneCount}/{steps.length}</span>
-          </div>
-          <span className="text-xs font-semibold flex-1 text-left">Getting Started — {pct}% complete</span>
-          <div className="w-16 bg-white/20 rounded-full h-1">
-            <div className="bg-green-400 h-1 rounded-full" style={{ width: `${pct}%` }} />
-          </div>
-          <ChevronDown size={12} className="text-white/70 flex-shrink-0" />
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-4 mt-2">
-      <div className="bg-gradient-to-br from-[#052e16] to-[#166534] rounded-xl p-3 text-white relative overflow-hidden">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-white/70 text-[10px] font-semibold uppercase tracking-wider">Getting Started</span>
-            <span className="text-white/60 text-[10px]">{doneCount}/{steps.length}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={handleMinimize}
-              className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center" title="Minimize">
-              <Minus size={8} className="text-white" />
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[140] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+        role="presentation"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) setOpen(false);
+        }}
+      >
+        <motion.section
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="investor-onboarding-title"
+          className="w-full max-w-md rounded-t-3xl border-t-4 border-primary bg-card p-5 pb-8 text-foreground shadow-2xl sm:rounded-3xl sm:border-t-0"
+          initial={{ y: 36, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 36, opacity: 0 }}
+          transition={{ type: "spring", damping: 26, stiffness: 280 }}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Account setup</p>
+              <h2 id="investor-onboarding-title" className="mt-1 text-lg font-bold">
+                {doneCount === steps.length ? "You're ready to invest" : "Complete your investor setup"}
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {doneCount}/{steps.length} steps complete · {pct}% done
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeAndRemember}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+              aria-label="Close account setup"
+            >
+              <X size={16} />
             </button>
-            <button onClick={() => { setMinimized(true); localStorage.setItem("investa_checklist_minimized", "1"); }}
-              className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center" title="Hide — tap the bar to restore">
-              <X size={8} className="text-white" />
-            </button>
           </div>
-        </div>
-        <div className="w-full bg-white/20 rounded-full h-0.5 mb-2">
-          <div className="bg-green-400 h-0.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="space-y-1">
-          {steps.map((step, i) => (
-            step.done ? (
-              <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-green-900/30">
-                <div className="w-4 h-4 rounded-full bg-green-400 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle2 size={9} className="text-white" />
-                </div>
-                <p className="text-green-300 text-[11px] line-through flex-1">{step.label}</p>
-                <span className="text-[9px] font-bold text-green-400">✓ Done</span>
-              </div>
-            ) : (
-              <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-white/10 cursor-pointer active:bg-white/15 transition-all"
-                onClick={step.action}>
-                <div className="w-4 h-4 rounded-full bg-white/25 flex items-center justify-center flex-shrink-0 border border-white/30">
-                  <span className="text-white text-[7px] font-bold">{i + 1}</span>
-                </div>
-                <p className="text-white text-[11px] font-medium flex-1">{step.label}</p>
-                <span className="text-[9px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full">{step.cta} →</span>
-              </div>
-            )
-          ))}
-        </div>
-      </div>
-    </div>
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="mt-4 space-y-2">
+            {steps.map((step, index) => (
+              <button
+                key={step.label}
+                type="button"
+                disabled={step.done}
+                onClick={() => {
+                  sessionStorage.setItem("investa_checklist_opened_this_session", "1");
+                  setOpen(false);
+                  step.action();
+                }}
+                className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                  step.done ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-muted/60 hover:bg-muted"
+                }`}
+              >
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  step.done ? "bg-emerald-600 text-white" : "border border-border bg-background text-muted-foreground"
+                }`}>
+                  {step.done ? <CheckCircle2 size={15} /> : index + 1}
+                </span>
+                <span className="flex-1">
+                  <span className="block text-xs font-semibold">{step.label}</span>
+                  <span className="mt-0.5 block text-[10px] text-muted-foreground">{step.done ? "Complete" : step.cta}</span>
+                </span>
+                {!step.done && <ChevronRight size={15} className="text-muted-foreground" />}
+              </button>
+            ))}
+          </div>
+          {doneCount === steps.length && (
+            <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+              Your profile, wallet, and first investment are set up.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={closeAndRemember}
+            className="mt-4 min-h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+          >
+            {doneCount === steps.length ? "Done" : "Continue later"}
+          </button>
+        </motion.section>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
@@ -406,13 +430,14 @@ export default function MarketHome() {
   // Combined movers/decliners tab
   const [moverTab, setMoverTab] = useState<"movers" | "decliners">("movers");
   const [moverSlide, setMoverSlide] = useState(0);
+  const [tickerIndex, setTickerIndex] = useState(0);
   const moverTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   // Keep market movers in this slot; featured listings already have their own
   // section below, so they should not rotate in as a duplicate promotion.
   const marketPhase: "movers" | "ads" = "movers";
 
   useEffect(() => {
-    moverTimer.current = setInterval(() => setMoverSlide(s => s + 1), 30000);
+    moverTimer.current = setInterval(() => setMoverSlide(s => s + 1), 6000);
     return () => { if (moverTimer.current) clearInterval(moverTimer.current); };
   }, []);
 
@@ -479,13 +504,7 @@ export default function MarketHome() {
   const walletBalance = walletData?.wallet?.balance;
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
   const isDemo = isDemoAccount();
-  const {
-    data: portfolioOverview,
-    isLoading: portfolioOverviewLoading,
-    isError: portfolioOverviewError,
-  } = useGetPortfolioSummary();
-
-  const { data: liveTickerData } = useQuery<{ prices: Array<{name: string; price: string; unit: string; change: number}>; insights: string[] } | null>({
+  const { data: liveTickerData } = useQuery<{ prices: Array<{name: string; price: string; unit: string; change: number | null; source: "worldbank" | "ai" | "fallback"}>; insights: string[] } | null>({
     queryKey: ["market-ticker"],
     queryFn: async () => {
       const r = await fetch("/api/market/ticker");
@@ -497,6 +516,17 @@ export default function MarketHome() {
   });
 
   const tickerItems = liveTickerData?.prices ?? [];
+  useEffect(() => {
+    if (tickerItems.length < 2) {
+      setTickerIndex(0);
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setTickerIndex((index) => (index + 1) % tickerItems.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [tickerItems.length]);
+  const activeTickerItem = tickerItems.length ? tickerItems[tickerIndex % tickerItems.length] : null;
 
   const handleBuyClick = (e: React.MouseEvent, listing: Listing) => {
     e.preventDefault(); e.stopPropagation();
@@ -555,11 +585,6 @@ export default function MarketHome() {
     setPendingInvest(null);
   };
 
-  const portfolioValue = portfolioOverview?.totalValue ?? 0;
-  const todayPnl = portfolioOverview?.todayReturn ?? 0;
-  const todayPnlPercent = portfolioOverview?.todayReturnPercent ?? 0;
-  const investorWalletBalance = Number(walletBalance ?? 0);
-
   return (
     <div className="app-shell market-shell pb-20 page-enter" data-testid="market-home">
       {/* Resume Pending Investment Banner */}
@@ -612,12 +637,6 @@ export default function MarketHome() {
                 <span className="text-white/75 text-[9px] font-bold uppercase tracking-wider">Farm shares</span>
               </span>
             </div>
-            <h1 data-market-display className="text-white text-[27px] font-semibold leading-tight flex items-center gap-1.5">
-              Invest in the harvest
-            </h1>
-            <p className="mt-1 max-w-[300px] text-[12px] leading-relaxed text-white/65">
-              Compare farm-share offerings, review the available data, and choose how to participate.
-            </p>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               {/* Wallet and notifications stay visible; lower-priority actions live in More. */}
@@ -697,82 +716,51 @@ export default function MarketHome() {
         </div>
 
 
-        {/* Ticker — rich with KES commodity prices + market insights */}
-        <div data-tour="market-ticker" className="relative overflow-hidden rounded-xl mb-0 border-t border-border" style={{ background: "rgba(0,0,0,0.03)" }}>
-          <div className="flex items-center gap-2 py-2 text-[10px] text-white/65">
-            {tickerItems.length > 0 ? (
-              tickerItems.slice(0, 5).map((item, i) => (
-                <span key={`${item.name}-${i}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.08] shrink-0">
-                  <span className="font-semibold text-white/90">{item.name}</span>
-                  <span>KES {item.price}{item.unit}</span>
-                  <span className={item.change >= 0 ? "text-[#b8d7a7]" : "text-[#e6aaa0]"}>{formatChange(item.change)}</span>
-                </span>
-              ))
-            ) : (
-              <span className="px-2.5 py-1">Commodity price data is not available right now.</span>
+        {/* Live commodity ticker: one live market item per slide. */}
+        <div data-tour="market-ticker" className="relative mb-0 overflow-hidden border-t border-white/15 py-2.5">
+          <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl bg-white/[0.06] px-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(134,239,172,0.8)]" aria-hidden="true" />
+              <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-white/55">
+                {activeTickerItem?.source === "fallback" ? "Reference price" : "Live market"}
+              </span>
+              {activeTickerItem ? (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`${activeTickerItem.name}-${tickerIndex}`}
+                    className="flex min-w-0 items-center gap-2"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.28 }}
+                  >
+                    <span className="truncate text-xs font-bold text-white">{activeTickerItem.name}</span>
+                    <span className="whitespace-nowrap text-[10px] text-white/75">KES {activeTickerItem.price}{activeTickerItem.unit}</span>
+                  </motion.div>
+                </AnimatePresence>
+              ) : (
+                <span className="truncate text-[10px] text-white/65">Market prices unavailable</span>
+              )}
+            </div>
+            {activeTickerItem && activeTickerItem.change !== null && (
+              <span className={`shrink-0 text-right ${activeTickerItem.change >= 0 ? "text-[#b8d7a7]" : "text-[#e6aaa0]"}`}>
+                <span className="block text-[8px] font-semibold uppercase tracking-wide text-white/45">Farm movement</span>
+                <span className="block text-xs font-bold">{formatChange(activeTickerItem.change)}</span>
+              </span>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Investor-first snapshot: a quick read before the market feed. */}
-      <section className="px-4 pt-4" data-testid="investor-overview">
-        <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-[#052e16] via-[#14532d] to-[#166534] p-4 text-white shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-green-200/70">Investor snapshot</p>
-              <p className="mt-1 text-xs font-medium text-green-100/75">Total portfolio value</p>
-              {portfolioOverviewLoading ? (
-                <Skeleton data-testid="skeleton-portfolio-value" className="mt-2 h-8 w-32 bg-white/15" />
-              ) : (
-                <p data-testid="text-total-portfolio-value" className="mt-1 text-2xl font-black tracking-tight">
-                  {portfolioOverviewError ? "—" : formatAmount(portfolioValue)}
-                </p>
-              )}
+          {tickerItems.length > 1 && (
+            <div className="mt-1.5 flex justify-center gap-1" aria-label={`Market item ${tickerIndex + 1} of ${tickerItems.length}`}>
+              {tickerItems.slice(0, 6).map((item, index) => (
+                <span
+                  key={`${item.name}-dot`}
+                  className={`h-1 rounded-full transition-all ${index === tickerIndex % 6 ? "w-4 bg-white/80" : "w-1 bg-white/30"}`}
+                />
+              ))}
             </div>
-            <Link
-              href="/market/primary"
-              data-testid="link-browse-farms"
-              className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-white px-3 py-2 text-[11px] font-extrabold text-[#14532d] shadow-sm transition-transform active:scale-95"
-            >
-              Browse farms
-              <ChevronRight size={13} />
-            </Link>
-          </div>
-          <div className="mt-4 grid grid-cols-3 divide-x divide-white/15 border-t border-white/15 pt-3">
-            <div className="pr-2">
-              <p className="text-[9px] font-semibold uppercase tracking-wide text-green-100/55">Today&apos;s P&amp;L</p>
-              <p data-testid="text-today-pnl" className={`mt-1 text-sm font-extrabold ${todayPnl >= 0 ? "text-green-200" : "text-red-200"}`}>
-                {portfolioOverviewLoading || portfolioOverviewError ? "—" : `${todayPnl >= 0 ? "+" : "−"}${formatAmount(Math.abs(todayPnl))}`}
-              </p>
-              {!portfolioOverviewLoading && !portfolioOverviewError && (
-                <p data-testid="text-today-pnl-percent" className="mt-0.5 text-[10px] font-semibold text-green-100/65">
-                  {todayPnlPercent >= 0 ? "+" : "−"}{Math.abs(todayPnlPercent).toFixed(1)}%
-                </p>
-              )}
-            </div>
-            <div className="px-2">
-              <p className="text-[9px] font-semibold uppercase tracking-wide text-green-100/55">Wallet balance</p>
-              <p data-testid="text-wallet-balance" className="mt-1 text-sm font-extrabold text-white">
-                {walletBalance === undefined ? "—" : formatAmount(investorWalletBalance)}
-              </p>
-              <p className="mt-0.5 text-[10px] font-medium text-green-100/65">Available to invest</p>
-            </div>
-            <div className="pl-2">
-              <p className="text-[9px] font-semibold uppercase tracking-wide text-green-100/55">Holdings</p>
-              <p data-testid="text-holdings-count" className="mt-1 text-sm font-extrabold text-white">
-                {portfolioOverviewLoading || portfolioOverviewError ? "—" : portfolioOverview?.holdings ?? 0}
-              </p>
-              <p className="mt-0.5 text-[10px] font-medium text-green-100/65">Active positions</p>
-            </div>
-          </div>
-          {portfolioOverviewError && (
-            <p data-testid="status-portfolio-overview" className="mt-3 border-t border-white/15 pt-2 text-[10px] font-medium text-green-100/70">
-              Portfolio data is temporarily unavailable. Your market is still ready to browse.
-            </p>
           )}
         </div>
-      </section>
+      </div>
 
       {/* Stat detail bottom sheet */}
       <AnimatePresence>
@@ -819,7 +807,7 @@ export default function MarketHome() {
         })()}
       </AnimatePresence>
 
-      {/* ── Investor Onboarding Checklist (dismissible, shows for new users) ── */}
+      {/* Investor setup opens as a delayed, dismissible modal rather than inline content. */}
       <InvestorChecklist walletBalance={walletBalance} />
 
       {/* Section tabs */}

@@ -172,19 +172,34 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
   const [connectedEvmWallet, setConnectedEvmWallet] = useState<{ address: string; walletId: string } | null>(null);
   const [trackingTxHash, setTrackingTxHash] = useState<string | null>(null);
   const [circleError, setCircleError] = useState<string | null>(null);
+  const [circleInfoLoading, setCircleInfoLoading] = useState(false);
+  const [circleInfoError, setCircleInfoError] = useState<string | null>(null);
 
   const [success, setSuccess] = useState(false);
   const [successCurrency, setSuccessCurrency] = useState<"KES" | "USDC">("KES");
 
   // Fetch Circle info when switching to USDC tab
   useEffect(() => {
-    if (tab === "usdc" && !circleInfo && token) {
-      fetch("/api/wallet/circle/info", { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => { if (!r.ok) throw new Error("fetch failed"); return r.json(); })
-        .then(d => setCircleInfo(d))
-        .catch(() => {});
-    }
-  }, [tab, circleInfo, token]);
+    if (tab !== "usdc" || circleInfo || !token || circleInfoError) return;
+    let cancelled = false;
+    setCircleInfoLoading(true);
+    fetch("/api/wallet/circle/info", { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(payload?.error ?? "Could not load USDC deposit settings.");
+        return payload;
+      })
+      .then((data) => {
+        if (!cancelled) setCircleInfo(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setCircleInfoError(error instanceof Error ? error.message : "Could not load USDC deposit settings.");
+      })
+      .finally(() => {
+        if (!cancelled) setCircleInfoLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [tab, circleInfo, token, circleInfoError]);
 
   useEffect(() => {
     if (open) setTab(initialTab);
@@ -202,6 +217,7 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
     setSuccess(false); setWalletModalOpen(false); setTrackingTxHash(null);
     setConnectedEvmWallet(null);
     setCircleError(null);
+    setCircleInfoError(null);
   }
 
   function handleSuccess(amt: number, currency: "KES" | "USDC" = "KES") {
@@ -848,6 +864,24 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
                               <span className="font-semibold text-foreground">{val}</span>
                             </div>
                           ))}
+                        </div>
+                      )}
+
+                      {circleInfoLoading && (
+                        <div role="status" className="flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
+                          <Loader2 size={14} className="animate-spin" /> Loading USDC deposit settings…
+                        </div>
+                      )}
+                      {circleInfoError && (
+                        <div role="alert" className="flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3">
+                          <p className="text-xs leading-relaxed text-red-800">{circleInfoError}</p>
+                          <button
+                            type="button"
+                            onClick={() => setCircleInfoError(null)}
+                            className="shrink-0 rounded-lg bg-white px-2.5 py-1.5 text-[10px] font-semibold text-red-800"
+                          >
+                            Retry
+                          </button>
                         </div>
                       )}
 

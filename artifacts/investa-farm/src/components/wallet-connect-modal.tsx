@@ -31,27 +31,42 @@ const POLYGON_CHAIN_ID = "0x89"; // 137
 const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim() ?? "";
 
 // ── ERC-20 helpers (no ethers/web3 dependency) ───────────────────────────────
+function parseUsdcAmount(usdcAmount: string): bigint | null {
+  const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(usdcAmount.trim());
+  if (!match) return null;
+  const whole = BigInt(match[1]!);
+  const fraction = BigInt((match[2] ?? "").padEnd(6, "0") || "0");
+  const amount = whole * 1_000_000n + fraction;
+  return amount > 0n ? amount : null;
+}
+
 function encodeTransfer(to: string, usdcAmount: string): string {
+  if (!/^0x[a-fA-F0-9]{40}$/.test(to)) {
+    throw new Error("The Polygon USDC deposit address is not configured correctly.");
+  }
+  const amount = parseUsdcAmount(usdcAmount);
+  if (amount === null) {
+    throw new Error("Enter a valid USDC amount with up to six decimal places.");
+  }
   const selector = "a9059cbb"; // keccak256("transfer(address,uint256)")[0:4]
   const toHex = to.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
-  const amt = BigInt(Math.round(parseFloat(usdcAmount) * 1_000_000)); // 6 decimals
-  const amtHex = amt.toString(16).padStart(64, "0");
+  const amtHex = amount.toString(16).padStart(64, "0");
   return `0x${selector}${toHex}${amtHex}`;
 }
 
 async function getUsdcBalance(eth: any, address: string): Promise<string> {
-  try {
-    const addrHex = address.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
-    const data = `0x70a08231${addrHex}`; // balanceOf(address)
-    const result: string = await eth.request({
-      method: "eth_call",
-      params: [{ to: USDC_POLYGON, data }, "latest"],
-    });
-    if (!result || result === "0x" || result === "0x0") return "0.00";
-    return (Number(BigInt(result)) / 1_000_000).toFixed(2);
-  } catch {
-    return "?.??";
+  const chainId: string = await eth.request({ method: "eth_chainId" });
+  if (chainId.toLowerCase() !== POLYGON_CHAIN_ID) {
+    throw new Error("Switch your wallet to Polygon to read its USDC balance.");
   }
+  const addrHex = address.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
+  const data = `0x70a08231${addrHex}`; // balanceOf(address)
+  const result: string = await eth.request({
+    method: "eth_call",
+    params: [{ to: USDC_POLYGON, data }, "latest"],
+  });
+  if (!result || result === "0x" || result === "0x0") return "0.00";
+  return (Number(BigInt(result)) / 1_000_000).toFixed(2);
 }
 
 // ── Deep-link URLs that open THIS page inside each wallet's in-app browser ───
@@ -175,6 +190,7 @@ export function WalletConnectModal({
   const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [connectionProvider, setConnectionProvider] = useState<any | null>(null);
 
@@ -185,6 +201,7 @@ export function WalletConnectModal({
       ? [rootProvider]
       : [];
   const eth = connectionProvider ?? (selectedWallet ? getInjectedProvider(selectedWallet.id) : null);
+  const requiredAmount = parseUsdcAmount(amountUSDC);
   const hasProvider = injectedProviders.length > 0;
 
   // Detect which wallet injected window.ethereum
@@ -193,6 +210,16 @@ export function WalletConnectModal({
     : injectedProviders.some((provider) => provider?.isBinance) ? "Binance Web3"
     : hasProvider ? "Web3 Wallet"
     : null;
+
+  async function refreshUsdcBalance(provider: any, address: string) {
+    setUsdcBalance(null);
+    setBalanceError(null);
+    try {
+      setUsdcBalance(await getUsdcBalance(provider, address));
+    } catch (err: any) {
+      setBalanceError(err?.message ?? "Could not read the Polygon USDC balance. Retry before sending.");
+    }
+  }
 
   // Resume a connection after a mobile wallet switches back to the PWA.
   useEffect(() => {
@@ -210,7 +237,7 @@ export function WalletConnectModal({
         return;
       }
       const w = WALLETS.find(x => x.id === walletId);
-      if (w && (provider || walletId === "metamask")) {
+      if (w && (provider || (walletId === "metamask" && WALLETCONNECT_PROJECT_ID))) {
         setSelectedWallet(w);
         void connectInApp(w);
       }
@@ -230,6 +257,7 @@ export function WalletConnectModal({
     setSelectedWallet(wallet);
     setStep("connecting");
     setError(null);
+    setBalanceError(null);
     if (wallet.id === "metamask") {
       localStorage.setItem(LS_KEY, JSON.stringify({ walletId: wallet.id, ts: Date.now() }));
     }
@@ -269,9 +297,8 @@ export function WalletConnectModal({
       }
 
       // Fetch USDC balance
-      const bal = await getUsdcBalance(provider, address);
       setConnectedAddress(address);
-      setUsdcBalance(bal);
+      setUsdcBalance(null);
       setStep("connected");
       localStorage.removeItem(LS_KEY);
       localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({
@@ -280,6 +307,7 @@ export function WalletConnectModal({
         connectedAt: Date.now(),
       }));
       onConnected?.({ address, walletId: wallet.id });
+      void refreshUsdcBalance(provider, address);
     } catch (err: any) {
       localStorage.removeItem(LS_KEY);
       setError(err?.message ?? "Connection failed");
@@ -307,11 +335,10 @@ export function WalletConnectModal({
       const accounts: string[] = await provider.request({ method: "eth_accounts" });
       if (!accounts?.[0]) return;
       const address = accounts[0];
-      const bal = await getUsdcBalance(provider, address);
       setSelectedWallet(wallet);
       setConnectionProvider(provider);
       setConnectedAddress(address);
-      setUsdcBalance(bal);
+      setUsdcBalance(null);
       setStep("connected");
       localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({
         address,
@@ -319,6 +346,7 @@ export function WalletConnectModal({
         connectedAt: Date.now(),
       }));
       onConnected?.({ address, walletId: wallet.id });
+      void refreshUsdcBalance(provider, address);
     } catch {
       // A restored session is optional; the user can reconnect from the wallet list.
     }
@@ -332,6 +360,7 @@ export function WalletConnectModal({
       if (!address) {
         localStorage.removeItem(CONNECTED_WALLET_KEY);
         setUsdcBalance(null);
+        setBalanceError(null);
         setStep("select");
         onConnected?.(null);
         return;
@@ -342,12 +371,13 @@ export function WalletConnectModal({
         connectedAt: Date.now(),
       }));
       onConnected?.({ address, walletId: selectedWallet?.id ?? "metamask" });
-      void getUsdcBalance(connectionProvider, address).then(setUsdcBalance);
+      void refreshUsdcBalance(connectionProvider, address);
     };
     const handleDisconnect = () => {
       localStorage.removeItem(CONNECTED_WALLET_KEY);
       setConnectedAddress(null);
       setUsdcBalance(null);
+      setBalanceError(null);
       setStep("select");
       onConnected?.(null);
     };
@@ -369,6 +399,19 @@ export function WalletConnectModal({
     if (!eth || !connectedAddress) return;
     if (!/^0x[a-fA-F0-9]{40}$/.test(depositAddress)) {
       setError("The Polygon USDC deposit address is not configured correctly.");
+      return;
+    }
+    if (requiredAmount === null) {
+      setError("Enter a valid USDC amount with up to six decimal places.");
+      return;
+    }
+    const numericBalance = usdcBalance === null ? Number.NaN : Number(usdcBalance);
+    if (!Number.isFinite(numericBalance)) {
+      setError("The Polygon USDC balance could not be verified. Retry the balance check before sending.");
+      return;
+    }
+    if (numericBalance < Number(requiredAmount) / 1_000_000) {
+      setError(`Insufficient USDC balance. You need ${amountUSDC} USDC.`);
       return;
     }
     setStep("sending");
@@ -395,10 +438,6 @@ export function WalletConnectModal({
 
   // ── Open wallet's in-app browser ──────────────────────────────────────────
   function openWalletBrowser(wallet: WalletDef) {
-    if (wallet.id === "metamask") {
-      void connectInApp(wallet);
-      return;
-    }
     localStorage.setItem(LS_KEY, JSON.stringify({ walletId: wallet.id, ts: Date.now() }));
     setSelectedWallet(wallet);
     setStep("opening_app");
@@ -486,7 +525,9 @@ export function WalletConnectModal({
                 {WALLETS.map(w => (
                   <button
                     key={w.id}
-                    onClick={() => (w.id === "metamask" || getInjectedProvider(w.id)) ? connectInApp(w) : openWalletBrowser(w)}
+                    onClick={() => (getInjectedProvider(w.id) || (w.id === "metamask" && WALLETCONNECT_PROJECT_ID))
+                      ? connectInApp(w)
+                      : openWalletBrowser(w)}
                     className="w-full flex items-center gap-3.5 p-4 rounded-2xl border border-border bg-background hover:bg-muted/40 active:scale-[0.98] transition-all"
                   >
                     <div
@@ -499,7 +540,7 @@ export function WalletConnectModal({
                       <p className="text-foreground font-bold text-sm">{w.name}</p>
                       <p className="text-muted-foreground text-xs mt-0.5">{w.description}</p>
                     </div>
-                    {w.id === "metamask" || getInjectedProvider(w.id) ? (
+                    {getInjectedProvider(w.id) || (w.id === "metamask" && WALLETCONNECT_PROJECT_ID) ? (
                       <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
                         Connect
                       </span>
@@ -583,10 +624,26 @@ export function WalletConnectModal({
                         {connectedAddress.slice(0, 6)}…{connectedAddress.slice(-4)}
                       </p>
                     </div>
-                    <div className="bg-background/70 rounded-xl p-2.5 flex items-center justify-between">
-                      <p className="text-muted-foreground text-[11px]">USDC Balance (Polygon)</p>
-                      <p className="text-foreground font-bold text-sm">{usdcBalance ?? "…"} USDC</p>
-                    </div>
+                     <div className="bg-background/70 rounded-xl p-2.5">
+                       <div className="flex items-center justify-between gap-2">
+                         <p className="text-muted-foreground text-[11px]">USDC Balance (Polygon)</p>
+                         <p className="text-foreground font-bold text-sm">
+                           {balanceError ? "Unavailable" : usdcBalance === null ? "Checking…" : `${usdcBalance} USDC`}
+                         </p>
+                       </div>
+                       {balanceError && (
+                         <div className="mt-2 flex items-center justify-between gap-2">
+                           <p role="alert" className="text-[10px] leading-relaxed text-red-700">{balanceError}</p>
+                           <button
+                             type="button"
+                             onClick={() => void refreshUsdcBalance(eth, connectedAddress)}
+                             className="shrink-0 rounded-lg bg-blue-100 px-2 py-1 text-[10px] font-semibold text-blue-800"
+                           >
+                             Retry
+                           </button>
+                         </div>
+                       )}
+                     </div>
                   </div>
                 </div>
 
@@ -606,7 +663,7 @@ export function WalletConnectModal({
                   )}
                 </div>
 
-                {usdcBalance !== null && parseFloat(usdcBalance) < parseFloat(amountUSDC) && (
+                {usdcBalance !== null && Number.isFinite(Number(usdcBalance)) && requiredAmount !== null && Number(usdcBalance) < Number(requiredAmount) / 1_000_000 && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
                     <AlertCircle size={13} className="text-red-500 flex-shrink-0" />
                     <p className="text-red-700 text-xs">Insufficient USDC balance ({usdcBalance} USDC). You need {amountUSDC} USDC.</p>
@@ -615,7 +672,7 @@ export function WalletConnectModal({
 
                 <button
                   onClick={sendUsdcTx}
-                  disabled={usdcBalance !== null && parseFloat(usdcBalance) < parseFloat(amountUSDC)}
+                  disabled={usdcBalance === null || !Number.isFinite(Number(usdcBalance)) || requiredAmount === null || Number(usdcBalance) < Number(requiredAmount) / 1_000_000}
                   className="w-full py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg,#1652F0,#2D56FA)", boxShadow: "0 6px 20px rgba(22,82,240,0.35)" }}
                 >

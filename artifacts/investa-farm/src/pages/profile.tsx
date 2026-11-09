@@ -322,7 +322,7 @@ export default function Profile() {
           </div>
 
           {/* Name + email + role badges */}
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-white font-bold text-base leading-tight truncate">{user?.name ?? "—"}</h1>
             <p className="text-white/60 text-xs truncate">{user?.email ?? "—"}</p>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -340,35 +340,53 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Wallet balance + account number */}
-          <div className="flex-shrink-0 text-right">
-            <p className="text-white/60 text-[9px] uppercase tracking-wider">Wallet</p>
-            {walletLoading
-              ? <div className="h-5 w-20 bg-white/20 rounded animate-pulse" />
-              : <p className="text-white font-bold text-sm">{formatAmount(walletBalanceNum)}</p>}
-            <button onClick={() => refetchWallet()} className="mt-0.5 text-white/50 text-[9px] flex items-center gap-0.5 ml-auto">
-              <RefreshCw size={8} /> Refresh
-            </button>
-            {stellarAcct?.accountNumber && (
-              <p className="text-white/40 text-[8px] font-mono mt-1 tracking-wider">{stellarAcct.accountNumber}</p>
-            )}
-          </div>
         </div>
 
-        {/* Portfolio stats row */}
-        <div className="grid grid-cols-4 gap-1.5 mt-4 bg-white/10 rounded-2xl p-2.5">
-          {[
-            { label: "Portfolio", value: summary ? formatAmount(summary.totalValue) : "—", up: true },
-            { label: "Invested", value: summary ? formatAmount(summary.totalInvested) : "—", up: null },
-            { label: "P&L", value: summary ? formatAmount(summary.todayReturn) : "—", up: summary ? summary.todayReturn >= 0 : null },
-            { label: "Holdings", value: summary ? String(summary.holdings) : "—", up: null },
-          ].map(({ label, value, up }) => (
-            <div key={label} className="text-center">
-              <p className={`font-bold text-sm ${up === null ? "text-white" : up ? "text-green-300" : "text-red-300"}`}>{value}</p>
-              <p className="text-white/50 text-[9px] mt-0.5">{label}</p>
+        {/* Unified portfolio + wallet balance, kept on the profile page. */}
+        <section className="mt-4 rounded-2xl border border-white/10 bg-white/10 p-3.5 text-white" data-testid="profile-portfolio-summary">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/55">Total portfolio value</p>
+              <p data-testid="text-profile-portfolio-value" className="mt-1 text-2xl font-black tracking-tight">
+                {summary ? formatAmount(summary.totalValue) : "—"}
+              </p>
             </div>
-          ))}
-        </div>
+            <div className="shrink-0 text-right">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/55">Available wallet</p>
+              <p data-testid="text-profile-wallet-balance" className="mt-1 text-sm font-bold">
+                {walletLoading ? "Loading…" : formatAmount(walletBalanceNum)}
+              </p>
+              <button
+                type="button"
+                onClick={() => refetchWallet()}
+                className="mt-1 inline-flex items-center gap-1 text-[9px] font-medium text-white/60 hover:text-white"
+              >
+                <RefreshCw size={9} /> Refresh
+              </button>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-3 divide-x divide-white/15 border-t border-white/15 pt-3">
+            <div className="pr-2">
+              <p className="text-[9px] uppercase tracking-wide text-white/50">Invested</p>
+              <p className="mt-1 truncate text-xs font-bold">{summary ? formatAmount(summary.totalInvested) : "—"}</p>
+            </div>
+            <div className="px-2">
+              <p className="text-[9px] uppercase tracking-wide text-white/50">Today&apos;s P&amp;L</p>
+              <p className={`mt-1 truncate text-xs font-bold ${summary ? (summary.todayReturn >= 0 ? "text-green-300" : "text-red-300") : "text-white"}`}>
+                {summary ? `${summary.todayReturn >= 0 ? "+" : "−"}${formatAmount(Math.abs(summary.todayReturn))}` : "—"}
+              </p>
+            </div>
+            <div className="pl-2">
+              <p className="text-[9px] uppercase tracking-wide text-white/50">Holdings</p>
+              <p className="mt-1 text-xs font-bold">{summary ? String(summary.holdings) : "—"}</p>
+            </div>
+          </div>
+          {stellarAcct?.accountNumber && (
+            <p className="mt-3 border-t border-white/10 pt-2 font-mono text-[9px] tracking-wider text-white/45">
+              Stellar account · {stellarAcct.accountNumber}
+            </p>
+          )}
+        </section>
 
         {/* Quick action buttons */}
         <div className="grid grid-cols-2 gap-2 mt-3">

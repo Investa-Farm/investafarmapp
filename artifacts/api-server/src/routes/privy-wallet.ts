@@ -4,7 +4,6 @@ import { db, privyStellarWalletsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import * as StellarSdk from "@stellar/stellar-sdk";
-import { PublicKey } from "@solana/web3.js";
 import { getCurrentUser } from "./auth";
 
 const router: IRouter = Router();
@@ -42,7 +41,7 @@ type PrivyWalletVerification =
 
 export async function verifyPrivyWalletOwnership(
   req: Request,
-  chainType: "solana" | "stellar",
+  chainType: "stellar",
   address: string,
 ): Promise<PrivyWalletVerification> {
   const client = getPrivyClient();
@@ -79,35 +78,6 @@ export async function verifyPrivyWalletOwnership(
     return { ok: false, status: 502, error: "Privy could not confirm this wallet right now. Please try again." };
   }
 }
-
-router.post("/users/verify-solana-wallet", async (req, res): Promise<void> => {
-  const user = await getCurrentUser(req);
-  if (!user) {
-    res.status(401).json({ error: "Sign in to Investa Farm before linking a wallet." });
-    return;
-  }
-
-  const parsed = LinkWalletBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "A valid Solana public address is required." });
-    return;
-  }
-
-  try {
-    new PublicKey(parsed.data.address);
-  } catch {
-    res.status(400).json({ error: "A valid Solana public address is required." });
-    return;
-  }
-
-  const verification = await verifyPrivyWalletOwnership(req, "solana", parsed.data.address);
-  if (!verification.ok) {
-    res.status(verification.status).json({ error: verification.error });
-    return;
-  }
-
-  res.json({ wallet: { address: parsed.data.address, chain: "solana" } });
-});
 
 router.get("/users/linked-stellar-wallet", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);

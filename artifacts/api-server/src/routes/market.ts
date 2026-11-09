@@ -712,7 +712,7 @@ router.get("/market/ticker", async (_req, res): Promise<void> => {
     const livePrice = livePricesResult?.prices[key];
     const change = live && live.count > 0
       ? parseFloat((live.totalChange / live.count).toFixed(2))
-      : parseFloat(((Math.random() - 0.5) * 3).toFixed(2));
+      : null;
     const price = livePrice?.price ?? def.price;
     const displayPrice = price.toLocaleString("en-KE");
     return {
@@ -731,18 +731,21 @@ router.get("/market/ticker", async (_req, res): Promise<void> => {
   ]);
 
   const activeFarms = farms.filter(f => f.status === "active").length;
-  const avgChange = prices.reduce((s, p) => s + p.change, 0) / prices.length;
+  const shareMovements = prices.flatMap((price) =>
+    typeof price.change === "number" && Number.isFinite(price.change) ? [price.change] : [],
+  );
+  const avgChange = shareMovements.length
+    ? shareMovements.reduce((sum, change) => sum + change, 0) / shareMovements.length
+    : null;
   const kesPerUsd = livePricesResult?.kesPerUsd ?? 129.5;
 
   const insights = [
     `📊 ${summary[0]?.count ?? 0} active farm listings open now`,
-    avgChange > 0
-      ? `📈 Market up avg ${avgChange.toFixed(1)}% — strong investor demand`
-      : `📉 Market softening — good entry point for long-term investors`,
+    avgChange === null
+      ? "Farm-share movement data is not available yet."
+      : `Farm-share movement averages ${avgChange >= 0 ? "+" : ""}${avgChange.toFixed(1)}% across current farm records.`,
     `🌾 ${activeFarms} funded farms currently in production`,
-    `💱 Live KES/USD: ${kesPerUsd.toFixed(1)} — prices updated in real time`,
-    `💰 Top performers: Avocado & Coffee leading returns this season`,
-    `🌍 Kenya agri exports surging — strong Q3 outlook for investors`,
+    `KES/USD reference rate: ${kesPerUsd.toFixed(1)}`,
   ];
 
   res.json({ prices, insights, kesPerUsd, fetchedAt: livePricesResult?.fetchedAt });
