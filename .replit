@@ -15,3 +15,6 @@ externalPort = 80
 [userenv]
 
 [userenv.shared]
+
+[userenv.development]
+SEED_DEMO = "true"
