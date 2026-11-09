@@ -133,6 +133,7 @@ test("encryptAtRest round-trips and decrypts legacy plaintext", () => {
 test("corsOriginAllowed does not allow arbitrary production origins", () => {
   assert.equal(corsOriginAllowed(undefined), true);
   assert.equal(corsOriginAllowed("https://app.investafarm.com"), true);
+  assert.equal(corsOriginAllowed("https://investafarmapp-l00r.onrender.com"), true);
   assert.equal(corsOriginAllowed("https://evil.example"), false);
 });
 
