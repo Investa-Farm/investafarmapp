@@ -12,6 +12,9 @@ import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { nonceHeaders } from "@/lib/nonce";
 import { InvestorKycModal } from "./investor-kyc-modal";
 import { haptic } from "@/lib/haptic";
+import { AuroraDepositModal } from "./aurora-deposit-modal";
+import { PaymentSheet } from "./payment-sheet";
+import { WalletConnectModal, type WalletConnectResult } from "./wallet-connect-modal";
 
 interface InvestModalProps {
   open: boolean;
@@ -82,6 +85,10 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const [pinGateOpen, setPinGateOpen] = useState(false);
   const [pinSetupOpen, setPinSetupOpen] = useState(false);
   const [hasPin, setHasPin] = useState<boolean | null>(null);
+  const [walletTopUpOpen, setWalletTopUpOpen] = useState(false);
+  const [auroraOpen, setAuroraOpen] = useState(false);
+  const [connectWalletOpen, setConnectWalletOpen] = useState(false);
+  const [connectedExternalWallet, setConnectedExternalWallet] = useState<WalletConnectResult | null>(null);
   const buyShares = useMutation({
     mutationFn: async (payload: { listingId: number; quantity: number; exitType: string }) => {
       const r = await fetch("/api/market/buy", {
@@ -183,6 +190,24 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const estimatedReturnMax = total * (selectedExit.returnMax / 100);
   const walletBalance = parseFloat(walletData?.wallet?.balance ?? "0");
   const hasEnoughBalance = walletBalance >= total;
+
+  const rememberPendingInvestment = () => {
+    if (!listing) return;
+    try {
+      sessionStorage.setItem("investa_pending_invest", JSON.stringify({
+        farmId: listing.farmId,
+        listingId: listing.id,
+        farmName: listing.farmName,
+        cropType: listing.cropType,
+        shares: quantity,
+        quantity,
+        exitType: selectedExit.type,
+        ts: Date.now(),
+      }));
+    } catch {
+      // The order can still be resumed manually if browser storage is unavailable.
+    }
+  };
 
   const handlePayFromWallet = () => {
     // Demo accounts bypass the PIN gate entirely
@@ -409,25 +434,52 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                               Top up {formatKES(total - walletBalance)} to proceed with this investment.
                             </p>
                           </div>
+                          {connectedExternalWallet && (
+                            <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                              <p className="text-[10px] font-semibold text-emerald-700">
+                                {connectedExternalWallet.walletId === "binance" ? "Binance Web3" : "MetaMask"} connected
+                              </p>
+                              <p className="mt-0.5 break-all font-mono text-[10px] text-emerald-900">
+                                {connectedExternalWallet.address}
+                              </p>
+                            </div>
+                          )}
                           <button
+                            onClick={() => setWalletTopUpOpen(true)}
+                            className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+                            <Wallet size={15} /> Top Up KES Wallet
+                          </button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setAuroraOpen(true)}
+                              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-[11px] font-semibold text-emerald-800 active:scale-[0.98]"
+                            >
+                              Deposit with Aurora
+                              <span className="mt-0.5 block text-[9px] font-normal text-emerald-700">Solana or Stellar</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConnectWalletOpen(true)}
+                              className="rounded-xl border border-border bg-card px-3 py-3 text-[11px] font-semibold text-foreground active:scale-[0.98]"
+                            >
+                              Connect another wallet
+                              <span className="mt-0.5 block text-[9px] font-normal text-muted-foreground">MetaMask or Binance</span>
+                            </button>
+                          </div>
+                          <p className="px-1 text-[10px] leading-relaxed text-muted-foreground">
+                            Aurora deposits go to your on-chain wallet. They do not convert to KES or buy shares automatically.
+                          </p>
+                          <button
+                            type="button"
                             onClick={() => {
-                              if (listing) {
-                                try {
-                                  sessionStorage.setItem("investa_pending_invest", JSON.stringify({
-                                    listingId: listing.id,
-                                    farmName: listing.farmName,
-                                    cropType: listing.cropType,
-                                    quantity,
-                                    exitType: selectedExit?.type ?? "wide_season",
-                                    ts: Date.now(),
-                                  }));
-                                } catch { /* ignore */ }
-                              }
+                              rememberPendingInvestment();
                               resetAndClose();
                               setLocation("/wallet");
                             }}
-                            className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                            <Wallet size={15} /> Go to Wallet & Top Up →
+                            className="w-full py-2 text-[11px] font-medium text-primary underline underline-offset-2"
+                          >
+                            Open wallet page instead
                           </button>
                         </div>
                       )}
@@ -569,6 +621,38 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
           setPinGateOpen(true);
         }}
         isFirstTime={hasPin === false}
+      />
+
+      <PaymentSheet
+        open={walletTopUpOpen}
+        onClose={() => setWalletTopUpOpen(false)}
+        onSuccess={(_amount, currency) => {
+          if (currency === "KES") {
+            qc.invalidateQueries({ queryKey: ["wallet-balance"] });
+          }
+        }}
+      />
+
+      <AuroraDepositModal
+        open={auroraOpen}
+        authToken={token}
+        onClose={() => setAuroraOpen(false)}
+        onSetupWallet={() => {
+          rememberPendingInvestment();
+          setAuroraOpen(false);
+          resetAndClose();
+          setLocation("/wallet-setup?next=%2Fmarket");
+        }}
+      />
+
+      <WalletConnectModal
+        open={connectWalletOpen}
+        mode="connect"
+        onClose={() => setConnectWalletOpen(false)}
+        depositAddress=""
+        amountUSDC=""
+        chain=""
+        onConnected={setConnectedExternalWallet}
       />
     </>
   );

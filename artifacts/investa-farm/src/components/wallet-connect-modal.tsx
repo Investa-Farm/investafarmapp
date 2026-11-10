@@ -169,6 +169,7 @@ interface Props {
   depositAddress: string;
   amountUSDC: string;
   chain: string;
+  mode?: "payment" | "connect";
   memo?: string;
   onConnected?: (result: WalletConnectResult | null) => void;
 }
@@ -182,7 +183,7 @@ type Step =
   | "opening_app";
 
 export function WalletConnectModal({
-  open, onClose, depositAddress, amountUSDC, chain, memo, onConnected,
+  open, onClose, depositAddress, amountUSDC, chain, mode = "payment", memo, onConnected,
 }: Props) {
   const [step, setStep] = useState<Step>("select");
   const [selectedWallet, setSelectedWallet] = useState<WalletDef | null>(null);
@@ -275,24 +276,25 @@ export function WalletConnectModal({
       if (!accounts[0]) throw new Error("No accounts returned");
       const address = accounts[0];
 
-      // Switch to Polygon
-      try {
-        await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: POLYGON_CHAIN_ID }] });
-      } catch (sw: any) {
-        if (sw?.code === 4902) {
-          await provider.request({
-            method: "wallet_addEthereumChain",
-            params: [{
-              chainId: POLYGON_CHAIN_ID,
-              chainName: "Polygon Mainnet",
-              nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
-              rpcUrls: ["https://polygon-rpc.com/"],
-              blockExplorerUrls: ["https://polygonscan.com/"],
-            }],
-          });
+      if (mode === "payment") {
+        try {
           await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: POLYGON_CHAIN_ID }] });
-        } else {
-          throw new Error("Switch to Polygon in your wallet to continue.");
+        } catch (sw: any) {
+          if (sw?.code === 4902) {
+            await provider.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: POLYGON_CHAIN_ID,
+                chainName: "Polygon Mainnet",
+                nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
+                rpcUrls: ["https://polygon-rpc.com/"],
+                blockExplorerUrls: ["https://polygonscan.com/"],
+              }],
+            });
+            await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: POLYGON_CHAIN_ID }] });
+          } else {
+            throw new Error("Switch to Polygon in your wallet to continue.");
+          }
         }
       }
 
@@ -307,7 +309,7 @@ export function WalletConnectModal({
         connectedAt: Date.now(),
       }));
       onConnected?.({ address, walletId: wallet.id });
-      void refreshUsdcBalance(provider, address);
+      if (mode === "payment") void refreshUsdcBalance(provider, address);
     } catch (err: any) {
       localStorage.removeItem(LS_KEY);
       setError(err?.message ?? "Connection failed");
@@ -346,7 +348,7 @@ export function WalletConnectModal({
         connectedAt: Date.now(),
       }));
       onConnected?.({ address, walletId: wallet.id });
-      void refreshUsdcBalance(provider, address);
+      if (mode === "payment") void refreshUsdcBalance(provider, address);
     } catch {
       // A restored session is optional; the user can reconnect from the wallet list.
     }
@@ -371,7 +373,7 @@ export function WalletConnectModal({
         connectedAt: Date.now(),
       }));
       onConnected?.({ address, walletId: selectedWallet?.id ?? "metamask" });
-      void refreshUsdcBalance(connectionProvider, address);
+      if (mode === "payment") void refreshUsdcBalance(connectionProvider, address);
     };
     const handleDisconnect = () => {
       localStorage.removeItem(CONNECTED_WALLET_KEY);
@@ -392,7 +394,7 @@ export function WalletConnectModal({
         connectionProvider.off("disconnect", handleDisconnect);
       }
     };
-  }, [connectionProvider, onConnected, selectedWallet]);
+  }, [connectionProvider, mode, onConnected, selectedWallet]);
 
   // ── Send ERC-20 transfer ───────────────────────────────────────────────────
   async function sendUsdcTx() {
@@ -479,8 +481,12 @@ export function WalletConnectModal({
                 <Wallet size={18} className="text-[#0052FF]" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-foreground">Connect Wallet</h3>
-                <p className="text-muted-foreground text-xs">Send {amountUSDC} USDC on {chain}</p>
+                <h3 className="font-bold text-base text-foreground">
+                  {mode === "connect" ? "Connect another wallet" : "Connect Wallet"}
+                </h3>
+                <p className="text-muted-foreground text-xs">
+                  {mode === "connect" ? "MetaMask or Binance Web3 · no payment will be sent" : `Send ${amountUSDC} USDC on ${chain}`}
+                </p>
               </div>
             </div>
             <button onClick={onClose} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
@@ -490,6 +496,7 @@ export function WalletConnectModal({
 
           <div className="overflow-y-auto px-5 py-4 pb-8 space-y-4">
             {/* Amount chip */}
+            {mode !== "connect" && (
             <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3">
               <div>
                 <p className="text-blue-700 text-xs font-semibold">Amount to send</p>
@@ -500,6 +507,7 @@ export function WalletConnectModal({
                 {memo && <p className="text-blue-700 font-mono text-xs mt-0.5">Memo: {memo}</p>}
               </div>
             </div>
+            )}
 
             {/* Injected provider badge */}
             {injectedName && step === "select" && (
@@ -538,7 +546,11 @@ export function WalletConnectModal({
                     </div>
                     <div className="flex-1 text-left">
                       <p className="text-foreground font-bold text-sm">{w.name}</p>
-                      <p className="text-muted-foreground text-xs mt-0.5">{w.description}</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">
+                        {mode === "connect"
+                          ? w.id === "metamask" ? "Browser extension or MetaMask mobile" : "Binance Web3 browser or app"
+                          : w.description}
+                      </p>
                     </div>
                     {getInjectedProvider(w.id) || (w.id === "metamask" && WALLETCONNECT_PROJECT_ID) ? (
                       <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
@@ -551,7 +563,7 @@ export function WalletConnectModal({
                     )}
                   </button>
                 ))}
-                <div
+                {mode !== "connect" && <div
                   className="w-full flex items-center gap-3.5 p-4 rounded-2xl border border-dashed border-border bg-muted/30 opacity-80"
                   aria-disabled="true"
                 >
@@ -567,10 +579,10 @@ export function WalletConnectModal({
                   <span className="text-[10px] font-bold text-muted-foreground bg-muted rounded-full px-2 py-0.5">
                     Unavailable
                   </span>
-                </div>
+                </div>}
 
                 {/* Manual fallback */}
-                <div className="pt-3 border-t border-border">
+                {mode !== "connect" && <div className="pt-3 border-t border-border">
                   <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-2">Or send manually</p>
                   <div className="bg-muted/50 rounded-xl p-3 flex items-center gap-2">
                     <p className="text-foreground font-mono text-xs flex-1 break-all leading-relaxed">{depositAddress}</p>
@@ -579,7 +591,7 @@ export function WalletConnectModal({
                     </button>
                   </div>
                   {memo && <p className="text-amber-600 text-[10px] mt-1.5 font-medium">Include memo: <strong>{memo}</strong></p>}
-                </div>
+                </div>}
               </div>
             )}
 
@@ -599,7 +611,59 @@ export function WalletConnectModal({
             )}
 
             {/* ── STEP: CONNECTED ──────────────────────────────────────── */}
-            {step === "connected" && connectedAddress && (
+            {step === "connected" && connectedAddress && mode === "connect" && (
+              <div className="space-y-4">
+                <div
+                  className="rounded-2xl p-4"
+                  style={{
+                    background: `linear-gradient(135deg, ${selectedWallet?.color ?? "#6366F1"}22, ${selectedWallet?.color ?? "#6366F1"}08)`,
+                    border: `1px solid ${selectedWallet?.color ?? "#6366F1"}30`,
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl text-2xl" style={{ background: `${selectedWallet?.color ?? "#6366F1"}20` }}>
+                      {selectedWallet?.icon}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{selectedWallet?.name}</p>
+                      <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-green-700">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Connected
+                      </p>
+                    </div>
+                    <CheckCircle2 size={20} className="ml-auto text-green-600" />
+                  </div>
+                  <div className="mt-3 flex items-start gap-2 rounded-xl bg-background/80 p-3">
+                    <p className="min-w-0 flex-1 break-all font-mono text-[11px] leading-relaxed text-foreground">{connectedAddress}</p>
+                    <button type="button" onClick={() => void copyText(connectedAddress)} aria-label="Copy wallet address" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                      {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+                    </button>
+                  </div>
+                </div>
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                  Wallet connection only. No transaction was sent, and this does not fund or purchase farm shares. Investment payments still use your KES wallet.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.removeItem(CONNECTED_WALLET_KEY);
+                      setConnectedAddress(null);
+                      setConnectionProvider(null);
+                      setStep("select");
+                      onConnected?.(null);
+                    }}
+                    className="rounded-xl border border-border py-3 text-sm font-semibold text-muted-foreground"
+                  >
+                    Disconnect
+                  </button>
+                  <button type="button" onClick={onClose} className="rounded-xl bg-primary py-3 text-sm font-semibold text-white">
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === "connected" && connectedAddress && mode === "payment" && (
               <div className="space-y-4">
                 {/* Wallet card */}
                 <div className="rounded-2xl p-4" style={{ background: `linear-gradient(135deg, ${selectedWallet?.color ?? "#6366F1"}22, ${selectedWallet?.color ?? "#6366F1"}08)`, border: `1px solid ${selectedWallet?.color ?? "#6366F1"}30` }}>
@@ -708,7 +772,7 @@ export function WalletConnectModal({
                 <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
                   <CheckCircle2 size={40} className="text-green-600 mx-auto mb-3" />
                   <p className="text-green-800 font-bold text-base">Transaction Sent!</p>
-                  <p className="text-green-700 text-xs mt-1">Your USDC is on its way. We'll verify and credit your KES wallet.</p>
+                  <p className="text-green-700 text-xs mt-1">Your USDC transfer was sent. It has not converted to or credited your KES wallet.</p>
                 </div>
 
                 <div className="bg-muted/50 rounded-xl p-3 space-y-1">
@@ -749,18 +813,26 @@ export function WalletConnectModal({
                 <div>
                   <p className="text-foreground font-bold text-base">Opening {selectedWallet?.name}</p>
                   <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-                    {selectedWallet?.name} will open and load Investa Farm inside its browser.
-                    The wallet will connect automatically — you won't leave the app.
+                    {selectedWallet?.name} will open Investa Farm inside its browser.
+                    {mode === "connect"
+                      ? " Approve the connection only; no transaction will be requested."
+                      : " The wallet will connect automatically — you won't leave the app."}
                   </p>
                 </div>
 
                 <div className="bg-muted/60 rounded-2xl p-4 text-left space-y-2">
-                  {[
-                    `${selectedWallet?.name} opens and loads this page`,
-                    "Tap Connect Wallet → your wallet",
-                    "Approve the connection",
-                    "Send USDC with one tap — all within the app",
-                  ].map((t, i) => (
+                  {(mode === "connect"
+                    ? [
+                        `${selectedWallet?.name} opens and loads this page`,
+                        "Tap Connect Wallet → your wallet",
+                        "Approve the connection request",
+                      ]
+                    : [
+                        `${selectedWallet?.name} opens and loads this page`,
+                        "Tap Connect Wallet → your wallet",
+                        "Approve the connection",
+                        "Send USDC with one tap — all within the app",
+                      ]).map((t, i) => (
                     <div key={t} className="flex items-start gap-2.5">
                       <div className="w-5 h-5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
                       <p className="text-foreground text-xs font-medium">{t}</p>

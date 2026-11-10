@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { useCreateWallet } from "@privy-io/react-auth/extended-chains";
+import { useCreateWallet as useCreateExtendedChainWallet } from "@privy-io/react-auth/extended-chains";
+import { useCreateWallet as useCreateSolanaWallet } from "@privy-io/react-auth/solana";
 import { CheckCircle2, Copy, LoaderCircle, ShieldCheck, WalletCards } from "lucide-react";
 import { SiStellar } from "react-icons/si";
 import { isPrivyConfigured } from "./privy-provider";
@@ -59,7 +60,8 @@ function ConfiguredPrivyMultiChainWallet({
   onWalletsReady?: () => void;
 }) {
   const { ready, authenticated, login, getAccessToken, user } = usePrivy();
-  const { createWallet } = useCreateWallet();
+  const { createWallet: createExtendedChainWallet } = useCreateExtendedChainWallet();
+  const { createWallet: createSolanaWallet } = useCreateSolanaWallet();
   const [wallets, setWallets] = useState<Wallets>({ solana: null, stellar: null });
   const [loading, setLoading] = useState(Boolean(authToken));
   const [busy, setBusy] = useState(false);
@@ -140,9 +142,11 @@ function ConfiguredPrivyMultiChainWallet({
           );
         }
 
-        const address =
-          existingPrivyWallet?.address ??
-          (await createWallet({ chainType: chain })).wallet.address;
+        const address = existingPrivyWallet?.address ?? (
+          chain === "solana"
+            ? (await createSolanaWallet()).wallet.address
+            : (await createExtendedChainWallet({ chainType: "stellar" })).wallet.address
+        );
         const updatePath = chain === "stellar" ? "update-wallet" : "update-solana-wallet";
         const response = await fetch(`/api/users/${updatePath}`, {
           method: "POST",

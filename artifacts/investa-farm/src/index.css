@@ -432,9 +432,10 @@
   font-family: "Fraunces", Georgia, serif;
 }
 .market-shell .market-intro {
-  background:
-    radial-gradient(ellipse at 84% 8%, rgba(209,164,72,.19), transparent 32%),
-    linear-gradient(132deg, #173c31 0%, #215c46 64%, #2c6a4d 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f8faf7 100%);
+}
+.market-shell .market-intro h1 {
+  font-family: "DM Sans", sans-serif;
 }
 .market-shell .market-action {
   transition: transform .18s ease, background-color .18s ease, box-shadow .18s ease;

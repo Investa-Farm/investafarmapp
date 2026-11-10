@@ -65,12 +65,10 @@ type InjectedProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
 
-declare global {
-  interface Window {
-    ethereum?: InjectedProvider;
-    BinanceChain?: InjectedProvider;
-  }
-}
+type WalletWindow = Window & {
+  ethereum?: InjectedProvider;
+  BinanceChain?: InjectedProvider;
+};
 
 function shortAddress(address: string) {
   return `${address.slice(0, 9)}…${address.slice(-6)}`;
@@ -98,6 +96,9 @@ export function AuroraDepositModal({
   const [copied, setCopied] = useState(false);
   const [connectedWallet, setConnectedWallet] = useState<{ name: string; address: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasInjectedWallet = typeof window !== "undefined" && Boolean(
+    (window as WalletWindow).ethereum || (window as WalletWindow).BinanceChain,
+  );
 
   useEffect(() => {
     if (!open || !authToken) return;
@@ -192,9 +193,10 @@ export function AuroraDepositModal({
   }
 
   async function connectWallet(walletName: "metamask" | "binance") {
+    const walletWindow = window as WalletWindow;
     const available = [
-      ...(window.ethereum?.providers ?? (window.ethereum ? [window.ethereum] : [])),
-      ...(window.BinanceChain ? [window.BinanceChain] : []),
+      ...(walletWindow.ethereum?.providers ?? (walletWindow.ethereum ? [walletWindow.ethereum] : [])),
+      ...(walletWindow.BinanceChain ? [walletWindow.BinanceChain] : []),
     ];
     const provider = walletName === "metamask"
       ? available.find((item) => item.isMetaMask && !item.isBinance && !item.isBinanceWallet)
@@ -345,7 +347,7 @@ export function AuroraDepositModal({
                   </button>
                   <button type="button" onClick={() => void connectWallet("binance")} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 text-xs font-semibold">
                     {connectedWallet?.name === "Binance Web3" ? "Binance connected" : "Connect Binance Web3"}
-                    {!window.ethereum?.providers && !window.ethereum && <ExternalLink size={13} />}
+                    {!hasInjectedWallet && <ExternalLink size={13} />}
                   </button>
                 </div>
                 {connectedWallet && (

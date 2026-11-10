@@ -20,6 +20,15 @@ function createFarmBlinkUrl(farmId: number) {
   return `https://dial.to/?action=solana-action:${encodeURIComponent(actionEndpoint)}`;
 }
 
+type FarmAnalysisFields = {
+  revenueForecast?: { low: number; high: number; uncertaintyRatio?: number } | null;
+  topFactors?: Array<{ factor: string; contribution: number; detail: string }> | null;
+  reviewFlagged?: boolean;
+  riskScore?: number;
+  riskScoreSource?: string;
+  coldStart?: boolean;
+};
+
 type GrowthData = {
   farmId: number; cropType: string;
   stage: "planting" | "growing" | "harvest";
@@ -353,9 +362,12 @@ export default function FarmDetail() {
       .catch(() => {});
   }, [farmId, token]);
 
-  const { data: farm, isLoading } = useGetFarm(farmId, {
+  const { data: farmData, isLoading } = useGetFarm(farmId, {
     query: { enabled: !!farmId, queryKey: getGetFarmQueryKey(farmId), staleTime: 3 * 60 * 1000 },
   });
+  const farm = farmData as
+    | (NonNullable<typeof farmData> & FarmAnalysisFields)
+    | Extract<typeof farmData, null | undefined>;
   const { data: primaryListings } = useListPrimaryMarket();
 
   type NewsItem = { title: string; summary: string; url: string; source: string; publishedAt: string; sentiment?: number; cropRelevance?: number };

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, Star, Map, Calculator, BellRing, ExternalLink, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Bot, Flame, MoreHorizontal } from "lucide-react";
+import { Bell, ChevronRight, TrendingUp, TrendingDown, Newspaper, BookmarkPlus, Clock, Wallet, AlertTriangle, Star, Map, Calculator, BellRing, ExternalLink, CheckCircle2, X, DollarSign, RefreshCw, Zap, ArrowUpRight, Lightbulb, Loader2, Bot, Flame } from "lucide-react";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import {
   useGetTopMovers,
@@ -307,6 +307,7 @@ export default function MarketHome() {
     qc.invalidateQueries({ queryKey: ["market-movers"] });
     qc.invalidateQueries({ queryKey: ["market-decliners"] });
     qc.invalidateQueries({ queryKey: ["market-summary"] });
+    qc.invalidateQueries({ queryKey: ["market-ticker"] });
     setTimeout(() => setRefreshing(false), 1500);
   };
 
@@ -411,7 +412,6 @@ export default function MarketHome() {
   const [matcherOpen, setMatcherOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
-  const [headerActionsOpen, setHeaderActionsOpen] = useState(false);
   const [statModal, setStatModal] = useState<"turnover" | "return" | "listings" | null>(null);
   const [calcListing, setCalcListing] = useState<any>(null);
   const [alertListing, setAlertListing] = useState<any>(null);
@@ -612,122 +612,101 @@ export default function MarketHome() {
       </AnimatePresence>
 
       {/* Market Header */}
-      <div className="market-intro relative pt-10 pb-0 px-5 border-b border-border text-white" data-tour="market-header">
-        {/* Subtle dot grid decoration */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle, #16a34a 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
-        <div className="absolute -top-12 -right-8 w-36 h-36 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute -bottom-4 -left-4 w-24 h-24 rounded-full bg-primary/5 blur-2xl" />
-
-        <div className="relative mb-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <img src={logoSrc} alt="Investa Farm" className="h-7 w-auto" />
-            </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {/* Wallet and notifications stay visible; lower-priority actions live in More. */}
-              <button
-                data-tour="wallet-btn"
-                data-testid="button-market-wallet"
-                onClick={() => setWalletOpen(true)}
-                className="market-action flex items-center gap-1.5 bg-[#d1a448] text-[#193c30] rounded-full px-2.5 min-[380px]:px-3 py-1.5 shadow-sm active:scale-95 transition-transform"
-              >
-                <Wallet size={12} className="text-white" />
-                <span className="text-white text-xs font-bold">
-                  {walletBalance !== undefined ? (
-                    <>
-                      <span className="hidden min-[380px]:inline">{formatAmount(parseFloat(walletBalance ?? "0"))}</span>
-                      <span className="min-[380px]:hidden">Wallet</span>
-                    </>
-                  ) : "Wallet"}
-                </span>
-                <ArrowUpRight size={11} className="text-white/80" />
-              </button>
-              <button
-                data-testid="button-market-notifications"
-                onClick={() => setLocation("/notifications")}
-                className="w-8 h-8 rounded-full bg-card flex items-center justify-center relative border border-border shadow-sm"
-                title="Notifications"
-              >
-                <Bell size={15} className="text-foreground" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[7px] text-white font-bold flex items-center justify-center">
-                    {Math.min(unreadCount, 9)}
-                  </span>
-                )}
-              </button>
-              <button
-                data-testid="button-market-more"
-                aria-label="More market actions"
-                aria-expanded={headerActionsOpen}
-                onClick={() => setHeaderActionsOpen((open) => !open)}
-                className={`w-8 h-8 rounded-full bg-card flex items-center justify-center border border-border shadow-sm ${headerActionsOpen ? "text-primary border-primary/40" : "text-foreground"}`}
-                title="More market actions"
-              >
-                <MoreHorizontal size={16} />
-              </button>
-            </div>
+      <div className="market-intro relative px-5 pt-10 pb-3 border-b border-border text-foreground" data-tour="market-header">
+        <div className="relative flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <img src={logoSrc} alt="Investa Farm" className="h-8 w-auto" />
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-extrabold tracking-wide text-emerald-700">
+              <span className={`h-1.5 w-1.5 rounded-full ${tickerItems.some((item) => item.source !== "fallback") ? "animate-pulse bg-emerald-500" : "bg-amber-500"}`} />
+              {tickerItems.some((item) => item.source !== "fallback") ? "LIVE" : "REFERENCE"}
+            </span>
           </div>
-          {headerActionsOpen && (
-            <div
-              data-testid="market-more-actions"
-              className="absolute right-0 top-[calc(100%+8px)] z-30 w-52 rounded-2xl border border-border bg-card p-1.5 shadow-xl"
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              data-tour="wallet-btn"
+              data-testid="button-market-wallet"
+              onClick={() => setWalletOpen(true)}
+              className="market-action flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1.5 shadow-sm active:scale-95 min-[380px]:px-3"
             >
-              <button
-                data-testid="button-refresh-market"
-                onClick={() => { setHeaderActionsOpen(false); handleRefresh(); }}
-                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-foreground hover:bg-muted active:bg-muted"
-              >
-                <RefreshCw size={14} className={refreshing ? "animate-spin text-primary" : "text-muted-foreground"} />
-                Refresh market
-              </button>
-              <button
-                data-testid="button-market-assistant"
-                onClick={() => { setHeaderActionsOpen(false); setAgentOpen(true); }}
-                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-foreground hover:bg-muted active:bg-muted"
-              >
-                <Bot size={14} className="text-primary" />
-                Investment assistant
-              </button>
-              <button
-                data-testid="button-market-map"
-                onClick={() => { setHeaderActionsOpen(false); setLocation("/market/map"); }}
-                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-foreground hover:bg-muted active:bg-muted"
-              >
-                <Map size={14} className="text-muted-foreground" />
-                Explore farm map
-              </button>
-            </div>
-          )}
+              <Wallet size={12} className="text-white" />
+              <span className="text-xs font-bold text-white">
+                {walletBalance !== undefined ? (
+                  <>
+                    <span className="hidden min-[380px]:inline">{formatAmount(parseFloat(walletBalance ?? "0"))}</span>
+                    <span className="min-[380px]:hidden">Wallet</span>
+                  </>
+                ) : "Wallet"}
+              </span>
+              <ArrowUpRight size={11} className="text-white/80" />
+            </button>
+            <button
+              type="button"
+              data-testid="button-refresh-market"
+              aria-label="Refresh market prices"
+              title="Refresh market"
+              onClick={handleRefresh}
+              className="market-action flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm"
+            >
+              <RefreshCw size={14} className={refreshing ? "animate-spin text-primary" : ""} />
+            </button>
+            <button
+              type="button"
+              data-testid="button-market-map"
+              aria-label="Explore farm map"
+              title="Explore farm map"
+              onClick={() => setLocation("/market/map")}
+              className="market-action flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm"
+            >
+              <Map size={15} />
+            </button>
+            <button
+              type="button"
+              data-testid="button-market-notifications"
+              aria-label="Notifications"
+              onClick={() => setLocation("/notifications")}
+              className="market-action relative flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm"
+            >
+              <Bell size={15} />
+              {unreadCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[7px] font-bold text-white">
+                  {Math.min(unreadCount, 9)}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
-
-
+        <h1 className="relative mt-3 flex items-center gap-1.5 text-[21px] font-bold tracking-tight text-[#14251f]">
+          Live Market <TrendingUp size={16} className="text-emerald-600" />
+          <button
+            type="button"
+            data-testid="button-market-assistant"
+            aria-label="Open investment assistant"
+            title="Investment assistant"
+            onClick={() => setAgentOpen(true)}
+            className="ml-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-700"
+          >
+            <Bot size={13} />
+          </button>
+        </h1>
       </div>
 
       {/* Continuous live/reference market tape on the light surface. */}
       <div data-tour="market-ticker" className="overflow-hidden border-b border-border bg-white py-2.5 text-foreground dark:bg-card">
         {tickerItems.length > 0 ? (
-          <div className="flex items-center">
-            <span className="ml-4 mr-3 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
-              <span className={`h-1.5 w-1.5 rounded-full ${tickerItems.some((item) => item.source !== "fallback") ? "bg-emerald-500" : "bg-amber-500"}`} />
-              {tickerItems.every((item) => item.source === "fallback") ? "Reference" : "Market"}
-            </span>
-            <div className="min-w-0 flex-1 overflow-hidden">
-              <div className="ticker-track flex w-max items-center whitespace-nowrap">
-                {[...tickerItems, ...tickerItems].map((item, index) => (
-                  <div key={`${item.name}-${index}`} className="flex items-center gap-2 px-4">
-                    <span className="text-[11px] font-semibold text-foreground">{item.name}</span>
-                    <span className="text-[10px] text-muted-foreground">KES {item.price}{item.unit}</span>
-                    {item.change !== null && (
-                      <span className={`text-[10px] font-bold ${item.change >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {item.change >= 0 ? "▲" : "▼"} {formatChange(item.change)}
-                      </span>
-                    )}
-                    <span className="ml-2 h-4 border-r border-border" aria-hidden="true" />
-                  </div>
-                ))}
+          <div className="min-w-0 overflow-hidden px-1" aria-label="Crop market price ticker">
+            <div className="ticker-track flex w-max items-center whitespace-nowrap">
+              {[...tickerItems, ...tickerItems].map((item, index) => (
+                <div key={`${item.name}-${index}`} className="flex items-center gap-2 px-4">
+                  <span className="text-[11px] font-semibold text-foreground">{item.name}</span>
+                  <span className="text-[10px] text-muted-foreground">KES {item.price}{item.unit}</span>
+                  {item.change !== null && (
+                    <span className={`text-[10px] font-bold ${item.change >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {item.change >= 0 ? "▲" : "▼"} {formatChange(item.change)}
+                    </span>
+                  )}
+                  <span className="ml-2 h-4 border-r border-border" aria-hidden="true" />
               </div>
+              ))}
             </div>
           </div>
         ) : (
