@@ -6,6 +6,8 @@ import { getToken, getStoredUser } from "@/lib/auth";
 import { ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, RefreshCw, ArrowLeft, CheckCircle2, Wallet, CreditCard, Filter, Trash2, Download, Lock, Shield, Clock3, Sprout, BarChart3, BriefcaseBusiness, X, Coins, Repeat } from "lucide-react";
 // CheckCircle2 used in success toast below
 import { PaymentSheet } from "@/components/payment-sheet";
+import { AuroraDepositModal } from "@/components/aurora-deposit-modal";
+import { PrivyMultiChainWallet } from "@/components/privy-multichain-wallet";
 import { WithdrawSheet } from "@/components/withdraw-sheet";
 import { WalletPinGate } from "@/components/wallet-pin-gate";
 import { WalletPinSetup } from "@/components/wallet-pin-setup";
@@ -20,14 +22,6 @@ type WalletData = {
   transactions: Array<{
     id: number; type: string; amount: string; balanceAfter: string;
     description: string | null; reference: string | null; status: string; createdAt: string;
-  }>;
-};
-
-type StablecoinWalletData = {
-  wallet: { id: number; balance: string; asset: string; network: string; updatedAt: string };
-  transactions: Array<{
-    id: number; type: string; amount: string; balanceAfter: string;
-    description: string | null; status: string; createdAt: string;
   }>;
 };
 
@@ -48,14 +42,14 @@ export default function InvestorWallet() {
   const user = getStoredUser();
   const qc = useQueryClient();
   const isFarmer = (user as {role?: string} | null)?.role === "farmer";
-  const [modal, setModal] = useState<"deposit" | "usdc-deposit" | "withdraw" | "finance" | null>(null);
+  const [modal, setModal] = useState<"deposit" | "aurora" | "withdraw" | "finance" | null>(null);
   useScrollLock(!!modal);
   const [amount, setAmount] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
 
   // ── Wallet PIN state ────────────────────────────────────────────────────────
   const [pinGateOpen, setPinGateOpen] = useState(false);
-  const [pinGateAction, setPinGateAction] = useState<"deposit" | "usdc-deposit" | "withdraw" | null>(null);
+  const [pinGateAction, setPinGateAction] = useState<"deposit" | "withdraw" | null>(null);
   const [pinSetupOpen, setPinSetupOpen] = useState(false);
   const [hasPin, setHasPin] = useState<boolean | null>(null); // null = loading
   const [transactionPin, setTransactionPin] = useState("");
@@ -68,7 +62,7 @@ export default function InvestorWallet() {
       .catch(() => {});
   }, [token]);
 
-  function openWithPin(action: "deposit" | "usdc-deposit" | "withdraw") {
+  function openWithPin(action: "deposit" | "withdraw") {
     if (hasPin === null) return;
     if (hasPin === false) {
       // User has no PIN yet — send them to setup first
@@ -84,7 +78,6 @@ export default function InvestorWallet() {
     setPinGateOpen(false);
     setTransactionPin(pin);
     if (pinGateAction === "deposit") { setModal("deposit"); setAmount(""); }
-    else if (pinGateAction === "usdc-deposit") { setModal("usdc-deposit"); setAmount(""); }
     else if (pinGateAction === "withdraw") { setModal("withdraw"); setAmount(""); }
     setPinGateAction(null);
   }
@@ -129,32 +122,6 @@ export default function InvestorWallet() {
     },
     enabled: !!token,
   });
-
-  const { data: stablecoinData, isLoading: stablecoinLoading } = useQuery<StablecoinWalletData>({
-    queryKey: ["stablecoin-wallet"],
-    queryFn: async () => {
-      const r = await fetch("/api/wallet/stablecoin", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error("Failed to load USDC wallet");
-      return r.json();
-    },
-    enabled: !!token && !isFarmer,
-  });
-
-  const {
-    data: circleInfo,
-    isLoading: circleInfoLoading,
-    isError: circleInfoError,
-  } = useQuery<{ configured: boolean }>({
-    queryKey: ["circle-info"],
-    queryFn: async () => {
-      const response = await fetch("/api/wallet/circle/info", { headers: { Authorization: `Bearer ${token}` } });
-      if (!response.ok) throw new Error("Could not check Polygon USDC deposit availability.");
-      return response.json();
-    },
-    enabled: !!token && !isFarmer,
-    staleTime: 60_000,
-  });
-
 
   const balance = parseFloat(data?.wallet?.balance ?? "0");
   const txs = data?.transactions ?? [];
@@ -264,48 +231,27 @@ export default function InvestorWallet() {
           </div>
         </div>
 
-        {!isFarmer && (
-          <section className="mt-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-900 dark:bg-blue-950/30" data-testid="card-usdc-wallet">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-xs font-black text-white">USDC</div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">USDC balance</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {circleInfoLoading
-                      ? "Checking Polygon deposit availability…"
-                      : circleInfoError
-                        ? "Could not verify Polygon deposit settings. Refresh to retry."
-                      : circleInfo?.configured
-                        ? "Polygon network · separate from your KES wallet"
-                        : "Polygon USDC deposits are not enabled on this deployment."}
-                  </p>
-                </div>
-              </div>
-              <p className="shrink-0 text-lg font-bold tabular-nums text-foreground" data-testid="text-usdc-balance">
-                {stablecoinLoading ? "…" : `${Number(stablecoinData?.wallet.balance ?? 0).toFixed(2)} USDC`}
+        <div className="mt-3">
+          <PrivyMultiChainWallet authToken={token} />
+        </div>
+        <section className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Aurora cross-chain deposits</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                Deposit supported assets from 34+ source networks to your linked Solana or Stellar Privy wallet. These funds do not enter your KES balance or buy farm shares automatically.
               </p>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-3 border-t border-blue-200/70 pt-3 dark:border-blue-900">
-              <p className="text-[10px] leading-relaxed text-muted-foreground">
-                {circleInfo?.configured
-                  ? "No automatic conversion. KES and USDC stay separate."
-                  : circleInfoError
-                    ? "Deposit settings could not be checked."
-                    : "No Circle deposit address is available; no funds can be sent yet."}
-              </p>
-              <button
-                type="button"
-                onClick={() => openWithPin("usdc-deposit")}
-                disabled={hasPin === null || circleInfoLoading || circleInfo?.configured !== true}
-                className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl bg-blue-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-                data-testid="button-add-usdc"
-              >
-                <Plus size={14} /> {circleInfoLoading ? "Checking…" : circleInfo?.configured ? "Add USDC" : "Unavailable"}
-              </button>
-            </div>
-          </section>
-        )}
+            <span className="shrink-0 rounded-full bg-emerald-700 px-2 py-1 text-[9px] font-bold text-white">AURORA</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setModal("aurora")}
+            className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800"
+          >
+            <Plus size={15} /> Create a deposit address
+          </button>
+        </section>
 
         {/* Escrow balance strip */}
         {(escrowData?.heldTotal ?? 0) > 0 && (
@@ -484,14 +430,22 @@ export default function InvestorWallet() {
 
       {/* Deposit — PaymentSheet */}
       <PaymentSheet
-        open={modal === "deposit" || modal === "usdc-deposit"}
-        initialTab={modal === "usdc-deposit" ? "usdc" : "mobile"}
+        open={modal === "deposit"}
+        initialTab="mobile"
         onClose={() => setModal(null)}
         onSuccess={(amt, currency) => {
-          setSuccess(currency === "USDC"
-            ? `${amt.toFixed(2)} USDC added to your USDC balance`
-            : `KES ${amt.toLocaleString()} added to your KES wallet`);
+          setSuccess(`${currency} ${amt.toLocaleString()} added to your KES wallet`);
           setTimeout(() => setSuccess(null), 5000);
+        }}
+      />
+
+      <AuroraDepositModal
+        open={modal === "aurora"}
+        authToken={token}
+        onClose={() => setModal(null)}
+        onSetupWallet={() => {
+          setModal(null);
+          setLocation("/wallet-setup?next=%2Fwallet");
         }}
       />
 

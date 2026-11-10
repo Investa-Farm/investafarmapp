@@ -114,13 +114,20 @@ export default function Register() {
             if (viaChannel) localStorage.setItem("investa_referral_channel", viaChannel);
           }
           if (data.requiresOtp === false) {
+            const next =
+              data.user.role === "farmer"
+                ? farmerType === "group" ? "/farmer/group" : "/farmer"
+                : data.user.role === "cooperative"
+                  ? "/cooperative/dashboard"
+                  : data.user.role === "agribusiness"
+                    ? "/agribusiness"
+                    : "/market";
             if (data.user.role === "farmer") {
               localStorage.setItem("investa_farmer_type", farmerType);
-              if (farmerType === "group") setLocation("/farmer/group");
-              else setLocation("/farmer");
-            } else setLocation("/market");
+            }
+            setLocation(`/wallet-setup?next=${encodeURIComponent(next)}`);
           } else {
-            setLocation(`/verify-otp?email=${encodeURIComponent(email)}`);
+            setLocation(`/verify-otp?email=${encodeURIComponent(email)}&setupWallet=1`);
           }
         },
         onError: (err: any) => {

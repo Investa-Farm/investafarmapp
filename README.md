@@ -68,13 +68,12 @@ pnpm --filter @workspace/db run push
 | `SESSION_SECRET` | production | Signs login/session tokens; use the same value across instances. |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | production | Web push notifications. The server throws on boot in production if these aren't set — there is no file-based fallback in production. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | optional | Seed/admin account credentials |
-| `SEED_DEMO` | isolated demo deployment only | Set to `true` only when you intentionally want demo accounts and sample data seeded at startup. Leave unset on a production service with real users. |
-| `PRIVY_APP_ID` / `PRIVY_APP_SECRET` | Stellar wallet linking | Server-side verification of the user's Privy-linked Stellar wallet. These are not used for Solana. |
-| `VITE_PRIVY_APP_ID` | Stellar wallet linking | Privy app ID for the Stellar wallet experience in the frontend. |
-| `VITE_WALLETCONNECT_PROJECT_ID` | Optional, mobile QR connection | WalletConnect project ID for MetaMask mobile QR pairing. Injected wallet browsers/extensions can connect without it. |
-| `CIRCLE_API_KEY` | Polygon USDC deposits | Circle Payments API key used to create and verify intent-specific Polygon USDC deposits. |
+| `SEED_DEMO` | optional | Production startup seeds the reserved demo accounts and farms by default. Set to `false` to opt out. |
+| `PRIVY_APP_ID` / `PRIVY_APP_SECRET` | Privy wallet linking | Server-side verification of the user's linked Solana and Stellar wallets under one Privy identity. |
+| `VITE_PRIVY_APP_ID` | Privy wallet setup | Privy app ID used to create the Solana and Stellar wallet addresses during signup. |
 | `AURORA_INTENTS_API_KEY` | Aurora deposits | Valid Aurora Intents API key; store as a server secret, never in frontend variables. |
 | `AURORA_SOLANA_USDC_ASSET_ID` | optional | Select a specific Solana USDC asset if Aurora returns more than one match for the API key. |
+| `AURORA_STELLAR_USDC_ASSET_ID` | optional | Select a specific Stellar USDC asset if Aurora returns more than one match for the API key. |
 | `PUBLIC_APP_URL` | production Blink | Canonical HTTPS origin used in Solana Action links. It must be the hostname that actually serves this Render service. |
 | `SOLANA_DEVNET_RPC_URL` | optional | Custom Solana Devnet RPC. Defaults to Solana's public Devnet endpoint. |
 | `SOLANA_DEVNET_USDC_MINT` / `SOLANA_DEVNET_TREASURY_ADDRESS` | Devnet demo only | Public Devnet mint and destination wallet used to build unsigned test-USDC transactions. Configure both to enable the demo. |
@@ -85,25 +84,25 @@ pnpm --filter @workspace/db run push
 The app is deployed to Render as a single web service:
 
 - **Build command:** `pnpm install --frozen-lockfile; pnpm run build` — runs a full workspace typecheck, then builds every package (frontend, API server, and the design-only mockup sandbox).
-- **Start command:** `./start.sh` — runs the root `start` script, which applies idempotent migrations and blog seeds, adds demo accounts/farms only when `SEED_DEMO=true`, then starts the compiled API server (`artifacts/api-server/dist/index.mjs`), which also serves the built frontend (`artifacts/investa-farm/dist/public`) as static files in production.
+- **Start command:** `./start.sh` — runs idempotent migrations and seeds before starting the compiled API server (`artifacts/api-server/dist/index.mjs`), which also serves the built frontend (`artifacts/investa-farm/dist/public`) in production. Demo accounts and farms are seeded by default; set `SEED_DEMO=false` to disable.
 
 Because Render builds the entire workspace (not just the artifacts that matter for production), all packages must build cleanly even outside Replit's own per-artifact dev flow — verify with the exact commands above before pushing, not just the Replit workflow logs.
 
 ## Solana and Aurora
 
-Solana supports Investa's wallet demos and shareable Social Blinks. Aurora Intents solves the cross-chain deposit problem: users can route supported assets from 34+ source networks to USDC in their verified Solana wallet. Privy is used for Stellar only.
+Privy creates chain-specific Solana and Stellar wallet addresses under one Privy identity; the KES wallet remains separate. Aurora Intents can route supported source-chain assets to a linked Privy Solana or Stellar wallet when Aurora lists a matching USDC destination asset. These deposits do not credit KES or purchase farm shares automatically. Farm Blink links show live listing metadata, but the transaction button remains disabled until an on-chain farm-share settlement program is configured.
 
 The live Aurora flow creates a persistent deposit address and checks Aurora's transaction status. It is not a quote, investment checkout, KES credit, or farm-share issuance flow. Keep it separate from Solana Devnet, which uses valueless test tokens and unsigned transactions.
 
-## Solana Devnet demo
+## Solana Social Blinks
 
-The Devnet wallet and Social Blink demo runs in the existing app; no separate Solana program deployment is needed. Configure `SOLANA_DEVNET_USDC_MINT` and `SOLANA_DEVNET_TREASURY_ADDRESS`; set `PUBLIC_APP_URL` for public Blink links. Wallet owners verify their address and review/sign any unsigned test transaction. Devnet tokens have no real-world value and never credit KES or create farm shares.
+Farm detail pages share a farm-specific Solana Blink URL backed by `/api/actions/invest/:projectId`, and the root `/actions.json` manifest maps those routes. The Blink shows active listing metadata. Its on-chain investment action is disabled until a real farm-share settlement program is configured; it does not create a quote, move funds, or issue shares. The generic `/api/actions/invest` endpoint is a separate Devnet test-transfer demo.
 
 ## Aurora Intents deposits
 
-Configure the server-side `AURORA_INTENTS_API_KEY` in Replit Secrets and the Render service, plus `SESSION_SECRET`, for live address creation. Aurora must approve the key for persistent addresses. Set `AURORA_SOLANA_USDC_ASSET_ID` only if Aurora returns multiple Solana USDC assets. The app checks Aurora's token list before enabling address creation.
+Configure the server-side `AURORA_INTENTS_API_KEY` on the deployment and `SESSION_SECRET` for live address creation. Aurora must approve the key for persistent addresses. Set `AURORA_SOLANA_USDC_ASSET_ID` or `AURORA_STELLAR_USDC_ASSET_ID` only if Aurora returns multiple USDC assets for that destination. The app checks Aurora's token list when creating an address.
 
-Each address routes supported deposits to the user's verified Solana wallet; the flow also checks Aurora's transaction status. It is not a swap quote or an Investa investment: deposits do not credit KES or issue farm shares. The API exposes the unsigned Devnet Blink at `/api/actions/invest` and `/actions.json`; register the deployed domain with Dialect before sharing public Blinks.
+Each address routes supported deposits from 34 source-network codes to the selected, verified Privy Solana or Stellar wallet and can check Aurora transaction status. It is not an Investa payment: deposits do not credit KES or issue farm shares. Never place the Aurora API key in frontend variables.
 
 ## Architecture notes
 

@@ -24,6 +24,7 @@ export * from "./order_book";
 export * from "./watchlist";
 export * from "./stellar_accounts";
 export * from "./privy_stellar_wallets";
+export * from "./privy_solana_wallets";
 export * from "./voucher_orders";
 export * from "./password_reset_tokens";
 export * from "./roi_projections";

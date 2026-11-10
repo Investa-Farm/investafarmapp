@@ -1,9 +1,11 @@
 import { Router, type IRouter, type Request } from "express";
 import { PrivyClient } from "@privy-io/node";
 import { db, privyStellarWalletsTable } from "@workspace/db";
+import { privySolanaWalletsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import * as StellarSdk from "@stellar/stellar-sdk";
+import { PublicKey } from "@solana/web3.js";
 import { getCurrentUser } from "./auth";
 
 const router: IRouter = Router();
@@ -36,12 +38,12 @@ function bearerToken(header: string | string[] | undefined): string | null {
 }
 
 type PrivyWalletVerification =
-  | { ok: true }
+  | { ok: true; privyUserId: string }
   | { ok: false; status: number; error: string };
 
 export async function verifyPrivyWalletOwnership(
   req: Request,
-  chainType: "stellar",
+  chainType: "stellar" | "solana",
   address: string,
 ): Promise<PrivyWalletVerification> {
   const client = getPrivyClient();
@@ -68,11 +70,11 @@ export async function verifyPrivyWalletOwnership(
     const ownsAddress = linkedAccounts.some(
       (account) =>
         account.type === "wallet" &&
-        (account.chain_type ?? account.chainType) === chainType &&
+        (account.chain_type ?? account.chainType)?.toLowerCase() === chainType &&
         account.address === address,
     );
     return ownsAddress
-      ? { ok: true }
+      ? { ok: true, privyUserId: verifiedUserId }
       : { ok: false, status: 403, error: `That ${chainType} address is not linked to the authenticated Privy account.` };
   } catch {
     return { ok: false, status: 502, error: "Privy could not confirm this wallet right now. Please try again." };
@@ -153,6 +155,18 @@ router.post("/users/update-wallet", async (req, res): Promise<void> => {
   }
 
   try {
+    const [linkedSolanaWallet] = await db
+      .select({ privyUserId: privySolanaWalletsTable.privyUserId })
+      .from(privySolanaWalletsTable)
+      .where(eq(privySolanaWalletsTable.userId, user.id))
+      .limit(1);
+    if (linkedSolanaWallet && linkedSolanaWallet.privyUserId !== verifiedUserId) {
+      res.status(409).json({
+        error: "Your Solana and Stellar wallets must use the same Privy account. No wallet link was changed.",
+      });
+      return;
+    }
+
     const [existingWallet] = await db
       .select({
         privyUserId: privyStellarWalletsTable.privyUserId,
@@ -223,6 +237,138 @@ router.post("/users/update-wallet", async (req, res): Promise<void> => {
       return;
     }
     res.status(500).json({ error: "Failed to save the linked Stellar wallet." });
+  }
+});
+
+router.get("/users/linked-solana-wallet", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const [wallet] = await db
+    .select({
+      address: privySolanaWalletsTable.address,
+      linkedAt: privySolanaWalletsTable.createdAt,
+    })
+    .from(privySolanaWalletsTable)
+    .where(eq(privySolanaWalletsTable.userId, user.id))
+    .limit(1);
+
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ wallet: wallet ?? null });
+});
+
+router.post("/users/update-solana-wallet", async (req, res): Promise<void> => {
+  const user = await getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ error: "Sign in to Investa Farm before linking a wallet." });
+    return;
+  }
+
+  const parsed = LinkWalletBody.safeParse(req.body);
+  let address: string | null = null;
+  if (parsed.success) {
+    try {
+      address = new PublicKey(parsed.data.address).toBase58();
+    } catch {
+      address = null;
+    }
+  }
+  if (!address) {
+    res.status(400).json({ error: "A valid Solana public address is required." });
+    return;
+  }
+
+  const verification = await verifyPrivyWalletOwnership(req, "solana", address);
+  if (!verification.ok) {
+    res.status(verification.status).json({ error: verification.error });
+    return;
+  }
+
+  try {
+    const [linkedStellarWallet] = await db
+      .select({ privyUserId: privyStellarWalletsTable.privyUserId })
+      .from(privyStellarWalletsTable)
+      .where(eq(privyStellarWalletsTable.userId, user.id))
+      .limit(1);
+    if (linkedStellarWallet && linkedStellarWallet.privyUserId !== verification.privyUserId) {
+      res.status(409).json({
+        error: "Your Solana and Stellar wallets must use the same Privy account. No wallet link was changed.",
+      });
+      return;
+    }
+
+    const [existingWallet] = await db
+      .select({
+        privyUserId: privySolanaWalletsTable.privyUserId,
+        address: privySolanaWalletsTable.address,
+      })
+      .from(privySolanaWalletsTable)
+      .where(eq(privySolanaWalletsTable.userId, user.id))
+      .limit(1);
+
+    if (
+      existingWallet &&
+      (existingWallet.privyUserId !== verification.privyUserId || existingWallet.address !== address)
+    ) {
+      res.status(409).json({
+        error:
+          "A different Solana wallet is already linked. Reconnect the original Privy account; the existing wallet was not changed.",
+      });
+      return;
+    }
+
+    const [linkedWallet] = await db
+      .insert(privySolanaWalletsTable)
+      .values({
+        userId: user.id,
+        privyUserId: verification.privyUserId,
+        address,
+      })
+      .onConflictDoNothing({ target: privySolanaWalletsTable.userId })
+      .returning({
+        address: privySolanaWalletsTable.address,
+        linkedAt: privySolanaWalletsTable.createdAt,
+      });
+
+    if (linkedWallet) {
+      res.setHeader("Cache-Control", "no-store");
+      res.json({ wallet: linkedWallet });
+      return;
+    }
+
+    const [unchangedWallet] = await db
+      .select({
+        privyUserId: privySolanaWalletsTable.privyUserId,
+        address: privySolanaWalletsTable.address,
+        linkedAt: privySolanaWalletsTable.createdAt,
+      })
+      .from(privySolanaWalletsTable)
+      .where(eq(privySolanaWalletsTable.userId, user.id))
+      .limit(1);
+
+    if (
+      !unchangedWallet ||
+      unchangedWallet.privyUserId !== verification.privyUserId ||
+      unchangedWallet.address !== address
+    ) {
+      res.status(409).json({
+        error:
+          "A different Solana wallet is already linked. Reconnect the original Privy account; the existing wallet was not changed.",
+      });
+      return;
+    }
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ wallet: { address: unchangedWallet.address, linkedAt: unchangedWallet.linkedAt } });
+  } catch (error) {
+    if ((error as { code?: string })?.code === "23505") {
+      res.status(409).json({ error: "This Privy wallet is already linked to another Investa Farm account." });
+      return;
+    }
+    res.status(500).json({ error: "Failed to save the linked Solana wallet." });
   }
 });
 

@@ -5,7 +5,7 @@
  *   Mobile Money — select M-Pesa / MTN / Airtel → direct STK push via PesaPal
  *                  or PesaPal new-tab checkout (MTN / Airtel) — no in-app popup
  *   Card          — PesaPal checkout opens in a new browser tab + background polling
- *   USDC          — Circle on-chain deposit address + manual confirm
+ *   Cross-chain   — handled separately by the Aurora Intents deposit sheet
  */
 import { useState, useEffect, useRef } from "react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
@@ -389,7 +389,6 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
   const TABS: { id: Tab; label: string; icon: React.ReactNode; gradient: string }[] = [
     { id: "mobile", label: "Mobile Money", icon: <Smartphone size={14} />, gradient: "linear-gradient(135deg,#15803d,#16a34a)" },
     { id: "card",   label: "Card",         icon: <CreditCard size={14} />, gradient: "linear-gradient(135deg,#1d4ed8,#3b82f6)" },
-    { id: "usdc",   label: "USDC",         icon: <Wallet size={14} />, gradient: "linear-gradient(135deg,#1652F0,#2D56FA)" },
   ];
 
   const provider = MOBILE_PROVIDERS.find(p => p.id === selectedProvider) ?? null;

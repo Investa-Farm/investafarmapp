@@ -15,6 +15,11 @@ import { InvestModal } from "@/components/invest-modal";
 import { useQuery } from "@tanstack/react-query";
 import "leaflet/dist/leaflet.css";
 
+function createFarmBlinkUrl(farmId: number) {
+  const actionEndpoint = new URL(`/api/actions/invest/${farmId}`, window.location.origin).toString();
+  return `https://dial.to/?action=solana-action:${encodeURIComponent(actionEndpoint)}`;
+}
+
 type GrowthData = {
   farmId: number; cropType: string;
   stage: "planting" | "growing" | "harvest";
@@ -1345,8 +1350,8 @@ export default function FarmDetail() {
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         title={farm.name}
-        text={`🌱 Invest in ${farm.name} on Investa Farm! ${farm.cropType} · ${farm.location}`}
-        url={typeof window !== "undefined" ? window.location.href : ""}
+        text={`🌱 View ${farm.name} on Investa Farm! ${farm.cropType} · ${farm.location}`}
+        url={typeof window !== "undefined" ? createFarmBlinkUrl(farm.id) : ""}
       />
 
       <InvestModal

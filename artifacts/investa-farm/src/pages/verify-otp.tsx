@@ -108,11 +108,17 @@ export default function VerifyOtp() {
       setDone(true);
       setTimeout(() => {
         const role = d.user?.role ?? user?.role;
-        if (role === "farmer") setLocation("/farmer");
+        if (params.get("setupWallet") === "1") {
+          const next =
+            role === "farmer" ? "/farmer" :
+            role === "cooperative" ? "/cooperative/dashboard" :
+            role === "agribusiness" ? "/agribusiness" : "/market";
+          setLocation(`/wallet-setup?next=${encodeURIComponent(next)}`);
+        } else if (role === "farmer") setLocation("/farmer");
         else if (role === "cooperative") setLocation("/cooperative/dashboard");
         else if (role === "agribusiness") setLocation("/agribusiness");
         else setLocation("/market");
-      }, 2500);
+      }, 1800);
     } catch (err) {
       setError((err as Error).message);
     } finally {

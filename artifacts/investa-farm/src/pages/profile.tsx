@@ -20,7 +20,6 @@ import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog";
 import { COUNTRIES } from "@/lib/countries";
 import { WalletPinSetup } from "@/components/wallet-pin-setup";
 import { InlineVideoPlayer } from "@/components/inline-video-player";
-import { PrivyStellarWallet } from "@/components/privy-stellar-wallet";
 
 const BROKER_THRESHOLD = 500_000;
 
@@ -410,7 +409,6 @@ export default function Profile() {
               Connect Stellar here. Solana is used for shareable farm market Blinks.
             </p>
           </div>
-          <PrivyStellarWallet authToken={token} />
         </section>
 
         {/* Wallet PIN setup banner — shown to users who haven't created a PIN yet */}

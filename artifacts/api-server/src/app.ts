@@ -119,6 +119,10 @@ app.get("/actions.json", actionsManifestCors, (_req, res) => {
         pathPattern: "/api/actions/invest",
         apiPath: "/api/actions/invest",
       },
+      {
+        pathPattern: "/api/actions/invest/*",
+        apiPath: "/api/actions/invest/*",
+      },
     ],
   });
 });

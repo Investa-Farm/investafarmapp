@@ -97,6 +97,12 @@ export function ShareModal({ open, onClose, title, text, url }: ShareModalProps)
               ))}
             </div>
 
+            {shareUrl.includes("dial.to/?action=solana-action:") && (
+              <p className="mb-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-[11px] leading-relaxed text-violet-900">
+                This shares a Solana Blink preview for the listed farm. On-chain farm-share purchases are not enabled yet.
+              </p>
+            )}
+
             <button onClick={handleCopy}
               className="w-full flex items-center gap-3 bg-muted rounded-2xl p-3.5 active:scale-98 transition-all">
               <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">

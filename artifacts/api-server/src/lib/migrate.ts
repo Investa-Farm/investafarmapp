@@ -189,6 +189,17 @@ async function bootstrapSchema(client: PoolClient, label: string): Promise<void>
     )
   `);
 
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS "privy_solana_wallets" (
+      "id" SERIAL PRIMARY KEY,
+      "user_id" INTEGER NOT NULL UNIQUE REFERENCES "users"("id") ON DELETE CASCADE,
+      "privy_user_id" TEXT NOT NULL UNIQUE,
+      "address" TEXT NOT NULL UNIQUE,
+      "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+      "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
   // Keep the crypto ledger separate from the existing KES wallet and boot it
   // on both primary and fallback databases before wallet routes become live.
   await client.query(`

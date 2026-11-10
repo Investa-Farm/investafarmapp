@@ -90,12 +90,13 @@ function ConflictView({
 function NewUserWelcome({ user, destination }: { user: { name: string; email: string; role: string }; destination: string }) {
   const [, setLocation] = useLocation();
   const [countdown, setCountdown] = useState(4);
+  const walletSetupPath = `/wallet-setup?next=${encodeURIComponent(destination)}`;
 
   useEffect(() => {
     const t = setInterval(() => setCountdown(c => c - 1), 1000);
-    const r = setTimeout(() => setLocation(destination), 4000);
+    const r = setTimeout(() => setLocation(walletSetupPath), 4000);
     return () => { clearInterval(t); clearTimeout(r); };
-  }, [setLocation, destination]);
+  }, [setLocation, walletSetupPath]);
 
   const roleLabel =
     user.role === "farmer" ? "Farmer" :
@@ -140,12 +141,15 @@ function NewUserWelcome({ user, destination }: { user: { name: string; email: st
         </div>
 
         <button
-          onClick={() => setLocation(destination)}
+          onClick={() => setLocation(walletSetupPath)}
           className="w-full py-3.5 rounded-2xl bg-primary text-white font-bold text-sm active:scale-95 transition-all"
         >
-          Get Started →
+          Set up Privy wallets →
         </button>
-        <p className="text-muted-foreground text-xs">Auto-redirecting in {countdown}s…</p>
+        <button onClick={() => setLocation(destination)} className="w-full text-xs text-muted-foreground underline underline-offset-2">
+          Skip wallet setup
+        </button>
+        <p className="text-muted-foreground text-xs">Opening wallet setup in {countdown}s…</p>
       </div>
     </div>
   );

@@ -4,6 +4,8 @@ import { BottomNav } from "@/components/bottom-nav";
 import { formatKES, getToken } from "@/lib/auth";
 import { ArrowLeft, RefreshCw, TrendingUp, Wallet, ArrowDownLeft, ArrowUpRight, Loader2, CheckCircle2, ExternalLink, ChevronDown, Phone, Plus, Shield } from "lucide-react";
 import { PaymentSheet } from "@/components/payment-sheet";
+import { AuroraDepositModal } from "@/components/aurora-deposit-modal";
+import { PrivyMultiChainWallet } from "@/components/privy-multichain-wallet";
 import { WalletPinGate } from "@/components/wallet-pin-gate";
 import { WalletPinSetup } from "@/components/wallet-pin-setup";
 import { nonceHeaders } from "@/lib/nonce";
@@ -52,7 +54,8 @@ export default function FarmerWallet() {
   const qc = useQueryClient();
   const [modal, setModal] = useState<"withdraw" | null>(null);
   const [addFundsOpen, setAddFundsOpen] = useState(false);
-  useScrollLock(!!modal || addFundsOpen);
+  const [auroraOpen, setAuroraOpen] = useState(false);
+  useScrollLock(!!modal || addFundsOpen || auroraOpen);
   const [amount, setAmount] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -253,6 +256,23 @@ export default function FarmerWallet() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <div className="mt-3">
+          <PrivyMultiChainWallet authToken={token} />
+        </div>
+        <section className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <p className="text-sm font-semibold text-foreground">Aurora cross-chain deposits</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            Route supported assets from 34+ source networks to your linked Privy Solana or Stellar wallet. Deposits do not enter the KES earnings balance.
+          </p>
+          <button
+            type="button"
+            onClick={() => setAuroraOpen(true)}
+            className="mt-3 min-h-10 w-full rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white"
+          >
+            Create Aurora deposit address
+          </button>
+        </section>
 
         {/* PIN setup banner */}
         {hasPin === false && (
@@ -499,6 +519,16 @@ export default function FarmerWallet() {
           refetch();
           setSuccess("Wallet funded successfully!");
           setTimeout(() => setSuccess(null), 4000);
+        }}
+      />
+
+      <AuroraDepositModal
+        open={auroraOpen}
+        authToken={token}
+        onClose={() => setAuroraOpen(false)}
+        onSetupWallet={() => {
+          setAuroraOpen(false);
+          setLocation("/wallet-setup?next=%2Ffarmer%2Fwallet");
         }}
       />
 

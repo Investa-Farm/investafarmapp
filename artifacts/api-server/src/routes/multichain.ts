@@ -16,6 +16,14 @@ import {
   getMint,
 } from "@solana/spl-token";
 import { z } from "zod";
+import { and, desc, eq, gt } from "drizzle-orm";
+import {
+  db,
+  farmsTable,
+  marketListingsTable,
+  privySolanaWalletsTable,
+  privyStellarWalletsTable,
+} from "@workspace/db";
 import {
   createHmac,
   createPublicKey,
@@ -27,7 +35,7 @@ import { getCurrentUser } from "./auth";
 import { financialRateLimit } from "../lib/security";
 
 const router: IRouter = Router();
-let cachedAuroraSolanaUsdcAsset: { assetId: string; expiresAt: number } | null = null;
+const cachedAuroraUsdcAssets = new Map<string, { assetId: string; expiresAt: number }>();
 
 const AURORA_SOURCE_CHAINS = [
   "eth",
@@ -67,10 +75,8 @@ const AURORA_SOURCE_CHAINS = [
 ] as const;
 
 const IntentBody = z.object({
-  walletAddress: z.string().trim().min(32).max(44),
   sourceChain: z.enum(AURORA_SOURCE_CHAINS),
-  challenge: z.string().min(40).max(2048),
-  signature: z.string().min(80).max(200),
+  destinationChain: z.enum(["sol", "stellar"]),
 });
 
 const ActionBody = z.object({
@@ -82,10 +88,8 @@ const WalletChallengeBody = z.object({
 });
 
 const IntentStatusBody = z.object({
-  walletAddress: z.string().trim().min(32).max(44),
-  depositAddress: z.string().trim().min(1).max(256),
-  challenge: z.string().min(40).max(2048),
-  signature: z.string().min(80).max(200),
+  sourceChain: z.enum(AURORA_SOURCE_CHAINS),
+  destinationChain: z.enum(["sol", "stellar"]),
 });
 
 function parsePublicKey(value: string | undefined): PublicKey | null {
@@ -249,7 +253,7 @@ router.get("/multichain/status", async (_req, res): Promise<void> => {
   let auroraStatusMessage = "Aurora Intents is not configured on this server.";
   if (auroraMissingSettings.length === 0) {
     try {
-      await resolveAuroraSolanaUsdcAsset(process.env["AURORA_INTENTS_API_KEY"]!);
+      await resolveAuroraUsdcAsset(process.env["AURORA_INTENTS_API_KEY"]!, "sol");
       auroraProviderReady = true;
       auroraStatusMessage = "Aurora is reachable and a Solana USDC destination is available.";
     } catch (error) {
@@ -278,11 +282,15 @@ router.get("/multichain/status", async (_req, res): Promise<void> => {
   });
 });
 
-async function resolveAuroraSolanaUsdcAsset(apiKey: string): Promise<string> {
-  const configuredAssetId = process.env["AURORA_SOLANA_USDC_ASSET_ID"]?.trim();
+async function resolveAuroraUsdcAsset(apiKey: string, destinationChain: "sol" | "stellar"): Promise<string> {
+  const settingName = destinationChain === "sol"
+    ? "AURORA_SOLANA_USDC_ASSET_ID"
+    : "AURORA_STELLAR_USDC_ASSET_ID";
+  const configuredAssetId = process.env[settingName]?.trim();
   if (configuredAssetId) return configuredAssetId;
-  if (cachedAuroraSolanaUsdcAsset && cachedAuroraSolanaUsdcAsset.expiresAt > Date.now()) {
-    return cachedAuroraSolanaUsdcAsset.assetId;
+  const cachedAsset = cachedAuroraUsdcAssets.get(destinationChain);
+  if (cachedAsset && cachedAsset.expiresAt > Date.now()) {
+    return cachedAsset.assetId;
   }
 
   const response = await fetch(
@@ -310,22 +318,25 @@ async function resolveAuroraSolanaUsdcAsset(apiKey: string): Promise<string> {
     const assetId = typeof token.assetId === "string" ? token.assetId : "";
     const symbol = typeof token.symbol === "string" ? token.symbol.toUpperCase() : "";
     const chain = String(token.blockchain ?? token.chain ?? token.network ?? "").toLowerCase();
-    const isSolana = chain === "sol" || chain.includes("solana") || assetId.toLowerCase().includes("sol-");
-    return symbol === "USDC" && isSolana && assetId ? [assetId] : [];
+    const normalizedAsset = assetId.toLowerCase();
+    const matchesChain = destinationChain === "sol"
+      ? chain === "sol" || chain.includes("solana") || normalizedAsset.includes("sol-")
+      : chain.includes("stellar") || chain === "xlm" || normalizedAsset.includes("stellar");
+    return symbol === "USDC" && matchesChain && assetId ? [assetId] : [];
   });
   const unique = [...new Set(candidates)];
   if (unique.length !== 1) {
     throw new Error(
       unique.length === 0
-        ? "Aurora does not currently list a Solana USDC destination for this key."
-        : "Aurora lists multiple Solana USDC destinations; configure AURORA_SOLANA_USDC_ASSET_ID to select one.",
+        ? `Aurora does not currently list a ${destinationChain === "sol" ? "Solana" : "Stellar"} USDC destination for this key.`
+        : `Aurora lists multiple ${destinationChain === "sol" ? "Solana" : "Stellar"} USDC destinations; configure ${settingName} to select one.`,
     );
   }
-  cachedAuroraSolanaUsdcAsset = {
+  cachedAuroraUsdcAssets.set(destinationChain, {
     assetId: unique[0]!,
     expiresAt: Date.now() + 60_000,
-  };
-  return cachedAuroraSolanaUsdcAsset.assetId;
+  });
+  return unique[0]!;
 }
 
 router.post("/intent/challenge", financialRateLimit, async (req, res): Promise<void> => {
@@ -371,6 +382,71 @@ router.post("/intent/verify-wallet", financialRateLimit, async (req, res): Promi
   res.json({ wallet: { address: walletAddress, chain: "solana", verified: true } });
 });
 
+async function linkedPrivyAddress(userId: number, destinationChain: "sol" | "stellar"): Promise<string | null> {
+  if (destinationChain === "sol") {
+    const [wallet] = await db
+      .select({ address: privySolanaWalletsTable.address })
+      .from(privySolanaWalletsTable)
+      .where(eq(privySolanaWalletsTable.userId, userId))
+      .limit(1);
+    return wallet?.address ?? null;
+  }
+  const [wallet] = await db
+    .select({ address: privyStellarWalletsTable.address })
+    .from(privyStellarWalletsTable)
+    .where(eq(privyStellarWalletsTable.userId, userId))
+    .limit(1);
+  return wallet?.address ?? null;
+}
+
+async function createPersistentAuroraAddress(args: {
+  apiKey: string;
+  sessionSecret: string;
+  userId: number;
+  recipient: string;
+  sourceChain: (typeof AURORA_SOURCE_CHAINS)[number];
+  destinationChain: "sol" | "stellar";
+}) {
+  const destinationAsset = await resolveAuroraUsdcAsset(args.apiKey, args.destinationChain);
+  const sender = createHmac("sha256", args.sessionSecret)
+    .update(`aurora-persistent-deposit:${args.userId}:${args.sourceChain}:${args.destinationChain}`)
+    .digest("hex");
+  const endpoint = `https://intents-api.aurora.dev/api/persistent-deposit-address/${encodeURIComponent(args.apiKey)}`;
+  const upstream = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      recipient: args.recipient,
+      sender,
+      depositChain: args.sourceChain,
+      destinationChain: args.destinationChain,
+      destinationAsset,
+      recipientType: "DESTINATION_CHAIN",
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const result: unknown = await upstream.json().catch(() => null);
+  if (!upstream.ok) {
+    throw new Error(
+      upstream.status === 403
+        ? "Aurora rejected this API key for persistent deposit addresses. Check the key and its permissions."
+        : upstream.status === 429
+          ? "Aurora is rate limiting address creation. Wait and try again."
+          : "Aurora could not create a deposit address. No funds moved.",
+    );
+  }
+  const response = result as { depositAddress?: unknown; memo?: unknown; alreadyExists?: unknown } | null;
+  if (!response || typeof response.depositAddress !== "string") {
+    throw new Error("Aurora returned an incomplete deposit-address response. No funds moved.");
+  }
+  return {
+    destinationAsset,
+    depositAddress: response.depositAddress,
+    memo: typeof response.memo === "string" ? response.memo : null,
+    alreadyExists: response.alreadyExists === true,
+  };
+}
+
 router.post("/intent/create", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) {
@@ -380,18 +456,15 @@ router.post("/intent/create", financialRateLimit, async (req, res): Promise<void
 
   const parsed = IntentBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Choose a supported source chain and provide a verified Solana wallet." });
+    res.status(400).json({ error: "Choose a supported source chain and Privy destination wallet." });
     return;
   }
-
-  const recipient = parsePublicKey(parsed.data.walletAddress);
+  const recipient = await linkedPrivyAddress(user.id, parsed.data.destinationChain);
   if (!recipient) {
-    res.status(400).json({ error: "A valid Solana public address is required." });
-    return;
-  }
-  const recipientAddress = recipient.toBase58();
-  if (!verifyWalletChallenge(user.id, recipientAddress, parsed.data.challenge, parsed.data.signature)) {
-    res.status(401).json({ error: "Wallet signature is invalid or expired. Verify the wallet and retry." });
+    res.status(409).json({
+      error: `Set up your Privy ${parsed.data.destinationChain === "sol" ? "Solana" : "Stellar"} wallet first. No address was created and no funds moved.`,
+      code: "PRIVY_WALLET_REQUIRED",
+    });
     return;
   }
 
@@ -405,53 +478,23 @@ router.post("/intent/create", financialRateLimit, async (req, res): Promise<void
   }
 
   try {
-    const destinationAsset = await resolveAuroraSolanaUsdcAsset(apiKey);
-    const sender = createHmac("sha256", sessionSecret)
-      .update(`aurora-persistent-deposit:${user.id}`)
-      .digest("hex");
-    const endpoint = `https://intents-api.aurora.dev/api/persistent-deposit-address/${encodeURIComponent(apiKey)}`;
-    const upstream = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient: recipient.toBase58(),
-        sender,
-        depositChain: parsed.data.sourceChain,
-        destinationChain: "sol",
-        destinationAsset,
-        recipientType: "DESTINATION_CHAIN",
-      }),
-      signal: AbortSignal.timeout(20_000),
+    const deposit = await createPersistentAuroraAddress({
+      apiKey,
+      sessionSecret,
+      userId: user.id,
+      recipient,
+      sourceChain: parsed.data.sourceChain,
+      destinationChain: parsed.data.destinationChain,
     });
-
-    const result: unknown = await upstream.json().catch(() => null);
-    if (!upstream.ok) {
-      const providerError = upstream.status === 403
-        ? "Aurora rejected this API key for persistent deposit addresses. Check the key and its configured permissions."
-        : upstream.status === 429
-          ? "Aurora is rate limiting address creation. Wait and try again."
-          : "Aurora could not create a deposit address. No funds moved.";
-      res.status(upstream.status === 403 ? 403 : 502).json({ error: providerError });
-      return;
-    }
-
-    const response = result as { depositAddress?: unknown; memo?: unknown; alreadyExists?: unknown } | null;
-    if (!response || typeof response.depositAddress !== "string") {
-      res.status(502).json({ error: "Aurora returned an incomplete deposit-address response. No funds moved." });
-      return;
-    }
-
     res.setHeader("Cache-Control", "no-store");
     res.json({
-      network: "solana-mainnet",
-      destinationAsset,
-      depositAddress: response.depositAddress,
-      memo: typeof response.memo === "string" ? response.memo : null,
-      alreadyExists: response.alreadyExists === true,
+      destinationChain: parsed.data.destinationChain,
+      destinationAsset: deposit.destinationAsset,
+      depositAddress: deposit.depositAddress,
+      memo: deposit.memo,
+      alreadyExists: deposit.alreadyExists,
       sourceChain: parsed.data.sourceChain,
-      recipient: recipientAddress,
-      message:
-        "This is a persistent mainnet deposit address, not a quote. No funds have moved. Send only an Aurora-supported asset on the selected source chain. Aurora will deliver USDC to your verified Solana wallet.",
+      message: `Persistent Aurora deposit address for your linked Privy ${parsed.data.destinationChain === "sol" ? "Solana" : "Stellar"} wallet. No funds have moved. Send only an Aurora-supported asset on the selected source network. This deposit does not credit your KES wallet or purchase farm shares.`,
     });
   } catch (error) {
     const message = error instanceof Error && error.message.startsWith("Aurora ")
@@ -467,34 +510,34 @@ router.post("/intent/status", financialRateLimit, async (req, res): Promise<void
     res.status(401).json({ error: "Sign in to Investa Farm to check this deposit." });
     return;
   }
-
   const parsed = IntentStatusBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "A valid Solana wallet and Aurora deposit address are required." });
+    res.status(400).json({ error: "Choose the source network and Privy destination used for this deposit." });
     return;
   }
 
-  const wallet = parsePublicKey(parsed.data.walletAddress);
-  if (!wallet) {
-    res.status(400).json({ error: "A valid Solana wallet address is required." });
+  const walletAddress = await linkedPrivyAddress(user.id, parsed.data.destinationChain);
+  if (!walletAddress) {
+    res.status(409).json({ error: "The selected Privy destination wallet is not linked to this account." });
     return;
   }
-  const walletAddress = wallet.toBase58();
-  if (!verifyWalletChallenge(user.id, walletAddress, parsed.data.challenge, parsed.data.signature)) {
-    res.status(401).json({ error: "Wallet signature is invalid or expired. Verify the wallet and retry." });
-    return;
-  }
-
   const apiKey = process.env["AURORA_INTENTS_API_KEY"];
-  if (!apiKey) {
+  const sessionSecret = process.env["SESSION_SECRET"];
+  if (!apiKey || !sessionSecret) {
     res.status(503).json({ error: "Aurora deposit tracking is not configured on this server." });
     return;
   }
 
   try {
-    const statusUrl = new URL(
-      `https://intents-api.aurora.dev/api/transactions/${encodeURIComponent(apiKey)}`,
-    );
+    const deposit = await createPersistentAuroraAddress({
+      apiKey,
+      sessionSecret,
+      userId: user.id,
+      recipient: walletAddress,
+      sourceChain: parsed.data.sourceChain,
+      destinationChain: parsed.data.destinationChain,
+    });
+    const statusUrl = new URL(`https://intents-api.aurora.dev/api/transactions/${encodeURIComponent(apiKey)}`);
     statusUrl.searchParams.set("walletAddress", walletAddress);
     statusUrl.searchParams.set("numberOfTransactions", "100");
 
@@ -521,11 +564,9 @@ router.post("/intent/status", financialRateLimit, async (req, res): Promise<void
       .filter((row): row is Record<string, unknown> =>
         !!row &&
         typeof row === "object" &&
-        (row as Record<string, unknown>).depositAddress === parsed.data.depositAddress,
+        (row as Record<string, unknown>).depositAddress === deposit.depositAddress,
       )
-      .sort((a, b) =>
-        Number(b.createdAtTimestamp ?? 0) - Number(a.createdAtTimestamp ?? 0),
-      );
+      .sort((a, b) => Number(b.createdAtTimestamp ?? 0) - Number(a.createdAtTimestamp ?? 0));
     const transaction = matching[0];
 
     res.setHeader("Cache-Control", "no-store");
@@ -542,7 +583,6 @@ router.post("/intent/status", financialRateLimit, async (req, res): Promise<void
       Array.isArray(value)
         ? value.filter((item): item is string => typeof item === "string").slice(0, 10)
         : [];
-
     res.json({
       found: true,
       status: typeof transaction.status === "string" ? transaction.status : "UNKNOWN",
@@ -641,6 +681,84 @@ router.get("/solana/devnet/balances", async (req, res): Promise<void> => {
 
 router.use("/actions/invest", actionCors);
 router.options("/actions/invest", (_req, res) => res.sendStatus(204));
+router.options("/actions/invest/:projectId", (_req, res) => res.sendStatus(204));
+
+async function listedFarmActionData(projectId: string) {
+  const farmId = Number(projectId);
+  if (!Number.isSafeInteger(farmId) || farmId <= 0) return null;
+  const [farm] = await db
+    .select()
+    .from(farmsTable)
+    .where(eq(farmsTable.id, farmId))
+    .limit(1);
+  if (!farm) return null;
+
+  const [listing] = await db
+    .select()
+    .from(marketListingsTable)
+    .where(and(
+      eq(marketListingsTable.farmId, farmId),
+      eq(marketListingsTable.isActive, 1),
+      gt(marketListingsTable.sharesAvailable, 0),
+    ))
+    .orderBy(desc(marketListingsTable.createdAt))
+    .limit(1);
+  return listing ? { farm, listing } : null;
+}
+
+router.get("/actions/invest/:projectId", async (req, res): Promise<void> => {
+  const origin = actionOrigin(req);
+  if (!origin) {
+    res.status(400).json({ error: "A valid application host is required for this action." });
+    return;
+  }
+  try {
+    const data = await listedFarmActionData(req.params.projectId ?? "");
+    if (!data) {
+      res.status(404).json({ error: "This farm does not have an active market listing." });
+      return;
+    }
+    const { farm, listing } = data;
+    const icon = farm.imageUrl && /^https?:\/\//i.test(farm.imageUrl)
+      ? farm.imageUrl
+      : `${origin}/solana-action-icon.svg`;
+    const appListingUrl = `${origin}/market/${farm.id}`;
+    const disabledMessage =
+      "Solana farm-share settlement is not configured. Open this listing in Investa to invest with an available payment method.";
+
+    res.setHeader("Cache-Control", "public, max-age=60");
+    res.json({
+      type: "action",
+      icon,
+      title: farm.name,
+      description:
+        `${farm.cropType} · ${farm.location} · ${listing.sharesAvailable.toLocaleString()} shares available at KES ${Number(listing.pricePerShare).toLocaleString()} each. View the live listing at ${appListingUrl}.`,
+      label: "Solana investment unavailable",
+      disabled: true,
+      error: { message: disabledMessage },
+    });
+  } catch {
+    res.status(500).json({ error: "Could not load the farm listing for this Solana Blink." });
+  }
+});
+
+router.post("/actions/invest/:projectId", async (req, res): Promise<void> => {
+  try {
+    const data = await listedFarmActionData(req.params.projectId ?? "");
+    if (!data) {
+      res.status(404).json({ error: "This farm does not have an active market listing." });
+      return;
+    }
+    res.status(409).json({
+      error: {
+        message:
+          "No on-chain farm-share settlement is configured for this listing. No Aurora quote or transaction was created, and no funds moved.",
+      },
+    });
+  } catch {
+    res.status(500).json({ error: "Could not verify the farm listing. No transaction was created." });
+  }
+});
 
 router.get("/actions/invest", (req, res): void => {
   const origin = actionOrigin(req);

@@ -22,6 +22,7 @@ import InvestorAuth from "@/pages/investor-auth";
 import AuthCallback from "@/pages/auth-callback";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import WalletSetupPage from "@/pages/wallet-setup";
 import Onboarding from "@/pages/onboarding";
 import VerifyOtp from "@/pages/verify-otp";
 import ForgotPassword from "@/pages/forgot-password";
@@ -240,6 +241,9 @@ function Router() {
       </Route>
       <Route path="/register">
         <GuestGuard><Register /></GuestGuard>
+      </Route>
+      <Route path="/wallet-setup">
+        <WalletSetupPage />
       </Route>
       <Route path="/onboarding">
         <GuestGuard><Onboarding /></GuestGuard>
