@@ -42,6 +42,8 @@ interface Props {
   onClose: () => void;
   onSuccess: (amount: number, currency: "KES" | "USDC") => void;
   initialTab?: Exclude<Tab, "usdc">;
+  allowWeb3?: boolean;
+  onOpenAurora?: () => void;
 }
 
 // Currency per dial code — PesaPal requires the correct local currency for USSD push
@@ -124,7 +126,14 @@ function normalizePhone(dialCode: string, raw: string): string {
   return "+" + code + digits;
 }
 
-export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }: Props) {
+export function PaymentSheet({
+  open,
+  onClose,
+  onSuccess,
+  initialTab = "mobile",
+  allowWeb3 = false,
+  onOpenAurora,
+}: Props) {
   useScrollLock(open);
   const token = getToken();
   const user = getStoredUser();
@@ -169,6 +178,7 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
   const [circleTxHash, setCircleTxHash] = useState<string | null>(null);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [connectedEvmWallet, setConnectedEvmWallet] = useState<{ address: string; walletId: string } | null>(null);
+  const [web3Route, setWeb3Route] = useState<"polygon" | "cross-chain">("polygon");
   const [, setTrackingTxHash] = useState<string | null>(null);
   const [circleError, setCircleError] = useState<string | null>(null);
   const [circleInfoLoading, setCircleInfoLoading] = useState(false);
@@ -213,6 +223,7 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
     payAmountRef.current = 0;
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     setCircleIntentId(null); setCircleAmountUSDC(""); setCircleTxHash(null);
+    setWeb3Route("polygon");
     setSuccess(false); setWalletModalOpen(false); setTrackingTxHash(null);
     setConnectedEvmWallet(null);
     setCircleError(null);
@@ -388,6 +399,7 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
   const TABS: { id: Tab; label: string; icon: React.ReactNode; gradient: string }[] = [
     { id: "mobile", label: "Mobile Money", icon: <Smartphone size={14} />, gradient: "linear-gradient(135deg,#15803d,#16a34a)" },
     { id: "card",   label: "Card",         icon: <CreditCard size={14} />, gradient: "linear-gradient(135deg,#1d4ed8,#3b82f6)" },
+    ...(allowWeb3 ? [{ id: "usdc" as const, label: "Web3", icon: <Wallet size={14} />, gradient: "linear-gradient(135deg,#047857,#10b981)" }] : []),
   ];
 
   const provider = MOBILE_PROVIDERS.find(p => p.id === selectedProvider) ?? null;
@@ -462,6 +474,7 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
                         setPayStep("idle");
                       }
                     }}
+                    data-testid={`button-add-funds-tab-${t.id}`}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                       tab === t.id ? "text-white shadow-md" : "text-muted-foreground hover:text-foreground"
                     }`}
@@ -473,10 +486,10 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
               </div>
 
               {/* Amount input — hidden during active payment steps */}
-              {!hidingAmount && !circleIntentId && (
+              {!hidingAmount && !circleIntentId && !(tab === "usdc" && web3Route === "cross-chain") && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
-                    Amount ({tab === "usdc" ? "USDC" : "KES"})
+                    {tab === "usdc" ? "Polygon USDC amount" : "Amount (KES)"}
                   </label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">
@@ -820,7 +833,45 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
               {/* ─── USDC TAB ─────────────────────────────────────────────────── */}
               {tab === "usdc" && (
                 <div className="space-y-4">
-                  {!circleIntentId ? (
+                  {onOpenAurora && (
+                    <div className="grid grid-cols-2 gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setWeb3Route("polygon")}
+                        data-testid="button-web3-route-polygon"
+                        className={`rounded-xl px-2 py-2.5 text-[11px] font-bold transition-colors ${web3Route === "polygon" ? "bg-white text-emerald-800 shadow-sm" : "text-emerald-800/70"}`}
+                      >
+                        Polygon USDC
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWeb3Route("cross-chain")}
+                        data-testid="button-web3-route-cross-chain"
+                        className={`rounded-xl px-2 py-2.5 text-[11px] font-bold transition-colors ${web3Route === "cross-chain" ? "bg-white text-emerald-800 shadow-sm" : "text-emerald-800/70"}`}
+                      >
+                        Cross-chain
+                      </button>
+                    </div>
+                  )}
+
+                  {web3Route === "cross-chain" && onOpenAurora ? (
+                    <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+                      <div>
+                        <p className="text-sm font-bold text-emerald-950">Aurora cross-chain deposit</p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-emerald-900">
+                          Route a supported asset from one of 34+ networks to your linked Solana or Stellar wallet. This balance stays separate from KES and does not buy farm shares.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={onOpenAurora}
+                        data-testid="button-open-aurora-deposit"
+                        className="w-full rounded-xl bg-emerald-800 px-3 py-3 text-xs font-bold text-white active:scale-[0.98]"
+                      >
+                        Choose network and destination
+                      </button>
+                    </div>
+                  ) : !circleIntentId ? (
                     <>
                       <div className="relative overflow-hidden rounded-2xl p-4"
                         style={{ background: "linear-gradient(135deg,#0a1628 0%,#0d3085 50%,#1652F0 100%)", boxShadow: "0 10px 36px rgba(22,82,240,0.24)" }}>

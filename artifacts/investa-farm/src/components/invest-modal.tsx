@@ -626,6 +626,11 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
       <PaymentSheet
         open={walletTopUpOpen}
         onClose={() => setWalletTopUpOpen(false)}
+        allowWeb3
+        onOpenAurora={() => {
+          setWalletTopUpOpen(false);
+          setAuroraOpen(true);
+        }}
         onSuccess={(_amount, currency) => {
           if (currency === "KES") {
             qc.invalidateQueries({ queryKey: ["wallet-balance"] });

@@ -432,9 +432,13 @@ export default function InvestorWallet() {
       <PaymentSheet
         open={modal === "deposit"}
         initialTab="mobile"
+        allowWeb3
+        onOpenAurora={() => setModal("aurora")}
         onClose={() => setModal(null)}
         onSuccess={(amt, currency) => {
-          setSuccess(`${currency} ${amt.toLocaleString()} added to your KES wallet`);
+          setSuccess(currency === "USDC"
+            ? `${amt.toFixed(2)} USDC added to your separate Polygon balance. KES is unchanged.`
+            : `KES ${amt.toLocaleString()} added to your KES wallet`);
           setTimeout(() => setSuccess(null), 5000);
         }}
       />

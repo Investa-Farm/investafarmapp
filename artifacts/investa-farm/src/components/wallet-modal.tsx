@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Wallet, CheckCircle2, Receipt, CreditCard, Coins, Smartphone, Copy, Check, ShieldCheck, TrendingUp, Repeat, Trash2, Download } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +10,7 @@ import { useCurrency, CURRENCIES } from "@/lib/currency";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import farmBgSrc from "@assets/IMG_8016_1781250402404.jpeg";
 import { PaymentSheet } from "@/components/payment-sheet";
+import { AuroraDepositModal } from "@/components/aurora-deposit-modal";
 import { downloadCsv } from "@/lib/csv";
 import { nonceHeaders } from "@/lib/nonce";
 import { WalletPinGate } from "@/components/wallet-pin-gate";
@@ -60,10 +62,12 @@ type Props = { open: boolean; onClose: () => void };
 
 export function WalletModal({ open, onClose }: Props) {
   useScrollLock(open);
+  const [, setLocation] = useLocation();
   const token = getToken();
   const user = getStoredUser();
   const qc = useQueryClient();
   const [modal, setModal] = useState<"deposit" | "withdraw" | null>(null);
+  const [auroraOpen, setAuroraOpen] = useState(false);
   const [withdrawTab, setWithdrawTab] = useState<"mpesa" | "card" | "usdc">("mpesa");
   const [txFilter, setTxFilter] = useState<"all" | "deposits" | "withdrawals">("all");
   const [amount, setAmount] = useState("");
@@ -607,10 +611,30 @@ export function WalletModal({ open, onClose }: Props) {
             {/* Deposit — full-screen PaymentSheet */}
             <PaymentSheet
               open={modal === "deposit"}
+              allowWeb3
+              onOpenAurora={() => {
+                setModal(null);
+                setAuroraOpen(true);
+              }}
               onClose={() => setModal(null)}
-              onSuccess={(amt) => {
-                setSuccess(`KES ${amt.toLocaleString()} added to your wallet!`);
-                setTimeout(() => { setSuccess(null); onClose(); }, 2200);
+              onSuccess={(amt, currency) => {
+                setSuccess(currency === "USDC"
+                  ? `${amt.toFixed(2)} USDC added to your separate Polygon balance. KES is unchanged.`
+                  : `KES ${amt.toLocaleString()} added to your wallet!`);
+                setTimeout(() => {
+                  setSuccess(null);
+                  if (currency === "KES") onClose();
+                }, 2200);
+              }}
+            />
+            <AuroraDepositModal
+              open={auroraOpen}
+              authToken={token}
+              onClose={() => setAuroraOpen(false)}
+              onSetupWallet={() => {
+                setAuroraOpen(false);
+                onClose();
+                setLocation("/wallet-setup?next=%2Fwallet");
               }}
             />
 

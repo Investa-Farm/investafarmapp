@@ -15,9 +15,8 @@ import { InvestModal } from "@/components/invest-modal";
 import { useQuery } from "@tanstack/react-query";
 import "leaflet/dist/leaflet.css";
 
-function createFarmBlinkUrl(farmId: number) {
-  const actionEndpoint = new URL(`/api/actions/invest/${farmId}`, window.location.origin).toString();
-  return `https://dial.to/?action=solana-action:${encodeURIComponent(actionEndpoint)}`;
+function createFarmShareUrl(farmId: number) {
+  return new URL(`/market/${farmId}`, window.location.origin).toString();
 }
 
 type FarmAnalysisFields = {
@@ -1362,8 +1361,8 @@ export default function FarmDetail() {
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         title={farm.name}
-        text={`🌱 View ${farm.name} on Investa Farm! ${farm.cropType} · ${farm.location}`}
-        url={typeof window !== "undefined" ? createFarmBlinkUrl(farm.id) : ""}
+        text={`🌱 Back ${farm.name} on Investa Farm! ${farm.cropType} · ${farm.location}. Explore the listing and invest in farm shares.`}
+        url={typeof window !== "undefined" ? createFarmShareUrl(farm.id) : ""}
       />
 
       <InvestModal
