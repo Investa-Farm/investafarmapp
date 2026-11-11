@@ -7,7 +7,7 @@ export const modules: ModuleMap = {
   "./components/mockups/video4.tsx": () => import("../components/mockups/video4.tsx"),
   "./components/mockups/video5.tsx": () => import("../components/mockups/video5.tsx"),
   "./components/mockups/video6.tsx": () => import("../components/mockups/video6.tsx"),
+  "./components/mockups/investor-market/Current.tsx": () => import("../components/mockups/investor-market/Current.tsx"),
   "./components/mockups/investor-wallet/Current.tsx": () => import("../components/mockups/investor-wallet/Current.tsx"),
-  "./components/mockups/investor-wallet/PaymentSheetCurrent.tsx": () => import("../components/mockups/investor-wallet/PaymentSheetCurrent.tsx"),
-  "./components/mockups/investor-market/Current.tsx": () => import("../components/mockups/investor-market/Current.tsx")
+  "./components/mockups/investor-wallet/PaymentSheetCurrent.tsx": () => import("../components/mockups/investor-wallet/PaymentSheetCurrent.tsx")
 };
