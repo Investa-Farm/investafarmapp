@@ -247,6 +247,37 @@ async function bootstrapSchema(client: PoolClient, label: string): Promise<void>
     );
   `);
 
+  // Solana Blink purchases remain pending until their signed USDC transfer is
+  // confirmed on-chain and independently reconciled into the KES-priced share ledger.
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS "solana_investment_intents" (
+      "id" TEXT PRIMARY KEY,
+      "investor_id" INTEGER NOT NULL REFERENCES "users"("id"),
+      "farm_id" INTEGER NOT NULL REFERENCES "farms"("id"),
+      "listing_id" INTEGER NOT NULL REFERENCES "market_listings"("id"),
+      "investment_id" INTEGER REFERENCES "investments"("id"),
+      "wallet_address" TEXT NOT NULL,
+      "memo" TEXT NOT NULL UNIQUE,
+      "quantity" INTEGER NOT NULL CHECK ("quantity" > 0),
+      "exit_type" TEXT NOT NULL,
+      "price_per_share_kes" NUMERIC(15,2) NOT NULL,
+      "principal_kes" NUMERIC(15,2) NOT NULL,
+      "fee_kes" NUMERIC(15,2) NOT NULL,
+      "total_kes" NUMERIC(15,2) NOT NULL,
+      "kes_per_usdc" NUMERIC(15,6) NOT NULL,
+      "amount_usdc" NUMERIC(20,6) NOT NULL,
+      "amount_usdc_raw" TEXT NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'pending'
+        CHECK ("status" IN ('pending', 'submitted', 'settled', 'failed', 'expired')),
+      "transaction_signature" TEXT UNIQUE,
+      "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+      "expires_at" TIMESTAMP NOT NULL,
+      "settled_at" TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS "solana_investment_intents_status_created_idx"
+      ON "solana_investment_intents" ("status", "created_at");
+  `);
+
   await applyDeltas(client);
 
   if (failures === 0) {

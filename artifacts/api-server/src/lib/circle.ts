@@ -43,6 +43,30 @@ export async function getKesUsdcRate(): Promise<number> {
   return _rateCache?.rate ?? 130;
 }
 
+let _strictRateCache: { rate: number; ts: number } | null = null;
+
+/** A fail-closed quote for purchases that move real USDC. */
+export async function getLiveKesUsdcRate(): Promise<number> {
+  const now = Date.now();
+  if (_strictRateCache && now - _strictRateCache.ts < 30_000) {
+    return _strictRateCache.rate;
+  }
+
+  const response = await fetch("https://api.exchangerate-api.com/v4/latest/USD", {
+    signal: AbortSignal.timeout(4_000),
+  });
+  if (!response.ok) throw new Error("A live USD/KES quote is unavailable.");
+
+  const data = await response.json() as { rates?: { KES?: unknown } };
+  const rate = Number(data.rates?.KES);
+  if (!Number.isFinite(rate) || rate <= 0) {
+    throw new Error("The live USD/KES quote was invalid.");
+  }
+
+  _strictRateCache = { rate, ts: now };
+  return rate;
+}
+
 export interface CirclePaymentIntent {
   id: string;
   status: string;

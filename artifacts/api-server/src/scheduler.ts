@@ -7,6 +7,7 @@ import { notifyMany, notifyUser } from "./lib/push";
 import { getRainfallData, getKenyaCoords, checkRainfallAlerts, computeRainfallFactor } from "./lib/rainfall";
 import { computeROI, type HoldingROIInput } from "./lib/roi";
 import { loadSettings } from "./lib/platformSettings";
+import { reconcileSolanaInvestmentPayments } from "./lib/solana-investment-settlement";
 
 /** Returns a random integer in [min, max] inclusive */
 function randInt(min: number, max: number): number {
@@ -194,6 +195,7 @@ export function startScheduler(): void {
   cron.schedule("*/5 * * * *", () => runPriceAlertCheck(), { timezone: "Africa/Nairobi" });
   cron.schedule("*/5 * * * *", () => runWatchlistPriceAlerts(), { timezone: "Africa/Nairobi" });
   cron.schedule("* * * * *", () => runOrderMatching(), { timezone: "Africa/Nairobi" });
+  cron.schedule("* * * * *", () => reconcileSolanaInvestmentPayments(), { timezone: "Africa/Nairobi" });
 
   // Monthly marketing digest — 1st of the month at 08:00 EAT only
   cron.schedule("0 8 1 * *", () => runOpportunityDigest("monthly"), { timezone: "Africa/Nairobi" });
@@ -218,6 +220,7 @@ export function startScheduler(): void {
   console.log("[scheduler] Price simulation & alerts: every 5 minutes");
   console.log("[scheduler] Watchlist price alerts: every 5 minutes");
   console.log("[scheduler] Order matching engine: every 1 minute");
+  console.log("[scheduler] Solana USDC investment confirmations: every 1 minute");
   console.log("[scheduler] Daily jobs: randomised times within safe windows");
 }
 

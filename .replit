@@ -4,6 +4,7 @@ modules = ["nodejs-24", "postgresql-16", "python-base-3.13"]
 
 [userenv.shared]
 VITE_WALLETCONNECT_PROJECT_ID = "Yjdjjajajakakks"
+SOLANA_MAINNET_USDC_TREASURY_ADDRESS = "7HG4Vpo5kLwvc27YMAhBxBgKsh1VgdFMxD2vogJ7CjCk"
 
 [userenv.development]
 SEED_DEMO = "true"

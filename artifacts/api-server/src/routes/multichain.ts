@@ -4,6 +4,7 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
   Transaction,
+  TransactionInstruction,
   clusterApiUrl,
   type ParsedAccountData,
 } from "@solana/web3.js";
@@ -20,22 +21,35 @@ import { and, desc, eq, gt } from "drizzle-orm";
 import {
   db,
   farmsTable,
+  kycDocumentsTable,
   marketListingsTable,
   privySolanaWalletsTable,
   privyStellarWalletsTable,
+  solanaInvestmentIntentsTable,
+  usersTable,
 } from "@workspace/db";
 import {
   createHmac,
   createPublicKey,
   randomBytes,
+  randomUUID,
   timingSafeEqual,
   verify as verifySignature,
 } from "node:crypto";
 import { getCurrentUser } from "./auth";
 import { financialRateLimit } from "../lib/security";
+import { getLiveKesUsdcRate } from "../lib/circle";
+import { calculateSolanaInvestmentQuote } from "../lib/solana-investment";
+import {
+  confirmSolanaInvestmentPayment,
+  createSolanaMainnetConnection,
+  getSolanaMainnetConfig,
+  solanaTreasuryUsdcAta,
+} from "../lib/solana-investment-settlement";
 
 const router: IRouter = Router();
 const cachedAuroraUsdcAssets = new Map<string, { assetId: string; expiresAt: number }>();
+const USDC_DECIMALS = 6;
 
 const AURORA_SOURCE_CHAINS = [
   "eth",
@@ -80,6 +94,11 @@ const IntentBody = z.object({
 
 const ActionBody = z.object({
   account: z.string().trim().min(32).max(44),
+});
+
+const ActionConfirmationBody = z.object({
+  account: z.string().trim().min(32).max(44),
+  signature: z.string().trim().min(80).max(90),
 });
 
 const WalletChallengeBody = z.object({
@@ -681,6 +700,7 @@ router.get("/solana/devnet/balances", async (req, res): Promise<void> => {
 router.use("/actions/invest", actionCors);
 router.options("/actions/invest", (_req, res) => res.sendStatus(204));
 router.options("/actions/invest/:projectId", (_req, res) => res.sendStatus(204));
+router.options("/actions/invest/:projectId/confirm", (_req, res) => res.sendStatus(204));
 
 async function listedFarmActionData(projectId: string) {
   const farmId = Number(projectId);
@@ -712,7 +732,10 @@ router.get("/actions/invest/:projectId", async (req, res): Promise<void> => {
     return;
   }
   try {
-    const data = await listedFarmActionData(req.params.projectId ?? "");
+    const projectId = Array.isArray(req.params.projectId)
+      ? req.params.projectId[0] ?? ""
+      : req.params.projectId ?? "";
+    const data = await listedFarmActionData(projectId);
     if (!data) {
       res.status(404).json({ error: "This farm does not have an active market listing." });
       return;
@@ -722,40 +745,378 @@ router.get("/actions/invest/:projectId", async (req, res): Promise<void> => {
       ? farm.imageUrl
       : `${origin}/solana-action-icon.svg`;
     const appListingUrl = `${origin}/market/${farm.id}`;
-    const disabledMessage =
-      "Solana farm-share settlement is not configured. Open this listing in Investa to invest with an available payment method.";
+    const config = getSolanaMainnetConfig();
+    if (!config.configured) {
+      const disabledMessage = "Solana USDC settlement is not configured. No payment can be made from this Blink.";
+      res.setHeader("Cache-Control", "no-store");
+      res.json({
+        type: "action",
+        icon,
+        title: farm.name,
+        description: `View the investable farm listing at ${appListingUrl}.`,
+        label: "Solana investment unavailable",
+        disabled: true,
+        error: { message: disabledMessage },
+      });
+      return;
+    }
 
-    res.setHeader("Cache-Control", "public, max-age=60");
+    let kesPerUsdc: number;
+    try {
+      kesPerUsdc = await getLiveKesUsdcRate();
+    } catch {
+      const disabledMessage = "A current KES/USDC quote is unavailable. No payment can be made from this Blink.";
+      res.setHeader("Cache-Control", "no-store");
+      res.json({
+        type: "action",
+        icon,
+        title: farm.name,
+        description: `View the investable farm listing at ${appListingUrl}.`,
+        label: "USDC quote unavailable",
+        disabled: true,
+        error: { message: disabledMessage },
+      });
+      return;
+    }
+
+    const requestedQuantity = typeof req.query.quantity === "string"
+      ? Number(req.query.quantity)
+      : null;
+    const suggestedQuantities = requestedQuantity !== null
+      ? [requestedQuantity]
+      : [1, 5, 10].filter((quantity) => quantity <= listing.sharesAvailable);
+    const actions = suggestedQuantities
+      .filter((quantity) =>
+        Number.isSafeInteger(quantity) &&
+        quantity > 0 &&
+        quantity <= listing.sharesAvailable,
+      )
+      .map((quantity) => {
+        const feeRate = listing.listingType === "primary" ? 0.015 : 0.005;
+        const quote = calculateSolanaInvestmentQuote(
+          Number(listing.pricePerShare),
+          quantity,
+          feeRate,
+          kesPerUsdc,
+        );
+        return {
+          label: `Buy ${quantity} share${quantity === 1 ? "" : "s"}`,
+          href: `${origin}/api/actions/invest/${farm.id}?quantity=${quantity}`,
+          parameters: [],
+          description: `${quote.amountUsdc} USDC including the platform fee`,
+        };
+      });
+
+    if (actions.length === 0) {
+      res.status(409).json({ error: { message: "No available share quantity can be purchased from this listing." } });
+      return;
+    }
+
+    res.setHeader("Cache-Control", "public, max-age=30");
     res.json({
       type: "action",
       icon,
       title: farm.name,
       description:
-        `${farm.cropType} · ${farm.location} · ${listing.sharesAvailable.toLocaleString()} shares available at KES ${Number(listing.pricePerShare).toLocaleString()} each. View the live listing at ${appListingUrl}.`,
-      label: "Solana investment unavailable",
-      disabled: true,
-      error: { message: disabledMessage },
+        `${farm.cropType} · ${farm.location} · ${listing.sharesAvailable.toLocaleString()} shares at KES ${Number(listing.pricePerShare).toLocaleString()} each. Solana USDC purchases use a live KES quote and do not use the KES wallet. Approved KYC and an Investa-linked Solana wallet are required. View listing: ${appListingUrl}.`,
+      label: "Invest with Solana USDC",
+      links: { actions },
     });
   } catch {
     res.status(500).json({ error: "Could not load the farm listing for this Solana Blink." });
   }
 });
 
-router.post("/actions/invest/:projectId", async (req, res): Promise<void> => {
+router.post("/actions/invest/:projectId", financialRateLimit, async (req, res): Promise<void> => {
   try {
-    const data = await listedFarmActionData(req.params.projectId ?? "");
+    const origin = actionOrigin(req);
+    if (!origin) {
+      res.status(400).json({ error: { message: "A valid application host is required for this action." } });
+      return;
+    }
+
+    const projectId = Array.isArray(req.params.projectId)
+      ? req.params.projectId[0] ?? ""
+      : req.params.projectId ?? "";
+    const data = await listedFarmActionData(projectId);
     if (!data) {
       res.status(404).json({ error: "This farm does not have an active market listing." });
       return;
     }
-    res.status(409).json({
-      error: {
-        message:
-          "No on-chain farm-share settlement is configured for this listing. No Aurora quote or transaction was created, and no funds moved.",
-      },
+    const config = getSolanaMainnetConfig();
+    if (!config.treasury) {
+      res.status(503).json({ error: { message: "Solana USDC settlement is not configured. No transaction was created." } });
+      return;
+    }
+
+    const parsedBody = ActionBody.safeParse(req.body);
+    const owner = parsedBody.success ? parsePublicKey(parsedBody.data.account) : null;
+    if (!owner) {
+      res.status(400).json({ error: { message: "A valid Solana account is required." } });
+      return;
+    }
+
+    const [linkedWallet] = await db
+      .select({
+        userId: privySolanaWalletsTable.userId,
+        role: usersTable.role,
+      })
+      .from(privySolanaWalletsTable)
+      .innerJoin(usersTable, eq(usersTable.id, privySolanaWalletsTable.userId))
+      .where(eq(privySolanaWalletsTable.address, owner.toBase58()))
+      .limit(1);
+    if (!linkedWallet || linkedWallet.role !== "investor") {
+      res.status(403).json({
+        error: {
+          message: "Link this Solana wallet to an Investa investor account before using Blink investments.",
+        },
+      });
+      return;
+    }
+
+    const approvedDocs = await db
+      .select({ docType: kycDocumentsTable.docType })
+      .from(kycDocumentsTable)
+      .where(and(
+        eq(kycDocumentsTable.userId, linkedWallet.userId),
+        eq(kycDocumentsTable.status, "approved"),
+      ));
+    const approvedTypes = new Set(approvedDocs.map((doc) => doc.docType));
+    const investorRequiredDocs = ["national_id", "national_id_back", "selfie", "financial_statement"];
+    if (!investorRequiredDocs.every((type) => approvedTypes.has(type as typeof approvedDocs[number]["docType"]))) {
+      res.status(403).json({
+        error: { message: "Complete and receive approval for investor KYC before investing through Solana." },
+      });
+      return;
+    }
+
+    const quantityValue = typeof req.query.quantity === "string" ? req.query.quantity : "";
+    if (!/^[1-9]\d{0,3}$/.test(quantityValue)) {
+      res.status(400).json({ error: { message: "Choose a valid share quantity from the Blink." } });
+      return;
+    }
+    const quantity = Number(quantityValue);
+    const { farm, listing } = data;
+    if (quantity > listing.sharesAvailable) {
+      res.status(409).json({ error: { message: "There are not enough shares left in this listing." } });
+      return;
+    }
+
+    const kesPerUsdc = await getLiveKesUsdcRate();
+    const feeRate = listing.listingType === "primary" ? 0.015 : 0.005;
+    const quote = calculateSolanaInvestmentQuote(
+      Number(listing.pricePerShare),
+      quantity,
+      feeRate,
+      kesPerUsdc,
+    );
+    const connection = createSolanaMainnetConnection();
+    const mint = config.mint;
+    const mintInfo = await getMint(connection, mint, "confirmed", TOKEN_PROGRAM_ID);
+    if (mintInfo.decimals !== 6) {
+      res.status(503).json({ error: { message: "The configured mainnet USDC mint failed verification. No transaction was created." } });
+      return;
+    }
+
+    const sourceAta = getAssociatedTokenAddressSync(
+      mint,
+      owner,
+      false,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+    );
+    const destinationAta = solanaTreasuryUsdcAta(config.treasury, mint);
+    let sourceBalance: bigint;
+    try {
+      const balance = await connection.getTokenAccountBalance(sourceAta, "confirmed");
+      sourceBalance = BigInt(balance.value.amount);
+    } catch {
+      res.status(422).json({
+        error: { message: "No mainnet USDC account was found for this wallet. Fund it with Solana USDC first; no transaction was created." },
+      });
+      return;
+    }
+    if (sourceBalance < quote.amountUsdcRaw) {
+      res.status(422).json({
+        error: { message: `This wallet needs ${quote.amountUsdc} USDC for this purchase. No transaction was created.` },
+      });
+      return;
+    }
+
+    const destinationExists = Boolean(await connection.getAccountInfo(destinationAta, "confirmed"));
+    const solBalance = await connection.getBalance(owner, "confirmed");
+    const requiredSol = destinationExists
+      ? 10_000
+      : await connection.getMinimumBalanceForRentExemption(165, "confirmed") + 10_000;
+    if (solBalance < requiredSol) {
+      res.status(422).json({
+        error: { message: "This wallet needs a small SOL balance for network fees and the USDC token account. No transaction was created." },
+      });
+      return;
+    }
+
+    const intentId = randomUUID();
+    const memo = `IFARM:${intentId}`;
+    const latest = await connection.getLatestBlockhash("confirmed");
+    const transaction = new Transaction();
+    transaction.feePayer = owner;
+    transaction.recentBlockhash = latest.blockhash;
+    transaction.lastValidBlockHeight = latest.lastValidBlockHeight;
+    transaction.add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        owner,
+        destinationAta,
+        config.treasury,
+        mint,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+      ),
+      createTransferCheckedInstruction(
+        sourceAta,
+        mint,
+        destinationAta,
+        owner,
+        quote.amountUsdcRaw,
+        USDC_DECIMALS,
+        [],
+        TOKEN_PROGRAM_ID,
+      ),
+      new TransactionInstruction({
+        programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
+        keys: [{ pubkey: owner, isSigner: true, isWritable: false }],
+        data: Buffer.from(memo, "utf8"),
+      }),
+    );
+    const serialized = transaction.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
     });
-  } catch {
-    res.status(500).json({ error: "Could not verify the farm listing. No transaction was created." });
+
+    const reserved = await db.transaction(async (tx) => {
+      const [currentListing] = await tx
+        .select()
+        .from(marketListingsTable)
+        .where(eq(marketListingsTable.id, listing.id))
+        .for("update")
+        .limit(1);
+      if (
+        !currentListing ||
+        currentListing.isActive !== 1 ||
+        currentListing.sharesAvailable < quantity ||
+        Number(currentListing.pricePerShare) !== Number(listing.pricePerShare) ||
+        currentListing.listingType !== listing.listingType
+      ) return false;
+
+      const [currentFarm] = await tx
+        .select()
+        .from(farmsTable)
+        .where(eq(farmsTable.id, farm.id))
+        .for("update")
+        .limit(1);
+      if (
+        currentListing.listingType === "primary" &&
+        (!currentFarm || currentFarm.sharesAvailable < quantity)
+      ) return false;
+
+      await tx.update(marketListingsTable)
+        .set({ sharesAvailable: currentListing.sharesAvailable - quantity })
+        .where(eq(marketListingsTable.id, currentListing.id));
+      if (currentListing.listingType === "primary" && currentFarm) {
+        await tx.update(farmsTable)
+          .set({ sharesAvailable: currentFarm.sharesAvailable - quantity })
+          .where(eq(farmsTable.id, currentFarm.id));
+      }
+
+      await tx.insert(solanaInvestmentIntentsTable).values({
+        id: intentId,
+        investorId: linkedWallet.userId,
+        farmId: farm.id,
+        listingId: currentListing.id,
+        walletAddress: owner.toBase58(),
+        memo,
+        quantity,
+        exitType: "full_season",
+        pricePerShareKes: String(currentListing.pricePerShare),
+        principalKes: String(quote.principalKes),
+        feeKes: String(quote.feeKes),
+        totalKes: String(quote.totalKes),
+        kesPerUsdc: String(kesPerUsdc),
+        amountUsdc: quote.amountUsdc,
+        amountUsdcRaw: quote.amountUsdcRaw.toString(),
+        status: "pending",
+        expiresAt: new Date(Date.now() + 10 * 60_000),
+      });
+      return true;
+    });
+    if (!reserved) {
+      res.status(409).json({ error: { message: "The farm listing changed or sold out. Refresh it before trying again." } });
+      return;
+    }
+
+    const appListingUrl = `${origin}/market/${farm.id}`;
+    res.json({
+      transaction: serialized.toString("base64"),
+      message: `Buy ${quantity} ${farm.cropType} share${quantity === 1 ? "" : "s"} for ${quote.amountUsdc} USDC. Share value: KES ${quote.principalKes.toLocaleString("en-KE")}; fee: KES ${quote.feeKes.toLocaleString("en-KE")}; rate: 1 USDC = KES ${kesPerUsdc.toFixed(2)}. Your KES wallet is not used. Shares are credited only after on-chain verification.`,
+      lastValidBlockHeight: latest.lastValidBlockHeight,
+      links: {
+        next: {
+          type: "post",
+          href: `${origin}/api/actions/invest/${farm.id}/confirm?intentId=${encodeURIComponent(intentId)}`,
+        },
+      },
+      website: appListingUrl,
+    });
+  } catch (error) {
+    console.error("[solana-investment] Could not create Blink transaction:", error instanceof Error ? error.message : "unknown error");
+    res.status(502).json({
+      error: { message: "Could not prepare a verified Solana USDC purchase. No payment transaction was returned." },
+    });
+  }
+});
+
+router.post("/actions/invest/:projectId/confirm", financialRateLimit, async (req, res): Promise<void> => {
+  const origin = actionOrigin(req);
+  if (!origin) {
+    res.status(400).json({ error: { message: "A valid application host is required for this action." } });
+    return;
+  }
+  const intentId = typeof req.query.intentId === "string" ? req.query.intentId : "";
+  if (!z.string().uuid().safeParse(intentId).success) {
+    res.status(400).json({ error: { message: "The investment confirmation reference is invalid." } });
+    return;
+  }
+  const parsed = ActionConfirmationBody.safeParse(req.body);
+  const account = parsed.success ? parsePublicKey(parsed.data.account) : null;
+  if (!parsed.success || !account) {
+    res.status(400).json({ error: { message: "A valid Solana account and transaction signature are required." } });
+    return;
+  }
+
+  try {
+    const result = await confirmSolanaInvestmentPayment(
+      intentId,
+      parsed.data.signature,
+      account.toBase58(),
+    );
+    if (result.status === "settled" || result.status === "pending") {
+      res.setHeader("Cache-Control", "no-store");
+      res.json({
+        type: "completed",
+        title: result.status === "settled" ? "Investment confirmed" : "Payment is being verified",
+        icon: `${origin}/solana-action-icon.svg`,
+        description: result.message,
+        label: result.status === "settled" ? "View your portfolio" : "Do not send again",
+        website: `${origin}/portfolio`,
+      });
+      return;
+    }
+    const statusCode = result.status === "not_found" ? 404 : result.status === "expired" ? 410 : 400;
+    res.status(statusCode).json({ error: { message: result.message } });
+  } catch (error) {
+    console.error("[solana-investment] Confirmation callback failed:", error instanceof Error ? error.message : "unknown error");
+    res.status(503).json({
+      error: { message: "Payment verification is temporarily unavailable. Do not resend; try the confirmation again." },
+    });
   }
 });
 

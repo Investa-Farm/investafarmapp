@@ -11,7 +11,7 @@
     "migrate": "node --enable-source-maps ./dist/migrate.mjs",
     "seed": "node --enable-source-maps ./dist/seed.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npx --yes tsx --test src/lib/authTokens.test.ts src/lib/adminAuth.test.ts"
+    "test": "npx --yes tsx --test src/lib/authTokens.test.ts src/lib/adminAuth.test.ts src/lib/solana-investment.test.ts"
   },
   "dependencies": {
     "@privy-io/node": "^0.35.0",

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield, Wallet, Sparkles, ShoppingCart, Lock } from "lucide-react";
+import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield, Wallet, Sparkles, ShoppingCart, Lock, ExternalLink } from "lucide-react";
 import { formatKES, formatChange, getToken, isDemoAccount } from "@/lib/auth";
 import { WalletPinGate } from "./wallet-pin-gate";
 import { WalletPinSetup } from "./wallet-pin-setup";
@@ -131,6 +131,18 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
     },
   });
 
+  const { data: linkedSolanaWallet } = useQuery<{ wallet: { address: string } | null }>({
+    queryKey: ["linked-solana-wallet"],
+    enabled: open && Boolean(token),
+    queryFn: async () => {
+      const response = await fetch("/api/users/linked-solana-wallet", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Could not load the linked Solana wallet.");
+      return response.json();
+    },
+  });
+
   const { data: allListings } = useQuery<any[]>({
     queryKey: ["primary-listings-recs"],
     enabled: step === "done",
@@ -233,6 +245,15 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
       },
       onError: () => { haptic("error"); },
     });
+  };
+
+  const openSolanaUsdcBlink = () => {
+    if (!listing) return;
+    const actionUrl = new URL(`/api/actions/invest/${listing.farmId}`, window.location.origin);
+    actionUrl.searchParams.set("quantity", String(quantity));
+    const blinkUrl = new URL("https://dial.to/");
+    blinkUrl.searchParams.set("action", `solana-action:${actionUrl.toString()}`);
+    window.open(blinkUrl.toString(), "_blank", "noopener,noreferrer");
   };
 
   const resetAndClose = () => {
@@ -483,6 +504,44 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                           </button>
                         </div>
                       )}
+
+                      <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+                        <div className="flex items-start gap-2">
+                          <span className="text-violet-700" aria-hidden="true">◎</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-violet-900">Pay with Solana USDC</p>
+                            <p className="mt-0.5 text-[10px] leading-relaxed text-violet-800">
+                              Uses your linked Solana wallet, live KES/USDC quote, and on-chain confirmation. Your KES wallet is not charged.
+                            </p>
+                            {linkedSolanaWallet?.wallet?.address ? (
+                              <button
+                                type="button"
+                                onClick={openSolanaUsdcBlink}
+                                data-testid="button-invest-with-solana-usdc"
+                                className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-violet-700 px-3 py-2.5 text-xs font-bold text-white active:scale-[0.98]"
+                              >
+                                Invest with Solana USDC <ExternalLink size={13} />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  rememberPendingInvestment();
+                                  resetAndClose();
+                                  setLocation(`/wallet-setup?next=${encodeURIComponent(`/market/${listing.farmId}`)}`);
+                                }}
+                                data-testid="button-link-solana-wallet-for-investment"
+                                className="mt-2 w-full rounded-lg border border-violet-300 bg-white px-3 py-2.5 text-xs font-bold text-violet-800 active:scale-[0.98]"
+                              >
+                                Link Solana wallet to continue
+                              </button>
+                            )}
+                            <p className="mt-2 text-[9px] leading-relaxed text-violet-800/80">
+                              Approved investor KYC and a small SOL balance for network fees are required. Shares are credited only after payment verification.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </motion.div>
                   )}
 
