@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
-import { randomUUID } from "node:crypto";
 import {
   db,
   walletsTable,
@@ -27,7 +26,7 @@ import { BCRYPT_ROUNDS } from "../lib/authTokens";
 import { notifyUser } from "../lib/push";
 import { sendWalletTopupSms, sendWithdrawalSms, sendCardWithdrawalSms } from "../lib/sms";
 import { sendWalletCreditEmail, sendWithdrawalConfirmationEmail } from "../lib/email";
-import { isCircleConfigured, createPaymentIntent, getPaymentIntentStatus } from "../lib/circle";
+import { isCircleConfigured, getPaymentIntentStatus } from "../lib/circle";
 import {
   isConfigured as isPesapalConfigured,
   ensureIpnRegistered,
@@ -372,58 +371,22 @@ router.get("/wallet/circle/info", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   res.json({
-    configured: isCircleConfigured(),
+    configured: false,
+    available: false,
     asset: "USDC",
-    network: "Polygon",
+    network: null,
     depositAddress: null,
     minUSDC: "5.00",
+    message: "New Circle/Polygon deposits are no longer supported.",
   });
 });
 
 router.post("/wallet/circle/intent", financialRateLimit, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const amountUSDC = Number(req.body.amountUsdc);
-  if (!Number.isFinite(amountUSDC) || amountUSDC < 5 || amountUSDC > 100_000) {
-    res.status(400).json({ error: "USDC deposits must be between 5 and 100,000 USDC." });
-    return;
-  }
-  if (!isCircleConfigured()) {
-    res.status(503).json({
-      error: "USDC deposits are unavailable until the deposit provider is configured. No fallback address is used.",
-    });
-    return;
-  }
-  try {
-    const intent = await createPaymentIntent({
-      amountUSDC: amountUSDC.toFixed(2),
-      idempotencyKey: `IF-USDC-${user.id}-${randomUUID()}`,
-    });
-    if (!intent.depositAddress.address) throw new Error("Deposit provider did not return a deposit address.");
-
-    const [savedIntent] = await db.insert(stablecoinDepositIntentsTable).values({
-      userId: user.id,
-      providerIntentId: intent.id,
-      expectedAmount: amountUSDC.toFixed(6),
-      depositAddress: intent.depositAddress.address,
-      network: "polygon",
-      status: "pending",
-    }).returning({ id: stablecoinDepositIntentsTable.id });
-
-    res.json({
-      id: savedIntent.id,
-      providerIntentId: intent.id,
-      depositAddress: intent.depositAddress.address,
-      chain: "Polygon",
-      network: "polygon",
-      asset: "USDC",
-      amountUSDC: amountUSDC.toFixed(2),
-      configured: true,
-    });
-  } catch (error) {
-    req.log?.error?.({ err: error }, "Failed to create USDC deposit intent");
-    res.status(502).json({ error: "Could not create a secure USDC deposit intent. No funds were moved." });
-  }
+  res.status(410).json({
+    error: "New Circle/Polygon deposits are no longer supported. Existing deposit records are retained.",
+  });
 });
 
 router.post("/wallet/circle/verify", financialRateLimit, async (req, res): Promise<void> => {
@@ -492,12 +455,17 @@ router.post("/wallet/circle/verify", financialRateLimit, async (req, res): Promi
 router.get("/wallet/stablecoin", async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const wallet = await getOrCreateStablecoinWallet(user.id);
+  const [wallet] = await db.select().from(stablecoinWalletsTable)
+    .where(and(
+      eq(stablecoinWalletsTable.userId, user.id),
+      eq(stablecoinWalletsTable.network, "polygon"),
+    ))
+    .limit(1);
   const transactions = await db.select().from(stablecoinTransactionsTable)
     .where(eq(stablecoinTransactionsTable.userId, user.id))
     .orderBy(desc(stablecoinTransactionsTable.createdAt))
     .limit(50);
-  res.json({ wallet, transactions });
+  res.json({ wallet: wallet ?? null, transactions });
 });
 
 router.get("/wallet/circle/tx-status", async (req, res): Promise<void> => {
@@ -798,8 +766,8 @@ router.post("/wallet/withdraw/card", financialRateLimit, requireNonce, async (re
 router.post("/wallet/withdraw/usdc", financialRateLimit, requireNonce, async (req, res): Promise<void> => {
   const user = await getCurrentUser(req);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  res.status(503).json({
-    error: "USDC withdrawals are unavailable until the stablecoin payout rail is configured. No KES or USDC balance was changed.",
+  res.status(410).json({
+    error: "USDC/Polygon withdrawals are no longer supported. No KES or stablecoin balance was changed.",
   });
 });
 

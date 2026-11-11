@@ -18,7 +18,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { getToken, getStoredUser, formatKES } from "@/lib/auth";
 import { WalletConnectModal } from "@/components/wallet-connect-modal";
-import { TxConfirmationTracker } from "@/components/tx-confirmation-tracker";
 import { showCenterSuccess } from "@/components/center-success-modal";
 
 const QUICK_AMOUNTS_KES = [500, 1000, 5000, 10000, 25000];
@@ -42,7 +41,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSuccess: (amount: number, currency: "KES" | "USDC") => void;
-  initialTab?: Tab;
+  initialTab?: Exclude<Tab, "usdc">;
 }
 
 // Currency per dial code — PesaPal requires the correct local currency for USSD push
@@ -170,7 +169,7 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
   const [circleTxHash, setCircleTxHash] = useState<string | null>(null);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [connectedEvmWallet, setConnectedEvmWallet] = useState<{ address: string; walletId: string } | null>(null);
-  const [trackingTxHash, setTrackingTxHash] = useState<string | null>(null);
+  const [, setTrackingTxHash] = useState<string | null>(null);
   const [circleError, setCircleError] = useState<string | null>(null);
   const [circleInfoLoading, setCircleInfoLoading] = useState(false);
   const [circleInfoError, setCircleInfoError] = useState<string | null>(null);
@@ -1024,33 +1023,11 @@ export function PaymentSheet({ open, onClose, onSuccess, initialTab = "mobile" }
     <WalletConnectModal
       open={walletModalOpen}
       onClose={() => setWalletModalOpen(false)}
-      depositAddress={circleInfo?.depositAddress ?? ""}
-      amountUSDC={circleAmountUSDC || usdcEstimate}
-      chain={circleInfo?.network ?? "Polygon"}
-      onConnected={(result) => {
-        if (!result) {
-          setConnectedEvmWallet(null);
-          return;
-        }
-        setConnectedEvmWallet({ address: result.address, walletId: result.walletId });
-        if (result.txHash) {
-          setWalletModalOpen(false);
-          setCircleTxHash(result.txHash);
-          setTrackingTxHash(result.txHash);
-        }
+      onConnected={(wallet) => {
+        setConnectedEvmWallet(wallet ? { address: wallet.address, walletId: wallet.walletId } : null);
       }}
     />
 
-    <TxConfirmationTracker
-      open={!!trackingTxHash}
-      txHash={trackingTxHash ?? ""}
-      onConfirmed={() => {
-        const hash = trackingTxHash;
-        setTrackingTxHash(null);
-        void confirmCircle();
-      }}
-      onClose={() => setTrackingTxHash(null)}
-    />
     </>
   );
 }

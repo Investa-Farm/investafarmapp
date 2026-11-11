@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useGetMe } from "@workspace/api-client-react";
+import { useGetFarmerDashboard, useGetMe, useGetMyFarms } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { clearToken, getStoredUser, storeUser, getToken, setToken } from "@/lib/auth";
-import { LogOut, ChevronRight, Bell, Settings, HelpCircle, TrendingUp, Star, X, Eye, EyeOff, Save, Wallet, ShieldCheck, Sun, Moon, Leaf, Smartphone, Check, DollarSign, Package, KeyRound } from "lucide-react";
+import { LogOut, ChevronRight, Bell, Settings, HelpCircle, TrendingUp, Star, X, Eye, EyeOff, Save, Wallet, ShieldCheck, Sun, Moon, Leaf, Droplets, Wheat, Smartphone, Check, DollarSign, Package, KeyRound } from "lucide-react";
 import { getInstallPrompt, triggerInstall, isIosBrowser, isStandalone } from "@/lib/pwa";
 import logoSrc from "@assets/Investa_8_-removebg-preview_(1)_1778315943098.png";
 import { NotificationsPanel } from "@/components/notifications-panel";
@@ -14,6 +14,14 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/hooks/use-theme";
 import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog";
 import { WalletPinSetup } from "@/components/wallet-pin-setup";
+
+const CROP_STAGES = [
+  { key: "planting", label: "Planting", icon: Leaf },
+  { key: "vegetative", label: "Vegetative", icon: Droplets },
+  { key: "flowering", label: "Flowering", icon: Sun },
+  { key: "fruiting", label: "Fruiting", icon: Wheat },
+  { key: "harvest", label: "Harvest", icon: TrendingUp },
+];
 
 export default function FarmerProfile() {
   const [, setLocation] = useLocation();
@@ -26,6 +34,8 @@ export default function FarmerProfile() {
   const [pinSetupOpen, setPinSetupOpen] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
   const { isDark, toggleDark } = useTheme();
+  const { data: cropDashboard } = useGetFarmerDashboard();
+  const { data: farms } = useGetMyFarms();
 
   const [pwaOpen, setPwaOpen] = useState(false);
   const [pwaInstalled, setPwaInstalled] = useState(false);
@@ -111,6 +121,9 @@ export default function FarmerProfile() {
 
   const activeLoans = loans.filter((l: any) => ["approved", "disbursed", "submitted", "under_review"].includes(l.status));
   const hasDisbursed = loans.some((l: any) => l.status === "disbursed");
+  const currentFarm = farms?.[0];
+  const detectedStageIndex = CROP_STAGES.findIndex(stage => stage.key === cropDashboard?.growthStage);
+  const currentStageIndex = detectedStageIndex >= 0 ? detectedStageIndex : 0;
 
   const loanItems = [
     ...(activeLoans.length > 0 ? [{
@@ -210,6 +223,62 @@ export default function FarmerProfile() {
       </div>
 
       <div className="px-4 pt-4 space-y-4">
+        {currentFarm && (
+          <section
+            data-testid="crop-timeline"
+            aria-label="Crop timeline"
+            className="bg-card rounded-2xl border border-border p-4"
+          >
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h2 className="font-semibold text-sm">Crop Timeline</h2>
+                <p className="text-muted-foreground text-xs mt-1">
+                  {currentFarm.cropType || "Current crop"}
+                </p>
+              </div>
+              {cropDashboard?.growthPercent != null && (
+                <span className="text-primary text-xs font-semibold whitespace-nowrap">
+                  {cropDashboard.growthPercent}% complete
+                </span>
+              )}
+            </div>
+            <div className="relative">
+              <div className="absolute top-4 left-4 right-4 h-0.5 bg-muted rounded-full" />
+              <div
+                className="absolute top-4 left-4 h-0.5 bg-primary rounded-full transition-all duration-700"
+                style={{
+                  width: `${Math.min(currentStageIndex / (CROP_STAGES.length - 1) * 100, 100)}%`,
+                  right: "auto",
+                  maxWidth: "calc(100% - 32px)",
+                }}
+              />
+              <div className="flex justify-between relative z-10">
+                {CROP_STAGES.map((stage, index) => {
+                  const Icon = stage.icon;
+                  const done = index < currentStageIndex;
+                  const current = index === currentStageIndex;
+                  return (
+                    <div key={stage.key} className="flex flex-col items-center gap-1.5">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                        current ? "bg-primary border-primary shadow-md shadow-primary/30" :
+                        done ? "bg-primary/20 border-primary" : "bg-background border-border"}`}>
+                        <Icon
+                          size={13}
+                          className={current ? "text-white" : done ? "text-primary" : "text-muted-foreground"}
+                        />
+                      </div>
+                      <p className={`text-[9px] font-medium text-center leading-tight ${
+                        current ? "text-primary" : done ? "text-primary/70" : "text-muted-foreground"}`}>
+                        {stage.label}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+
         {menuSections.map(section => (
           <div key={section.title}>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{section.title}</p>

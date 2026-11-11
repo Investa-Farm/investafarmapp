@@ -77,6 +77,9 @@
   "dependencies": {
     "@privy-io/react-auth": "^3.47.0",
     "@solana-program/memo": "^0.16.0",
+    "@solana-program/system": "^0.16.0",
+    "@solana-program/token": "^0.18.0",
+    "@solana/kit": "^8.6.0",
     "@stripe/stripe-js": "^1.54.2",
     "@types/leaflet": "^1.9.21",
     "@walletconnect/ethereum-provider": "2.22.4",

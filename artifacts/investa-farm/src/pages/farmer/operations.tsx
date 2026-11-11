@@ -507,7 +507,7 @@ const defaultTasks = [
 ];
 
 export default function FarmerOperations() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { data: dashboard, isLoading } = useGetFarmerDashboard();
   const isDemo = isDemoAccount();
   const token = getToken();
@@ -636,7 +636,7 @@ export default function FarmerOperations() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-white/80 text-xs font-medium">Farm Management</p>
-            <h1 className="text-white text-xl font-bold">Operations</h1>
+            <h1 className="text-white text-xl font-bold">My Farm</h1>
           </div>
           <button onClick={() => setShowAdd(s => !s)}
             className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center border border-white/30">
@@ -653,20 +653,34 @@ export default function FarmerOperations() {
       </div>
 
       <div className="px-4 pt-4 space-y-4">
-        {/* My Farms shortcut */}
-        <button
-          onClick={() => setLocation("/farmer/market")}
-          className="w-full flex items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3.5 active:scale-[0.98] transition-all shadow-sm"
+        <nav
+          aria-label="My farm sections"
+          data-testid="farmer-farm-subnav"
+          className="flex gap-2 overflow-x-auto pb-1"
         >
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <BarChart2 size={18} className="text-primary" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="text-foreground font-semibold text-sm">My Farms</p>
-            <p className="text-muted-foreground text-[11px]">Listed farms, performance & investor activity</p>
-          </div>
-          <ChevronRight size={15} className="text-muted-foreground flex-shrink-0" />
-        </button>
+          {[
+            { label: "Overview", path: "/farmer/operations" },
+            { label: "Crop details", path: "/farmer/farm-profile" },
+            { label: "Market", path: "/farmer/market" },
+            { label: "Wallet", path: "/farmer/wallet" },
+            { label: "Updates", path: "/farmer/updates" },
+          ].map(({ label, path }) => {
+            const active = location === path;
+            return (
+              <button
+                key={path}
+                type="button"
+                onClick={() => setLocation(path)}
+                aria-current={active ? "page" : undefined}
+                className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-semibold transition-colors ${
+                  active ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </nav>
 
         {/* Season stats */}
         {isLoading ? (

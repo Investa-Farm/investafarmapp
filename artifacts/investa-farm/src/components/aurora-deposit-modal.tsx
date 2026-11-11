@@ -3,16 +3,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Check,
   Copy,
-  ExternalLink,
   LoaderCircle,
   RefreshCw,
   ShieldAlert,
   X,
 } from "lucide-react";
+import { WalletConnectModal, type WalletConnectResult } from "@/components/wallet-connect-modal";
 
 type Destination = "sol" | "stellar";
 type SourceChain =
-  | "eth" | "bera" | "base" | "gnosis" | "arb" | "bsc" | "avax" | "op" | "pol"
+  | "eth" | "bera" | "base" | "gnosis" | "arb" | "bsc" | "avax" | "op"
   | "monad" | "adi" | "plasma" | "scroll" | "xlayer" | "hood" | "sui" | "aptos"
   | "xrp" | "btc" | "doge" | "tron" | "ton" | "near" | "zec" | "ltc" | "cardano"
   | "stellar" | "aleo" | "bch" | "dash" | "starknet" | "coca" | "qtc" | "evm";
@@ -22,7 +22,7 @@ const SOURCE_CHAINS: Array<{ id: SourceChain; label: string }> = [
   { id: "base", label: "Base" }, { id: "gnosis", label: "Gnosis" },
   { id: "arb", label: "Arbitrum" }, { id: "bsc", label: "BNB Chain" },
   { id: "avax", label: "Avalanche" }, { id: "op", label: "Optimism" },
-  { id: "pol", label: "Polygon" }, { id: "monad", label: "Monad" },
+  { id: "monad", label: "Monad" },
   { id: "adi", label: "ADI Chain" }, { id: "plasma", label: "Plasma" },
   { id: "scroll", label: "Scroll" }, { id: "xlayer", label: "X Layer" },
   { id: "hood", label: "Hood" }, { id: "sui", label: "Sui" },
@@ -57,19 +57,6 @@ type DepositStatus = {
   originChainTxHashes?: string[];
   destinationChainTxHashes?: string[];
 };
-type InjectedProvider = {
-  isMetaMask?: boolean;
-  isBinance?: boolean;
-  isBinanceWallet?: boolean;
-  providers?: InjectedProvider[];
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-};
-
-type WalletWindow = Window & {
-  ethereum?: InjectedProvider;
-  BinanceChain?: InjectedProvider;
-};
-
 function shortAddress(address: string) {
   return `${address.slice(0, 9)}…${address.slice(-6)}`;
 }
@@ -94,11 +81,9 @@ export function AuroraDepositModal({
   const [creating, setCreating] = useState(false);
   const [checking, setChecking] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [connectedWallet, setConnectedWallet] = useState<{ name: string; address: string } | null>(null);
+  const [connectedWallet, setConnectedWallet] = useState<WalletConnectResult | null>(null);
+  const [walletConnectOpen, setWalletConnectOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const hasInjectedWallet = typeof window !== "undefined" && Boolean(
-    (window as WalletWindow).ethereum || (window as WalletWindow).BinanceChain,
-  );
 
   useEffect(() => {
     if (!open || !authToken) return;
@@ -192,37 +177,10 @@ export function AuroraDepositModal({
     }
   }
 
-  async function connectWallet(walletName: "metamask" | "binance") {
-    const walletWindow = window as WalletWindow;
-    const available = [
-      ...(walletWindow.ethereum?.providers ?? (walletWindow.ethereum ? [walletWindow.ethereum] : [])),
-      ...(walletWindow.BinanceChain ? [walletWindow.BinanceChain] : []),
-    ];
-    const provider = walletName === "metamask"
-      ? available.find((item) => item.isMetaMask && !item.isBinance && !item.isBinanceWallet)
-      : available.find((item) => item.isBinance || item.isBinanceWallet);
-    if (provider) {
-      try {
-        const accounts = await provider.request({ method: "eth_requestAccounts" });
-        const address = Array.isArray(accounts) && typeof accounts[0] === "string" ? accounts[0] : null;
-        if (!address) throw new Error("The wallet did not return an account.");
-        setConnectedWallet({ name: walletName === "metamask" ? "MetaMask" : "Binance Web3", address });
-      } catch (connectError: unknown) {
-        setError(connectError instanceof Error ? connectError.message : "Wallet connection was declined.");
-      }
-      return;
-    }
-
-    const currentUrl = window.location.href;
-    const url = walletName === "metamask"
-      ? `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`
-      : `https://www.binance.com/en/web3wallet?dapp=${encodeURIComponent(currentUrl)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
   const destinationName = destinationChain === "sol" ? "Solana" : "Stellar";
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -342,17 +300,16 @@ export function AuroraDepositModal({
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => void connectWallet("metamask")} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 text-xs font-semibold">
-                    {connectedWallet?.name === "MetaMask" ? "MetaMask connected" : "Connect MetaMask"}
+                  <button type="button" onClick={() => setWalletConnectOpen(true)} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 text-xs font-semibold">
+                    {connectedWallet?.walletId === "metamask" ? "MetaMask connected" : "Connect MetaMask"}
                   </button>
-                  <button type="button" onClick={() => void connectWallet("binance")} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 text-xs font-semibold">
-                    {connectedWallet?.name === "Binance Web3" ? "Binance connected" : "Connect Binance Web3"}
-                    {!hasInjectedWallet && <ExternalLink size={13} />}
+                  <button type="button" onClick={() => setWalletConnectOpen(true)} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 text-xs font-semibold">
+                    {connectedWallet?.walletId === "binance" ? "Binance connected" : "Connect Binance Web3"}
                   </button>
                 </div>
                 {connectedWallet && (
                   <p className="rounded-lg bg-white px-3 py-2 font-mono text-[10px] text-slate-600">
-                    {connectedWallet.name}: {shortAddress(connectedWallet.address)}
+                    {connectedWallet.walletId === "metamask" ? "MetaMask" : "Binance Web3"}: {shortAddress(connectedWallet.address)}
                   </p>
                 )}
                 <p className="text-[10px] leading-relaxed text-muted-foreground">
@@ -386,5 +343,14 @@ export function AuroraDepositModal({
         </motion.div>
       )}
     </AnimatePresence>
+    <WalletConnectModal
+      open={walletConnectOpen}
+      onClose={() => setWalletConnectOpen(false)}
+      onConnected={(wallet) => {
+        setConnectedWallet(wallet);
+        setWalletConnectOpen(false);
+      }}
+    />
+    </>
   );
 }

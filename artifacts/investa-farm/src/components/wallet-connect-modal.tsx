@@ -1,100 +1,37 @@
-/**
- * WalletConnectModal — in-app Web3 wallet connection for USDC payments
- *
- * HOW IT WORKS
- * ─────────────
- * All modern mobile wallets (MetaMask, Coinbase Wallet, Binance Web3) inject
- * `window.ethereum` when you load a page inside their built-in browser.
- * So the correct flow on mobile is:
- *   1. User taps their wallet → we redirect the CURRENT tab into that wallet's
- *      in-app browser (not a _blank tab) via its deep-link URL.
- *   2. The wallet loads Investa Farm; window.ethereum is now available.
- *   3. We auto-detect the flag set before redirect and auto-connect.
- *   4. User approves in-wallet → ERC-20 transfer sent → txHash returned.
- *
- * On desktop with a browser extension (MetaMask, Coinbase Wallet):
- *   window.ethereum is already injected → connect inline, no redirect needed.
- */
-import { useState, useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, CheckCircle2, ExternalLink, Loader2, Wallet, X } from "lucide-react";
+import { SiBinance } from "react-icons/si";
 import { EthereumProvider } from "@walletconnect/ethereum-provider";
-import { SiBinance, SiStellar } from "react-icons/si";
-import {
-  X, Wallet, Copy, Check, AlertCircle, CheckCircle2,
-  Loader2, ExternalLink, ArrowRight, Zap,
-} from "lucide-react";
 
-// ── USDC contract on Polygon Mainnet ──────────────────────────────────────────
-const USDC_POLYGON = "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359";
-const POLYGON_CHAIN_ID = "0x89"; // 137
-const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim() ?? "";
+type WalletId = "metamask" | "binance";
 
-// ── ERC-20 helpers (no ethers/web3 dependency) ───────────────────────────────
-function parseUsdcAmount(usdcAmount: string): bigint | null {
-  const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(usdcAmount.trim());
-  if (!match) return null;
-  const whole = BigInt(match[1]!);
-  const fraction = BigInt((match[2] ?? "").padEnd(6, "0") || "0");
-  const amount = whole * 1_000_000n + fraction;
-  return amount > 0n ? amount : null;
+type Eip1193Provider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  providers?: Eip1193Provider[];
+  isMetaMask?: boolean;
+  isBraveWallet?: boolean;
+  isBinance?: boolean;
+  isBinanceWallet?: boolean;
+  on?: (event: string, listener: (...args: any[]) => void) => void;
+  removeListener?: (event: string, listener: (...args: any[]) => void) => void;
+};
+
+export interface WalletConnectResult {
+  address: string;
+  walletId: WalletId;
 }
 
-function encodeTransfer(to: string, usdcAmount: string): string {
-  if (!/^0x[a-fA-F0-9]{40}$/.test(to)) {
-    throw new Error("The Polygon USDC deposit address is not configured correctly.");
-  }
-  const amount = parseUsdcAmount(usdcAmount);
-  if (amount === null) {
-    throw new Error("Enter a valid USDC amount with up to six decimal places.");
-  }
-  const selector = "a9059cbb"; // keccak256("transfer(address,uint256)")[0:4]
-  const toHex = to.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
-  const amtHex = amount.toString(16).padStart(64, "0");
-  return `0x${selector}${toHex}${amtHex}`;
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  onConnected?: (wallet: WalletConnectResult | null) => void;
 }
 
-async function getUsdcBalance(eth: any, address: string): Promise<string> {
-  const chainId: string = await eth.request({ method: "eth_chainId" });
-  if (chainId.toLowerCase() !== POLYGON_CHAIN_ID) {
-    throw new Error("Switch your wallet to Polygon to read its USDC balance.");
-  }
-  const addrHex = address.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
-  const data = `0x70a08231${addrHex}`; // balanceOf(address)
-  const result: string = await eth.request({
-    method: "eth_call",
-    params: [{ to: USDC_POLYGON, data }, "latest"],
-  });
-  if (!result || result === "0x" || result === "0x0") return "0.00";
-  return (Number(BigInt(result)) / 1_000_000).toFixed(2);
-}
-
-// ── Deep-link URLs that open THIS page inside each wallet's in-app browser ───
-function walletBrowserLink(walletId: string): string {
-  const host = window.location.hostname;
-  if (walletId === "metamask") {
-    // metamask.app.link/dapp/<host> opens the site in MetaMask's browser
-    return `https://metamask.app.link/dapp/${host}`;
-  }
-  if (walletId === "coinbase") {
-    // Coinbase Wallet universal link
-    return `https://go.cb-wallet.io/wsegue?cb_url=${encodeURIComponent(window.location.href)}`;
-  }
-  if (walletId === "binance") {
-    // Binance Web3 DApp browser
-    return `https://www.binance.com/en/web3wallet?dapp=${encodeURIComponent(host)}`;
-  }
-  return window.location.href;
-}
-
-// ── Wallet catalogue ──────────────────────────────────────────────────────────
-interface WalletDef {
-  id: string;
-  name: string;
-  icon: ReactNode;
-  color: string;
-  description: string;
-}
+const PENDING_KEY = "investa_wallet_connect_pending";
+const CONNECTED_KEY = "investa_connected_evm_wallet";
+const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID ?? "";
 
 function MetaMaskMark() {
   return (
@@ -108,351 +45,136 @@ function MetaMaskMark() {
   );
 }
 
-const WALLETS: WalletDef[] = [
-  { id: "metamask",  name: "MetaMask",            icon: <MetaMaskMark />, color: "#E2761B", description: "Browser extension or MetaMask Mobile" },
-  { id: "binance",   name: "Binance Web3 Wallet",  icon: <SiBinance size={25} color="#F3BA2F" />, color: "#F3BA2F", description: "Send USDC from your Binance account" },
+const WALLETS: Array<{
+  id: WalletId;
+  name: string;
+  icon: ReactNode;
+  color: string;
+  help: string;
+}> = [
+  {
+    id: "metamask",
+    name: "MetaMask",
+    icon: <MetaMaskMark />,
+    color: "#E2761B",
+    help: "Browser extension or MetaMask mobile",
+  },
+  {
+    id: "binance",
+    name: "Binance Web3 Wallet",
+    icon: <SiBinance size={25} color="#F3BA2F" />,
+    color: "#F3BA2F",
+    help: "Binance Web3 browser or app",
+  },
 ];
 
-const LS_KEY = "investa_wallet_connect_pending";
-const CONNECTED_WALLET_KEY = "investa_connected_evm_wallet";
-
-function getInjectedProvider(walletId: string): any | null {
+function getInjectedProvider(walletId: WalletId): Eip1193Provider | null {
   if (typeof window === "undefined") return null;
-  const root = (window as any).ethereum;
-  const providers: any[] = Array.isArray(root?.providers)
-    ? root.providers
-    : root
-      ? [root]
-      : [];
+  const walletWindow = window as Window & {
+    ethereum?: Eip1193Provider;
+    BinanceChain?: Eip1193Provider;
+  };
+  const root = walletWindow.ethereum;
+  const providers = [
+    ...(Array.isArray(root?.providers) ? root.providers : []),
+    ...(root ? [root] : []),
+    ...(walletWindow.BinanceChain ? [walletWindow.BinanceChain] : []),
+  ].filter((provider, index, all) => all.indexOf(provider) === index);
 
-  if (walletId === "metamask") {
-    return providers.find((provider) => provider?.isMetaMask && !provider?.isBraveWallet) ?? null;
-  }
-  if (walletId === "coinbase") {
-    return providers.find((provider) => provider?.isCoinbaseWallet) ?? null;
-  }
   if (walletId === "binance") {
-    return providers.find((provider) => provider?.isBinance) ?? null;
+    return providers.find((provider) => provider.isBinance || provider.isBinanceWallet)
+      ?? walletWindow.BinanceChain
+      ?? null;
   }
-  return providers.length === 1 ? providers[0] : null;
+
+  return providers.find((provider) => provider.isMetaMask && !provider.isBraveWallet)
+    ?? (providers.length === 1 && !providers[0].isBinance ? providers[0] : null);
 }
 
-async function createWalletConnectProvider(showQrModal: boolean) {
-  if (!WALLETCONNECT_PROJECT_ID) {
-    throw new Error(
-      "MetaMask mobile needs WalletConnect configuration. Add VITE_WALLETCONNECT_PROJECT_ID; opening MetaMask's browser link can reopen the PWA without returning the connected account.",
-    );
-  }
-  return EthereumProvider.init({
-    projectId: WALLETCONNECT_PROJECT_ID,
-    chains: [137],
-    showQrModal,
-    metadata: {
-      name: "Investa Farm",
-      description: "Connect your wallet to pay with USDC on Polygon.",
-      url: window.location.origin,
-      icons: [],
-    },
-  });
+function openWalletBrowser(walletId: WalletId) {
+  const currentUrl = window.location.href;
+  localStorage.setItem(PENDING_KEY, JSON.stringify({ walletId, ts: Date.now() }));
+  const url = walletId === "metamask"
+    ? `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}${window.location.search}`
+    : `https://www.binance.com/en/web3wallet?dapp=${encodeURIComponent(currentUrl)}`;
+  window.location.assign(url);
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-export interface WalletConnectResult {
-  address: string;
-  walletId: string;
-  txHash?: string;
-}
-
-interface Props {
-  open: boolean;
-  onClose: () => void;
-  depositAddress: string;
-  amountUSDC: string;
-  chain: string;
-  mode?: "payment" | "connect";
-  memo?: string;
-  onConnected?: (result: WalletConnectResult | null) => void;
-}
-
-type Step =
-  | "select"
-  | "connecting"
-  | "connected"
-  | "sending"
-  | "sent"
-  | "opening_app";
-
-export function WalletConnectModal({
-  open, onClose, depositAddress, amountUSDC, chain, mode = "payment", memo, onConnected,
-}: Props) {
-  const [step, setStep] = useState<Step>("select");
-  const [selectedWallet, setSelectedWallet] = useState<WalletDef | null>(null);
-  const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
-  const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
-  const [txHash, setTxHash] = useState<string | null>(null);
+export function WalletConnectModal({ open, onClose, onConnected }: Props) {
+  const [busyWallet, setBusyWallet] = useState<WalletId | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [balanceError, setBalanceError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [connectionProvider, setConnectionProvider] = useState<any | null>(null);
+  const [connected, setConnected] = useState<WalletConnectResult | null>(null);
 
-  const rootProvider = typeof window !== "undefined" ? (window as any).ethereum : null;
-  const injectedProviders: any[] = Array.isArray(rootProvider?.providers)
-    ? rootProvider.providers
-    : rootProvider
-      ? [rootProvider]
-      : [];
-  const eth = connectionProvider ?? (selectedWallet ? getInjectedProvider(selectedWallet.id) : null);
-  const requiredAmount = parseUsdcAmount(amountUSDC);
-  const hasProvider = injectedProviders.length > 0;
-
-  // Detect which wallet injected window.ethereum
-  const injectedName = injectedProviders.some((provider) => provider?.isMetaMask) ? "MetaMask"
-    : injectedProviders.some((provider) => provider?.isCoinbaseWallet) ? "Coinbase Wallet"
-    : injectedProviders.some((provider) => provider?.isBinance) ? "Binance Web3"
-    : hasProvider ? "Web3 Wallet"
-    : null;
-
-  async function refreshUsdcBalance(provider: any, address: string) {
-    setUsdcBalance(null);
-    setBalanceError(null);
+  async function connect(walletId: WalletId, resume = false) {
+    setError(null);
+    setBusyWallet(walletId);
     try {
-      setUsdcBalance(await getUsdcBalance(provider, address));
-    } catch (err: any) {
-      setBalanceError(err?.message ?? "Could not read the Polygon USDC balance. Retry before sending.");
+      let provider: Eip1193Provider | null = getInjectedProvider(walletId);
+      if (!provider && walletId === "metamask" && WALLETCONNECT_PROJECT_ID) {
+        const wcProvider = await EthereumProvider.init({
+          projectId: WALLETCONNECT_PROJECT_ID,
+          chains: [1],
+          showQrModal: true,
+          metadata: {
+            name: "Investa Farm",
+            description: "Connect a wallet to Investa Farm. No transaction will be sent.",
+            url: window.location.origin,
+            icons: [`${window.location.origin}/favicon.png`],
+          },
+        });
+        if (!wcProvider.session) await wcProvider.connect();
+        provider = wcProvider as unknown as Eip1193Provider;
+      }
+
+      if (!provider) {
+        if (resume) return;
+        openWalletBrowser(walletId);
+        return;
+      }
+
+      const rawAccounts = await provider.request({
+        method: resume ? "eth_accounts" : "eth_requestAccounts",
+      });
+      const address = Array.isArray(rawAccounts) && typeof rawAccounts[0] === "string"
+        ? rawAccounts[0]
+        : "";
+      if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        throw new Error("The wallet did not return a valid account. Unlock it and try again.");
+      }
+
+      const result = { address, walletId };
+      setConnected(result);
+      localStorage.setItem(CONNECTED_KEY, JSON.stringify(result));
+      localStorage.removeItem(PENDING_KEY);
+      onConnected?.(result);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Could not connect to that wallet.";
+      setError(message);
+      if (resume) localStorage.removeItem(PENDING_KEY);
+    } finally {
+      setBusyWallet(null);
     }
   }
 
-  // Resume a connection after a mobile wallet switches back to the PWA.
   useEffect(() => {
     if (!open) return;
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) {
-      void restoreSavedWallet();
-      return;
-    }
     try {
-      const { walletId, ts } = JSON.parse(raw);
-      const provider = connectionProvider ?? getInjectedProvider(walletId);
-      if (Date.now() - ts >= 10 * 60 * 1000) {
-        localStorage.removeItem(LS_KEY);
+      const pending = localStorage.getItem(PENDING_KEY);
+      const saved = localStorage.getItem(CONNECTED_KEY);
+      const candidate = pending ? JSON.parse(pending) : saved ? JSON.parse(saved) : null;
+      if (!candidate || !WALLETS.some((wallet) => wallet.id === candidate.walletId)) return;
+      if (pending && (!Number.isFinite(candidate.ts) || Date.now() - candidate.ts > 10 * 60 * 1000)) {
+        localStorage.removeItem(PENDING_KEY);
         return;
       }
-      const w = WALLETS.find(x => x.id === walletId);
-      if (w && (provider || (walletId === "metamask" && WALLETCONNECT_PROJECT_ID))) {
-        setSelectedWallet(w);
-        void connectInApp(w);
-      }
-    } catch { localStorage.removeItem(LS_KEY); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) {
-      setStep("select"); setError(null); setConnectedAddress(null);
-      setUsdcBalance(null); setTxHash(null); setSelectedWallet(null);
-    }
-  }, [open]);
-
-  // ── Connect via injected provider ──────────────────────────────────────────
-  async function connectInApp(wallet: WalletDef) {
-    setSelectedWallet(wallet);
-    setStep("connecting");
-    setError(null);
-    setBalanceError(null);
-    if (wallet.id === "metamask") {
-      localStorage.setItem(LS_KEY, JSON.stringify({ walletId: wallet.id, ts: Date.now() }));
-    }
-    try {
-      let provider = getInjectedProvider(wallet.id);
-      if (!provider && wallet.id === "metamask") {
-        provider = await createWalletConnectProvider(true);
-        if (!provider.session) await provider.connect();
-      }
-      if (!provider) throw new Error(`No ${wallet.name} provider detected. Open this page in the wallet browser or choose another wallet.`);
-      setConnectionProvider(provider);
-
-      // Request accounts
-      const accounts: string[] = await provider.request({ method: "eth_requestAccounts" });
-      if (!accounts[0]) throw new Error("No accounts returned");
-      const address = accounts[0];
-
-      if (mode === "payment") {
-        try {
-          await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: POLYGON_CHAIN_ID }] });
-        } catch (sw: any) {
-          if (sw?.code === 4902) {
-            await provider.request({
-              method: "wallet_addEthereumChain",
-              params: [{
-                chainId: POLYGON_CHAIN_ID,
-                chainName: "Polygon Mainnet",
-                nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
-                rpcUrls: ["https://polygon-rpc.com/"],
-                blockExplorerUrls: ["https://polygonscan.com/"],
-              }],
-            });
-            await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: POLYGON_CHAIN_ID }] });
-          } else {
-            throw new Error("Switch to Polygon in your wallet to continue.");
-          }
-        }
-      }
-
-      // Fetch USDC balance
-      setConnectedAddress(address);
-      setUsdcBalance(null);
-      setStep("connected");
-      localStorage.removeItem(LS_KEY);
-      localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({
-        address,
-        walletId: wallet.id,
-        connectedAt: Date.now(),
-      }));
-      onConnected?.({ address, walletId: wallet.id });
-      if (mode === "payment") void refreshUsdcBalance(provider, address);
-    } catch (err: any) {
-      localStorage.removeItem(LS_KEY);
-      setError(err?.message ?? "Connection failed");
-      setStep("select");
-    }
-  }
-
-  async function restoreSavedWallet() {
-    try {
-      const raw = localStorage.getItem(CONNECTED_WALLET_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as { address?: string; walletId?: string };
-      if (!saved.address || !/^0x[0-9a-f]{40}$/i.test(saved.address)) return;
-      const wallet = WALLETS.find((item) => item.id === saved.walletId);
-      if (!wallet) return;
-
-      let provider = getInjectedProvider(wallet.id);
-      if (!provider && wallet.id === "metamask" && WALLETCONNECT_PROJECT_ID) {
-        provider = await createWalletConnectProvider(false);
-      }
-      if (!provider || (wallet.id === "metamask" && !getInjectedProvider(wallet.id) && !provider.session)) {
-        return;
-      }
-
-      const accounts: string[] = await provider.request({ method: "eth_accounts" });
-      if (!accounts?.[0]) return;
-      const address = accounts[0];
-      setSelectedWallet(wallet);
-      setConnectionProvider(provider);
-      setConnectedAddress(address);
-      setUsdcBalance(null);
-      setStep("connected");
-      localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({
-        address,
-        walletId: wallet.id,
-        connectedAt: Date.now(),
-      }));
-      onConnected?.({ address, walletId: wallet.id });
-      if (mode === "payment") void refreshUsdcBalance(provider, address);
+      const provider = getInjectedProvider(candidate.walletId);
+      if (provider) void connect(candidate.walletId, true);
     } catch {
-      // A restored session is optional; the user can reconnect from the wallet list.
+      localStorage.removeItem(PENDING_KEY);
     }
-  }
-
-  useEffect(() => {
-    if (!connectionProvider?.on) return;
-    const handleAccountsChanged = (accounts: string[]) => {
-      const address = accounts?.[0] ?? null;
-      setConnectedAddress(address);
-      if (!address) {
-        localStorage.removeItem(CONNECTED_WALLET_KEY);
-        setUsdcBalance(null);
-        setBalanceError(null);
-        setStep("select");
-        onConnected?.(null);
-        return;
-      }
-      localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({
-        address,
-        walletId: selectedWallet?.id ?? "metamask",
-        connectedAt: Date.now(),
-      }));
-      onConnected?.({ address, walletId: selectedWallet?.id ?? "metamask" });
-      if (mode === "payment") void refreshUsdcBalance(connectionProvider, address);
-    };
-    const handleDisconnect = () => {
-      localStorage.removeItem(CONNECTED_WALLET_KEY);
-      setConnectedAddress(null);
-      setUsdcBalance(null);
-      setBalanceError(null);
-      setStep("select");
-      onConnected?.(null);
-    };
-    connectionProvider.on("accountsChanged", handleAccountsChanged);
-    connectionProvider.on("disconnect", handleDisconnect);
-    return () => {
-      if (typeof connectionProvider.removeListener === "function") {
-        connectionProvider.removeListener("accountsChanged", handleAccountsChanged);
-        connectionProvider.removeListener("disconnect", handleDisconnect);
-      } else if (typeof connectionProvider.off === "function") {
-        connectionProvider.off("accountsChanged", handleAccountsChanged);
-        connectionProvider.off("disconnect", handleDisconnect);
-      }
-    };
-  }, [connectionProvider, mode, onConnected, selectedWallet]);
-
-  // ── Send ERC-20 transfer ───────────────────────────────────────────────────
-  async function sendUsdcTx() {
-    if (!eth || !connectedAddress) return;
-    if (!/^0x[a-fA-F0-9]{40}$/.test(depositAddress)) {
-      setError("The Polygon USDC deposit address is not configured correctly.");
-      return;
-    }
-    if (requiredAmount === null) {
-      setError("Enter a valid USDC amount with up to six decimal places.");
-      return;
-    }
-    const numericBalance = usdcBalance === null ? Number.NaN : Number(usdcBalance);
-    if (!Number.isFinite(numericBalance)) {
-      setError("The Polygon USDC balance could not be verified. Retry the balance check before sending.");
-      return;
-    }
-    if (numericBalance < Number(requiredAmount) / 1_000_000) {
-      setError(`Insufficient USDC balance. You need ${amountUSDC} USDC.`);
-      return;
-    }
-    setStep("sending");
-    setError(null);
-    try {
-      const data = encodeTransfer(depositAddress, amountUSDC);
-      const hash: string = await eth.request({
-        method: "eth_sendTransaction",
-        params: [{
-          from: connectedAddress,
-          to: USDC_POLYGON,
-          data,
-          // Let MetaMask estimate gas
-        }],
-      });
-      setTxHash(hash);
-      setStep("sent");
-      onConnected?.({ address: connectedAddress, walletId: selectedWallet?.id ?? "unknown", txHash: hash });
-    } catch (err: any) {
-      setError(err?.message ?? "Transaction failed or was rejected");
-      setStep("connected");
-    }
-  }
-
-  // ── Open wallet's in-app browser ──────────────────────────────────────────
-  function openWalletBrowser(wallet: WalletDef) {
-    localStorage.setItem(LS_KEY, JSON.stringify({ walletId: wallet.id, ts: Date.now() }));
-    setSelectedWallet(wallet);
-    setStep("opening_app");
-    // Navigate the CURRENT tab (not _blank) — mobile deep link
-    window.location.href = walletBrowserLink(wallet.id);
-  }
-
-  // ── Copy helpers ──────────────────────────────────────────────────────────
-  async function copyText(text: string) {
-    await navigator.clipboard.writeText(text).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
+    // Only resume when the modal opens; connect() owns the current attempt state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!open) return null;
 
@@ -460,407 +182,113 @@ export function WalletConnectModal({
     <AnimatePresence>
       <motion.div
         className="fixed inset-0 z-[200] flex items-end justify-center"
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
       >
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-        <motion.div
-          className="relative w-full max-w-[430px] bg-background rounded-t-3xl shadow-2xl overflow-hidden"
-          style={{ maxHeight: "92dvh" }}
-          initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        <button
+          type="button"
+          aria-label="Close wallet connection dialog"
+          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <motion.section
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="wallet-connect-title"
+          data-testid="wallet-connect-modal"
+          className="relative w-full max-w-[430px] rounded-t-3xl bg-background shadow-2xl"
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 28, stiffness: 300 }}
         >
-          {/* Handle */}
           <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 bg-border rounded-full" />
+            <div className="h-1 w-10 rounded-full bg-border" />
           </div>
-
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+          <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100">
                 <Wallet size={18} className="text-[#0052FF]" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-foreground">
-                  {mode === "connect" ? "Connect another wallet" : "Connect Wallet"}
+                <h3 id="wallet-connect-title" className="font-bold text-base text-foreground">
+                  Connect another wallet
                 </h3>
-                <p className="text-muted-foreground text-xs">
-                  {mode === "connect" ? "MetaMask or Binance Web3 · no payment will be sent" : `Send ${amountUSDC} USDC on ${chain}`}
-                </p>
+                <p className="text-xs text-muted-foreground">MetaMask or Binance Web3</p>
               </div>
             </div>
-            <button onClick={onClose} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-muted"
+            >
               <X size={15} />
             </button>
           </div>
 
-          <div className="overflow-y-auto px-5 py-4 pb-8 space-y-4">
-            {/* Amount chip */}
-            {mode !== "connect" && (
-            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3">
-              <div>
-                <p className="text-blue-700 text-xs font-semibold">Amount to send</p>
-                <p className="text-blue-900 font-black text-xl">{amountUSDC} USDC</p>
-              </div>
-              <div className="text-right">
-                <p className="text-blue-600 text-xs">{chain}</p>
-                {memo && <p className="text-blue-700 font-mono text-xs mt-0.5">Memo: {memo}</p>}
-              </div>
+          <div className="space-y-3 px-5 py-4 pb-8">
+            <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2.5 text-xs text-green-800">
+              Connecting only. Investa Farm will not request a payment or transaction.
             </div>
-            )}
-
-            {/* Injected provider badge */}
-            {injectedName && step === "select" && (
-              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
-                <p className="text-green-700 text-xs font-semibold">{injectedName} detected — you can connect directly</p>
-              </div>
-            )}
-
-            {/* Error */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-                <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
-                <p className="text-red-700 text-xs">{error}</p>
+              <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3">
+                <AlertCircle size={14} className="mt-0.5 shrink-0 text-red-500" />
+                <p className="text-xs text-red-700">{error}</p>
               </div>
             )}
-
-            {/* ── STEP: SELECT ─────────────────────────────────────────── */}
-            {step === "select" && (
-              <div className="space-y-2.5">
-                <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Choose your wallet</p>
-
-                {WALLETS.map(w => (
-                  <button
-                    key={w.id}
-                    onClick={() => (getInjectedProvider(w.id) || (w.id === "metamask" && WALLETCONNECT_PROJECT_ID))
-                      ? connectInApp(w)
-                      : openWalletBrowser(w)}
-                    className="w-full flex items-center gap-3.5 p-4 rounded-2xl border border-border bg-background hover:bg-muted/40 active:scale-[0.98] transition-all"
-                  >
-                    <div
-                      className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                      style={{ background: `${w.color}18` }}
-                    >
-                      {w.icon}
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="text-foreground font-bold text-sm">{w.name}</p>
-                      <p className="text-muted-foreground text-xs mt-0.5">
-                        {mode === "connect"
-                          ? w.id === "metamask" ? "Browser extension or MetaMask mobile" : "Binance Web3 browser or app"
-                          : w.description}
-                      </p>
-                    </div>
-                    {getInjectedProvider(w.id) || (w.id === "metamask" && WALLETCONNECT_PROJECT_ID) ? (
-                      <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-                        Connect
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 flex items-center gap-1">
-                        Open <ExternalLink size={8} />
-                      </span>
-                    )}
-                  </button>
-                ))}
-                {mode !== "connect" && <div
-                  className="w-full flex items-center gap-3.5 p-4 rounded-2xl border border-dashed border-border bg-muted/30 opacity-80"
-                  aria-disabled="true"
-                >
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#08B5E5]/10">
-                    <SiStellar size={25} color="#08B5E5" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-foreground font-bold text-sm">Stellar Wallet</p>
-                    <p className="text-muted-foreground text-xs mt-0.5">
-                      Link through Privy in wallet settings; Stellar deposits are not configured.
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-bold text-muted-foreground bg-muted rounded-full px-2 py-0.5">
-                    Unavailable
-                  </span>
-                </div>}
-
-                {/* Manual fallback */}
-                {mode !== "connect" && <div className="pt-3 border-t border-border">
-                  <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-2">Or send manually</p>
-                  <div className="bg-muted/50 rounded-xl p-3 flex items-center gap-2">
-                    <p className="text-foreground font-mono text-xs flex-1 break-all leading-relaxed">{depositAddress}</p>
-                    <button onClick={() => copyText(depositAddress)} className="flex-shrink-0 w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center">
-                      {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} className="text-muted-foreground" />}
-                    </button>
-                  </div>
-                  {memo && <p className="text-amber-600 text-[10px] mt-1.5 font-medium">Include memo: <strong>{memo}</strong></p>}
-                </div>}
-              </div>
-            )}
-
-            {/* ── STEP: CONNECTING ─────────────────────────────────────── */}
-            {step === "connecting" && (
-              <div className="py-8 flex flex-col items-center gap-4 text-center">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
-                  style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
-                  {selectedWallet?.icon}
-                </div>
-                <div>
-                  <p className="text-foreground font-bold">Connecting to {selectedWallet?.name}</p>
-                  <p className="text-muted-foreground text-sm mt-1">Approve the connection in your wallet…</p>
-                </div>
-                <Loader2 size={24} className="animate-spin text-primary" />
-              </div>
-            )}
-
-            {/* ── STEP: CONNECTED ──────────────────────────────────────── */}
-            {step === "connected" && connectedAddress && mode === "connect" && (
-              <div className="space-y-4">
-                <div
-                  className="rounded-2xl p-4"
-                  style={{
-                    background: `linear-gradient(135deg, ${selectedWallet?.color ?? "#6366F1"}22, ${selectedWallet?.color ?? "#6366F1"}08)`,
-                    border: `1px solid ${selectedWallet?.color ?? "#6366F1"}30`,
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl text-2xl" style={{ background: `${selectedWallet?.color ?? "#6366F1"}20` }}>
-                      {selectedWallet?.icon}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground">{selectedWallet?.name}</p>
-                      <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-green-700">
-                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Connected
-                      </p>
-                    </div>
-                    <CheckCircle2 size={20} className="ml-auto text-green-600" />
-                  </div>
-                  <div className="mt-3 flex items-start gap-2 rounded-xl bg-background/80 p-3">
-                    <p className="min-w-0 flex-1 break-all font-mono text-[11px] leading-relaxed text-foreground">{connectedAddress}</p>
-                    <button type="button" onClick={() => void copyText(connectedAddress)} aria-label="Copy wallet address" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                      {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
-                    </button>
-                  </div>
-                </div>
-                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-                  Wallet connection only. No transaction was sent, and this does not fund or purchase farm shares. Investment payments still use your KES wallet.
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      localStorage.removeItem(CONNECTED_WALLET_KEY);
-                      setConnectedAddress(null);
-                      setConnectionProvider(null);
-                      setStep("select");
-                      onConnected?.(null);
-                    }}
-                    className="rounded-xl border border-border py-3 text-sm font-semibold text-muted-foreground"
-                  >
-                    Disconnect
-                  </button>
-                  <button type="button" onClick={onClose} className="rounded-xl bg-primary py-3 text-sm font-semibold text-white">
-                    Done
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {step === "connected" && connectedAddress && mode === "payment" && (
-              <div className="space-y-4">
-                {/* Wallet card */}
-                <div className="rounded-2xl p-4" style={{ background: `linear-gradient(135deg, ${selectedWallet?.color ?? "#6366F1"}22, ${selectedWallet?.color ?? "#6366F1"}08)`, border: `1px solid ${selectedWallet?.color ?? "#6366F1"}30` }}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl"
-                      style={{ background: `${selectedWallet?.color ?? "#6366F1"}20` }}>
-                      {selectedWallet?.icon}
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm text-foreground">{selectedWallet?.name}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        <p className="text-green-600 text-xs font-semibold">Connected</p>
-                      </div>
-                    </div>
-                    <CheckCircle2 size={20} className="text-green-600 ml-auto" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="bg-background/70 rounded-xl p-2.5 flex items-center justify-between">
-                      <p className="text-muted-foreground text-[11px]">Address</p>
-                      <p className="text-foreground font-mono text-xs font-semibold">
-                        {connectedAddress.slice(0, 6)}…{connectedAddress.slice(-4)}
-                      </p>
-                    </div>
-                     <div className="bg-background/70 rounded-xl p-2.5">
-                       <div className="flex items-center justify-between gap-2">
-                         <p className="text-muted-foreground text-[11px]">USDC Balance (Polygon)</p>
-                         <p className="text-foreground font-bold text-sm">
-                           {balanceError ? "Unavailable" : usdcBalance === null ? "Checking…" : `${usdcBalance} USDC`}
-                         </p>
-                       </div>
-                       {balanceError && (
-                         <div className="mt-2 flex items-center justify-between gap-2">
-                           <p role="alert" className="text-[10px] leading-relaxed text-red-700">{balanceError}</p>
-                           <button
-                             type="button"
-                             onClick={() => void refreshUsdcBalance(eth, connectedAddress)}
-                             className="shrink-0 rounded-lg bg-blue-100 px-2 py-1 text-[10px] font-semibold text-blue-800"
-                           >
-                             Retry
-                           </button>
-                         </div>
-                       )}
-                     </div>
-                  </div>
-                </div>
-
-                {/* Send instruction */}
-                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2">
-                  <p className="text-blue-800 font-bold text-sm">Send {amountUSDC} USDC to:</p>
-                  <div className="bg-white rounded-xl border border-blue-200 p-2.5 flex items-center gap-2">
-                    <p className="text-foreground font-mono text-xs flex-1 break-all">{depositAddress}</p>
-                    <button onClick={() => copyText(depositAddress)} className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      {copied ? <Check size={12} className="text-[#1652F0]" /> : <Copy size={12} className="text-[#1652F0]" />}
-                    </button>
-                  </div>
-                  {memo && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-2">
-                      <p className="text-amber-700 text-xs"><strong>⚠ Memo required:</strong> {memo}</p>
-                    </div>
-                  )}
-                </div>
-
-                {usdcBalance !== null && Number.isFinite(Number(usdcBalance)) && requiredAmount !== null && Number(usdcBalance) < Number(requiredAmount) / 1_000_000 && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-                    <AlertCircle size={13} className="text-red-500 flex-shrink-0" />
-                    <p className="text-red-700 text-xs">Insufficient USDC balance ({usdcBalance} USDC). You need {amountUSDC} USDC.</p>
-                  </div>
-                )}
-
-                <button
-                  onClick={sendUsdcTx}
-                  disabled={usdcBalance === null || !Number.isFinite(Number(usdcBalance)) || requiredAmount === null || Number(usdcBalance) < Number(requiredAmount) / 1_000_000}
-                  className="w-full py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg,#1652F0,#2D56FA)", boxShadow: "0 6px 20px rgba(22,82,240,0.35)" }}
-                >
-                  <Zap size={16} />
-                  Send {amountUSDC} USDC via {selectedWallet?.name}
-                </button>
-
-                <button onClick={() => setStep("select")} className="w-full text-muted-foreground text-xs font-medium underline underline-offset-2">
-                  ← Use a different wallet
-                </button>
-              </div>
-            )}
-
-            {/* ── STEP: SENDING ────────────────────────────────────────── */}
-            {step === "sending" && (
-              <div className="py-8 flex flex-col items-center gap-4 text-center">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
-                  style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
-                  {selectedWallet?.icon}
-                </div>
-                <div>
-                  <p className="text-foreground font-bold">Approve in {selectedWallet?.name}</p>
-                  <p className="text-muted-foreground text-sm mt-1">Check your wallet for the transaction prompt…</p>
-                </div>
-                <Loader2 size={24} className="animate-spin text-[#1652F0]" />
-                <p className="text-muted-foreground text-xs">Sending {amountUSDC} USDC on Polygon</p>
-              </div>
-            )}
-
-            {/* ── STEP: SENT ───────────────────────────────────────────── */}
-            {step === "sent" && txHash && (
-              <div className="space-y-4">
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
-                  <CheckCircle2 size={40} className="text-green-600 mx-auto mb-3" />
-                  <p className="text-green-800 font-bold text-base">Transaction Sent!</p>
-                  <p className="text-green-700 text-xs mt-1">Your USDC transfer was sent. It has not converted to or credited your KES wallet.</p>
-                </div>
-
-                <div className="bg-muted/50 rounded-xl p-3 space-y-1">
-                  <p className="text-muted-foreground text-[10px] uppercase tracking-wider">Transaction Hash</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-foreground font-mono text-xs flex-1 break-all">{txHash}</p>
-                    <button onClick={() => copyText(txHash)} className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center flex-shrink-0">
-                      {copied ? <Check size={12} className="text-green-600" /> : <Copy size={12} className="text-muted-foreground" />}
-                    </button>
-                  </div>
-                </div>
-
-                <a
-                  href={`https://polygonscan.com/tx/${txHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 text-blue-600 text-xs font-semibold"
-                >
-                  View on PolygonScan <ExternalLink size={11} />
-                </a>
-
-                <button
-                  onClick={onClose}
-                  className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl active:scale-95 transition-transform text-sm flex items-center justify-center gap-2"
-                >
-                  <ArrowRight size={16} /> Back to Confirm Payment
-                </button>
-              </div>
-            )}
-
-            {/* ── STEP: OPENING WALLET APP ─────────────────────────────── */}
-            {step === "opening_app" && (
-              <div className="space-y-4 text-center">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto"
-                  style={{ background: `${selectedWallet?.color ?? "#6366F1"}18` }}>
-                  {selectedWallet?.icon}
-                </div>
-                <div>
-                  <p className="text-foreground font-bold text-base">Opening {selectedWallet?.name}</p>
-                  <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-                    {selectedWallet?.name} will open Investa Farm inside its browser.
-                    {mode === "connect"
-                      ? " Approve the connection only; no transaction will be requested."
-                      : " The wallet will connect automatically — you won't leave the app."}
+            {connected && (
+              <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-3">
+                <CheckCircle2 size={17} className="shrink-0 text-green-600" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-green-800">
+                    Connected to {WALLETS.find((wallet) => wallet.id === connected.walletId)?.name}
                   </p>
+                  <p className="truncate font-mono text-xs text-green-700">{connected.address}</p>
                 </div>
-
-                <div className="bg-muted/60 rounded-2xl p-4 text-left space-y-2">
-                  {(mode === "connect"
-                    ? [
-                        `${selectedWallet?.name} opens and loads this page`,
-                        "Tap Connect Wallet → your wallet",
-                        "Approve the connection request",
-                      ]
-                    : [
-                        `${selectedWallet?.name} opens and loads this page`,
-                        "Tap Connect Wallet → your wallet",
-                        "Approve the connection",
-                        "Send USDC with one tap — all within the app",
-                      ]).map((t, i) => (
-                    <div key={t} className="flex items-start gap-2.5">
-                      <div className="w-5 h-5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
-                      <p className="text-foreground text-xs font-medium">{t}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <a
-                  href={walletBrowserLink(selectedWallet?.id ?? "metamask")}
-                  className="w-full py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
-                  style={{ background: `${selectedWallet?.color ?? "#6366F1"}` }}
-                  onClick={() => {
-                    localStorage.setItem(LS_KEY, JSON.stringify({ walletId: selectedWallet?.id, ts: Date.now() }));
-                  }}
-                >
-                  Open {selectedWallet?.name} <ExternalLink size={14} />
-                </a>
-
-                <button
-                  onClick={() => { if (getInjectedProvider(selectedWallet?.id ?? "")) connectInApp(selectedWallet!); else setStep("select"); }}
-                  className="w-full py-3 rounded-2xl border-2 border-border text-foreground font-semibold text-sm active:scale-95"
-                >
-                  {eth ? "Already in wallet browser — Connect Now" : "← Choose a different wallet"}
-                </button>
               </div>
+            )}
+
+            {WALLETS.map((wallet) => (
+              <button
+                key={wallet.id}
+                type="button"
+                disabled={busyWallet !== null}
+                onClick={() => void connect(wallet.id)}
+                className="flex w-full items-center gap-3.5 rounded-2xl border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40 disabled:opacity-60"
+              >
+                <span
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                  style={{ background: `${wallet.color}18` }}
+                >
+                  {wallet.icon}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-foreground">{wallet.name}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{wallet.help}</span>
+                </span>
+                {busyWallet === wallet.id
+                  ? <Loader2 size={16} className="animate-spin text-primary" />
+                  : <ExternalLink size={14} className="text-muted-foreground" />}
+              </button>
+            ))}
+
+            {connected && (
+              <button
+                type="button"
+                onClick={() => {
+                  setConnected(null);
+                  localStorage.removeItem(CONNECTED_KEY);
+                  onConnected?.(null);
+                }}
+                className="w-full rounded-xl border border-border py-2.5 text-xs font-semibold text-muted-foreground"
+              >
+                Disconnect wallet
+              </button>
             )}
           </div>
-        </motion.div>
+        </motion.section>
       </motion.div>
     </AnimatePresence>,
     document.body,

@@ -4,7 +4,7 @@
  * Tabs:
  *   Mobile Money — M-Pesa / MTN / Airtel with country code picker
  *   Card         — cardholder name + last-4 card number
- *   USDC         — Polygon wallet address
+ *   Legacy USDC/Polygon withdrawals are disabled; historical records are retained.
  */
 import { useState, useEffect } from "react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
@@ -240,7 +240,6 @@ export function WithdrawSheet({ open, onClose, balance, pin }: Props) {
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "mobile", label: "Mobile Money", icon: <Smartphone size={14} /> },
     { id: "card",   label: "Card",         icon: <CreditCard size={14} /> },
-    { id: "usdc",   label: "USDC",         icon: <span className="font-black text-[11px]">₿</span> },
   ];
 
   return (

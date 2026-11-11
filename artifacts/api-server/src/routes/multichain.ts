@@ -46,7 +46,6 @@ const AURORA_SOURCE_CHAINS = [
   "bsc",
   "avax",
   "op",
-  "pol",
   "monad",
   "adi",
   "plasma",
@@ -645,7 +644,7 @@ router.get("/solana/devnet/status", (_req, res) => {
     optionalMissingSettings: [
       ...(!config.shareMint ? ["SOLANA_FARM_SHARE_MINT"] : []),
     ],
-    note: "Devnet test tokens have no real-world value. Devnet activity never credits KES or Polygon USDC balances.",
+    note: "Devnet test tokens have no real-world value. Devnet activity never credits KES or stablecoin balances.",
   });
 });
 
@@ -888,7 +887,7 @@ router.post("/actions/invest", async (req, res): Promise<void> => {
     });
     res.json({
       transaction: serialized.toString("base64"),
-      message: `Devnet-only transfer of ${amount} test USDC. This does not mint crop shares or credit KES/Polygon USDC.`,
+      message: `Devnet-only transfer of ${amount} test USDC. This does not mint crop shares or credit KES or stablecoin balances.`,
       lastValidBlockHeight: latest.lastValidBlockHeight,
     });
   } catch {

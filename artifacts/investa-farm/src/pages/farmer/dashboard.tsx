@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/bottom-nav";
 import { getStoredUser, clearToken, getToken, isDemoAccount } from "@/lib/auth";
-import { Bell, ChevronRight, Leaf, Droplets, Sun, Wheat, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, Package } from "lucide-react";
+import { Bell, ChevronRight, DollarSign, ShieldCheck, LogOut, MapPin, TrendingUp, Wallet, Package } from "lucide-react";
 import { useCurrency } from "@/lib/currency";
 import { WalletModal } from "@/components/wallet-modal";
 import { useLocation, Link } from "wouter";
@@ -19,14 +19,6 @@ import { SpotlightTour } from "@/components/spotlight-tour";
 import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog";
 
 type GroupInfo = { id: number; name: string; registrationNumber: string; county: string; memberCount: number; status: string } | null;
-
-const CROP_STAGES = [
-  { key: "planting",   label: "Planting",   icon: Leaf       },
-  { key: "vegetative", label: "Vegetative",  icon: Droplets   },
-  { key: "flowering",  label: "Flowering",   icon: Sun        },
-  { key: "fruiting",   label: "Fruiting",    icon: Wheat      },
-  { key: "harvest",    label: "Harvest",     icon: TrendingUp },
-];
 
 export default function FarmerDashboard() {
   const user = getStoredUser();
@@ -104,8 +96,6 @@ export default function FarmerDashboard() {
     if (h < 17) return "Good afternoon,";
     return "Good evening,";
   };
-  const detectedStageIndex = CROP_STAGES.findIndex(s => s.key === dashboard?.growthStage);
-  const currentStageIndex = detectedStageIndex >= 0 ? detectedStageIndex : 0;
   const farmHealth = dashboard?.growthPercent != null ? Math.round(75 + dashboard.growthPercent * 0.2) : null;
   const farmerShare = dashboard ? Math.round(dashboard.farmValue * 0.55) : 0;
 
@@ -305,42 +295,6 @@ export default function FarmerDashboard() {
               </div>
             </div>
           </button>
-        )}
-
-        {/* Crop Timeline — only show when there's a real active stage */}
-        {currentFarm && (
-          <div className="bg-card rounded-2xl border border-border p-4">
-            <div className="flex items-center justify-between mb-4">
-              <p className="font-semibold text-sm">Crop Timeline</p>
-              {dashboard?.growthPercent != null && (
-                <span className="text-primary text-xs font-semibold">{dashboard.growthPercent}% complete</span>
-              )}
-            </div>
-            <div className="relative">
-              <div className="absolute top-4 left-4 right-4 h-0.5 bg-muted rounded-full" />
-              <div className="absolute top-4 left-4 h-0.5 bg-primary rounded-full transition-all duration-700"
-                style={{ width: `${Math.min(currentStageIndex / (CROP_STAGES.length - 1) * 100, 100)}%`, right: "auto", maxWidth: "calc(100% - 32px)" }} />
-              <div className="flex justify-between relative z-10">
-                {CROP_STAGES.map((stage, i) => {
-                  const Icon = stage.icon;
-                  const done = i < currentStageIndex;
-                  const current = i === currentStageIndex;
-                  return (
-                    <div key={stage.key} className="flex flex-col items-center gap-1.5">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
-                        current ? "bg-primary border-primary shadow-md shadow-primary/30" :
-                        done ? "bg-primary/20 border-primary" : "bg-white border-border"}`}>
-                        <Icon size={13} className={current ? "text-white" : done ? "text-primary" : "text-muted-foreground"} />
-                      </div>
-                      <p className={`text-[9px] font-medium text-center leading-tight ${current ? "text-primary" : done ? "text-primary/70" : "text-muted-foreground"}`}>
-                        {stage.label}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
         )}
 
         {/* Recent Activity — only show real updates */}

@@ -65,7 +65,7 @@ const LAYERS: Layer[] = [
     items: [
       { icon: "🔐", name: "Auth Routes", desc: "/auth — login, OTP, MFA, TOTP" },
       { icon: "🏦", name: "Market Routes", desc: "/market — listings, buy, order book" },
-      { icon: "💰", name: "Wallet Routes", desc: "/wallet — PesaPal, Circle USDC, USDC on-chain" },
+      { icon: "💰", name: "Wallet Routes", desc: "/wallet — PesaPal/KES, Aurora deposits, legacy settlement status" },
       { icon: "🌾", name: "Farmer Routes", desc: "/farmer — farms, updates, vouchers" },
       { icon: "📊", name: "Portfolio", desc: "/portfolio — holdings, ROI, exits" },
       { icon: "🛡️", name: "Security", desc: "Rate limit, nonce, bot block, CSP" },
@@ -103,7 +103,7 @@ const LAYERS: Layer[] = [
     iconBg: "bg-rose-100", iconColor: "text-rose-600", titleColor: "text-rose-800",
     items: [
       { icon: "📱", name: "PesaPal", desc: "M-Pesa, MTN, Airtel, Visa, Mastercard (EA)" },
-      { icon: "🔵", name: "Circle USDC", desc: "USDC stablecoin deposits" },
+      { icon: "🔵", name: "Legacy USDC", desc: "Settlement for pending deposits only; new Polygon deposits are disabled" },
       { icon: "⭐", name: "Stellar", desc: "Custodial wallets (IFV-XXXX)" },
       { icon: "🤖", name: "Groq AI", desc: "Farm insights, news, ROI scoring" },
       { icon: "🛰️", name: "Sentinel Hub", desc: "NDVI satellite imagery" },
@@ -258,7 +258,7 @@ export default function SystemArchitecture() {
                 {[
                   { icon: "📱", name: "M-Pesa", desc: "STK push → Paystack webhook → credit wallet" },
                   { icon: "💳", name: "Stripe", desc: "PaymentIntent → card element → confirm → credit" },
-                  { icon: "🔵", name: "Circle USDC", desc: "Generate address → on-chain detect → credit KES equiv" },
+                  { icon: "🔵", name: "Legacy USDC", desc: "Verify pending historical deposits; no new Polygon deposits" },
                   { icon: "⭐", name: "Stellar", desc: "AES-256 keypair → custodial IFV-XXXX account" },
                 ].map((p, i) => (
                   <div key={i} className="flex items-start gap-2">

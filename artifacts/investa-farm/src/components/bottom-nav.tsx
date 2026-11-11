@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BarChart2, Briefcase, Activity, User, Home, Handshake, Package, Users, ShoppingCart, Wallet } from "lucide-react";
+import { BarChart2, Briefcase, Activity, User, Home, Handshake, Package, Users, ShoppingCart, Wallet, Leaf } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
 
@@ -15,7 +15,7 @@ const investorNav: NavItem[] = [
 
 const farmerNav: NavItem[] = [
   { label: "Home",    path: "/farmer",            icon: Home         },
-  { label: "Wallet",  path: "/farmer/wallet",     icon: Wallet       },
+  { label: "My Farm", path: "/farmer/operations", icon: Leaf         },
   { label: "Profile", path: "/farmer/profile",    icon: User         },
 ];
 
@@ -82,9 +82,15 @@ export function BottomNav({ role }: { role: "farmer" | "investor" | "agribusines
       <div className="flex items-center justify-around py-1.5">
         {items.map(({ label, path, icon: Icon, badge }) => {
           const isHome = path === "/farmer" || path === "/sales-agent/dashboard" || path === "/offtaker/dashboard";
+          const isFarmerProfileSection = role === "farmer" && path === "/farmer/profile" &&
+            (location === path || location.startsWith(`${path}/`) || location === "/farmer/totp");
+          const isFarmerMyFarmSection = role === "farmer" && path === "/farmer/operations" &&
+            location.startsWith("/farmer/") &&
+            !location.startsWith("/farmer/profile") &&
+            location !== "/farmer/totp";
           const isActive = isHome
             ? location === path
-            : location === path || (
+            : isFarmerProfileSection || isFarmerMyFarmSection || location === path || (
                 path !== "/agribusiness" && path !== "/" &&
                 location.startsWith(path)
               );

@@ -647,11 +647,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
 
       <WalletConnectModal
         open={connectWalletOpen}
-        mode="connect"
         onClose={() => setConnectWalletOpen(false)}
-        depositAddress=""
-        amountUSDC=""
-        chain=""
         onConnected={setConnectedExternalWallet}
       />
     </>

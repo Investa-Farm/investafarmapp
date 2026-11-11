@@ -1,7 +1,7 @@
 /**
  * PaymentModal — thin wrapper around PaymentSheet for investment/loan flows.
  * Previously contained a fake timeout-based simulation; now delegates to the
- * real PaymentSheet which calls the backend PesaPal / Circle USDC endpoints.
+ * real PaymentSheet for KES mobile-money and card funding.
  */
 import { PaymentSheet } from "./payment-sheet";
 

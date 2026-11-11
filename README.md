@@ -8,7 +8,7 @@ Investa Farm is an agribusiness financing and investment platform connecting far
 - **Investors** fund farms directly (primary market) or trade existing farm shares (secondary market), with an AI portfolio manager and dividend reinvestment options.
 - **Admins** manage KYC, farms, payouts, support tickets, and platform-wide settings from a dedicated dashboard.
 - Real-time market pricing reacts to crop risk and demand/supply dynamics via a background pricing engine.
-- Fintech integrations: Stellar (blockchain assets), Paystack/Stripe/Circle, M-Pesa (Daraja).
+- Payments: PesaPal for KES funding; Aurora Intents for supported cross-chain deposits to linked Solana or Stellar wallets.
 
 ## Stack
 
@@ -28,7 +28,7 @@ Investa Farm is an agribusiness financing and investment platform connecting far
   - `src/index.css` — theme (Tailwind v4 CSS variables, dark mode overrides)
 - `artifacts/api-server` — Express backend (also serves the built frontend in production — see `src/app.ts`)
   - `src/routes/` — modularized endpoints (auth, kyc, stellar, ai, notifications, etc.)
-  - `src/lib/` — core logic: `security.ts`, `roi.ts`, `circle.ts`, `stellar.ts`, `rainfall.ts`, `push.ts`
+  - `src/lib/` — core logic: `security.ts`, `roi.ts`, legacy Circle settlement for pending deposits, `stellar.ts`, `rainfall.ts`, `push.ts`
   - `src/scheduler.ts` — background jobs and price simulation
 - `artifacts/mockup-sandbox` — Canvas/design-only preview tool (not deployed to production)
 - `lib/db` — Drizzle ORM schema, one file per table under `lib/db/src/schema/`

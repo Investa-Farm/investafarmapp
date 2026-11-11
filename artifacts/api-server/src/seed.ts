@@ -321,6 +321,21 @@ export async function seedDemoUsers(log: (msg: string) => void = console.log) {
       const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, u.email));
       if (existing) {
         createdUsers[u.email] = existing.id;
+        // Reserved production demo accounts must keep their documented demo password
+        // across repeated deployments; regular user passwords are never overwritten.
+        const authProvider = (existing.metadata as Record<string, unknown> | null)?.authProvider;
+        if (
+          process.env.NODE_ENV === "production" &&
+          u.email.endsWith("@investafarm.com") &&
+          !authProvider
+        ) {
+          const passwordMatches = await bcrypt.compare(u.password, existing.passwordHash).catch(() => false);
+          if (!passwordMatches) {
+            const passwordHash = await bcrypt.hash(u.password, 10);
+            await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, existing.id));
+            log(`[seed] Restored demo login credentials: ${u.email}`);
+          }
+        }
         if (!existing.emailVerified) {
           await db.update(usersTable).set({ emailVerified: true }).where(eq(usersTable.email, u.email));
           log(`[seed] Auto-verified: ${u.email}`);
@@ -340,6 +355,9 @@ export async function seedDemoUsers(log: (msg: string) => void = console.log) {
       }
     } catch (err) {
       log(`[seed] Skipped ${u.email}: ${String(err)}`);
+      if (process.env.NODE_ENV === "production" && u.email.endsWith("@investafarm.com")) {
+        throw err;
+      }
     }
   }
 
