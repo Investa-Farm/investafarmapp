@@ -22,7 +22,7 @@ interface InvestModalProps {
   listing: {
     id: number; farmId: number; farmName: string; cropType: string;
     location: string; pricePerShare: number; sharesAvailable: number;
-    changePercent: number; imageUrl?: string;
+    changePercent: number; imageUrl?: string; listingType?: "primary" | "secondary";
   } | null;
 }
 
@@ -248,9 +248,11 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   };
 
   const openSolanaUsdcBlink = () => {
-    if (!listing) return;
+    if (!listing || listing.listingType === "secondary") return;
     const actionUrl = new URL(`/api/actions/invest/${listing.farmId}`, window.location.origin);
     actionUrl.searchParams.set("quantity", String(quantity));
+    actionUrl.searchParams.set("exitType", exitType);
+    if (listing.listingType) actionUrl.searchParams.set("listingId", String(listing.id));
     const blinkUrl = new URL("https://dial.to/");
     blinkUrl.searchParams.set("action", `solana-action:${actionUrl.toString()}`);
     window.open(blinkUrl.toString(), "_blank", "noopener,noreferrer");
@@ -513,7 +515,11 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                             <p className="mt-0.5 text-[10px] leading-relaxed text-violet-800">
                               Uses your linked Solana wallet, live KES/USDC quote, and on-chain confirmation. Your KES wallet is not charged.
                             </p>
-                            {linkedSolanaWallet?.wallet?.address ? (
+                            {listing.listingType === "secondary" ? (
+                              <p className="mt-2 rounded-lg border border-violet-200 bg-white px-3 py-2.5 text-[10px] font-medium text-violet-800">
+                                Solana USDC purchases are currently available for primary farm investments only. Seller payout for secondary listings is not configured.
+                              </p>
+                            ) : linkedSolanaWallet?.wallet?.address ? (
                               <button
                                 type="button"
                                 onClick={openSolanaUsdcBlink}
@@ -537,7 +543,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                               </button>
                             )}
                             <p className="mt-2 text-[9px] leading-relaxed text-violet-800/80">
-                              Approved investor KYC and a small SOL balance for network fees are required. Shares are credited only after payment verification.
+                              Approved investor KYC and a small SOL balance for network fees are required. Shares are credited only after payment verification; this payment does not create a KES wallet deposit.
                             </p>
                           </div>
                         </div>

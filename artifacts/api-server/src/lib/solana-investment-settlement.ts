@@ -7,7 +7,6 @@ import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { and, eq, lte, sql } from "drizzle-orm";
 import {
   db,
-  escrowWalletsTable,
   farmsTable,
   investmentsTable,
   marketListingsTable,
@@ -16,6 +15,7 @@ import {
   transactionsTable,
 } from "@workspace/db";
 import { notifyUser } from "./push";
+import { recordInvestment } from "./security";
 import { isExpectedSolanaUsdcPayment } from "./solana-investment.js";
 
 export const SOLANA_MAINNET_USDC_MINT_ADDRESS =
@@ -159,7 +159,8 @@ async function settleVerifiedIntent(intentId: string, signature: string): Promis
       return;
     }
 
-    const exitDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
+    const exitDays = lockedIntent.exitType === "wide_season" ? 45 : 180;
+    const exitDate = new Date(Date.now() + exitDays * 24 * 60 * 60 * 1000);
     const [investment] = await tx.insert(investmentsTable).values({
       investorId: lockedIntent.investorId,
       farmId: lockedIntent.farmId,
@@ -186,18 +187,6 @@ async function settleVerifiedIntent(intentId: string, signature: string): Promis
       status: "completed",
     });
 
-    if (listing.listingType === "primary") {
-      await tx.insert(escrowWalletsTable).values({
-        userId: lockedIntent.investorId,
-        investmentId: investment.id,
-        farmId: lockedIntent.farmId,
-        amount: lockedIntent.principalKes,
-        status: "held",
-        description: `${lockedIntent.quantity} share${lockedIntent.quantity === 1 ? "" : "s"} purchased with Solana USDC for ${lockedIntent.totalKes} KES value`,
-        releaseAt: exitDate,
-      });
-    }
-
     await tx.insert(transactionFeesTable).values({
       investorId: lockedIntent.investorId,
       farmId: lockedIntent.farmId,
@@ -218,6 +207,7 @@ async function settleVerifiedIntent(intentId: string, signature: string): Promis
   });
 
   if (settledUserId !== null) {
+    recordInvestment(settledUserId, Number(intent.principalKes));
     notifyUser(
       settledUserId,
       "investment_made",

@@ -30,15 +30,20 @@ export function calculateSolanaInvestmentQuote(
   const principalKes = cents(pricePerShareKes * quantity);
   const feeKes = cents(principalKes * feeRate);
   const totalKes = cents(principalKes + feeKes);
-  const amountUsdcRaw = BigInt(Math.ceil((totalKes / kesPerUsdc) * 1_000_000));
+  const totalKesCents = BigInt(Math.round(totalKes * 100));
+  const kesPerUsdcMicros = BigInt(Math.round(kesPerUsdc * 1_000_000));
+  const usdcNumerator = totalKesCents * 10_000_000_000n;
+  const amountUsdcRaw = (usdcNumerator + kesPerUsdcMicros - 1n) / kesPerUsdcMicros;
   if (amountUsdcRaw <= 0n) throw new Error("The USDC payment amount is too small.");
 
+  const usdcWhole = amountUsdcRaw / 1_000_000n;
+  const usdcFraction = (amountUsdcRaw % 1_000_000n).toString().padStart(6, "0");
   return {
     principalKes,
     feeKes,
     totalKes,
     amountUsdcRaw,
-    amountUsdc: (Number(amountUsdcRaw) / 1_000_000).toFixed(6),
+    amountUsdc: `${usdcWhole}.${usdcFraction}`,
   };
 }
 

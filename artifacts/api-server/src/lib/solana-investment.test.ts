@@ -13,6 +13,12 @@ test("quotes KES shares in USDC including the platform fee", () => {
   assert.equal(quote.amountUsdc, "2.342308");
 });
 
+test("rounds the USDC charge upward to a whole micro-USDC", () => {
+  const quote = calculateSolanaInvestmentQuote(1, 1, 0, 3);
+  assert.equal(quote.amountUsdcRaw, 333_334n);
+  assert.equal(quote.amountUsdc, "0.333334");
+});
+
 test("rejects invalid or non-positive quote inputs", () => {
   assert.throws(() => calculateSolanaInvestmentQuote(100, 0, 0.015, 130));
   assert.throws(() => calculateSolanaInvestmentQuote(100, 1, 0.015, 0));

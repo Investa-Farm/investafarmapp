@@ -681,7 +681,11 @@ export default function SecondaryMarket() {
 
       <AnimatePresence>
         {selectedListing && investOpen && (
-          <InvestModal open={investOpen} onClose={() => setInvestOpen(false)} listing={selectedListing as any} />
+          <InvestModal
+            open={investOpen}
+            onClose={() => setInvestOpen(false)}
+            listing={selectedListing ? { ...selectedListing, listingType: "secondary" } : null}
+          />
         )}
         {cancelListing && (
           <CancelListingModal

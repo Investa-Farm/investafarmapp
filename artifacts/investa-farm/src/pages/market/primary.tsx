@@ -680,7 +680,11 @@ export default function PrimaryMarket() {
       <BottomNav role="investor" />
 
       {selectedListing && investOpen && (
-        <InvestModal open={investOpen} onClose={() => setInvestOpen(false)} listing={selectedListing as any} />
+        <InvestModal
+          open={investOpen}
+          onClose={() => setInvestOpen(false)}
+          listing={selectedListing ? { ...selectedListing, listingType: "primary" } : null}
+        />
       )}
       {alertListing && alertOpen && (
         <PriceAlertModal open={alertOpen} onClose={() => setAlertOpen(false)} listing={alertListing as any} />

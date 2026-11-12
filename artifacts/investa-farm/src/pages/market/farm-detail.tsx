@@ -1378,6 +1378,7 @@ export default function FarmDetail() {
           sharesAvailable: listing.sharesAvailable,
           changePercent: listing.changePercent,
           imageUrl: farm.imageUrl ?? undefined,
+          listingType: "primary",
         } : null}
       />
 

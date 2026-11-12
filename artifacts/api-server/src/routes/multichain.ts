@@ -37,7 +37,7 @@ import {
   verify as verifySignature,
 } from "node:crypto";
 import { getCurrentUser } from "./auth";
-import { financialRateLimit } from "../lib/security";
+import { checkInvestmentVelocity, financialRateLimit } from "../lib/security";
 import { getLiveKesUsdcRate } from "../lib/circle";
 import { calculateSolanaInvestmentQuote } from "../lib/solana-investment";
 import {
@@ -702,7 +702,7 @@ router.options("/actions/invest", (_req, res) => res.sendStatus(204));
 router.options("/actions/invest/:projectId", (_req, res) => res.sendStatus(204));
 router.options("/actions/invest/:projectId/confirm", (_req, res) => res.sendStatus(204));
 
-async function listedFarmActionData(projectId: string) {
+async function listedFarmActionData(projectId: string, requestedListingId?: string) {
   const farmId = Number(projectId);
   if (!Number.isSafeInteger(farmId) || farmId <= 0) return null;
   const [farm] = await db
@@ -712,16 +712,45 @@ async function listedFarmActionData(projectId: string) {
     .limit(1);
   if (!farm) return null;
 
-  const [listing] = await db
-    .select()
-    .from(marketListingsTable)
-    .where(and(
-      eq(marketListingsTable.farmId, farmId),
-      eq(marketListingsTable.isActive, 1),
-      gt(marketListingsTable.sharesAvailable, 0),
-    ))
-    .orderBy(desc(marketListingsTable.createdAt))
-    .limit(1);
+  let listing: typeof marketListingsTable.$inferSelect | undefined;
+  if (requestedListingId !== undefined) {
+    const listingId = Number(requestedListingId);
+    if (!Number.isSafeInteger(listingId) || listingId <= 0) return null;
+    [listing] = await db
+      .select()
+      .from(marketListingsTable)
+      .where(and(
+        eq(marketListingsTable.id, listingId),
+        eq(marketListingsTable.farmId, farmId),
+        eq(marketListingsTable.isActive, 1),
+        gt(marketListingsTable.sharesAvailable, 0),
+      ))
+      .limit(1);
+  } else {
+    [listing] = await db
+      .select()
+      .from(marketListingsTable)
+      .where(and(
+        eq(marketListingsTable.farmId, farmId),
+        eq(marketListingsTable.listingType, "primary"),
+        eq(marketListingsTable.isActive, 1),
+        gt(marketListingsTable.sharesAvailable, 0),
+      ))
+      .orderBy(desc(marketListingsTable.createdAt))
+      .limit(1);
+    if (!listing) {
+      [listing] = await db
+        .select()
+        .from(marketListingsTable)
+        .where(and(
+          eq(marketListingsTable.farmId, farmId),
+          eq(marketListingsTable.isActive, 1),
+          gt(marketListingsTable.sharesAvailable, 0),
+        ))
+        .orderBy(desc(marketListingsTable.createdAt))
+        .limit(1);
+    }
+  }
   return listing ? { farm, listing } : null;
 }
 
@@ -735,7 +764,8 @@ router.get("/actions/invest/:projectId", async (req, res): Promise<void> => {
     const projectId = Array.isArray(req.params.projectId)
       ? req.params.projectId[0] ?? ""
       : req.params.projectId ?? "";
-    const data = await listedFarmActionData(projectId);
+    const requestedListingId = typeof req.query.listingId === "string" ? req.query.listingId : undefined;
+    const data = await listedFarmActionData(projectId, requestedListingId);
     if (!data) {
       res.status(404).json({ error: "This farm does not have an active market listing." });
       return;
@@ -745,6 +775,20 @@ router.get("/actions/invest/:projectId", async (req, res): Promise<void> => {
       ? farm.imageUrl
       : `${origin}/solana-action-icon.svg`;
     const appListingUrl = `${origin}/market/${farm.id}`;
+    if (listing.listingType !== "primary") {
+      res.setHeader("Cache-Control", "no-store");
+      res.json({
+        type: "action",
+        icon,
+        title: farm.name,
+        description: `This listing is available at ${appListingUrl}. Solana USDC purchases are currently supported only for primary farm investments.`,
+        label: "Solana investment unavailable",
+        disabled: true,
+        error: { message: "Secondary market seller settlement is not enabled for Solana USDC." },
+      });
+      return;
+    }
+
     const config = getSolanaMainnetConfig();
     if (!config.configured) {
       const disabledMessage = "Solana USDC settlement is not configured. No payment can be made from this Blink.";
@@ -801,7 +845,7 @@ router.get("/actions/invest/:projectId", async (req, res): Promise<void> => {
         );
         return {
           label: `Buy ${quantity} share${quantity === 1 ? "" : "s"}`,
-          href: `${origin}/api/actions/invest/${farm.id}?quantity=${quantity}`,
+          href: `${origin}/api/actions/invest/${farm.id}?quantity=${quantity}&listingId=${listing.id}`,
           parameters: [],
           description: `${quote.amountUsdc} USDC including the platform fee`,
         };
@@ -838,9 +882,16 @@ router.post("/actions/invest/:projectId", financialRateLimit, async (req, res): 
     const projectId = Array.isArray(req.params.projectId)
       ? req.params.projectId[0] ?? ""
       : req.params.projectId ?? "";
-    const data = await listedFarmActionData(projectId);
+    const requestedListingId = typeof req.query.listingId === "string" ? req.query.listingId : undefined;
+    const data = await listedFarmActionData(projectId, requestedListingId);
     if (!data) {
-      res.status(404).json({ error: "This farm does not have an active market listing." });
+      res.status(404).json({ error: { message: "This farm does not have an active market listing." } });
+      return;
+    }
+    if (data.listing.listingType !== "primary") {
+      res.status(409).json({
+        error: { message: "Solana USDC purchases are not enabled for secondary listings because seller settlement is not configured." },
+      });
       return;
     }
     const config = getSolanaMainnetConfig();
@@ -896,6 +947,11 @@ router.post("/actions/invest/:projectId", financialRateLimit, async (req, res): 
       return;
     }
     const quantity = Number(quantityValue);
+    const requestedExitType = typeof req.query.exitType === "string" ? req.query.exitType : "full_season";
+    if (requestedExitType !== "wide_season" && requestedExitType !== "full_season") {
+      res.status(400).json({ error: { message: "Choose a supported investment exit period." } });
+      return;
+    }
     const { farm, listing } = data;
     if (quantity > listing.sharesAvailable) {
       res.status(409).json({ error: { message: "There are not enough shares left in this listing." } });
@@ -910,6 +966,11 @@ router.post("/actions/invest/:projectId", financialRateLimit, async (req, res): 
       feeRate,
       kesPerUsdc,
     );
+    const velocity = checkInvestmentVelocity(linkedWallet.userId, quote.principalKes);
+    if (!velocity.ok) {
+      res.status(429).json({ error: { message: velocity.error } });
+      return;
+    }
     const connection = createSolanaMainnetConnection();
     const mint = config.mint;
     const mintInfo = await getMint(connection, mint, "confirmed", TOKEN_PROGRAM_ID);
@@ -1035,7 +1096,7 @@ router.post("/actions/invest/:projectId", financialRateLimit, async (req, res): 
         walletAddress: owner.toBase58(),
         memo,
         quantity,
-        exitType: "full_season",
+        exitType: requestedExitType,
         pricePerShareKes: String(currentListing.pricePerShare),
         principalKes: String(quote.principalKes),
         feeKes: String(quote.feeKes),
