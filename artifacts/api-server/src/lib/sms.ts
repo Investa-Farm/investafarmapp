@@ -1,20 +1,37 @@
 const TALKSASA_API = "https://bulksms.talksasa.com/api/v3/sms/send";
 
-export async function sendSms(to: string, message: string): Promise<void> {
-  const apiToken = process.env.TALKSASA_API_TOKEN;
-  if (!apiToken) {
-    console.warn("[SMS] TALKSASA_API_TOKEN not set — skipping SMS");
-    return;
+export type SmsSendResult =
+  | { status: "accepted" }
+  | { status: "missing_phone" | "not_configured" | "invalid_phone" | "provider_error" | "network_error" };
+
+function normalizePhone(to: string): string | null {
+  const trimmed = to.trim();
+  let digits = trimmed.replace(/\D/g, "");
+  if (trimmed.startsWith("00")) digits = digits.slice(2);
+  else if (trimmed.startsWith("+")) {
+    // Keep the explicit international country code.
+  } else if (digits.startsWith("0")) {
+    digits = `254${digits.slice(1)}`;
+  } else if (digits.length === 9 && /^[17]/.test(digits)) {
+    digits = `254${digits}`;
+  } else if (!digits.startsWith("254") && digits.length <= 10) {
+    digits = `254${digits}`;
   }
 
-  // Strip everything except digits, then normalise to Kenya 254XXXXXXXXX
-  let phone = to.replace(/\D/g, "");
-  if (phone.startsWith("0")) phone = "254" + phone.slice(1);
-  if (!phone.startsWith("254")) phone = "254" + phone;
-  // Basic sanity: Kenya numbers are 254 + 9 digits = 12 digits total
-  if (phone.length !== 12) {
-    console.warn(`[SMS] Skipping send — invalid phone after normalisation: "${phone}" (from "${to}")`);
-    return;
+  return digits.length >= 10 && digits.length <= 15 ? digits : null;
+}
+
+export async function sendSms(to: string, message: string): Promise<SmsSendResult> {
+  const apiToken = process.env.TALKSASA_API_TOKEN || process.env.TALKSASA_API_KEY;
+  if (!apiToken) {
+    console.warn("[SMS] Missing TALKSASA_API_TOKEN (or TALKSASA_API_KEY) — skipping SMS");
+    return { status: "not_configured" };
+  }
+
+  const phone = normalizePhone(to);
+  if (!phone) {
+    console.warn("[SMS] Skipping send — phone number is not a valid international number");
+    return { status: "invalid_phone" };
   }
 
   try {
@@ -26,19 +43,28 @@ export async function sendSms(to: string, message: string): Promise<void> {
         "Accept": "application/json",
       },
       body: JSON.stringify({
-        sender_id: "InvestaFarm",
+        recipient: phone,
+        sender_id: process.env.TALKSASA_SENDER_ID || "InvestaFarm",
+        type: "plain",
         message,
-        recipients: [phone],
       }),
+      signal: AbortSignal.timeout(8000),
     });
     if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      console.warn(`[SMS] TalkSasa error (${resp.status}): ${body}`);
+      console.warn(`[SMS] TalkSasa rejected message (HTTP ${resp.status})`);
+      return { status: "provider_error" };
     } else {
-      console.info(`[SMS] Sent to ${phone}: "${message.slice(0, 40)}…"`);
+      const result = await resp.json().catch(() => null) as { success?: boolean; status?: string } | null;
+      if (result?.success === false || result?.status === "failed") {
+        console.warn("[SMS] TalkSasa accepted the request but reported a failed message");
+        return { status: "provider_error" };
+      }
+      console.info("[SMS] TalkSasa accepted a transactional message");
+      return { status: "accepted" };
     }
   } catch (err) {
     console.warn("[SMS] Network error:", err instanceof Error ? err.message : String(err));
+    return { status: "network_error" };
   }
 }
 
@@ -75,8 +101,8 @@ export async function sendCardWithdrawalSms(phone: string, amount: number, fee: 
   );
 }
 
-export async function sendInvestmentSms(phone: string, farmName: string, shares: number, amount: number): Promise<void> {
-  await sendSms(
+export async function sendInvestmentSms(phone: string, farmName: string, shares: number, amount: number): Promise<SmsSendResult> {
+  return sendSms(
     phone,
     `InvestaFarm: You bought ${shares} shares in ${farmName} for KES ${amount.toLocaleString("en-KE")}. Track your investment at app.investafarm.com`
   );

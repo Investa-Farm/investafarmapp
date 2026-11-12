@@ -42,6 +42,7 @@ interface Props {
   onClose: () => void;
   onSuccess: (amount: number, currency: "KES" | "USDC") => void;
   initialTab?: Exclude<Tab, "usdc">;
+  initialAmount?: number;
   allowWeb3?: boolean;
   onOpenAurora?: () => void;
 }
@@ -97,23 +98,23 @@ const MOBILE_PROVIDERS = [
 type ProviderId = typeof MOBILE_PROVIDERS[number]["id"];
 
 // Country dial codes per provider
-const PROVIDER_COUNTRIES: Record<ProviderId, Array<{ flag: string; code: string; label: string }>> = {
+const PROVIDER_COUNTRIES: Record<ProviderId, Array<{ mark: string; code: string; label: string }>> = {
   mpesa:  [
-    { flag: "🇰🇪", code: "+254", label: "Kenya" },
-    { flag: "🇹🇿", code: "+255", label: "Tanzania" },
-    { flag: "🇲🇿", code: "+258", label: "Mozambique" },
+    { mark: "KE", code: "+254", label: "Kenya" },
+    { mark: "TZ", code: "+255", label: "Tanzania" },
+    { mark: "MZ", code: "+258", label: "Mozambique" },
   ],
   mtn:    [
-    { flag: "🇺🇬", code: "+256", label: "Uganda" },
-    { flag: "🇷🇼", code: "+250", label: "Rwanda" },
-    { flag: "🇬🇭", code: "+233", label: "Ghana" },
-    { flag: "🇿🇲", code: "+260", label: "Zambia" },
+    { mark: "UG", code: "+256", label: "Uganda" },
+    { mark: "RW", code: "+250", label: "Rwanda" },
+    { mark: "GH", code: "+233", label: "Ghana" },
+    { mark: "ZM", code: "+260", label: "Zambia" },
   ],
   airtel: [
-    { flag: "🇺🇬", code: "+256", label: "Uganda" },
-    { flag: "🇰🇪", code: "+254", label: "Kenya" },
-    { flag: "🇹🇿", code: "+255", label: "Tanzania" },
-    { flag: "🇿🇲", code: "+260", label: "Zambia" },
+    { mark: "UG", code: "+256", label: "Uganda" },
+    { mark: "KE", code: "+254", label: "Kenya" },
+    { mark: "TZ", code: "+255", label: "Tanzania" },
+    { mark: "ZM", code: "+260", label: "Zambia" },
   ],
 };
 
@@ -131,6 +132,7 @@ export function PaymentSheet({
   onClose,
   onSuccess,
   initialTab = "mobile",
+  initialAmount,
   allowWeb3 = false,
   onOpenAurora,
 }: Props) {
@@ -140,7 +142,7 @@ export function PaymentSheet({
   const qc = useQueryClient();
 
   const [tab, setTab] = useState<Tab>(initialTab);
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(initialAmount == null ? "" : String(initialAmount));
 
   // Mobile money
   const [selectedProvider, setSelectedProvider] = useState<ProviderId | null>(null);
@@ -211,9 +213,12 @@ export function PaymentSheet({
   }, [tab, circleInfo, token, circleInfoError]);
 
   useEffect(() => {
-    if (open) setTab(initialTab);
+    if (open) {
+      setTab(initialTab);
+      setAmount(initialAmount == null ? "" : String(initialAmount));
+    }
     else resetAll();
-  }, [open, initialTab]);
+  }, [open, initialTab, initialAmount]);
 
   function resetAll() {
     setAmount("");
@@ -591,7 +596,7 @@ export function PaymentSheet({
                                 className="h-full flex items-center gap-1.5 px-3 border-2 border-border rounded-2xl text-sm font-semibold text-foreground bg-muted hover:bg-muted/70 transition-colors whitespace-nowrap"
                                 style={{ borderColor: countryPickerOpen ? provider?.activeBorder : provider?.border }}
                               >
-                                {PROVIDER_COUNTRIES[selectedProvider].find(c => c.code === dialCode)?.flag ?? "🌍"} {dialCode}
+                                {PROVIDER_COUNTRIES[selectedProvider].find(c => c.code === dialCode)?.mark ?? "INT"} {dialCode}
                                 <ChevronDown size={11} className={`text-muted-foreground transition-transform ${countryPickerOpen ? "rotate-180" : ""}`} />
                               </button>
                               {countryPickerOpen && (
@@ -600,7 +605,7 @@ export function PaymentSheet({
                                     <button key={c.code} type="button"
                                       onClick={() => { setDialCode(c.code); setCountryPickerOpen(false); }}
                                       className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left hover:bg-muted transition-colors ${c.code === dialCode ? "bg-primary/10 text-primary font-semibold" : "text-foreground"}`}>
-                                      <span className="text-base">{c.flag}</span>
+                                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-[9px] font-bold text-muted-foreground">{c.mark}</span>
                                       <div>
                                         <p className="font-semibold text-[11px]">{c.label}</p>
                                         <p className="text-muted-foreground text-[10px]">{c.code}</p>
@@ -1095,7 +1100,7 @@ function PushSentView({
       {/* Demo-mode banner */}
       {!configured && (
         <div className="bg-amber-50 border border-amber-300 rounded-xl px-3 py-2.5 flex items-start gap-2">
-          <span className="text-amber-500 text-base flex-shrink-0">⚠️</span>
+          <AlertCircle size={16} className="mt-0.5 flex-shrink-0 text-amber-600" />
           <div>
             <p className="text-amber-800 font-semibold text-xs">Demo mode — no real push sent</p>
             <p className="text-amber-700 text-[10px] mt-0.5">

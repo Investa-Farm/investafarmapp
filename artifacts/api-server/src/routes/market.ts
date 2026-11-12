@@ -369,9 +369,9 @@ router.post("/market/buy", financialRateLimit, requireNonce, async (req, res): P
     `You bought ${quantity} share${quantity > 1 ? "s" : ""} in ${farm?.name ?? "a farm"} for KES ${Number(totalAmount).toLocaleString("en-KE")}. Exit: ${exitType === "wide_season" ? "45 days" : "~6 months"}.`,
     "/portfolio"
   ).catch(() => {});
-  if (user.phone) {
-    sendInvestmentSms(user.phone, farm?.name ?? "a farm", quantity, totalAmount).catch(() => {});
-  }
+  const investmentSmsPromise = user.phone
+    ? sendInvestmentSms(user.phone, farm?.name ?? "a farm", quantity, totalAmount)
+    : Promise.resolve({ status: "missing_phone" as const });
 
   // Record investment velocity
   recordInvestment(user.id, totalAmount);
@@ -539,6 +539,7 @@ router.post("/market/buy", financialRateLimit, requireNonce, async (req, res): P
     } catch (e) { console.error("[FARM_FUNDED]", e); }
   }
 
+  const investmentSms = await investmentSmsPromise.catch(() => ({ status: "network_error" as const }));
   res.status(201).json({
     id: tx.id,
     type: tx.type,
@@ -550,6 +551,7 @@ router.post("/market/buy", financialRateLimit, requireNonce, async (req, res): P
     totalAmount: Number(tx.totalAmount),
     exitType: tx.exitType ?? undefined,
     status: tx.status,
+    smsStatus: investmentSms.status,
     createdAt: tx.createdAt.toISOString(),
   });
 });

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield, Wallet, Sparkles, ShoppingCart, Lock, ExternalLink } from "lucide-react";
+import { X, TrendingUp, Clock, ChevronRight, CheckCircle2, Loader2, Shield, Wallet, Sparkles, ShoppingCart, Lock, ExternalLink, Zap, Sprout, AlertTriangle, Smartphone, CreditCard } from "lucide-react";
 import { formatKES, formatChange, getToken, isDemoAccount } from "@/lib/auth";
 import { WalletPinGate } from "./wallet-pin-gate";
 import { WalletPinSetup } from "./wallet-pin-setup";
@@ -34,7 +34,7 @@ const EXIT_OPTIONS = [
     label: "Mid-Season Exit",
     period: "30–60 days",
     returnMin: 8, returnMax: 12,
-    icon: "⚡",
+    icon: "mid",
     desc: "Exit at mid-harvest for a quick return. Base revenue 10%.",
     color: "border-orange-300 bg-orange-50",
     badge: "bg-orange-100 text-orange-700",
@@ -44,7 +44,7 @@ const EXIT_OPTIONS = [
     label: "Full Season Exit",
     period: "~6 months",
     returnMin: 15, returnMax: 28,
-    icon: "🌾",
+    icon: "season",
     desc: "Hold until harvest for full yield appreciation. Up to 28% return.",
     color: "border-green-300 bg-green-50",
     badge: "bg-green-100 text-green-700",
@@ -89,6 +89,8 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const [auroraOpen, setAuroraOpen] = useState(false);
   const [connectWalletOpen, setConnectWalletOpen] = useState(false);
   const [connectedExternalWallet, setConnectedExternalWallet] = useState<WalletConnectResult | null>(null);
+  const [fundingTab, setFundingTab] = useState<"mobile" | "card">("mobile");
+  const [smsStatus, setSmsStatus] = useState<string | null>(null);
   const buyShares = useMutation({
     mutationFn: async (payload: { listingId: number; quantity: number; exitType: string }) => {
       const r = await fetch("/api/market/buy", {
@@ -97,7 +99,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
         body: JSON.stringify(payload),
       });
       if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? "Purchase failed"); }
-      return r.json();
+      return r.json() as Promise<{ smsStatus?: string }>;
     },
   });
   const qc = useQueryClient();
@@ -177,31 +179,20 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   }, [step, allListings, listing?.id]);
 
 
-  useEffect(() => {
-    if (step === "done") {
-      import("@/components/confetti-overlay").then(({ showConfetti }) => showConfetti(3500));
-      import("@/components/center-success-modal").then(({ showCenterSuccess }) => {
-        showCenterSuccess({
-          title: "Investment Placed! 🌱",
-          subtitle: `${quantity} shares in ${listing?.farmName}`,
-        });
-      });
-      // No auto-close — user browses recommendations and closes when ready.
-    }
-    return undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
-
   if (!listing) return null;
 
   const isDemo = isDemoAccount();
   const isKycVerified = isDemo || (kycStatus?.isVerified ?? false);
   const total = listing.pricePerShare * quantity;
+  const feeRate = listing.listingType === "secondary" ? 0.005 : 0.015;
+  const feeAmount = Math.round(total * feeRate * 100) / 100;
+  const totalWithFee = total + feeAmount;
   const selectedExit = EXIT_OPTIONS.find(e => e.type === exitType)!;
   const estimatedReturnMin = total * (selectedExit.returnMin / 100);
   const estimatedReturnMax = total * (selectedExit.returnMax / 100);
   const walletBalance = parseFloat(walletData?.wallet?.balance ?? "0");
-  const hasEnoughBalance = walletBalance >= total;
+  const hasEnoughBalance = walletBalance >= totalWithFee;
+  const walletShortfall = Math.max(0, totalWithFee - walletBalance);
 
   const rememberPendingInvestment = () => {
     if (!listing) return;
@@ -234,14 +225,16 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
   const executePay = () => {
     haptic("medium");
     buyShares.mutate({ listingId: listing.id, quantity, exitType }, {
-      onSuccess: () => {
+      onSuccess: (result) => {
         haptic("success");
         qc.invalidateQueries({ queryKey: getListPrimaryMarketQueryKey() });
         qc.invalidateQueries({ queryKey: getGetFarmQueryKey(listing.farmId) });
         qc.invalidateQueries({ queryKey: ["wallet-balance"] });
         qc.invalidateQueries({ queryKey: ["portfolio-summary"] });
         localStorage.setItem("investa_first_investment", "1");
+        setSmsStatus(result?.smsStatus ?? "unknown");
         setStep("done");
+        import("@/components/confetti-overlay").then(({ showConfetti }) => showConfetti(2800));
       },
       onError: () => { haptic("error"); },
     });
@@ -260,7 +253,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
 
   const resetAndClose = () => {
     onClose();
-    setTimeout(() => { setStep("configure"); setQuantity(10); setExitType("full_season"); setRecommendations([]); setHasPin(null); }, 400);
+    setTimeout(() => { setStep("configure"); setQuantity(10); setExitType("full_season"); setRecommendations([]); setHasPin(null); setSmsStatus(null); }, 400);
   };
 
   const handleProceedToReview = () => {
@@ -302,6 +295,22 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
               </div>
 
               <div className="px-5 pt-4 pb-10 space-y-4 overflow-y-auto flex-1" style={{ paddingBottom: "max(2.5rem, env(safe-area-inset-bottom, 0px) + 1.5rem)" }}>
+                <div aria-label={`Purchase progress: ${step === "configure" ? "configure" : step === "review" ? "review" : "complete"}`} className="flex items-center gap-2">
+                  {(["configure", "review", "complete"] as const).map((label, index) => {
+                    const activeIndex = step === "configure" ? 0 : step === "review" ? 1 : 2;
+                    const passed = index < activeIndex;
+                    const active = index === activeIndex;
+                    return (
+                      <div key={label} className="flex flex-1 items-center gap-2">
+                        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${passed || active ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>
+                          {passed ? <CheckCircle2 size={13} /> : index + 1}
+                        </div>
+                        <span className={`text-[10px] font-semibold capitalize ${active ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
+                        {index < 2 && <div className={`h-px flex-1 ${passed ? "bg-primary" : "bg-border"}`} />}
+                      </div>
+                    );
+                  })}
+                </div>
                 {/* KYC gate banner */}
                 {step === "configure" && !isKycVerified && (
                   <button onClick={() => setKycOpen(true)}
@@ -356,7 +365,7 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                             className={`w-full p-3.5 rounded-2xl border-2 text-left transition-all ${exitType === opt.type ? opt.color : "border-border bg-white"}`}>
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-xl">{opt.icon}</span>
+                                {opt.icon === "mid" ? <Zap size={18} className="text-orange-500" /> : <Sprout size={18} className="text-green-600" />}
                                 <p className="font-semibold text-sm text-foreground">{opt.label}</p>
                               </div>
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${exitType === opt.type ? opt.badge : "bg-muted text-muted-foreground"}`}>
@@ -373,18 +382,18 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                       </div>
 
                       {/* Wallet balance indicator */}
-                      <div className={`border rounded-2xl p-3 flex items-center gap-3 ${hasEnoughBalance ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${hasEnoughBalance ? "bg-green-100" : "bg-red-100"}`}>
-                          <span className="text-base">{hasEnoughBalance ? "💰" : "⚠️"}</span>
+                      <div className={`border rounded-2xl p-3 flex items-center gap-3 ${hasEnoughBalance ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}>
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${hasEnoughBalance ? "bg-green-100" : "bg-amber-100"}`}>
+                          {hasEnoughBalance ? <Wallet size={16} className="text-green-700" /> : <AlertTriangle size={16} className="text-amber-700" />}
                         </div>
                         <div className="flex-1">
-                          <p className={`font-semibold text-xs ${hasEnoughBalance ? "text-green-700" : "text-red-700"}`}>
+                          <p className={`font-semibold text-xs ${hasEnoughBalance ? "text-green-700" : "text-amber-800"}`}>
                             Wallet Balance: {formatKES(walletBalance)}
                           </p>
-                          <p className={`text-[10px] mt-0.5 ${hasEnoughBalance ? "text-green-600" : "text-red-600"}`}>
+                          <p className={`text-[10px] mt-0.5 ${hasEnoughBalance ? "text-green-600" : "text-amber-700"}`}>
                             {hasEnoughBalance
-                              ? `Sufficient — ${formatKES(walletBalance - total)} remaining after this investment`
-                              : `Need ${formatKES(total - walletBalance)} more — top up your wallet first`}
+                              ? `Sufficient — ${formatKES(walletBalance - totalWithFee)} remaining after this investment`
+                              : `Add ${formatKES(walletShortfall)} to your KES wallet before confirming`}
                           </p>
                         </div>
                       </div>
@@ -393,6 +402,15 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                         <div className="flex justify-between text-sm mb-1">
                           <span className="text-muted-foreground">{quantity} shares × {formatKES(listing.pricePerShare)}</span>
                           <span className="text-foreground font-bold">{formatKES(total)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Platform fee ({(feeRate * 100).toFixed(1)}%)</span>
+                          <span>{formatKES(feeAmount)}</span>
+                        </div>
+                        <div className="my-2 border-t border-primary/15" />
+                        <div className="flex justify-between text-sm">
+                          <span className="text-foreground font-semibold">Total including fee</span>
+                          <span className="text-foreground font-bold">{formatKES(totalWithFee)}</span>
                         </div>
                         <div className="flex justify-between text-xs text-muted-foreground">
                           <span>Est. return at exit</span>
@@ -424,8 +442,11 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                           </div>
                         ))}
                         <div className="flex items-center justify-between px-4 py-4 bg-primary/5">
-                          <span className="text-foreground font-bold">Total to Pay</span>
-                          <span className="text-primary font-bold text-lg">{formatKES(total)}</span>
+                          <div>
+                            <p className="text-foreground font-bold">Total to Pay</p>
+                            <p className="text-[10px] text-muted-foreground">{(feeRate * 100).toFixed(1)}% platform fee included ({formatKES(feeAmount)})</p>
+                          </div>
+                          <span className="text-primary font-bold text-lg">{formatKES(totalWithFee)}</span>
                         </div>
                       </div>
 
@@ -441,20 +462,32 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                         </div>
                       )}
 
-                      {hasEnoughBalance ? (
+                      <div className="space-y-2">
+                        <p className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose how to fund this purchase</p>
                         <button
                           onClick={handlePayFromWallet}
-                          disabled={buyShares.isPending}
-                          className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60">
+                          disabled={!hasEnoughBalance || buyShares.isPending}
+                          className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50">
                           {buyShares.isPending ? <Loader2 size={16} className="animate-spin" /> : <Lock size={14} />}
-                          {buyShares.isPending ? "Processing…" : `Authorise & Pay · ${formatKES(total)}`}
+                          {buyShares.isPending ? "Processing…" : hasEnoughBalance ? `Pay from Wallet · ${formatKES(totalWithFee)}` : `Wallet · Add ${formatKES(walletShortfall)} first`}
                         </button>
-                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button type="button" onClick={() => { setFundingTab("mobile"); setWalletTopUpOpen(true); }}
+                            className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-3 text-xs font-semibold text-foreground active:scale-[0.98]">
+                            <Smartphone size={15} /> Mobile Money
+                          </button>
+                          <button type="button" onClick={() => { setFundingTab("card"); setWalletTopUpOpen(true); }}
+                            className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-3 text-xs font-semibold text-foreground active:scale-[0.98]">
+                            <CreditCard size={15} /> Card
+                          </button>
+                        </div>
+                      </div>
+                      {!hasEnoughBalance && (
                         <div className="space-y-2">
-                          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                            <p className="text-red-700 text-xs font-semibold mb-0.5">Insufficient wallet balance</p>
-                            <p className="text-red-600 text-[11px]">
-                              Top up {formatKES(total - walletBalance)} to proceed with this investment.
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                            <p className="mb-0.5 text-xs font-semibold text-amber-900">Insufficient wallet balance</p>
+                            <p className="text-[11px] text-amber-800">
+                              Add {formatKES(walletShortfall)} to your KES wallet. Funding the wallet does not purchase shares automatically.
                             </p>
                           </div>
                           {connectedExternalWallet && (
@@ -467,11 +500,6 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                               </p>
                             </div>
                           )}
-                          <button
-                            onClick={() => setWalletTopUpOpen(true)}
-                            className="w-full bg-primary text-white font-bold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                            <Wallet size={15} /> Top Up KES Wallet
-                          </button>
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
@@ -552,37 +580,101 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                   )}
 
                   {step === "done" && (
-                    <motion.div key="done" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
-                      {/* Success header */}
-                      <div className="py-4 flex flex-col items-center gap-3">
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }}>
-                          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
-                            <CheckCircle2 size={40} className="text-green-500" />
+                    <motion.div key="done" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: "easeOut" }} className="space-y-4">
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.32, delay: 0.04, ease: "easeOut" }}
+                        className="relative isolate min-h-[190px] overflow-hidden rounded-[24px] bg-[#203b2e]"
+                      >
+                        <img
+                          src={getCropImage(listing.cropType, listing.imageUrl)}
+                          alt={`${listing.cropType} at ${listing.farmName}`}
+                          className="absolute inset-0 z-0 h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 z-10 bg-gradient-to-t from-[#14281f]/95 via-[#193126]/55 to-[#193126]/10" />
+                        <div className="relative z-20 flex min-h-[190px] flex-col justify-between p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-[#173327]/65 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white backdrop-blur-sm">
+                              <CheckCircle2 size={12} /> INVESTMENT RECORDED
+                            </span>
+                            <motion.span
+                              initial={{ scale: 0.86, opacity: 0.5 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ duration: 0.28, delay: 0.12, ease: "easeOut" }}
+                              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/35 bg-white/15 text-white backdrop-blur-sm"
+                              aria-label="Purchase successful"
+                            >
+                              <CheckCircle2 size={18} />
+                            </motion.span>
                           </div>
-                        </motion.div>
-                        <div className="text-center">
-                          <p className="text-foreground font-bold text-xl">You're invested! 🌱</p>
-                          <p className="text-muted-foreground text-sm mt-1">You now own {quantity} shares of {listing.farmName}</p>
+                          <div className="max-w-[85%] text-white">
+                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">{listing.cropType} · {listing.location}</p>
+                            <h3 className="text-2xl font-bold leading-tight tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{listing.farmName}</h3>
+                            <p className="mt-1 text-xs text-white/85">Your investment is now part of this season’s harvest.</p>
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      <div className={`rounded-2xl border p-3 ${smsStatus === "accepted" ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`} role="status">
+                        <div className="flex items-start gap-2">
+                          {smsStatus === "accepted" ? <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-green-700" /> : <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-700" />}
+                          <div>
+                            <p className={`text-xs font-semibold ${smsStatus === "accepted" ? "text-green-800" : "text-amber-900"}`}>
+                              {smsStatus === "accepted" ? "SMS request accepted" : "SMS confirmation unavailable"}
+                            </p>
+                            <p className={`mt-0.5 text-[10px] leading-relaxed ${smsStatus === "accepted" ? "text-green-700" : "text-amber-800"}`}>
+                              {smsStatus === "accepted"
+                                ? "The SMS provider accepted the confirmation request. This does not confirm delivery to your handset."
+                                : smsStatus === "missing_phone"
+                                  ? "No phone number is saved to your account, so no SMS was sent."
+                                  : smsStatus === "not_configured"
+                                    ? "SMS messaging is not configured right now. Your investment is still complete."
+                                    : smsStatus === "invalid_phone"
+                                      ? "The saved phone number could not be used for SMS. Your investment is still complete."
+                                      : smsStatus === "provider_error"
+                                        ? "The SMS provider could not accept the message. Your investment is still complete."
+                                        : smsStatus === "network_error"
+                                          ? "A network issue prevented the SMS request. Your investment is still complete."
+                                          : "The SMS status could not be confirmed. Your investment is still complete."}
+                            </p>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Amount Invested</span>
-                          <span className="font-bold text-foreground">{formatKES(total)}</span>
+                      <div className="overflow-hidden rounded-2xl border border-[#d9e5d8] bg-[#f0f5ed]">
+                        <div className="bg-[#244b38] px-4 py-4 text-white">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70">Total paid · fee included</p>
+                          <p className="mt-1 text-[30px] font-bold leading-none tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{formatKES(totalWithFee)}</p>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Shares Owned</span>
-                          <span className="font-semibold text-foreground">{quantity} shares</span>
+                        <div className="grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-3">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Shares acquired</p>
+                            <p className="mt-0.5 text-2xl font-bold leading-none text-foreground">{quantity}<span className="ml-1.5 text-sm font-semibold">shares</span></p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] text-muted-foreground">Investment</p>
+                            <p className="text-xs font-semibold text-foreground">{formatKES(total)}</p>
+                            <p className="text-[10px] text-muted-foreground">Fee {formatKES(feeAmount)}</p>
+                          </div>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Exit Strategy</span>
-                          <span className="font-semibold text-foreground">{selectedExit.label}</span>
+                        <div className="flex items-center justify-between border-t border-[#d9e5d8] px-4 py-2.5 text-xs">
+                          <span className="text-muted-foreground">{selectedExit.label} · {selectedExit.period}</span>
+                          <span className="font-semibold text-green-700">Est. +{formatKES(estimatedReturnMin)} – +{formatKES(estimatedReturnMax)}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Est. Return</span>
-                          <span className="font-bold text-green-600">+{formatKES(estimatedReturnMin)} – +{formatKES(estimatedReturnMax)}</span>
-                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { resetAndClose(); setLocation("/portfolio"); }}
+                          className="flex-1 rounded-xl bg-primary py-3.5 font-bold text-white shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                          View Portfolio <ChevronRight size={15} />
+                        </button>
+                        <button onClick={resetAndClose}
+                          aria-label="Close investment confirmation"
+                          className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0 active:scale-95 transition-all">
+                          <X size={16} className="text-muted-foreground" />
+                        </button>
                       </div>
 
                       {/* AI Shopping List Recommendations */}
@@ -640,17 +732,6 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
                         )}
                       </div>
 
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => { resetAndClose(); setLocation("/portfolio"); }}
-                          className="flex-1 bg-primary text-white font-bold py-3 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-1.5">
-                          View Portfolio <ChevronRight size={14} />
-                        </button>
-                        <button onClick={resetAndClose}
-                          className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0 active:scale-95 transition-all">
-                          <X size={16} className="text-muted-foreground" />
-                        </button>
-                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -691,6 +772,8 @@ export function InvestModal({ open, onClose, listing }: InvestModalProps) {
       <PaymentSheet
         open={walletTopUpOpen}
         onClose={() => setWalletTopUpOpen(false)}
+        initialAmount={walletShortfall > 0 ? Math.max(Math.ceil(walletShortfall), fundingTab === "card" ? 100 : 10) : undefined}
+        initialTab={fundingTab}
         allowWeb3
         onOpenAurora={() => {
           setWalletTopUpOpen(false);
