@@ -18,7 +18,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { getToken, getStoredUser, formatKES } from "@/lib/auth";
 import { WalletConnectModal } from "@/components/wallet-connect-modal";
-import { showCenterSuccess } from "@/components/center-success-modal";
 
 const QUICK_AMOUNTS_KES = [500, 1000, 5000, 10000, 25000];
 const QUICK_AMOUNTS_USDC = [5, 10, 25, 50, 100];
@@ -243,13 +242,6 @@ export function PaymentSheet({
     setSuccess(true);
     onSuccess(amt, currency);
     import("@/components/confetti-overlay").then(({ showConfetti }) => showConfetti(3200));
-    showCenterSuccess({
-      title: currency === "USDC" ? "USDC deposit confirmed" : "Wallet funded",
-      subtitle: currency === "USDC"
-        ? `${amt.toFixed(2)} USDC added to your separate Polygon balance`
-        : `KES ${amt.toLocaleString("en-KE")} credited to your account`,
-    });
-    setTimeout(() => { setSuccess(false); onClose(); }, 2200);
   }
 
   // ─── Mobile Money via PesaPal (M-Pesa STK push / MTN / Airtel USSD) ─────────
@@ -449,19 +441,46 @@ export function PaymentSheet({
               {success && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/95"
+                  role="status"
+                  aria-live="polite"
+                  className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gradient-to-b from-emerald-50/95 via-background/98 to-background px-6 text-center"
                 >
-                  <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                    <CheckCircle2 size={40} className="text-green-600" />
-                  </div>
-                  <p className="text-foreground font-bold text-xl mb-1">
-                    {successCurrency === "USDC" ? "USDC deposit confirmed" : "Payment confirmed"}
+                  <motion.div
+                    initial={{ scale: 0.7, rotate: -12 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", stiffness: 240, damping: 16 }}
+                    className="mb-5 flex h-20 w-20 items-center justify-center rounded-full border border-emerald-200 bg-white shadow-[0_12px_36px_rgba(16,120,72,.16)]"
+                  >
+                    <CheckCircle2 size={42} className="text-emerald-600" />
+                  </motion.div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">
+                    {successCurrency === "USDC" ? "Deposit confirmed" : "Top-up complete"}
                   </p>
-                  <p className="text-muted-foreground text-sm">
+                  <p className="mt-2 text-foreground font-bold text-2xl tracking-tight">
+                    {successCurrency === "USDC" ? `${circleAmountUSDC || usdcEstimate} USDC` : formatKES(amt)}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {successCurrency === "USDC"
-                      ? `${circleAmountUSDC || usdcEstimate} USDC added to your USDC balance`
-                      : `${formatKES(amt)} added to your KES wallet`}
+                      ? "added to your separate USDC balance"
+                      : "added to your KES wallet"}
                   </p>
+                  <div className="mt-5 w-full max-w-xs rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3 text-left">
+                    <p className="text-xs font-semibold text-emerald-900">
+                      {successCurrency === "USDC" ? "Your USDC balance is updated" : "Your wallet is ready"}
+                    </p>
+                    <p className="mt-1 text-[10px] leading-relaxed text-emerald-800/80">
+                      {successCurrency === "USDC"
+                        ? "USDC remains separate from your KES wallet."
+                        : "Return to your investment review to confirm the share purchase."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSuccess(false); onClose(); }}
+                    className="mt-6 w-full max-w-xs rounded-2xl bg-gradient-to-r from-emerald-700 to-green-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/15 transition-transform active:scale-[0.98]"
+                  >
+                    {successCurrency === "USDC" ? "Done" : "Continue"}
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>

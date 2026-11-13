@@ -67,7 +67,7 @@ pnpm --filter @workspace/db run push
 | `SUPABASE_DATABASE_URL` | optional | Selects Supabase as the primary database. Leave unset when using only `DATABASE_URL`. Setting it does not copy users or other data from the previous database. |
 | `SESSION_SECRET` | production | Signs login/session tokens; use the same value across instances. |
 | `TALKSASA_API_TOKEN` or `TALKSASA_API_KEY` | TalkSasa SMS | Server-side bearer token for transactional messages, including investor purchase confirmations. Configure one in Render. |
-| `TALKSASA_SENDER_ID` | optional | Approved TalkSasa sender ID; defaults to `InvestaFarm`. |
+| `TALKSASA_SENDER_ID` | optional | Approved TalkSasa sender ID; defaults to the generic `TALKSASA` sender. |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | production | Web push notifications. The server throws on boot in production if these aren't set — there is no file-based fallback in production. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | optional | Seed/admin account credentials |
 | `SEED_DEMO` | optional | Production startup seeds the reserved demo accounts and farms by default. Set to `false` to opt out. |

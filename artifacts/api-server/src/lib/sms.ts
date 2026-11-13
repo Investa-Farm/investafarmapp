@@ -4,6 +4,37 @@ export type SmsSendResult =
   | { status: "accepted" }
   | { status: "missing_phone" | "not_configured" | "invalid_phone" | "provider_error" | "network_error" };
 
+function getResponsePayload(body: string): Record<string, unknown> | null {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeProviderMessage(payload: Record<string, unknown> | null, phone: string, apiToken: string): string | null {
+  const message = typeof payload?.message === "string"
+    ? payload.message
+    : typeof payload?.error === "string"
+      ? payload.error
+      : null;
+  if (!message) return null;
+
+  const safeMessage = message
+    .replaceAll(apiToken, "[redacted]")
+    .replaceAll(phone, "[redacted number]")
+    .replace(/\bBearer\s+[^\s,;]+/gi, "Bearer [redacted]")
+    .replace(/\+?\d(?:[\s().-]*\d){7,14}/g, "[redacted number]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+
+  return safeMessage || null;
+}
+
 function normalizePhone(to: string): string | null {
   const trimmed = to.trim();
   let digits = trimmed.replace(/\D/g, "");
@@ -44,24 +75,36 @@ export async function sendSms(to: string, message: string): Promise<SmsSendResul
       },
       body: JSON.stringify({
         recipient: phone,
-        sender_id: process.env.TALKSASA_SENDER_ID || "InvestaFarm",
+        sender_id: process.env.TALKSASA_SENDER_ID || "TALKSASA",
         type: "plain",
         message,
       }),
       signal: AbortSignal.timeout(8000),
     });
+    const responseBody = await resp.text().catch(() => "");
+    const responsePayload = getResponsePayload(responseBody);
+    const providerMessage = safeProviderMessage(responsePayload, phone, apiToken);
+    const detail = providerMessage ? `: ${providerMessage}` : "";
+
     if (!resp.ok) {
-      console.warn(`[SMS] TalkSasa rejected message (HTTP ${resp.status})`);
+      console.warn(`[SMS] TalkSasa rejected message (HTTP ${resp.status})${detail}`);
       return { status: "provider_error" };
-    } else {
-      const result = await resp.json().catch(() => null) as { success?: boolean; status?: string } | null;
-      if (result?.success === false || result?.status === "failed") {
-        console.warn("[SMS] TalkSasa accepted the request but reported a failed message");
-        return { status: "provider_error" };
-      }
-      console.info("[SMS] TalkSasa accepted a transactional message");
-      return { status: "accepted" };
     }
+
+    const providerStatus = typeof responsePayload?.status === "string"
+      ? responsePayload.status.toLowerCase()
+      : "";
+    if (
+      responsePayload?.success === false ||
+      responsePayload?.success === "false" ||
+      ["failed", "error", "rejected"].includes(providerStatus)
+    ) {
+      console.warn(`[SMS] TalkSasa reported a failed message${detail}`);
+      return { status: "provider_error" };
+    }
+
+    console.info("[SMS] TalkSasa accepted a transactional message");
+    return { status: "accepted" };
   } catch (err) {
     console.warn("[SMS] Network error:", err instanceof Error ? err.message : String(err));
     return { status: "network_error" };
